@@ -14,10 +14,16 @@ set(PROJECT_USE_CMAKE_EXPORT TRUE)
 
 # JRL-cmakemodule setup
 include(cmake/base.cmake)
+include(cmake/boost.cmake)
 
 # Project definition
 COMPUTE_PROJECT_ARGS(PROJECT_ARGS LANGUAGES CXX)
 project(${PROJECT_NAME} ${PROJECT_ARGS})
+
+# Project dependencies
+set(BOOST_COMPONENTS unit_test_framework)
+
+SEARCH_FOR_BOOST()
 
 # Main Library
 set(${PROJECT_NAME}_HEADERS
