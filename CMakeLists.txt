@@ -35,5 +35,8 @@ if(SUFFIX_SO_VERSION)
   set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION ${PROJECT_VERSION})
 endif()
 
+# Unit tests
+add_subdirectory(tests)
+
 # Installation
 install(TARGETS ${PROJECT_NAME} EXPORT ${TARGETS_EXPORT_NAME} DESTINATION lib)
