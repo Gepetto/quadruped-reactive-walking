@@ -56,10 +56,10 @@ class FootTrajectoryGenerator:
 
         self.flag_initialisation = False
 
-    def update_desired_feet_pos(self, footsteps_target, S, S_dt, T, q_w):
+    def update_desired_feet_pos(self, sequencer, fstep_planner, mpc):
 
         # Initialisation of rotation from local frame to world frame
-        c, s = np.cos(q_w[5, 0]), np.sin(q_w[5, 0])
+        c, s = np.cos(mpc.q_w[5, 0]), np.sin(mpc.q_w[5, 0])
         R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
 
         # Initialisation of trajectory parameters
@@ -76,27 +76,27 @@ class FootTrajectoryGenerator:
         ddz0 = 0.0
 
         # The swing phase lasts T seconds
-        t1 = T
+        t1 = sequencer.T_gait - sequencer.t_stance
 
         # For each foot
         for i in range(4):
             # Time remaining before touchdown
-            index = (np.where(S[:, i] == True))[0][0]
-            t0 = T - index * S_dt
+            index = (np.where(sequencer.S[:, i] == True))[0][0]
+            t0 = t1 - index * sequencer.dt
 
             # Current position of the foot
             x0 = self.desired_pos[0, i]
             y0 = self.desired_pos[1, i]
 
             # Target position of the foot
-            x1 = footsteps_target[0, i]
-            y1 = footsteps_target[1, i]
+            x1 = fstep_planner.footsteps[0, i]
+            y1 = fstep_planner.footsteps[1, i]
 
             # Update if the foot is in swing phase or is going to leave the ground
-            if ((S[0, i] == True) and (S[1, i] == False)):
+            if ((sequencer.S[0, i] == True) and (sequencer.S[1, i] == False)):
                 t0 = 0
 
-            if (t0 != t1) and (t0 != (t1 - S_dt)):
+            if (t0 != t1) and (t0 != (t1 - sequencer.dt)):
 
                 # Get desired 3D position
                 [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i]).get_next_foot(
@@ -114,9 +114,9 @@ class FootTrajectoryGenerator:
                     self.footsteps_lock[:, i] = np.array([gx1, gy1])
 
                     # Update variables in world frame
-                    self.desired_pos_world[:, i:(i+1)] = np.vstack((q_w[0:2, 0:1], np.zeros((1, 1)))) + \
+                    self.desired_pos_world[:, i:(i+1)] = np.vstack((mpc.q_w[0:2, 0:1], np.zeros((1, 1)))) + \
                         np.dot(R, self.desired_pos[:, i:(i+1)])
-                    self.footsteps_lock_world[:, i:(i+1)] = q_w[0:2, 0:1] + \
+                    self.footsteps_lock_world[:, i:(i+1)] = mpc.q_w[0:2, 0:1] + \
                         np.dot(R[0:2, 0:2], self.footsteps_lock[:, i:(i+1)])
             else:
                 self.desired_vel[:, i] = np.array([0.0, 0.0, 0.0])

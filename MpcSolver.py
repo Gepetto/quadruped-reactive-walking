@@ -13,7 +13,7 @@ class MpcSolver:
 
     """
 
-    def __init__(self, dt, S, k_max_loop):
+    def __init__(self, dt, sequencer, k_max_loop):
 
         # Time step of the MPC solver
         self.dt = dt
@@ -98,13 +98,38 @@ class MpcSolver:
         # State vector of the trunk in the world frame
         self.q_w = self.q.copy()
 
-        # Initial velocity vector of the robot (x, y, z, roll, pitch, yaw)
+        # Initial velocity vector of the robot in local frame
         self.v = np.zeros((6, 1))
+
+        # Reference velocity vector of the robot in local frame
+        self.v_ref = np.zeros((6, 1))
+
+        # Reference velocity vector of the robot in world frame
+        self.v_ref_world = np.zeros((6, 1))
 
         # Reference height that the robot will try to maintain
         self.h_ref = self.q[2, 0]
 
-    def getRefStatesDuringTrajectory(self, settings):
+        # Get number of feet in contact with the ground for each step of the gait sequence
+        self.n_contacts = np.sum(sequencer.S, axis=1).astype(int)
+
+        # Reference state vectors over the prediction horizon
+        self.x_ref = np.zeros((12, int(np.round(sequencer.T_gait/self.dt))))
+
+    def update_v_ref(self, joystick):
+
+        # Retrieving the reference velocity from the joystick
+        self.v_ref = joystick.v_ref
+
+        # Get the reference velocity in global frame
+        c, s = np.cos(self.q_w[5, 0]), np.sin(self.q_w[5, 0])
+        R = np.array([[c, -s, 0., 0., 0., 0.], [s, c, 0., 0., 0., 0], [0., 0., 1.0, 0., 0., 0.],
+                      [0., 0., 0., c, -s, 0.], [0., 0., 0., s, c, 0.], [0., 0., 0., 0., 0., 1.0]])
+        self.v_ref_world = np.dot(R, self.v_ref)
+
+        return 0
+
+    def getRefStatesDuringTrajectory(self, sequencer):
         """Returns the reference trajectory of the robot for each time step of the
         predition horizon. The ouput is a matrix of size 12 by N with N the number
         of time steps (around T_gait / dt) and 12 the position / orientation /
@@ -117,31 +142,34 @@ class MpcSolver:
         T_gait -- period of the current gait
         """
 
-        n_steps = int(np.round(settings.T_gait/self.dt))
+        # TODO: Put stuff directly in x_ref instead of allocating qu_ref temporarily each time the function is called
+
+        n_steps = int(np.round(sequencer.T_gait/self.dt))
         qu_ref = np.zeros((6, n_steps))
 
-        dt_vector = np.linspace(settings.dt, settings.T_gait, n_steps)
-        qu_ref = settings.v_ref_world * dt_vector
+        dt_vector = np.linspace(self.dt, sequencer.T_gait, n_steps)
+        qu_ref = self.v_ref_world * dt_vector
 
-        yaw = np.linspace(0, settings.T_gait-self.dt, n_steps) * settings.v_ref_world[5, 0]
-        qu_ref[0, :] = self.dt * np.cumsum(settings.v_ref_world[0, 0] * np.cos(yaw) -
-                                           settings.v_ref_world[1, 0] * np.sin(yaw))
-        qu_ref[1, :] = self.dt * np.cumsum(settings.v_ref_world[0, 0] * np.sin(yaw) +
-                                           settings.v_ref_world[1, 0] * np.cos(yaw))
+        # Take into account the rotation of the base over the prediction horizon
+        yaw = np.linspace(0, sequencer.T_gait-self.dt, n_steps) * self.v_ref_world[5, 0]
+        qu_ref[0, :] = self.dt * np.cumsum(self.v_ref_world[0, 0] * np.cos(yaw) -
+                                           self.v_ref_world[1, 0] * np.sin(yaw))
+        qu_ref[1, :] = self.dt * np.cumsum(self.v_ref_world[0, 0] * np.sin(yaw) +
+                                           self.v_ref_world[1, 0] * np.cos(yaw))
 
         # Stack the reference velocity to the reference position to get the reference state vector
-        settings.x_ref = np.vstack((qu_ref, np.tile(settings.v_ref_world, (1, n_steps))))
+        self.x_ref = np.vstack((qu_ref, np.tile(self.v_ref_world, (1, n_steps))))
 
         # Desired height is supposed constant
-        settings.x_ref[2, :] = settings.h_ref
+        self.x_ref[2, :] = self.h_ref
 
         # Stack the reference trajectory (future states) with the current state
-        self.xref[6:, 0:1] = settings.v_ref
-        self.xref[:, 1:] = settings.x_ref
-        self.xref[2, 0] = settings.h_ref
+        self.xref[6:, 0:1] = self.v_ref
+        self.xref[:, 1:] = self.x_ref
+        self.xref[2, 0] = self.h_ref
 
         # Current state vector of the robot
-        self.x0 = np.vstack((settings.qu_m, settings.vu_m))
+        self.x0 = np.vstack((self.q, self.v))
 
         return 0
 

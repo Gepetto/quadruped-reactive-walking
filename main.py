@@ -33,71 +33,32 @@ fstep_planner = FootstepPlanner.FootstepPlanner(dt)
 ftraj_gen = FootTrajectoryGenerator.FootTrajectoryGenerator(dt)
 
 # Create MPC solver object
-mpc = MpcSolver.MpcSolver(dt, sequencer.S, k_max_loop)
+mpc = MpcSolver.MpcSolver(dt, sequencer, k_max_loop)
 
 #############
 # MAIN LOOP #
 #############
 
-# for k in range(k_max_loop):
-if False:
-    ########################
-    #  REFERENCE VELOCITY  #
-    ########################
+for k in range(k_max_loop):
 
-    # Update the reference velocity coming from the joystick
-    joystick.update_v_ref(k)
+    joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
+    mpc.update_v_ref(joystick)  # Retrieve reference velocity
 
-    # Saving into settings
-    settings.v_ref = joystick.v_ref
+    sequencer.updateSequence()  # Update contact sequence
 
-    # Get the reference velocity in global frame
-    c, s = np.cos(settings.qu_m[5, 0]), np.sin(settings.qu_m[5, 0])
-    R = np.array([[c, -s, 0., 0., 0., 0.], [s, c, 0., 0., 0., 0], [0., 0., 1.0, 0., 0., 0.],
-                  [0., 0., 0., c, -s, 0.], [0., 0., 0., s, c, 0.], [0., 0., 0., 0., 0., 1.0]])
-    settings.v_ref_world = np.dot(R, settings.v_ref)
-
-    ######################
-    #  CONTACT SEQUENCE  #
-    ######################
-
-    # Update contact sequence
-    sequencer.updateSequence()
-    # Get contact sequence
-    settings.t = settings.dt * k
-    if k == 0:
-        settings.S = footSequence(settings.t, settings.dt, settings.T_gait, settings.phases)
-    else:
-        settings.S = np.vstack((settings.S[1:, :], settings.S[0:1, :]))
-
-    ########################
-    #  FOOTHOLDS LOCATION  #
-    ########################
-
-    # Create the objects during the first iteration then updating in the following iterations
-    if k > 0:
-        ftraj_gen.update_frame(settings.vu_m)
+    if k > 0:  # In local frame, contacts moves in the opposite direction of the base
+        ftraj_gen.update_frame(mpc.v)  # Update contacts depending on the velocity of the base
 
     # Update desired location of footsteps using the footsteps planner
-    fstep_planner.update_footsteps_mpc(settings.v_ref, settings.vu_m, settings.t_stance,
-                                       settings.S, settings.T_gait, settings.qu_m[2, 0])
+    fstep_planner.update_footsteps_mpc(sequencer, mpc)
 
-    # Updating quantities expressed in world frame
-    fstep_planner.update_world_frame(settings.q_w)
+    fstep_planner.update_world_frame(mpc.q_w)  # Updating quantities expressed in world frame
 
     # Update 3D desired feet pos using the trajectory generator
-    ftraj_gen.update_desired_feet_pos(fstep_planner.footsteps, settings.S,
-                                      settings.dt, settings.T_gait - settings.t_stance, settings.q_w)
-
-    # Get number of feet in contact with the ground for each step of the gait sequence
-    settings.n_contacts = np.sum(settings.S, axis=1).astype(int)
-
-    ##########################
-    #  REFERENCE TRAJECTORY  #
-    ##########################
+    ftraj_gen.update_desired_feet_pos(sequencer, fstep_planner, mpc)
 
     # Get the reference trajectory over the prediction horizon
-    mpc.getRefStatesDuringTrajectory(settings)
+    mpc.getRefStatesDuringTrajectory(sequencer)
 
     #####################
     #  SOLVER MATRICES  #
