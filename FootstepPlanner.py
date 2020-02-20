@@ -103,7 +103,7 @@ class FootstepPlanner:
         p[1, :] += np.array([0.025, -0.025, 0.025, -0.025])
 
         # Add symmetry term
-        p += self.t_stance * 0.5 * mpc.v[0:2, 0:1]
+        p += sequencer.t_stance * 0.5 * mpc.v[0:2, 0:1]
 
         # Add feedback term
         p += self.k_feedback * (mpc.v[0:2, 0:1] - mpc.v_ref[0:2, 0:1])
@@ -127,7 +127,7 @@ class FootstepPlanner:
         # Add velocity forecast
         #  p += np.tile(v[0:2, 0:1], (1, 4)) * t_remaining
         for i in range(4):
-            yaw = np.linspace(0, t_remaining[0, i]-self.dt, np.floor(t_remaining[0, i]/self.dt)) * mpc.v[5, 0]
+            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * mpc.v[5, 0]
             p[0, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.cos(yaw) - mpc.v[1, 0] * np.sin(yaw)))[-1]
             p[1, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.sin(yaw) + mpc.v[1, 0] * np.cos(yaw)))[-1]
 

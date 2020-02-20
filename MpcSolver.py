@@ -20,7 +20,7 @@ class MpcSolver:
 
         # Reference trajectory matrix of size 12 by (1 + N)  with the current state of
         # the robot in column 0 and the N steps of the prediction horizon in the others
-        self.xref = np.zeros((12, 1 + S.shape[0]))
+        self.xref = np.zeros((12, 1 + sequencer.S.shape[0]))
 
         # Number of states (6 positions + 6 velocity)
         self.n_x = 12
@@ -420,6 +420,11 @@ class MpcSolver:
             # tmp = np.reshape(np.array([np.zeros((nb_contacts,)), -contact_foot[2, :], contact_foot[1, :],
             #                  contact_foot[2, :], np.zeros((nb_contacts,)), -contact_foot[0, :],
             #                  -contact_foot[1, :], contact_foot[0, :], np.zeros(nb_contacts,)]), (-1,), order='F')
+            """tmp = np.zeros((3, nb_contacts+2))
+            tmp[0,-2:] = np.array([-contact_foot[2, :], contact_foot[1, :]])
+            tmp[1, 0] = contact_foot[2, :]
+            tmp[1, -1] = -contact_foot[0, :]
+            tmp[2,:2] = np.array([-contact_foot[1, :], contact_foot[0, :]])"""
             tmp = self.dt * np.dot(self.gI_inv, np.array([[np.zeros((nb_contacts,)), -contact_foot[2, :],
                                                            contact_foot[1, :]],
                                                           [contact_foot[2, :], np.zeros(
@@ -710,7 +715,7 @@ class MpcSolver:
         return 0
 
 
-    def run(self, k, sequencer, fstep_planner, ftraj_gen)
+    def run(self, k, sequencer, fstep_planner, ftraj_gen):
 
         # Get the reference trajectory over the prediction horizon
         self.getRefStatesDuringTrajectory(sequencer)
