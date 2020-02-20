@@ -191,7 +191,7 @@ class MpcSolver:
 
         return 0
 
-    def create_constraints_matrices(self, settings, solo, k_loop):
+    def create_constraints_matrices(self, k_loop, sequencer):
 
         enable_timer = False
 
@@ -199,12 +199,12 @@ class MpcSolver:
 
         footholds_m = self.footholds.copy()
 
-        update = np.array(settings.S[0]).ravel() == 0
+        update = np.array(sequencer.S[0]).ravel() == 0
         if np.any(update):
             footholds_m[:, update] = self.footholds_lock[:, update]
 
         # Number of timesteps in the prediction horizon
-        nb_xf = settings.n_contacts.shape[0]
+        nb_xf = self.n_contacts.shape[0]
 
         """# Inertia matrix of the robot in body frame (found in urdf)
         self.gI = np.diag([0.00578574, 0.01938108, 0.02476124])
@@ -245,7 +245,7 @@ class MpcSolver:
 
         # Cumulative number of footholds. For instance if two feet touch the ground during 10
         # steps then 4 feets during 6 steps then nb_tot = 2 * 10 + 4 * 6
-        nb_tot = np.sum(settings.n_contacts)
+        nb_tot = np.sum(self.n_contacts)
 
         # Matrix M used for the equality constraints (M.X = N)
         # with dimensions (nb_xf * n_x, nb_xf * n_x + nb_tot * n_f)
@@ -324,10 +324,10 @@ class MpcSolver:
         # and fill L with slipping cone constraints
         # and fill L with ground reaction force constraints (fz > 0)
         nb_tot = 0
-        n_tmp = np.sum(settings.n_contacts)
-        S_prev = settings.S[0, :].copy()
+        n_tmp = np.sum(self.n_contacts)
+        S_prev = sequencer.S[0, :].copy()
         for i in range(nb_xf):
-            update = (S_prev == 1) & (settings.S[i, :] == 0)  # Detect if one of the feet just left the ground
+            update = (S_prev == 1) & (sequencer.S[i, :] == 0)  # Detect if one of the feet just left the ground
             if np.any(update):
                 for up in range(update.shape[1]):
                     if (update[0, up] == True):  # Considering only feet that just left the ground
@@ -338,12 +338,12 @@ class MpcSolver:
             if False and np.any(update):  # If any foot left the ground (start of swing phase)
                 # Get the future position of footholds
                 print("UPDATE")
-                S_tmp = np.vstack((settings.S[i:, :], settings.S[0:i, :]))
+                S_tmp = np.vstack((sequencer.S[i:, :], sequencer.S[0:i, :]))
                 print(self.xref[6:12, i:(i+1)])
                 print(self.xref[0:6, i:(i+1)])
                 print(self.x0[6:12, 0:1])
                 future_footholds = update_target_footholds_no_lock(
-                    self.xref[6:12, i:(i+1)], self.xref[0:6, i:(i+1)], self.x0[6:12, 0:1], settings.t_stance, S_tmp, dt, settings.T_gait, h=x0[2, 0], k=0.03)
+                    self.xref[6:12, i:(i+1)], self.xref[0:6, i:(i+1)], self.x0[6:12, 0:1], sequencer.t_stance, S_tmp, self.dt, sequencer.T_gait, h=x0[2, 0], k=0.03)
                 print("Futur footholds local")
                 print(future_footholds)
 
@@ -352,7 +352,7 @@ class MpcSolver:
                 indexes = (S_tmp != 0).argmax(axis=0)
 
                 for j in range(S_tmp.shape[1]):
-                    if (i+indexes[0, j]) < settings.S.shape[0]:
+                    if (i+indexes[0, j]) < sequencer.S.shape[0]:
                         c, s = np.cos(self.xref[5, i+indexes[0, j]]), np.sin(self.xref[5, i+indexes[0, j]])
                         R = np.array([[c, -s], [s, c]])
                         future_footholds[:, j] = self.xref[0:2, (i+indexes[0, j])] + np.dot(R, future_footholds[:, j])
@@ -366,10 +366,10 @@ class MpcSolver:
                         #  no need if only one period in the prediction horizon
                         footholds_m[:, up:(up+1)] = future_footholds[0:2, up:(up+1)]
             # Saving current state of feet (touching or not) for the next step
-            S_prev = (settings.S[i, :]).copy()
+            S_prev = (sequencer.S[i, :]).copy()
 
             # Number of feet touching the ground during this timestep
-            nb_contacts = settings.n_contacts[i, 0]
+            nb_contacts = self.n_contacts[i, 0]
 
             # B(k) matrix related to x(k+1) = A * x(k) + B * f(k) + g
             # n_x rows (number of row of x) and n_f * nb_contacts columns (depends on the number of footholds)
@@ -380,7 +380,7 @@ class MpcSolver:
             B_data = np.array([], dtype=np.float64)
 
             # Position of footholds in the global frame
-            pos_contacts = footholds_m[:, (settings.S[i, :] == 1).getA()[0, :]]
+            pos_contacts = footholds_m[:, (sequencer.S[i, :] == 1).getA()[0, :]]
             # print(pos_contacts)
             # For each foothold during this timestep
             """for j in range(nb_contacts):
@@ -416,49 +416,6 @@ class MpcSolver:
 
             # Non-looped version of filling B
             contact_foot = np.vstack((pos_contacts, np.zeros((1, pos_contacts.shape[1])))) - self.xref[0:3, i:(i+1)]
-            # print("Footholds_m: \n", footholds_m)
-
-            """print("### Pos_contacts:")
-            print(pos_contacts)
-            print(contact_foot)
-            print(xref[0:3, i:(i+1)].transpose())"""
-
-            enable_support_lines = False
-            if enable_support_lines:
-                if (i == 0):
-                    for j_c in range(nb_xf):
-                        if j_c % 1 == 0:
-                            for i_c in range(4):
-                                solo.viewer.gui.addCurve("world/support_"+str(j_c)+"_"+str(i_c),
-                                                         [[0., 0., 0.], [0., 0., 0.]], [0.0, 0.0, 0.0, 0.0])
-                                # solo.viewer.gui.setCurveLineWidth("world/support_"+str(i)+"_"+str(i_c), 0.0)
-                                # solo.viewer.gui.setColor("world/support_"+str(i)+"_"+str(i_c), [0.0,0.0,0.0,0.0])
-                    solo.viewer.gui.refresh()
-
-                if (i % 1) == 0:
-
-                    num_foot = 0
-                    for i_c in range(4):
-                        if settings.S[i, i_c] == 1:
-                            c, s = np.cos(settings.q_w[5, 0]), np.sin(settings.q_w[5, 0])
-                            R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 0]])
-                            curvePoints_1 = np.dot(R, self.xref[0:3, i:(i+1)]) + \
-                                settings.q_w[0:3, 0:1] + np.array([[0], [0], [0.05]])
-                            curvePoints_2 = np.dot(R[0:2, 0:2], pos_contacts) + \
-                                np.tile(settings.q_w[0:2, 0:1], (1, pos_contacts.shape[1]))
-                            solo.viewer.gui.addCurve("world/support_"+str(i)+"_"+str(i_c),
-                                                     [[0., 0., 0.], [1., 1., 1]], [i/nb_xf, 0.0, i/nb_xf, 0.5])
-                            # solo.viewer.gui.setCurvePoints("world/support_"+str(i)+"_"+str(i_c), [xref[0:3, i].tolist(), [pos_contacts[0,num_foot],pos_contacts[1,num_foot],0.]])
-                            solo.viewer.gui.setCurvePoints("world/support_"+str(i)+"_"+str(i_c), [curvePoints_1[:, 0].tolist(), [
-                                                           curvePoints_2[0, num_foot], curvePoints_2[1, num_foot], 0.]])
-                            solo.viewer.gui.setCurveLineWidth("world/support_"+str(i)+"_"+str(i_c), 8.0)
-                            solo.viewer.gui.setColor("world/support_"+str(i)+"_"+str(i_c),
-                                                     [i/nb_xf, 0.0, i/nb_xf, 0.5])
-                            num_foot += 1
-                        else:
-                            solo.viewer.gui.setCurveLineWidth("world/support_"+str(i)+"_"+str(i_c), 0.0)
-                            solo.viewer.gui.setColor("world/support_"+str(i)+"_"+str(i_c), [0.0, 0.0, 0.0, 0.0])
-                    solo.viewer.gui.refresh()
 
             # tmp = np.reshape(np.array([np.zeros((nb_contacts,)), -contact_foot[2, :], contact_foot[1, :],
             #                  contact_foot[2, :], np.zeros((nb_contacts,)), -contact_foot[0, :],
@@ -522,7 +479,7 @@ class MpcSolver:
         N_data = np.array([], dtype=np.float64)
 
         # Matrix K on the other side of the inequal sign (L.X <= K)
-        # np.sum(settings.n_contacts) * 5 rows to be consistent with L, all coefficients are 0
+        # np.sum(self.n_contacts) * 5 rows to be consistent with L, all coefficients are 0
 
         # K_row, _col and _data satisfy the relationship K[K_row[k], K_col[k]] = K_data[k]
         K_row = np.array([], dtype=np.int64)
@@ -632,9 +589,8 @@ class MpcSolver:
 
         return 0
 
-    def create_weight_matrices(self, settings):
+    def create_weight_matrices(self):
         """Create the weight matrices in the cost x^T.P.x + x^T.q of the QP problem
-
         """
 
         # Declaration of the P matrix in "x^T.P.x + x^T.q"
@@ -644,9 +600,9 @@ class MpcSolver:
         P_data = np.array([], dtype=np.float64)
 
         # Define weights for the x-x_ref components of the optimization vector
-        P_row = np.arange(0, self.n_x * (settings.n_contacts).shape[0], 1)
-        P_col = np.arange(0, self.n_x * (settings.n_contacts).shape[0], 1)
-        P_data = 0.0 * np.ones((self.n_x * (settings.n_contacts).shape[0],))
+        P_row = np.arange(0, self.n_x * (self.n_contacts).shape[0], 1)
+        P_col = np.arange(0, self.n_x * (self.n_contacts).shape[0], 1)
+        P_data = 0.0 * np.ones((self.n_x * (self.n_contacts).shape[0],))
 
         # Hand-tuning of parameters if you want to give more weight to specific components
         P_data[0::12] = 1000  # position along x
@@ -663,34 +619,34 @@ class MpcSolver:
         P_data[11::12] = 30  # angular velocity along z
 
         # Define weights for the force components of the optimization vector
-        P_row = np.hstack((P_row, np.arange(self.n_x * (settings.n_contacts).shape[0], self.G.shape[1], 1)))
-        P_col = np.hstack((P_col, np.arange(self.n_x * (settings.n_contacts).shape[0], self.G.shape[1], 1)))
-        P_data = np.hstack((P_data, 0.0*np.ones((self.G.shape[1] - self.n_x * (settings.n_contacts).shape[0],))))
+        P_row = np.hstack((P_row, np.arange(self.n_x * (self.n_contacts).shape[0], self.G.shape[1], 1)))
+        P_col = np.hstack((P_col, np.arange(self.n_x * (self.n_contacts).shape[0], self.G.shape[1], 1)))
+        P_data = np.hstack((P_data, 0.0*np.ones((self.G.shape[1] - self.n_x * (self.n_contacts).shape[0],))))
 
-        P_data[(self.n_x * (settings.n_contacts).shape[0])::3] = 0.01  # force along x
-        P_data[(self.n_x * (settings.n_contacts).shape[0] + 1)::3] = 0.01  # force along y
-        P_data[(self.n_x * (settings.n_contacts).shape[0] + 2)::3] = 0.01  # force along z
+        P_data[(self.n_x * (self.n_contacts).shape[0])::3] = 0.01  # force along x
+        P_data[(self.n_x * (self.n_contacts).shape[0] + 1)::3] = 0.01  # force along y
+        P_data[(self.n_x * (self.n_contacts).shape[0] + 2)::3] = 0.01  # force along z
 
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(self.G.shape[1], self.G.shape[1]))
 
         # Declaration of the q matrix in "x^T.P.x + x^T.q"
-        self.q = np.hstack((np.zeros(self.n_x * (settings.n_contacts).shape[0],), 0.00 *
-                            np.ones((self.G.shape[1]-self.n_x * (settings.n_contacts).shape[0], ))))
+        self.q = np.hstack((np.zeros(self.n_x * (self.n_contacts).shape[0],), 0.00 *
+                            np.ones((self.G.shape[1]-self.n_x * (self.n_contacts).shape[0], ))))
 
         # Weight for the z component of contact forces (fz > 0 so with a positive weight it tries to minimize fz)
-        # q[(n_x * (settings.n_contacts).shape[0]+2)::3] = 0.01
+        # q[(n_x * (self.n_contacts).shape[0]+2)::3] = 0.01
 
         return 0
 
-    def call_solver(self, settings):
+    def call_solver(self, sequencer):
         """Create an initial guess and call the solver to solve the QP problem
         """
 
         # Initial guess for forces (mass evenly supported by all legs in contact)
-        f_temp = np.zeros((3*np.sum(settings.n_contacts)))
-        # f_temp[2::3] = 2.2 * 9.81 / np.sum(settings.S[0,:])
-        tmp = np.array(np.sum(settings.S, axis=1)).ravel().astype(int)
+        f_temp = np.zeros((3*np.sum(self.n_contacts)))
+        # f_temp[2::3] = 2.2 * 9.81 / np.sum(sequencer.S[0,:])
+        tmp = np.array(np.sum(sequencer.S, axis=1)).ravel().astype(int)
         f_temp[2::3] = (np.repeat(tmp, tmp)-4) / (2 - 4) * (3.0 * 9.81 * 0.5) + \
             (np.repeat(tmp, tmp)-2) / (4 - 2) * (3.0 * 9.81 * 0.25)
 
@@ -709,11 +665,13 @@ class MpcSolver:
         # Setup the solver with the matrices and a warm start
         prob.setup(P=self.P, q=self.q, A=qp_A, l=qp_l, u=qp_u, verbose=False)
         prob.warm_start(x=initx)
-        """else:
+        """
+        else:  # Code to update the QP problem without creating it again 
             qp_A = scipy.sparse.vstack([G, A]).tocsc()
             qp_l = np.hstack([l, b])
             qp_u = np.hstack([h, b])
-            prob.update(A=qp_A, l=qp_l, u=qp_u)"""
+            prob.update(A=qp_A, l=qp_l, u=qp_u)
+        """
 
         # Run the solver to solve the QP problem
         # x = solve_qp(P, q, G, h, A, b, solver='osqp')
@@ -729,7 +687,7 @@ class MpcSolver:
 
         return 0
 
-    def retrieve_result(self, settings):
+    def retrieve_result(self):
         """Extract relevant information from the output of the QP solver
         """
 
@@ -740,18 +698,53 @@ class MpcSolver:
         # Retrieve the "contact forces" part of the solution of the QP problem
         self.f_applied = self.x[self.xref.shape[0]*(self.xref.shape[1]-1):(self.xref.shape[0] *
                                                                            (self.xref.shape[1]-1)
-                                                                           + settings.n_contacts[0, 0]*3)]
+                                                                           + self.n_contacts[0, 0]*3)]
 
         # As the QP problem is solved for (x_robot - x_ref), we need to add x_ref to the result to get x_robot
         self.x_robot += self.xref[:, 1:]
 
         # Predicted position and velocity of the robot during the next time step
-        self.qu = self.x_robot[0:6, 0:1]
-        self.vu = self.x_robot[6:12, 0:1]
+        self.q_next = self.x_robot[0:6, 0:1]
+        self.v_next = self.x_robot[6:12, 0:1]
 
         return 0
 
-    def update_viewer(self, viewer, initialisation, settings):
+
+    def run(self, k, sequencer, fstep_planner, ftraj_gen)
+
+        # Get the reference trajectory over the prediction horizon
+        self.getRefStatesDuringTrajectory(sequencer)
+
+        # Retrieve data from FootstepPlanner and FootTrajectoryGenerator
+        self.retrieve_data(fstep_planner, ftraj_gen)
+
+        # Create the constraints matrices used by the QP solver
+        # Minimize x^T.P.x + x^T.q with constraints A.X == b and G.X <= h
+        self.create_constraints_matrices(k, sequencer)
+
+        # Create the weights matrices used by the QP solver
+        # P and q in the cost x^T.P.x + x^T.q
+        if k == 0:  # Weight matrices are always the same
+            self.create_weight_matrices()
+
+        # Create an initial guess and call the solver to solve the QP problem
+        self.call_solver(sequencer)
+
+        # Extract relevant information from the output of the QP solver
+        self.retrieve_result()
+
+        # Variation of position in world frame using the linear speed in local frame
+        c_yaw, s_yaw = np.cos(self.q_w[5, 0]), np.sin(self.q_w[5, 0])
+        R = np.array([[c_yaw, -s_yaw, 0], [s_yaw, c_yaw, 0], [0, 0, 1]])
+        self.q_w[0:3, 0:1] += np.dot(R, self.vu[0:3, 0:1] * self.dt)
+
+        # Variation of orientation in world frame using the angular speed in local frame
+        self.q_w[3:6, 0] += self.vu[3:6, 0] * self.dt
+
+        return 0
+
+
+    def update_viewer(self, viewer, initialisation, sequencer):
         """Update display for visualization purpose
 
         Keyword arguments:
@@ -760,9 +753,9 @@ class MpcSolver:
         """
 
         # Display reference trajectory with a red curve (gepetto gui)
-        c, s = np.cos(settings.q_w[5, 0]), np.sin(settings.q_w[5, 0])
+        c, s = np.cos(self.q_w[5, 0]), np.sin(self.q_w[5, 0])
         R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 0]])
-        curvePoints = np.dot(R, settings.x_ref[0:3, :]) + settings.q_w[0:3, 0:1] + np.array([[0], [0], [0.05]])
+        curvePoints = np.dot(R, self.x_ref[0:3, :]) + self.q_w[0:3, 0:1] + np.array([[0], [0], [0.05]])
         if initialisation:
             viewer.gui.addCurve("world/refTraj", [[0., 0., 0.], [1., 1., 1.]], [1., .0, 0., 0.5])
         viewer.gui.setCurvePoints("world/refTraj", (curvePoints.transpose()).tolist())
@@ -771,13 +764,13 @@ class MpcSolver:
         # Display contact forces with a cyan curves (gepetto gui)
         c_forces = np.zeros((3, 4))
         cpt = 0
-        update = np.array(settings.S[0]).ravel()
+        update = np.array(sequencer.S[0]).ravel()
         for i in range(4):
             if update[i]:
                 c_forces[:, i] = self.f_applied[(cpt*3):((cpt+1)*3)]
                 cpt += 1
 
-        c, s = np.cos(settings.q_w[5, 0]), np.sin(settings.q_w[5, 0])
+        c, s = np.cos(self.q_w[5, 0]), np.sin(self.q_w[5, 0])
         R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
         curvePoints = 0.01 * np.dot(R, c_forces[0:3, :]) + self.footholds_world
         if initialisation:
@@ -790,18 +783,18 @@ class MpcSolver:
                 viewer.gui.setCurveLineWidth("world/cForce"+str(i), 8.0)
 
         # Display predicted trajectory with a blue curve (gepetto gui)
-        c, s = np.cos(settings.q_w[5, 0]), np.sin(settings.q_w[5, 0])
+        c, s = np.cos(self.q_w[5, 0]), np.sin(self.q_w[5, 0])
         R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 0]])
-        curvePoints = np.dot(R, self.x_robot[0:3, :]) + settings.q_w[0:3, 0:1] + np.array([[0.], [0.], [0.05]])
+        curvePoints = np.dot(R, self.x_robot[0:3, :]) + self.q_w[0:3, 0:1] + np.array([[0.], [0.], [0.05]])
         if initialisation:
             viewer.gui.addCurve("world/optTraj", [[0., 0., 0.], [1., 1., 1.]], [0., .0, 1., 0.5])
         viewer.gui.setCurvePoints("world/optTraj", (curvePoints.transpose()).tolist())
         viewer.gui.setCurveLineWidth("world/optTraj", 8.0)
 
         # Display current velocity (gepetto gui)
-        c, s = np.cos(settings.q_w[5, 0]), np.sin(settings.q_w[5, 0])
+        c, s = np.cos(self.q_w[5, 0]), np.sin(self.q_w[5, 0])
         R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 0]])
-        curvePoints = np.dot(R, settings.x_ref[0:3, 0:1]) + settings.q_w[0:3, 0:1] + np.array([[0], [0], [0.05]])
+        curvePoints = np.dot(R, self.x_ref[0:3, 0:1]) + self.q_w[0:3, 0:1] + np.array([[0], [0], [0.05]])
         if initialisation:
             viewer.gui.addCurve("world/velTraj", [[0., 0., 0.], [1., 1., 1.]], [0., 1.0, 0., 0.5])
         viewer.gui.setCurvePoints("world/velTraj", [[curvePoints[0, 0], curvePoints[1, 0], curvePoints[2, 0]],
@@ -811,8 +804,8 @@ class MpcSolver:
         viewer.gui.setCurveLineWidth("world/velTraj", 8.0)
 
         # Display a trail behind the robot
-        self.trail[:, self.k_trail] = settings.q_w[0:3, 0] + np.array([[0.0, 0.0, 0.05]])
-        curvePoints = np.dot(R, settings.x_ref[0:3, :]) + settings.q_w[0:3, 0:1] + np.array([[0], [0], [0.05]])
+        self.trail[:, self.k_trail] = self.q_w[0:3, 0] + np.array([[0.0, 0.0, 0.05]])
+        curvePoints = np.dot(R, self.x_ref[0:3, :]) + self.q_w[0:3, 0:1] + np.array([[0], [0], [0.05]])
         if initialisation:
             viewer.gui.addCurve("world/trail", [[0., 0., 0.], [1., 1., 1.]], [0., .0, 1., 0.5])
         elif self.k_trail > 1:
@@ -822,7 +815,7 @@ class MpcSolver:
 
         return 0
 
-    def plot_graphs(self, settings):
+    def plot_graphs(self, sequencer):
 
         # Display the predicted trajectory along X, Y and Z for the current iteration
         log_t = self.dt * np.arange(0, self.x_robot.shape[1], 1)
@@ -856,7 +849,7 @@ class MpcSolver:
         fs = [f_1, f_2, f_3, f_4]
         cpt_tot = 0
         for i_f in range((self.xref.shape[1]-1)):
-            up = (settings.S[i_f, :] == 1)
+            up = (sequencer.S[i_f, :] == 1)
             for i_up in range(4):
                 if up[0, i_up] == True:
                     (fs[i_up])[:, i_f] = self.x[(self.xref.shape[0]*(self.xref.shape[1]-1) + 3 * cpt_tot):

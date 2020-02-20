@@ -134,6 +134,9 @@ class FootstepPlanner:
         # Update target_footholds_no_lock
         self.footsteps = p
 
+        # Updating quantities expressed in world frame
+        self.update_world_frame(mpc.q_w)  
+
         return 0
 
     def update_world_frame(self, q_w):
