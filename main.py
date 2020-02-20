@@ -3,72 +3,47 @@
 import time
 import numpy as np
 import matplotlib.pylab as plt
+
 import Joystick
+import ContactSequencer
+import FootstepPlanner
+import FootTrajectoryGenerator
+import MpcSolver
 
-#########################################
-#  Definition of parameters of the MPC  #
-#########################################
+####################
+# CREATING OBJECTS #
+####################
 
-# Position of the center of mass at the beginning
-pos_CoM = np.array([[0.0], [0.0], [0.0]])
+# Time step
+dt = 0.02
 
-# Initial position of contacts (under shoulders)
-settings.p_contacts = settings.shoulders.copy()
-
-# Initial (x, y) positions of footholds
-feet_target = np.array([[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005], [0.0, 0.0, 0.0, 0.0]])
-p = np.array([[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
-goal_on_ground = np.array([[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
-
-# Initial (x, y) positions of footholds in the trunk frame
-footholds_local = np.array([[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
-
-# Initial (x, y) target positions of footholds in the trunk frame
-footholds_local_target = np.array([[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
-
-# Maximum height at which the robot should lift its feet during swing phase
-# max_height_feet = 0.1
-
-# Lock target positions of footholds before touchdown
-t_lock_before_touchdown = 0.001
-
-# Foot trajectory generator objects (one for each foot)
-# ftgs = [Foot_trajectory_generator(max_height_feet, t_lock_before_touchdown) for i in range(4)]
-
-# Number of loops
+# Maximum number of loops
 k_max_loop = 800
 
-settings.h_ref = settings.qu_m[2, 0]
+# Create Joystick object
+joystick = Joystick.Joystick()
 
-# Position of the trunk in the world frame
-settings.q_w = (settings.qu_m).copy()
+# Create contact sequencer object
+sequencer = ContactSequencer.ContactSequencer(dt)
 
-# Enable display with gepetto-gui
-enable_gepetto_viewer = True
+# Create footstep planner object
+fstep_planner = FootstepPlanner.FootstepPlanner(dt)
 
-#
-# MAIN LOOP
-#
+# Create trajectory generator object
+ftraj_gen = FootTrajectoryGenerator.FootTrajectoryGenerator(dt)
 
-for k in range(100):
+# Create MPC solver object
+mpc = MpcSolver.MpcSolver(dt, sequencer.S, k_max_loop)
 
-    #####################
-    #   MPC FUNCTIONS   #
-    #####################
+#############
+# MAIN LOOP #
+#############
 
-    # Run MPC once every 20 iterations of TSID
-
-    if k == 0:
-        settings.qu_m = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.0]]).transpose()
-        settings.vu_m = np.zeros((6, 1))
-
+# for k in range(k_max_loop):
+if False:
     ########################
     #  REFERENCE VELOCITY  #
     ########################
-
-    # Create the joystick object
-    if k == 0:
-        joystick = Joystick.Joystick()
 
     # Update the reference velocity coming from the joystick
     joystick.update_v_ref(k)
@@ -86,6 +61,8 @@ for k in range(100):
     #  CONTACT SEQUENCE  #
     ######################
 
+    # Update contact sequence
+    sequencer.updateSequence()
     # Get contact sequence
     settings.t = settings.dt * k
     if k == 0:
@@ -98,10 +75,7 @@ for k in range(100):
     ########################
 
     # Create the objects during the first iteration then updating in the following iterations
-    if k == 0:
-        fstep_planner = FootstepPlanner.FootstepPlanner(0.03, settings.shoulders, settings.dt)
-        ftraj_gen = FootTrajectoryGenerator.FootTrajectoryGenerator(settings.shoulders, settings.dt)
-    else:
+    if k > 0:
         ftraj_gen.update_frame(settings.vu_m)
 
     # Update desired location of footsteps using the footsteps planner
@@ -117,14 +91,6 @@ for k in range(100):
 
     # Get number of feet in contact with the ground for each step of the gait sequence
     settings.n_contacts = np.sum(settings.S, axis=1).astype(int)
-
-    #########
-    #  MPC  #
-    #########
-
-    # Create the MPC solver object
-    if (k == 0):
-        mpc = MpcSolver.MpcSolver(settings.dt, settings.S, k_max_loop)
 
     ##########################
     #  REFERENCE TRAJECTORY  #

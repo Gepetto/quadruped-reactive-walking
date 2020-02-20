@@ -12,10 +12,11 @@ class FootTrajectoryGenerator:
     :param dt: A float, time step of the contact sequence
     """
 
-    def __init__(self, shoulders, dt):
+    def __init__(self, dt):
 
         # Position of shoulders in local frame
-        self.shoulders = shoulders
+        self.shoulders = np.array(
+            [[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
 
         # Time step of the trajectory generator
         self.dt = dt
@@ -31,7 +32,7 @@ class FootTrajectoryGenerator:
         self.footsteps_lock_world = self.footsteps_lock.copy()
 
         # Desired position, velocity and acceleration of feet in 3D, in local frame
-        self.desired_pos = np.vstack((shoulders, np.zeros((1, 4))))
+        self.desired_pos = np.vstack((self.shoulders, np.zeros((1, 4))))
         self.desired_vel = np.zeros(self.desired_pos.shape)
         self.desired_acc = np.zeros(self.desired_pos.shape)
 

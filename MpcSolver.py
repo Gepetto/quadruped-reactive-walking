@@ -69,6 +69,41 @@ class MpcSolver:
         # Mass of the quadruped in [kg] (found in urdf)
         self.m = 3.0  # 2.2 in urdf for the trunk
 
+        """n_contacts = np.array([])
+        dt = 0.02
+        v_ref = np.array([[0.1, 0.00, 0.0, 0, 0, 0.0]]).T
+        qu_m = np.array([[0, 0, 0.235 - 0.01205385, 0, 0, 0]]).T
+        vu_m = np.array([[0.0, 0.00, 0.0, 0, 0, 0.4]]).T
+        t_stance = 0.3
+        T_gait = 0.6
+        # FL, FR, HL, HR
+        phases = np.array([[0, 0.5, 0.5, 0]])
+        x_ref = np.array([])
+        p_contacts = np.array([[0, 0, 0, 0], [0, 0, 0, 0]])
+        t = 0.0
+        shoulders = np.array([[0.5, 0.5, -0.5, -0.5], [0.5, -0.5, 0.5, -0.5]])
+        footholds = np.array([[0.5, 0.5, -0.5, -0.5], [0.5, -0.5, 0.5, -0.5]])"""
+
+        # Position of shoulders in local frame
+        self.shoulders = np.array(
+            [[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
+
+        # Initial position of footholds in the "straight standing" default configuration
+        self.footholds = np.array(
+            [[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
+
+        # Initial state vector of the robot (x, y, z, roll, pitch, yaw)
+        self.q = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.0]]).transpose()
+
+        # State vector of the trunk in the world frame
+        self.q_w = self.q.copy()
+
+        # Initial velocity vector of the robot (x, y, z, roll, pitch, yaw)
+        self.v = np.zeros((6, 1))
+
+        # Reference height that the robot will try to maintain
+        self.h_ref = self.q[2, 0]
+
     def getRefStatesDuringTrajectory(self, settings):
         """Returns the reference trajectory of the robot for each time step of the
         predition horizon. The ouput is a matrix of size 12 by N with N the number

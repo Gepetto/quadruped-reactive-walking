@@ -13,13 +13,14 @@ class FootstepPlanner:
     :param dt: A float, time step of the contact sequence
     """
 
-    def __init__(self, k_feedback, shoulders, dt):
+    def __init__(self, dt):
 
         # Feedback gain for the feedback term of the planner
-        self.k_feedback = k_feedback
+        self.k_feedback = 0.03
 
         # Position of shoulders in local frame
-        self.shoulders = shoulders
+        self.shoulders = np.array(
+            [[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
 
         # Time step of the contact sequence
         self.dt = dt
