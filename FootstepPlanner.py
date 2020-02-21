@@ -119,7 +119,7 @@ class FootstepPlanner:
             indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
             # index = (np.where(S[:, i] == True))[0][0]
             if (sequencer.S[0, i] == True) and (sequencer.S[-1, i] == False):
-                t_remaining[0, i] = self.T_gait
+                t_remaining[0, i] = sequencer.T_gait
             else:
                 index = (indexes_stance[indexes_stance > indexes_swing[0]])[0]
                 t_remaining[0, i] = index * self.dt
@@ -135,7 +135,7 @@ class FootstepPlanner:
         self.footsteps = p
 
         # Updating quantities expressed in world frame
-        self.update_world_frame(mpc.q_w)  
+        self.update_world_frame(mpc.q_w)
 
         return 0
 

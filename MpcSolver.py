@@ -39,7 +39,7 @@ class MpcSolver:
 
         # Weight matrices of the QP solver associated with the cost x^T.P.x + x^T.q
         self.P = 0
-        self.q = 0
+        self.Q = 0
 
         # Solution of the QP problem
         self.x = 0
@@ -51,8 +51,8 @@ class MpcSolver:
         self.f_applied = 0
 
         # Predicted position and velocity of the robot during the next time step
-        self.qu = np.zeros((6, 1))
-        self.vu = np.zeros((6, 1))
+        self.q_next = np.zeros((6, 1))
+        self.v_next = np.zeros((6, 1))
 
         # To display a trail behind the robot in the viewer as it moves around
         self.trail = np.zeros((3, k_max_loop))
@@ -635,8 +635,8 @@ class MpcSolver:
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(self.G.shape[1], self.G.shape[1]))
 
-        # Declaration of the q matrix in "x^T.P.x + x^T.q"
-        self.q = np.hstack((np.zeros(self.n_x * (self.n_contacts).shape[0],), 0.00 *
+        # Declaration of the Q matrix in "x^T.P.x + x^T.Q"
+        self.Q = np.hstack((np.zeros(self.n_x * (self.n_contacts).shape[0],), 0.00 *
                             np.ones((self.G.shape[1]-self.n_x * (self.n_contacts).shape[0], ))))
 
         # Weight for the z component of contact forces (fz > 0 so with a positive weight it tries to minimize fz)
@@ -668,7 +668,7 @@ class MpcSolver:
         qp_u = np.hstack([self.h, self.b])
 
         # Setup the solver with the matrices and a warm start
-        prob.setup(P=self.P, q=self.q, A=qp_A, l=qp_l, u=qp_u, verbose=False)
+        prob.setup(P=self.P, q=self.Q, A=qp_A, l=qp_l, u=qp_u, verbose=False)
         prob.warm_start(x=initx)
         """
         else:  # Code to update the QP problem without creating it again 
@@ -714,7 +714,6 @@ class MpcSolver:
 
         return 0
 
-
     def run(self, k, sequencer, fstep_planner, ftraj_gen):
 
         # Get the reference trajectory over the prediction horizon
@@ -741,13 +740,12 @@ class MpcSolver:
         # Variation of position in world frame using the linear speed in local frame
         c_yaw, s_yaw = np.cos(self.q_w[5, 0]), np.sin(self.q_w[5, 0])
         R = np.array([[c_yaw, -s_yaw, 0], [s_yaw, c_yaw, 0], [0, 0, 1]])
-        self.q_w[0:3, 0:1] += np.dot(R, self.vu[0:3, 0:1] * self.dt)
+        self.q_w[0:3, 0:1] += np.dot(R, self.v_next[0:3, 0:1] * self.dt)
 
         # Variation of orientation in world frame using the angular speed in local frame
-        self.q_w[3:6, 0] += self.vu[3:6, 0] * self.dt
+        self.q_w[3:6, 0] += self.v_next[3:6, 0] * self.dt
 
         return 0
-
 
     def update_viewer(self, viewer, initialisation, sequencer):
         """Update display for visualization purpose

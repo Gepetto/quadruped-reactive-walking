@@ -32,7 +32,8 @@ for k in range(k_max_loop):
     joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
     mpc.update_v_ref(joystick)  # Retrieve reference velocity
 
-    sequencer.updateSequence()  # Update contact sequence
+    if k > 0:
+        sequencer.updateSequence()  # Update contact sequence
 
     ###########################################
     # FOOTSTEP PLANNER & TRAJECTORY GENERATOR #
@@ -60,5 +61,5 @@ for k in range(k_max_loop):
         utils.display_all(solo, k, fstep_planner, ftraj_gen, mpc)
 
     # Get measured position and velocity after one time step (here perfect simulation)
-    mpc.q[[2, 3, 4]] = mpc.qu[[2, 3, 4]]  # coordinates in x, y, yaw are always 0 in local frame
-    mpc.v = mpc.vu
+    mpc.q[[2, 3, 4]] = mpc.q_next[[2, 3, 4]]  # coordinates in x, y, yaw are always 0 in local frame
+    mpc.v = mpc.v_next
