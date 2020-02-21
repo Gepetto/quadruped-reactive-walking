@@ -116,6 +116,7 @@ def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
     mpc.update_viewer(solo.viewer, (k == 0), sequencer)
 
     qu_pinocchio = solo.q0
+    qu_pinocchio.reshape((19,))
     qu_pinocchio[0:3] = mpc.q_w[0:3, 0]
     # TODO: Check why orientation of q_w and qu are different
     # qu_pinocchio[3:7, 0:1] = getQuaternion(settings.q_w[3:6, 0:1])
