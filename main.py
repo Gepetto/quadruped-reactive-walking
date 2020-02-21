@@ -58,7 +58,7 @@ for k in range(k_max_loop):
 
     # Visualisation with gepetto viewer
     if enable_gepetto_viewer:
-        utils.display_all(solo, k, fstep_planner, ftraj_gen, mpc)
+        utils.display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc)
 
     # Get measured position and velocity after one time step (here perfect simulation)
     mpc.q[[2, 3, 4]] = mpc.q_next[[2, 3, 4]]  # coordinates in x, y, yaw are always 0 in local frame

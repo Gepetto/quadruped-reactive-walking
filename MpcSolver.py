@@ -716,6 +716,10 @@ class MpcSolver:
 
     def run(self, k, sequencer, fstep_planner, ftraj_gen):
 
+        # Get number of feet in contact with the ground for each step of the gait sequence
+        if k > 0:
+            self.n_contacts = np.roll(self.n_contacts, -1, axis=0)
+
         # Get the reference trajectory over the prediction horizon
         self.getRefStatesDuringTrajectory(sequencer)
 

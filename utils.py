@@ -3,7 +3,11 @@ import numpy as np
 
 import robots_loader  # Gepetto viewer
 
-import Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator, MpcSolver
+import Joystick
+import ContactSequencer
+import FootstepPlanner
+import FootTrajectoryGenerator
+import MpcSolver
 
 ##########################
 # ROTATION MATRIX TO RPY #
@@ -112,10 +116,10 @@ def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
     mpc.update_viewer(solo.viewer, (k == 0), sequencer)
 
     qu_pinocchio = solo.q0
-    qu_pinocchio[0:3, 0:1] = mpc.q_w[0:3, 0:1]
+    qu_pinocchio[0:3] = mpc.q_w[0:3, 0]
     # TODO: Check why orientation of q_w and qu are different
     # qu_pinocchio[3:7, 0:1] = getQuaternion(settings.q_w[3:6, 0:1])
-    qu_pinocchio[3:7, 0:1] = getQuaternion(mpc.qu[3:6, 0:1])
+    qu_pinocchio[3:7] = getQuaternion(np.matrix([mpc.q_next[3:6, 0]]).T).flatten()
 
     # Refresh the gepetto viewer display
     solo.display(qu_pinocchio)
