@@ -15,7 +15,7 @@ dt = 0.02
 k_max_loop = 800
 
 # Enable/Disable Gepetto viewer
-enable_gepetto_viewer = False
+enable_gepetto_viewer = True
 if enable_gepetto_viewer:
     solo = utils.init_viewer()
 
