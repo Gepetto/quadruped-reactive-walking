@@ -24,6 +24,9 @@ class MPC:
         # Inertia matrix of the robot in body frame (found in urdf)
         self.gI = np.diag([0.00578574, 0.01938108, 0.02476124])
 
+        # Friction coefficient
+        self.mu = 2
+
         # Number of time steps in the prediction horizon
         self.n_steps = sequencer.S.shape[0]
 
@@ -148,6 +151,37 @@ class MPC:
 
         return 0
 
+    def create_N(self):
+
+        # Create N matrix
+        self.N = np.zeros((12*self.n_steps, 1))
+
+        # Create g matrix
+        g = np.zeros((12, 1))
+        g[8, 0] = -9.81 * self.dt
+
+        # Fill N matrix with g matrices
+        for k in range(self.n_steps):
+            self.N[(12*k):(12*(k+1)), 0:1] = - g
+
+        # Including - A*X0 in the first row of N
+        self.N[0:12, 0:1] += np.dot(self.A, - self.x0)
+
+        # Create matrix D (third term of N)
+        self.D = np.zeros((12*self.n_steps, 12*self.n_steps))
+
+        # Put identity matrices in D
+        self.D[np.arange(0, 12*self.n_steps, 1), np.arange(0, 12*self.n_steps, 1)] = np.ones((12*self.n_steps))
+
+        # Put A matrices in D
+        for k in range(self.n_steps-1):
+            self.M[((k+1)*12):((k+2)*12), (k*12):((k+1)*12)] = - self.A
+
+        # Add third term to matrix N
+        self.N += np.dot(self.D, self.xref[:, 1:].reshape((-1, 1), order='F'))
+
+        return 0
+
     def create_L(self):
 
         # Create L matrix
@@ -155,7 +189,7 @@ class MPC:
 
         # Create C matrix
         self.C = np.zeros((5, 3))
-        self.C[[0, 1, 2, 3] * 2, [0, 0, 1, 1, 2, 2, 2, 2]] = np.array([1, -1, 1, -1, -nu, -nu, -nu, -nu])
+        self.C[[0, 1, 2, 3] * 2, [0, 0, 1, 1, 2, 2, 2, 2]] = np.array([1, -1, 1, -1, -self.mu, -self.mu, -self.mu, -self.mu])
 
         # Create F matrix
         self.F = np.zeros((20, 12))
@@ -165,6 +199,13 @@ class MPC:
         # Fill L matrix with F matrices
         for k in range(self.n_steps):
             self.L[(20*k):(20*(k+1)), (12*(3+k)):(12*(4+k))] = self.F
+
+        return 0
+
+    def create_K(self):
+
+        # Create K matrix
+        self.K = np.zeros((20*self.n_steps, 1))
 
         return 0
 
