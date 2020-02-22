@@ -1,0 +1,236 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{fullpage}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumerate}
+\usepackage{color}
+\usepackage{capt-of}
+\usepackage{geometry} % To format pages geometry
+\geometry{top=30mm, bottom=25mm, left=20mm, right=20mm}
+\usepackage{float} % To place figures with [H]
+\usepackage{apacite} % To cite with APA convention
+\usepackage{wrapfig}
+\usepackage{todonotes}
+\usepackage{array}% http://ctan.org/pkg/array % Add spacing in tabular
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm} % To use bold in math mode
+\usepackage{apacite} % To cite with APA convention
+\usepackage{geometry}
+\geometry{hmargin=2.5cm,vmargin=2.5cm}
+% End of usepackage area
+\renewcommand{\d}[1]{\ensuremath{\operatorname{d}\!{#1}}}
+\newcommand{\PRLsep}{\noindent\makebox[\linewidth]{\resizebox{0.3333\linewidth}{1pt}{$\bullet$}}}%\bigskip}
+%\renewcommand{\thesection}{\Roman{section}}
+
+% End of title area
+
+\setlength{\parskip}{0.9em} % Space between paragraphs
+\setlength{\parindent}{0em} % No indent start of paragraphs
+
+\usepackage[utf8]{inputenc}
+
+\title{Récapitulatif TSID-Rigid}
+\author{}
+\date{\today}
+
+%\usepackage{fancyhdr}{\headheight=15pt} % This should be set AFTER setting up the page geometry
+%\pagestyle{fancy} % options: empty , plain , fancy
+%\renewcommand{\headrulewidth}{1pt} % customise the layout...
+%\lhead{Printemps 2019 | Pierre-Alexandre Léziart}\chead{}\rhead{Pense-bête pour l'oral de l'agrégation}
+%\lfoot{}\cfoot{}\rfoot{\thepage}
+
+
+\begin{document}
+
+%\maketitle
+
+\section*{Récapitulatif de la méthode MPC 22/02/2020}
+
+\vspace{0.8cm}
+\PRLsep
+\vspace{0.5cm}
+
+\section*{State vector}
+
+
+The reference velocity $\dot q^\star$ that is sent to the robot is expressed in its local frame. It has 6 dimensions: 3 for the linear velocity and 3 for the angular one.
+\begin{equation}
+\dot q_l^\star = [\dot x_l^\star ~~ \dot y_l^\star ~~ \dot z_l^\star ~~ \dot \phi^\star ~~ \dot \theta^\star ~~ \dot \psi^\star ]^T
+\end{equation}
+
+The velocity vector of the robot is:
+\begin{equation}
+\dot q_l = [\dot x_l ~~ \dot y_l ~~ \dot z_l ~~ \dot \phi ~~ \dot \theta ~~ \dot \psi ]^T
+\end{equation}
+
+At the start each iteration of the MPC, the current position and orientation of the robot defines a new frame in which the solver will work. This frame is at ground level with the $x$ axis pointing forwards ($x$ axis of the local frame), the $y$ axis pointing to the left ($y$ axis of the local frame) and the $z$ axis point upwards. Instead of working in pitch, roll and yaw, the solver will work in terms of rotation around the $x$, $y$ and $z$ axes of this new frame. As this solver frame and the local frame are initially superposed, we have for the initial conditions of the solving process:
+\begin{align}
+q_0 &= [x ~~ y ~~ z ~~ \theta_x ~~ \theta_y ~~ \theta_z ] = [0 ~~ 0 ~~ z ~~ \theta_x ~~ \theta_y ~~ 0] \\
+\dot q_0 &= [\dot x ~~ \dot y ~~ \dot z ~~ \dot \theta_x ~~ \dot \theta_y ~~ \dot \theta_z ] = [\dot x_l ~~ \dot y_l ~~ \dot z_l ~~ \dot \phi ~~ \dot \theta ~~ \dot \psi ]
+\end{align}
+
+The state vector of the robot and the reference state vector are then: 
+\begin{equation}X = \begin{bmatrix} q \\ \dot q \end{bmatrix} \text{~~~~}X^\star = \begin{bmatrix} q^{\star} \\ \dot q^{\star} \end{bmatrix}\end{equation}
+
+The reference velocity is supposed constant over the prediction horizon in the local frame of the robot which means we need to rotate it accordingly to get the reference velocity in solver frame.
+
+For time step $k$ of the prediction horizon, the reference velocity vector is defined as follows:
+\begin{align}
+\dot q_k^\star = \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \phi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \phi^\star) \end{bmatrix}  \cdot  \dot q_0^\star = \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \phi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \phi^\star) \end{bmatrix} \cdot \dot q_l^\star 
+\end{align}
+
+with $R_z(\phi)$ the 3 by 3 rotation matrix by an angle $\phi$ along the vertical axis. There is no rotation along $x$ and $y$ axes due to the assumption that the trunk is almost horizontal.
+
+%with $\forall k, \dot q_k^\star = \dot q^\star$ since the reference velocity is supposed constant over the prediction horizon. $q_k^\star$ is obtained by integrating the $\dot q^\star$ starting from the current position vector $q_0$.
+%\begin{align}
+%q_0 &= [0 ~~ 0 ~~ z ~~ \phi ~~ \theta ~~ 0 ]^T \\
+%q_{k+1} &= q_k + R(\psi_k) \cdot \dot q^\star
+%\end{align}
+
+To get the reference position vector, the following iterative equation can be use:
+\begin{equation} q_{k+1}^\star = q_k^\star + \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \phi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \phi^\star) \end{bmatrix} \cdot \dot q_0^\star \end{equation}
+
+The solver will work around the reference trajectory so we define the optimization state vector as follows:
+\begin{equation}\mathcal{X}_k = X_k - X_k^\star \end{equation}
+
+\newpage
+
+\section*{Solver matrices}
+
+\textbf{Goal:} create the matrices that are used by standard QP solvers. Those solvers tries to find the vector $\mathbb{X}$ that minimizes $\frac{1}{2}\mathbb{X}^T.P.\mathbb{X} + \mathbb{X}^T.Q$ under constraints $M.\mathbb{X} = N$ and $L.\mathbb{X} \leq K$.
+
+The evolution of the state vector of the robot over time can be described as follows:
+\begin{equation}
+x(k+1) = A(k) x(k) + B(k) f(k) + g
+\end{equation}
+
+Matrices A et B depends on $k$ and $g = [0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ -9.81 \cdot dt~ 0 ~ 0 ~ 0]^T$
+
+The contact forces vector $f(k) = f_k$ always include the forces applied on the four feet even if some of them are not touching the ground. In that case we will set the problem in such a way that forces for such feet are not considered at all in the solving process.
+\begin{align}
+f_k &= [f_{k,0}^T ~~ f_{k,1}^T ~~ f_{k,2}^T ~~ f_{k,3}^T]^T \\
+f_{k,i} &= \begin{bmatrix} f^x_{k,i} \\ f^y_{k,i} \\ f^z_{k,i} \end{bmatrix}
+\end{align}
+
+with $f^x_{k,i}$, $f^y_{k,i}$ and $f^z_{k,i}$ the components along the $x$, $y$ and $z$ axes of the solver frame for the $i$-th foothold at time step $k$.
+
+Let's consider a case with only 3 time steps in the prediction horizon.
+
+Since we are optimizing both the state vector $X$ of the robot to have it close to $X^\star$ and the contacts forces $f$ which are the output of the MPC, the solver vector $\mathbb{X}$ is then:
+\begin{equation}
+\mathbb{X} = [\mathcal{X}_1 ~~ \mathcal{X}_2 ~~ \mathcal{X}_3 ~~ f_0 ~~ f_1 ~~ f_2 ]^T
+\end{equation}
+
+Matrix $M$ is defined as follows:
+\begin{equation}
+M = \begin{bmatrix} 
+-I_{12} & 0_{12} & 0_{12}  & B_0 & 0_{12} & 0_{12}  \\
+A_1 & -I_{12} & 0_{12}  & 0_{12} & B_1 & 0_{12} \\
+0_{12} & A_2 & -I_{12}  & 0_{12} & 0_{12} & B_2  \end{bmatrix}
+\end{equation}
+
+$A$ and $B$ have a size of 12 by 12.
+
+Matrix $N$ is defined as follows:
+\begin{equation}
+N = \begin{bmatrix} -g \\ -g \\ -g \end{bmatrix} + \begin{bmatrix} -A_0 X_0 \\ 0 \\ 0  \end{bmatrix} + \begin{bmatrix} I & 0 & 0 \\ -A_1 & I & 0 \\ 0 & -A_2 & I \end{bmatrix} \cdot \begin{bmatrix} X_1^\star \\ X_2^\star \\ X_3 \end{bmatrix} 
+\end{equation}
+
+Matrix $A_k$ for time step $k$ is defined as follows:
+\begin{equation}
+A = \begin{bmatrix} 
+I_3 & 0_3 & \Delta t \cdot I_3 & 0_3 \\
+0_3 & I_3 & 0_3 & \Delta t \cdot I_3 \\
+0_3 & 0_3 & I_3 & 0_3 \\
+0_3 & 0_3 & 0_3 & I_3
+\end{bmatrix}
+\end{equation}
+
+%with $R(\psi_k = \psi_0+k~dt~\dot \psi^\star)$ the 3 by 3 rotation matrix along the vertical axis. 
+
+The inertia matrix of the robot in solver frame rotated according to the orientation of the robot at time step $k$ is:
+\begin{equation}
+\mathcal{I}_k = R_z(\Delta t \cdot k \cdot \dot \phi^\star) \cdot \mathcal{I}
+\end{equation}
+
+Matrix $B_k$ for time step $k$ is defined as follows:
+\begin{equation}
+B = \begin{bmatrix} 
+0_3 & 0_3 & 0_3 & 0_3 \\
+0_3 & 0_3 & 0_3 & 0_3 \\
+\Delta t/m \cdot I_3 & \Delta t/m \cdot I_3 & \Delta t/m \cdot I_3 & \Delta t/m \cdot I_3 \\
+\Delta t \cdot \mathcal{I}_k^{-1} \cdot [r_{k,0}]_\times & \Delta t \cdot \mathcal{I}_k^{-1} \cdot [r_{k,1}]_\times & \Delta t \cdot \mathcal{I}_k^{-1} \cdot [r_{k,2}]_\times & \Delta t \cdot \mathcal{I}_k^{-1} \cdot [r_{k,3}]_\times
+\end{bmatrix}
+\end{equation}
+
+with $r_{k,i}$ the vector expressed in solver frame going from the position of the robot at time step $k$ to the position of the $i$-th foothold and $[r_{k,i}]_\times$ the associated skew-symmetric matrix.
+
+Matrix $L$ is defined as follows:
+\begin{equation}
+L = \begin{bmatrix} 
+	0_{20\times12} & 0_{20\times12} & 0_{20\times12}  & F_\mu  & 0_{20\times12} & 0_{20\times12} \\
+	0_{20\times12} & 0_{20\times12} & 0_{20\times12}  & 0_{20\times12} & F_\mu  & 0_{20\times12} \\
+	0_{20\times12} & 0_{20\times12} & 0_{20\times12}  & 0_{20\times12} & 0_{20\times12} & F_\mu  \end{bmatrix}
+\end{equation}
+
+With:
+\begin{equation}
+F_\mu = \begin{bmatrix} 
+	C  & 0_{5\times3} & 0_{5\times3} & 0_{5\times3} \\
+	0_{5\times3} & C & 0_{5\times3} & 0_{5\times3} \\
+	0_{5\times3}  & 0_{5\times3} & C & 0_{5\times3} \\
+	0_{5\times3}  & 0_{5\times3} & 0_{5\times3} & C
+\end{bmatrix} \text{ and } C = \begin{bmatrix} 
+1  & 0 & -\mu \\
+-1 & 0 & -\mu \\
+0  & 1 & -\mu \\
+0  & -1 & -\mu \\
+0  & 0 & - 1 \\
+\end{bmatrix}
+\end{equation}
+
+The $N$ matrix is defined as $N = 0_{60 \times 1}$.
+
+Matrix $P$ in the cost function $\frac{1}{2}\mathbb{X}^T.P.\mathbb{X} + \mathbb{X}^T.Q$ is diagonal. That way the first term of the cost function looks like $\sum_{k=1}^{3} c_{k,X} \cdot (X_1 - X_1^\star)^2 + \sum_{k=0}^{2} c_{k,f} \cdot f_k^2$ with $c_{k,X}$ and $c_{k,f}$ with size $(12, 1)$. With $c_{k,X} > 0$ it push the solver into minimizing the error $X_k - X_k^\star$ to the reference trajectory that we want to follow while $c_{k,f}$ are small positive coefficients that act as a regularization of the force to get a solution with a norm as low as possible for the reaction force. In the 3 time steps example $P$ has a size of 72 by 72. (12 x 3 lines/columns for $\mathcal{X}_{1,2,3}$ and 12 x 3 lines/columns for $f_{1,2,3}$).
+ 
+
+Matrix $Q$ involved in $\mathbb{X}^T.Q$ only contains zeroes since there is no reason to push $X_k - X_k^\star$ or $f_k$ into being as negative/positive as possible. For instance if a coefficient of $Q$ is positive then the solver will try to have the associated variable as negative as possible to have a high negative product between the coefficient and the variable which minimizes the cost. In the 3 time steps example Q will be of size 72 by 1.
+
+\section*{Update of solver matrices}
+
+In the $M$ matrix:
+\begin{itemize}
+\item $A_k$ matrices are constant and all the same
+\item $[r_{k,i}]$ need to be updated at each iteration since the robot moves between each iteration
+\item $\mathcal{I}_k^{-1}$ need to be updated if the reference velocity vector is modified
+\item All terms in column $j$ of $B_k$ need to be set to 0 if the $j$-th foot was previously touching the ground during time step $k$ and is not touching it anymore. And the contrary if it is now touching the ground during time step $k$ and is now touching it.
+\end{itemize}
+
+In the $N$ matrix:
+\begin{itemize}
+	\item $X_0$ need to be updated at each iteration since the robot moves between each iteration
+	\item $- g$ never changes
+	\item $X_k^\star$ need to be updated if the reference velocity vector is modified
+\end{itemize}
+
+In the $L$ matrix:
+\begin{itemize}
+	\item Columns of $F_\mu$ matrices have to be set to zero or set back to non-zero values depending on the states of the contacts (just like the columns of $B_k$ matrices)
+\end{itemize}
+
+The $N$ matrix never change and is always full of zeros.
+
+\section*{Output of the MPC}
+
+The desired reaction forces that need to be applied (by TSID or the real robot) are stored in $f_0$. Since the solver frame and local frame are initially superposed then $f_0$ directly contains the desired reaction forces in the local frame of the robot. To be used in TSID, these forces need to be rotated to be brought back in TSID's world frame. 
+
+The same applies for the next desired position of the robot that is stored in $\mathcal{X}_1$ and can be retrieved by adding $X_1^\star$ to $\mathcal{X}_1$. As the next position/orientation is expressed in the solver/local frame, it needs to be rotated to be brought back in TSID's world frame.
+
+\end{document}
