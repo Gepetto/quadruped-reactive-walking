@@ -143,11 +143,28 @@ class MPC:
             lever_arms = self.footholds - self.xref[0:3, k:(k+1)]
             for i in range(4):
                 self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils.getSkew(lever_arms[:, i]))
-            
+
             self.M[(k*12):((k+1)*12), (12*(self.n_steps+k)):(12*(self.n_steps+k+1))] = self.B
 
         return 0
 
+    def create_L(self):
 
+        # Create L matrix
+        self.L = np.zeros((20*self.n_steps, 12*self.n_steps*2))
 
+        # Create C matrix
+        self.C = np.zeros((5, 3))
+        self.C[[0, 1, 2, 3] * 2, [0, 0, 1, 1, 2, 2, 2, 2]] = np.array([1, -1, 1, -1, -nu, -nu, -nu, -nu])
+
+        # Create F matrix
+        self.F = np.zeros((20, 12))
+        for i in range(4):
+            self.F[(5*i):(5*(i+1)), (3*i):(3*(i+1))] = self.C
+
+        # Fill L matrix with F matrices
+        for k in range(self.n_steps):
+            self.L[(20*k):(20*(k+1)), (12*(3+k)):(12*(4+k))] = self.F
+
+        return 0
 
