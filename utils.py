@@ -8,6 +8,7 @@ import ContactSequencer
 import FootstepPlanner
 import FootTrajectoryGenerator
 import MpcSolver
+import MPC
 
 ##########################
 # ROTATION MATRIX TO RPY #
@@ -101,6 +102,12 @@ def init_objects(dt, k_max_loop):
     # Create MPC solver object
     mpc = MpcSolver.MpcSolver(dt, sequencer, k_max_loop)
 
+    # Create the new version of the MPC solver object
+    mpc_v2 = MPC.MPC(dt, sequencer)
+    mpc_v2.update_v_ref(joystick)
+    mpc_v2.getRefStatesDuringTrajectory(sequencer)
+    mpc_v2.create_M()
+
     return joystick, sequencer, fstep_planner, ftraj_gen, mpc
 
 
@@ -123,3 +130,13 @@ def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
 
     # Refresh the gepetto viewer display
     solo.display(qu_pinocchio)
+
+
+def getSkew(a):
+    """Returns the skew matrix of a 3 by 1 column vector
+
+    Keyword arguments:
+    a -- the column vector
+    """
+    return np.array([[0, -a[2], a[1]], [a[2], 0, -a[0]], [-a[1], a[0], 0]], dtype=a.dtype)
+
