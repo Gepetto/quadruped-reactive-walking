@@ -79,7 +79,9 @@ def getQuaternion(rpy):
 def init_viewer():
     solo = robots_loader.loadSolo(False)
     solo.initDisplay(loadModel=True)
-    solo.viewer.gui.addFloor('world/floor')
+    if ('viewer' in solo.viz.__dict__):
+        solo.viewer.gui.addFloor('world/floor')
+        solo.viewer.gui.setRefreshIsSynchronous(False)  
     solo.display(solo.q0)
 
     return solo
@@ -121,14 +123,11 @@ def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
 
     # Display reference trajectory, predicted trajectory, desired contact forces, current velocity
     # mpc.update_viewer(solo.viewer, (k == 0), sequencer)
-    mpc.plot_graphs(sequencer)
+    # mpc.plot_graphs(sequencer)
 
     qu_pinocchio = np.array(solo.q0).flatten()
     qu_pinocchio[0:3] = mpc.q_w[0:3, 0]
-    # TODO: Check why orientation of q_w and qu are different
-    # qu_pinocchio[3:7, 0:1] = getQuaternion(settings.q_w[3:6, 0:1])
-    qu_pinocchio[3:7] = getQuaternion(np.matrix([mpc.q_next[3:6, 0]]).T).flatten()
-
+    qu_pinocchio[3:7] = getQuaternion(np.matrix([mpc.q_w[3:6, 0]]).T).flatten()
     # Refresh the gepetto viewer display
     solo.display(qu_pinocchio)
 
