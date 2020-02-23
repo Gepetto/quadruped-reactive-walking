@@ -113,7 +113,7 @@ class FootstepPlanner:
         p += 0.5 * np.sqrt(mpc.q[2, 0]/self.g) * cross[0:2, 0:1]
 
         # Time remaining before the end of the currrent swing phase
-        t_remaining = np.zeros((1, 4))
+        """t_remaining = np.zeros((1, 4))
         for i in range(4):
             indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
             indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
@@ -122,14 +122,14 @@ class FootstepPlanner:
                 t_remaining[0, i] = sequencer.T_gait
             else:
                 index = (indexes_stance[indexes_stance > indexes_swing[0]])[0]
-                t_remaining[0, i] = index * self.dt
+                t_remaining[0, i] = index * self.dt"""
 
         # Add velocity forecast
         #  p += np.tile(v[0:2, 0:1], (1, 4)) * t_remaining
-        for i in range(4):
+        """for i in range(4):
             yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * mpc.v[5, 0]
             p[0, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.cos(yaw) - mpc.v[1, 0] * np.sin(yaw)))[-1]
-            p[1, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.sin(yaw) + mpc.v[1, 0] * np.cos(yaw)))[-1]
+            p[1, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.sin(yaw) + mpc.v[1, 0] * np.cos(yaw)))[-1]"""
 
         # Update target_footholds_no_lock
         self.footsteps = p

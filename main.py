@@ -27,7 +27,7 @@ joystick, sequencer, fstep_planner, ftraj_gen, mpc = utils.init_objects(dt, k_ma
 # MAIN LOOP #
 #############
 
-for k in range(k_max_loop):
+for k in range(5): # k_max_loop):
 
     joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
     mpc.update_v_ref(joystick)  # Retrieve reference velocity

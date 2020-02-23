@@ -188,7 +188,7 @@ class MPC:
         # Add lines to enable/disable forces
         # With = sequencer.S.reshape((-1,)) we directly initialize with the contact sequence but we have a dependency on the sequencer
         # With = np.ones((12*self.n_steps, )) we would not have this dependency but he would have to set the active forces later
-        self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps, 12*self.n_steps*2, 1)] = np.repeat(sequencer.S.reshape((-1,)),3)
+        self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps, 12*self.n_steps*2, 1)] = 1 - np.repeat(sequencer.S.reshape((-1,)),3)
 
         return 0
 
@@ -293,9 +293,9 @@ class MPC:
         P_col = np.hstack((P_col, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
         P_data = np.hstack((P_data, 0.0*np.ones((n_x * self.n_steps * 2 - n_x * self.n_steps,))))
 
-        P_data[(n_x * self.n_steps)::3] = 0.01  # force along x
-        P_data[(n_x * self.n_steps + 1)::3] = 0.01  # force along y
-        P_data[(n_x * self.n_steps + 2)::3] = 0.01  # force along z
+        P_data[(n_x * self.n_steps)::3] = 1e-4  # force along x
+        P_data[(n_x * self.n_steps + 1)::3] = 1e-4  # force along y
+        P_data[(n_x * self.n_steps + 2)::3] = 1e-4  # force along z
 
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(n_x * self.n_steps * 2, n_x * self.n_steps * 2))
@@ -349,7 +349,7 @@ class MPC:
             self.M[(k*12):((k+1)*12), (12*(self.n_steps+k)):(12*(self.n_steps+k+1))] = self.B
 
         # Update lines to enable/disable forces
-        self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps, 12*self.n_steps*2, 1)] = np.repeat(sequencer.S.reshape((-1,)),3)
+        self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps, 12*self.n_steps*2, 1)] = 1 - np.repeat(sequencer.S.reshape((-1,)),3)
 
         return 0
 
@@ -478,24 +478,82 @@ class MPC:
         log_t = self.dt * np.arange(0, self.x_robot.shape[1], 1)
 
         plt.figure()
-        plt.subplot(3, 1, 1)
+        plt.subplot(3, 2, 1)
         plt.plot(log_t, self.x_robot[0, :], "b", linewidth=2)
         plt.plot(log_t, self.xref[0, 1:], "r", linewidth=2)
         plt.xlabel("Time [s]")
-        plt.ylabel("Output trajectory along X [m]")
-        plt.legend(["Robot", "Reference"])
-        plt.subplot(3, 1, 2)
+        plt.ylabel("Position along X [m]")
+        plt.legend(["Prediction", "Reference"])
+        plt.subplot(3, 2, 3)
         plt.plot(log_t, self.x_robot[1, :], "b", linewidth=2)
         plt.plot(log_t, self.xref[1, 1:], "r", linewidth=2)
         plt.xlabel("Time [s]")
-        plt.ylabel("Output trajectory along Y [m]")
-        plt.legend(["Robot", "Reference"])
-        plt.subplot(3, 1, 3)
+        plt.ylabel("Position along Y [m]")
+        plt.legend(["Prediction", "Reference"])
+        plt.subplot(3, 2, 5)
         plt.plot(log_t, self.x_robot[2, :], "b", linewidth=2)
         plt.plot(log_t, self.xref[2, 1:], "r", linewidth=2)
         plt.xlabel("Time [s]")
-        plt.ylabel("Output trajectory along Z [m]")
-        plt.legend(["Robot", "Reference"])
+        plt.ylabel("Position along Z [m]")
+        plt.legend(["Prediction", "Reference"])
+
+        plt.subplot(3, 2, 2)
+        plt.plot(log_t, self.x_robot[3, :], "b", linewidth=2)
+        plt.plot(log_t, self.xref[3, 1:], "r", linewidth=2)
+        plt.xlabel("Time [s]")
+        plt.ylabel("Orientation along X [m]")
+        plt.legend(["Prediction", "Reference"])
+        plt.subplot(3, 2, 4)
+        plt.plot(log_t, self.x_robot[4, :], "b", linewidth=2)
+        plt.plot(log_t, self.xref[4, 1:], "r", linewidth=2)
+        plt.xlabel("Time [s]")
+        plt.ylabel("Orientation along Y [m]")
+        plt.legend(["Prediction", "Reference"])
+        plt.subplot(3, 2, 6)
+        plt.plot(log_t, self.x_robot[5, :], "b", linewidth=2)
+        plt.plot(log_t, self.xref[5, 1:], "r", linewidth=2)
+        plt.xlabel("Time [s]")
+        plt.ylabel("Orientation along Z [m]")
+        plt.legend(["Prediction", "Reference"])
+        plt.show(block=True)
+
+        # Display the desired contact forces for each foot over the prediction horizon for the current iteration
+        f_1 = np.zeros((3, (self.xref.shape[1]-1)))
+        f_2 = np.zeros((3, (self.xref.shape[1]-1)))
+        f_3 = np.zeros((3, (self.xref.shape[1]-1)))
+        f_4 = np.zeros((3, (self.xref.shape[1]-1)))
+        fs = [f_1, f_2, f_3, f_4]
+        cpt_tot = 0
+        for i_f in range((self.xref.shape[1]-1)):
+            up = (sequencer.S[i_f, :] == 1)
+            for i_up in range(4):
+                if up[0, i_up] == True:
+                    (fs[i_up])[:, i_f] = self.x[(self.xref.shape[0]*(self.xref.shape[1]-1) + 3 * cpt_tot):
+                                                (self.xref.shape[0]*(self.xref.shape[1]-1) + 3 * cpt_tot + 3)]
+                    cpt_tot += 1
+
+        plt.close()
+        plt.figure()
+        plt.subplot(2, 2, 1)
+        plt.title("Front left")
+        plt.plot(f_1[0, :], linewidth=2)
+        plt.plot(f_1[1, :], linewidth=2)
+        plt.plot(f_1[2, :], linewidth=2)
+        plt.subplot(2, 2, 2)
+        plt.title("Front right")
+        plt.plot(f_2[0, :], linewidth=2)
+        plt.plot(f_2[1, :], linewidth=2)
+        plt.plot(f_2[2, :], linewidth=2)
+        plt.subplot(2, 2, 3)
+        plt.title("Hindleft")
+        plt.plot(f_3[0, :], linewidth=2)
+        plt.plot(f_3[1, :], linewidth=2)
+        plt.plot(f_3[2, :], linewidth=2)
+        plt.subplot(2, 2, 4)
+        plt.title("Hind right")
+        plt.plot(f_4[0, :], linewidth=2)
+        plt.plot(f_4[1, :], linewidth=2)
+        plt.plot(f_4[2, :], linewidth=2)
         plt.show(block=True)
 
         return 0

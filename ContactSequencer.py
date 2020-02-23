@@ -13,7 +13,7 @@ class ContactSequencer:
         self.dt = dt
 
         # Stance duration
-        self.t_stance = 0.3
+        self.t_stance = 0.6
 
         # Gait duration
         self.T_gait = 0.6
@@ -47,6 +47,8 @@ class ContactSequencer:
         # Likely due to numerical effect we don't have it
         self.S[0, :] = np.ones((1, 4))
         self.S[int(self.S.shape[0]*0.5), :] = np.ones((1, 4))
+
+        self.S = np.matrix(np.ones(self.S.shape))
 
         return 0
 
