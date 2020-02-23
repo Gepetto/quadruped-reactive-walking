@@ -107,11 +107,10 @@ def init_objects(dt, k_max_loop):
     # Create the new version of the MPC solver object
     mpc_v2 = MPC.MPC(dt, sequencer)
     mpc_v2.update_v_ref(joystick)
-    mpc_v2.getRefStatesDuringTrajectory(sequencer)
-    mpc_v2.create_M(sequencer)
-    mpc_v2.create_N()
-    mpc_v2.create_L()
-    mpc_v2.create_K()
+    mpc_v2.getRefStates(sequencer)
+    mpc_v2.create_matrices(sequencer)
+    mpc_v2.call_solver(sequencer)
+    mpc_v2.retrieve_result()
     embed()
     return joystick, sequencer, fstep_planner, ftraj_gen, mpc
 

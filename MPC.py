@@ -71,7 +71,7 @@ class MPC:
 
         return 0
 
-    def getRefStatesDuringTrajectory(self, sequencer):
+    def getRefStates(self, sequencer):
         """Returns the reference trajectory of the robot for each time step of the
         predition horizon. The ouput is a matrix of size 12 by N with N the number
         of time steps (around T_gait / dt) and 12 the position / orientation /
@@ -115,7 +115,25 @@ class MPC:
 
         return 0
 
+    def create_matrices(self, sequencer):
+        """
+        Create the constraint matrices of the MPC (M.X = N and L.X <= K)
+        Create the weight matrices P and Q of the MPC solver (cost 1/2 x^T * P * X + X^T * Q)
+        """
+
+        # Create the constraint matrices
+        self.create_M(sequencer)
+        self.create_N()
+        self.create_L()
+        self.create_K()
+
+        # Create the weight matrices
+        self.create_weight_matrices()
+
+        return 0
+
     def create_M(self, sequencer):
+        """ Create the M matrix involved in the MPC constraint equations M.X = N and L.X <= K """
 
         # Create matrix M
         self.M = np.zeros((12*self.n_steps*2, 12*self.n_steps*2))
@@ -157,6 +175,7 @@ class MPC:
         return 0
 
     def create_N(self):
+        """ Create the N matrix involved in the MPC constraint equations M.X = N and L.X <= K """
 
         # Create N matrix
         self.N = np.zeros((12*self.n_steps, 1))
@@ -185,12 +204,16 @@ class MPC:
         # Add third term to matrix N
         self.N += np.dot(self.D, self.xref[:, 1:].reshape((-1, 1), order='F'))
 
+        # Add lines to enable/disable forces
+        self.N = np.vstack((self.N, np.zeros((12*self.n_steps, 1))))
+
         # Reshape N into one dimensional array
         self.N = self.N.reshape((-1,))
 
         return 0
 
     def create_L(self):
+        """ Create the L matrix involved in the MPC constraint equations M.X = N and L.X <= K """
 
         # Create L matrix
         self.L = np.zeros((20*self.n_steps, 12*self.n_steps*2))
@@ -211,9 +234,129 @@ class MPC:
         return 0
 
     def create_K(self):
+        """ Create the K matrix involved in the MPC constraint equations M.X = N and L.X <= K """
 
         # Create K matrix
         self.K = np.zeros((20*self.n_steps, ))
 
         return 0
 
+    def create_weight_matrices(self):
+        """Create the weight matrices in the cost x^T.P.x + x^T.q of the QP problem
+        """
+
+        # Number of states
+        n_x = 12
+
+        # Declaration of the P matrix in "x^T.P.x + x^T.q"
+        # P_row, _col and _data satisfy the relationship P[P_row[k], P_col[k]] = P_data[k]
+        P_row = np.array([], dtype=np.int64)
+        P_col = np.array([], dtype=np.int64)
+        P_data = np.array([], dtype=np.float64)
+
+        # Define weights for the x-x_ref components of the optimization vector
+        P_row = np.arange(0, n_x * self.n_steps, 1)
+        P_col = np.arange(0, n_x * self.n_steps, 1)
+        P_data = 0.0 * np.ones((n_x * self.n_steps,))
+
+        # Hand-tuning of parameters if you want to give more weight to specific components
+        P_data[0::12] = 1000  # position along x
+        P_data[1::12] = 1000  # position along y
+        P_data[2::12] = 300  # position along z
+        P_data[3::12] = 300  # roll
+        P_data[4::12] = 300  # pitch
+        P_data[5::12] = 100  # yaw
+        P_data[6::12] = 30  # linear velocity along x
+        P_data[7::12] = 30  # linear velocity along y
+        P_data[8::12] = 300  # linear velocity along z
+        P_data[9::12] = 100  # angular velocity along x
+        P_data[10::12] = 100  # angular velocity along y
+        P_data[11::12] = 30  # angular velocity along z
+
+        # Define weights for the force components of the optimization vector
+        P_row = np.hstack((P_row, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
+        P_col = np.hstack((P_col, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
+        P_data = np.hstack((P_data, 0.0*np.ones((n_x * self.n_steps * 2 - n_x * self.n_steps,))))
+
+        P_data[(n_x * self.n_steps)::3] = 0.01  # force along x
+        P_data[(n_x * self.n_steps + 1)::3] = 0.01  # force along y
+        P_data[(n_x * self.n_steps + 2)::3] = 0.01  # force along z
+
+        # Convert P into a csc matrix for the solver
+        self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(n_x * self.n_steps * 2, n_x * self.n_steps * 2))
+
+        # Declaration of the Q matrix in "x^T.P.x + x^T.Q"
+        self.Q = np.hstack((np.zeros(n_x * self.n_steps,), 0.00 *
+                            np.ones((n_x * self.n_steps * 2-n_x * self.n_steps, ))))
+
+        # Weight for the z component of contact forces (fz > 0 so with a positive weight it tries to minimize fz)
+        # q[(n_x * self.n_steps+2)::3] = 0.01
+
+        return 0
+
+    def call_solver(self, sequencer):
+        """Create an initial guess and call the solver to solve the QP problem
+        """
+
+        # Initial guess for forces (mass evenly supported by all legs in contact)
+        f_temp = np.zeros((12*self.n_steps))
+        # f_temp[2::3] = 2.2 * 9.81 / np.sum(sequencer.S[0,:])
+        tmp = np.array(np.sum(sequencer.S, axis=1)).ravel().astype(int)
+
+        # Initial guess of "mass/4" for time step with 4 feet in contact and "mass/2" for 2 feet in contact
+        f_temp[2::3] = (np.repeat(tmp, 4)-4) / (2 - 4) * (self.mass * 9.81 * 0.5) + \
+            (np.repeat(tmp, 4)-2) / (4 - 2) * (self.mass * 9.81 * 0.25)
+
+        # Keep initial guess only for enabled feet
+        f_temp = np.array(np.multiply(np.repeat(sequencer.S.reshape((-1,)), 3), f_temp)).flatten()
+
+        # Initial guess (current state + guess for forces) to warm start the solver
+        initx = np.hstack((np.zeros((12 * self.n_steps,)), f_temp))
+
+        # Create the QP solver object
+        prob = osqp.OSQP()
+
+        # Stack equality and inequality matrices
+        inf_lower_bound = -np.inf * np.ones(len(self.K))
+        qp_A = scipy.sparse.vstack([self.L, self.M]).tocsc()
+        qp_l = np.hstack([inf_lower_bound, self.N])
+        qp_u = np.hstack([self.K, self.N])
+
+        # Setup the solver with the matrices and a warm start
+        prob.setup(P=self.P, q=self.Q, A=qp_A, l=qp_l, u=qp_u, verbose=False)
+        prob.warm_start(x=initx)
+        """
+        else:  # Code to update the QP problem without creating it again 
+            qp_A = scipy.sparse.vstack([G, A]).tocsc()
+            qp_l = np.hstack([l, b])
+            qp_u = np.hstack([h, b])
+            prob.update(A=qp_A, l=qp_l, u=qp_u)
+        """
+
+        # Run the solver to solve the QP problem
+        # x = solve_qp(P, q, G, h, A, b, solver='osqp')
+        self.x = prob.solve().x
+
+        return 0
+
+    def retrieve_result(self):
+        """Extract relevant information from the output of the QP solver
+        """
+
+        # Retrieve the "robot state vector" part of the solution of the QP problem
+        self.x_robot = (self.x[0:(self.xref.shape[0]*(self.xref.shape[1]-1))]
+                        ).reshape((self.xref.shape[0], self.xref.shape[1]-1), order='F')
+
+        # Retrieve the "contact forces" part of the solution of the QP problem
+        self.f_applied = self.x[self.xref.shape[0]*(self.xref.shape[1]-1):(self.xref.shape[0] *
+                                                                           (self.xref.shape[1]-1)
+                                                                           + self.n_contacts[0, 0]*3)]
+
+        # As the QP problem is solved for (x_robot - x_ref), we need to add x_ref to the result to get x_robot
+        self.x_robot += self.xref[:, 1:]
+
+        # Predicted position and velocity of the robot during the next time step
+        self.q_next = self.x_robot[0:6, 0:1]
+        self.v_next = self.x_robot[6:12, 0:1]
+
+        return 0
