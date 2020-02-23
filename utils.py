@@ -84,9 +84,11 @@ def init_viewer():
 
     return solo
 
+from IPython import embed
 
 def init_objects(dt, k_max_loop):
 
+    dt = 0.15
     # Create Joystick object
     joystick = Joystick.Joystick()
 
@@ -106,8 +108,11 @@ def init_objects(dt, k_max_loop):
     mpc_v2 = MPC.MPC(dt, sequencer)
     mpc_v2.update_v_ref(joystick)
     mpc_v2.getRefStatesDuringTrajectory(sequencer)
-    mpc_v2.create_M()
-
+    mpc_v2.create_M(sequencer)
+    mpc_v2.create_N()
+    mpc_v2.create_L()
+    mpc_v2.create_K()
+    embed()
     return joystick, sequencer, fstep_planner, ftraj_gen, mpc
 
 

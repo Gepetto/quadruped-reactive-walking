@@ -115,10 +115,10 @@ class MPC:
 
         return 0
 
-    def create_M(self):
+    def create_M(self, sequencer):
 
         # Create matrix M
-        self.M = np.zeros((12*self.n_steps, 12*self.n_steps*2))
+        self.M = np.zeros((12*self.n_steps*2, 12*self.n_steps*2))
 
         # Put identity matrices in M
         self.M[np.arange(0, 12*self.n_steps, 1), np.arange(0, 12*self.n_steps, 1)] = - np.ones((12*self.n_steps)) 
@@ -149,6 +149,11 @@ class MPC:
 
             self.M[(k*12):((k+1)*12), (12*(self.n_steps+k)):(12*(self.n_steps+k+1))] = self.B
 
+        # Add lines to enable/disable forces
+        # With = sequencer.S.reshape((-1,)) we directly initialize with the contact sequence but we have a dependency on the sequencer
+        # With = np.ones((12*self.n_steps, )) we would not have this dependency but he would have to set the active forces later
+        self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps, 12*self.n_steps*2, 1)] = np.repeat(sequencer.S.reshape((-1,)),3)
+
         return 0
 
     def create_N(self):
@@ -175,10 +180,13 @@ class MPC:
 
         # Put A matrices in D
         for k in range(self.n_steps-1):
-            self.M[((k+1)*12):((k+2)*12), (k*12):((k+1)*12)] = - self.A
+            self.D[((k+1)*12):((k+2)*12), (k*12):((k+1)*12)] = - self.A
 
         # Add third term to matrix N
         self.N += np.dot(self.D, self.xref[:, 1:].reshape((-1, 1), order='F'))
+
+        # Reshape N into one dimensional array
+        self.N = self.N.reshape((-1,))
 
         return 0
 
@@ -189,7 +197,7 @@ class MPC:
 
         # Create C matrix
         self.C = np.zeros((5, 3))
-        self.C[[0, 1, 2, 3] * 2, [0, 0, 1, 1, 2, 2, 2, 2]] = np.array([1, -1, 1, -1, -self.mu, -self.mu, -self.mu, -self.mu])
+        self.C[[0, 1, 2, 3] * 2 + [4], [0, 0, 1, 1, 2, 2, 2, 2, 2]] = np.array([1, -1, 1, -1, -self.mu, -self.mu, -self.mu, -self.mu, -1])
 
         # Create F matrix
         self.F = np.zeros((20, 12))
@@ -198,14 +206,14 @@ class MPC:
 
         # Fill L matrix with F matrices
         for k in range(self.n_steps):
-            self.L[(20*k):(20*(k+1)), (12*(3+k)):(12*(4+k))] = self.F
+            self.L[(20*k):(20*(k+1)), (12*(self.n_steps+k)):(12*(self.n_steps+1+k))] = self.F
 
         return 0
 
     def create_K(self):
 
         # Create K matrix
-        self.K = np.zeros((20*self.n_steps, 1))
+        self.K = np.zeros((20*self.n_steps, ))
 
         return 0
 
