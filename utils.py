@@ -108,6 +108,7 @@ def init_objects(dt, k_max_loop):
     mpc_v2 = MPC.MPC(dt, sequencer)
     mpc_v2.update_v_ref(joystick)
     mpc_v2.run(0, sequencer, fstep_planner, ftraj_gen)
+    mpc_v2.update_matrices(sequencer)
     embed()
     return joystick, sequencer, fstep_planner, ftraj_gen, mpc
 

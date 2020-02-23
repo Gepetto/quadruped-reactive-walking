@@ -199,12 +199,12 @@ class MPC:
         self.N = np.zeros((12*self.n_steps, 1))
 
         # Create g matrix
-        g = np.zeros((12, 1))
-        g[8, 0] = -9.81 * self.dt
+        self.g = np.zeros((12, 1))
+        self.g[8, 0] = -9.81 * self.dt
 
         # Fill N matrix with g matrices
         for k in range(self.n_steps):
-            self.N[(12*k):(12*(k+1)), 0:1] = - g
+            self.N[(12*k):(12*(k+1)), 0:1] = - self.g
 
         # Including - A*X0 in the first row of N
         self.N[0:12, 0:1] += np.dot(self.A, - self.x0)
@@ -224,9 +224,6 @@ class MPC:
 
         # Add lines to enable/disable forces
         self.N = np.vstack((self.N, np.zeros((12*self.n_steps, 1))))
-
-        # Reshape N into one dimensional array
-        self.N = self.N.reshape((-1,))
 
         return 0
 
@@ -312,6 +309,67 @@ class MPC:
 
         return 0
 
+    def update_matrices(self, sequencer):
+        """Update the M, N, L and K constraint matrices depending on what happened
+        """
+
+        # M need to be updated between each iteration:
+        # - lever_arms changes since the robot moves
+        # - I_inv changes if the reference velocity vector is modified
+        # - footholds need to be enabled/disabled depending on the contact sequence
+        self.update_M(sequencer)
+
+        # N need to be updated between each iteration:
+        # - X0 changes since the robot moves
+        # - Xk* changes since X0 is not the same
+        self.update_N()
+
+        # L matrix is constant
+        # K matrix is constant
+
+        return 0
+
+    def update_M(self, sequencer):
+
+        # The left part of M with A and identity matrices is constant
+
+        # The right part of M need to be updated because B matrices are modified
+        # Only the last rows of B need to be updated (those with lever arms of footholds)
+        for k in range(self.n_steps):
+            # Get inverse of the inertia matrix for time step k
+            c, s = np.cos(self.xref[5, k]), np.sin(self.xref[5, k])
+            R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
+            I_inv = np.linalg.inv(np.dot(R, self.gI))
+
+            # Get skew-symetric matrix for each foothold
+            lever_arms = self.footholds - self.xref[0:3, k:(k+1)]
+            for i in range(4):
+                self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils.getSkew(lever_arms[:, i]))
+
+            self.M[(k*12):((k+1)*12), (12*(self.n_steps+k)):(12*(self.n_steps+k+1))] = self.B
+
+        # Update lines to enable/disable forces
+        self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps, 12*self.n_steps*2, 1)] = np.repeat(sequencer.S.reshape((-1,)),3)
+
+        return 0
+
+    def update_N(self):
+        """ Create the N matrix involved in the MPC constraint equations M.X = N and L.X <= K """
+
+        # Matrix g is already created and not changed
+        # Fill N matrix with g matrices
+        for k in range(self.n_steps):
+            self.N[(12*k):(12*(k+1)), 0:1] = - self.g
+
+        # Including - A*X0 in the first row of N
+        self.N[0:12, 0:1] += np.dot(self.A, - self.x0)
+
+        # Matrix D is already created and not changed
+        # Add third term to matrix N
+        self.N[0:12*self.n_steps, 0:1] += np.dot(self.D, self.xref[:, 1:].reshape((-1, 1), order='F'))
+
+        return 0
+
     def call_solver(self, sequencer):
         """Create an initial guess and call the solver to solve the QP problem
         """
@@ -337,8 +395,8 @@ class MPC:
         # Stack equality and inequality matrices
         inf_lower_bound = -np.inf * np.ones(len(self.K))
         qp_A = scipy.sparse.vstack([self.L, self.M]).tocsc()
-        qp_l = np.hstack([inf_lower_bound, self.N])
-        qp_u = np.hstack([self.K, self.N])
+        qp_l = np.hstack([inf_lower_bound, self.N.ravel()])
+        qp_u = np.hstack([self.K, self.N.ravel()])
 
         # Setup the solver with the matrices and a warm start
         prob.setup(P=self.P, q=self.Q, A=qp_A, l=qp_l, u=qp_u, verbose=False)
@@ -395,6 +453,8 @@ class MPC:
         # Minimize x^T.P.x + x^T.Q with constraints M.X == N and L.X <= K
         if k == 0:
             self.create_matrices(sequencer)
+        else:
+            self.update_matrices(sequencer)
 
         # Create an initial guess and call the solver to solve the QP problem
         self.call_solver(sequencer)
