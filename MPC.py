@@ -115,6 +115,24 @@ class MPC:
 
         return 0
 
+    def retrieve_data(self, fstep_planner, ftraj_gen):
+        """Retrieve footsteps information from the FootstepPlanner
+        and the FootTrajectoryGenerator
+
+        Keyword arguments:
+        fstep_planner -- FootstepPlanner object
+        ftraj_gen -- FootTrajectoryGenerator object
+        """
+
+        self.footholds = ftraj_gen.desired_pos
+        self.footholds_lock = ftraj_gen.footsteps_lock
+        self.footholds_no_lock = fstep_planner.footsteps
+
+        # Information in world frame for visualisation purpose
+        self.footholds_world = ftraj_gen.desired_pos_world
+
+        return 0
+
     def create_matrices(self, sequencer):
         """
         Create the constraint matrices of the MPC (M.X = N and L.X <= K)
@@ -358,5 +376,38 @@ class MPC:
         # Predicted position and velocity of the robot during the next time step
         self.q_next = self.x_robot[0:6, 0:1]
         self.v_next = self.x_robot[6:12, 0:1]
+
+        return 0
+
+    def run(self, k, sequencer, fstep_planner, ftraj_gen):
+
+        # Get number of feet in contact with the ground for each step of the gait sequence
+        if k > 0:
+            self.n_contacts = np.roll(self.n_contacts, -1, axis=0)
+
+        # Get the reference trajectory over the prediction horizon
+        self.getRefStates(sequencer)
+
+        # Retrieve data from FootstepPlanner and FootTrajectoryGenerator
+        self.retrieve_data(fstep_planner, ftraj_gen)
+
+        # Create the constraint and weight matrices used by the QP solver
+        # Minimize x^T.P.x + x^T.Q with constraints M.X == N and L.X <= K
+        if k == 0:
+            self.create_matrices(sequencer)
+
+        # Create an initial guess and call the solver to solve the QP problem
+        self.call_solver(sequencer)
+
+        # Extract relevant information from the output of the QP solver
+        self.retrieve_result()
+
+        # Variation of position in world frame using the linear speed in local frame
+        c_yaw, s_yaw = np.cos(self.q_w[5, 0]), np.sin(self.q_w[5, 0])
+        R = np.array([[c_yaw, -s_yaw, 0], [s_yaw, c_yaw, 0], [0, 0, 1]])
+        self.q_w[0:3, 0:1] += np.dot(R, self.v_next[0:3, 0:1] * self.dt)
+
+        # Variation of orientation in world frame using the angular speed in local frame
+        self.q_w[3:6, 0] += self.v_next[3:6, 0] * self.dt
 
         return 0
