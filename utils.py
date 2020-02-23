@@ -84,11 +84,9 @@ def init_viewer():
 
     return solo
 
-from IPython import embed
 
 def init_objects(dt, k_max_loop):
 
-    dt = 0.15
     # Create Joystick object
     joystick = Joystick.Joystick()
 
@@ -102,14 +100,14 @@ def init_objects(dt, k_max_loop):
     ftraj_gen = FootTrajectoryGenerator.FootTrajectoryGenerator(dt)
 
     # Create MPC solver object
-    mpc = MpcSolver.MpcSolver(dt, sequencer, k_max_loop)
+    # mpc = MpcSolver.MpcSolver(dt, sequencer, k_max_loop)
 
     # Create the new version of the MPC solver object
-    mpc_v2 = MPC.MPC(dt, sequencer)
-    mpc_v2.update_v_ref(joystick)
+    mpc = MPC.MPC(dt, sequencer)
+    """mpc_v2.update_v_ref(joystick)
     mpc_v2.run(0, sequencer, fstep_planner, ftraj_gen)
     mpc_v2.update_matrices(sequencer)
-    embed()
+    """
     return joystick, sequencer, fstep_planner, ftraj_gen, mpc
 
 
@@ -122,7 +120,8 @@ def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
     ftraj_gen.update_viewer(solo.viewer, (k == 0))
 
     # Display reference trajectory, predicted trajectory, desired contact forces, current velocity
-    mpc.update_viewer(solo.viewer, (k == 0), sequencer)
+    # mpc.update_viewer(solo.viewer, (k == 0), sequencer)
+    mpc.plot_graphs(sequencer)
 
     qu_pinocchio = np.array(solo.q0).flatten()
     qu_pinocchio[0:3] = mpc.q_w[0:3, 0]

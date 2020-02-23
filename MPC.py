@@ -35,7 +35,7 @@ class MPC:
         self.xref = np.zeros((12, 1 + self.n_steps))
 
         # Initial state vector of the robot (x, y, z, roll, pitch, yaw)
-        self.q = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.0]]).transpose()
+        self.q = np.array([[0.0, 0.0, 0.2027, 0.0, 0.0, 0.0]]).transpose()
 
         # State vector of the trunk in the world frame
         self.q_w = self.q.copy()
@@ -469,5 +469,33 @@ class MPC:
 
         # Variation of orientation in world frame using the angular speed in local frame
         self.q_w[3:6, 0] += self.v_next[3:6, 0] * self.dt
+
+        return 0
+
+    def plot_graphs(self, sequencer):
+
+        # Display the predicted trajectory along X, Y and Z for the current iteration
+        log_t = self.dt * np.arange(0, self.x_robot.shape[1], 1)
+
+        plt.figure()
+        plt.subplot(3, 1, 1)
+        plt.plot(log_t, self.x_robot[0, :], "b", linewidth=2)
+        plt.plot(log_t, self.xref[0, 1:], "r", linewidth=2)
+        plt.xlabel("Time [s]")
+        plt.ylabel("Output trajectory along X [m]")
+        plt.legend(["Robot", "Reference"])
+        plt.subplot(3, 1, 2)
+        plt.plot(log_t, self.x_robot[1, :], "b", linewidth=2)
+        plt.plot(log_t, self.xref[1, 1:], "r", linewidth=2)
+        plt.xlabel("Time [s]")
+        plt.ylabel("Output trajectory along Y [m]")
+        plt.legend(["Robot", "Reference"])
+        plt.subplot(3, 1, 3)
+        plt.plot(log_t, self.x_robot[2, :], "b", linewidth=2)
+        plt.plot(log_t, self.xref[2, 1:], "r", linewidth=2)
+        plt.xlabel("Time [s]")
+        plt.ylabel("Output trajectory along Z [m]")
+        plt.legend(["Robot", "Reference"])
+        plt.show(block=True)
 
         return 0
