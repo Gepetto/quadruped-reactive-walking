@@ -277,13 +277,13 @@ class MPC:
         # Hand-tuning of parameters if you want to give more weight to specific components
         P_data[0::12] = 1000  # position along x
         P_data[1::12] = 1000  # position along y
-        P_data[2::12] = 300  # position along z
+        P_data[2::12] = 400 # position along z
         P_data[3::12] = 300  # roll
         P_data[4::12] = 300  # pitch
         P_data[5::12] = 100  # yaw
         P_data[6::12] = 30  # linear velocity along x
         P_data[7::12] = 30  # linear velocity along y
-        P_data[8::12] = 300  # linear velocity along z
+        P_data[8::12] = 0  # linear velocity along z
         P_data[9::12] = 100  # angular velocity along x
         P_data[10::12] = 100  # angular velocity along y
         P_data[11::12] = 30  # angular velocity along z
@@ -301,7 +301,7 @@ class MPC:
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(n_x * self.n_steps * 2, n_x * self.n_steps * 2))
 
         # Declaration of the Q matrix in "x^T.P.x + x^T.Q"
-        self.Q = np.hstack((np.zeros(n_x * self.n_steps,), 0.00 *
+        self.Q = np.hstack((np.zeros(n_x * self.n_steps,), 0.00 * \
                             np.ones((n_x * self.n_steps * 2-n_x * self.n_steps, ))))
 
         # Weight for the z component of contact forces (fz > 0 so with a positive weight it tries to minimize fz)
@@ -464,11 +464,13 @@ class MPC:
 
         # Variation of position in world frame using the linear speed in local frame
         c_yaw, s_yaw = np.cos(self.q_w[5, 0]), np.sin(self.q_w[5, 0])
-        R = np.array([[c_yaw, -s_yaw, 0], [s_yaw, c_yaw, 0], [0, 0, 1]])
-        self.q_w[0:3, 0:1] += np.dot(R, self.v_next[0:3, 0:1] * self.dt)
+        R = np.array([[c_yaw, -s_yaw], [s_yaw, c_yaw]])
+        self.q_w[0:2, 0:1] += np.dot(R, self.q_next[0:2, 0:1])
+        self.q_w[2, 0] = self.q_next[2, 0]
 
         # Variation of orientation in world frame using the angular speed in local frame
-        self.q_w[3:6, 0] += self.v_next[3:6, 0] * self.dt
+        self.q_w[3:5, 0] = self.q_next[3:5, 0]
+        self.q_w[5, 0] += self.q_next[5, 0]
 
         return 0
 
@@ -539,21 +541,25 @@ class MPC:
         plt.plot(f_1[0, :], linewidth=2)
         plt.plot(f_1[1, :], linewidth=2)
         plt.plot(f_1[2, :], linewidth=2)
+        plt.legend(["X component", "Y component", "Z component"])
         plt.subplot(2, 2, 2)
         plt.title("Front right")
         plt.plot(f_2[0, :], linewidth=2)
         plt.plot(f_2[1, :], linewidth=2)
         plt.plot(f_2[2, :], linewidth=2)
+        plt.legend(["X component", "Y component", "Z component"])
         plt.subplot(2, 2, 3)
         plt.title("Hindleft")
         plt.plot(f_3[0, :], linewidth=2)
         plt.plot(f_3[1, :], linewidth=2)
         plt.plot(f_3[2, :], linewidth=2)
+        plt.legend(["X component", "Y component", "Z component"])
         plt.subplot(2, 2, 4)
         plt.title("Hind right")
         plt.plot(f_4[0, :], linewidth=2)
         plt.plot(f_4[1, :], linewidth=2)
         plt.plot(f_4[2, :], linewidth=2)
+        plt.legend(["X component", "Y component", "Z component"])
         plt.show(block=True)
 
         return 0

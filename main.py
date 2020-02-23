@@ -12,22 +12,22 @@ import utils
 dt = 0.02
 
 # Maximum number of loops
-k_max_loop = 800
+k_max_loop = 50
 
 # Enable/Disable Gepetto viewer
-enable_gepetto_viewer = True
+enable_gepetto_viewer = False
 if enable_gepetto_viewer:
     solo = utils.init_viewer()
 
 # Create Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator
 # and MpcSolver objects
-joystick, sequencer, fstep_planner, ftraj_gen, mpc = utils.init_objects(dt, k_max_loop)
+joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger = utils.init_objects(dt, k_max_loop)
 
 #############
 # MAIN LOOP #
 #############
 
-for k in range(5): # k_max_loop):
+for k in range(k_max_loop):
 
     joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
     mpc.update_v_ref(joystick)  # Retrieve reference velocity
@@ -63,3 +63,13 @@ for k in range(5): # k_max_loop):
     # Get measured position and velocity after one time step (here perfect simulation)
     mpc.q[[2, 3, 4]] = mpc.q_next[[2, 3, 4]]  # coordinates in x, y, yaw are always 0 in local frame
     mpc.v = mpc.v_next
+
+    # Logging various stuff
+    logger.call_log_functions(fstep_planner, ftraj_gen, mpc, k)
+
+    # Offset to see how the MPC handles perturbation
+    if k <= 25:
+        mpc.q[2] += 0.001
+
+# Display graphs of the logger
+logger.plot_graphs(dt, k_max_loop)

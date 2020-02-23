@@ -9,6 +9,7 @@ import FootstepPlanner
 import FootTrajectoryGenerator
 import MpcSolver
 import MPC
+import Logger
 
 ##########################
 # ROTATION MATRIX TO RPY #
@@ -110,7 +111,11 @@ def init_objects(dt, k_max_loop):
     mpc_v2.run(0, sequencer, fstep_planner, ftraj_gen)
     mpc_v2.update_matrices(sequencer)
     """
-    return joystick, sequencer, fstep_planner, ftraj_gen, mpc
+
+    # Create logger object
+    logger = Logger.Logger(k_max_loop)
+
+    return joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger
 
 
 def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
