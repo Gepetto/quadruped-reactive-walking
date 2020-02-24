@@ -141,12 +141,12 @@ class FootTrajectoryGenerator:
         R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
 
         # Update desired 3D position
-        self.desired_pos = np.dot(R, self.desired_pos) - \
-            self.dt * np.vstack((np.tile(vel[0:2, 0:1], (1, 4)), np.zeros((1, 4))))
+        self.desired_pos = np.dot(R, self.desired_pos -
+                                  self.dt * np.vstack((np.tile(vel[0:2, 0:1], (1, 4)), np.zeros((1, 4)))))
 
         # Update desired 2D location of footsteps
-        self.footsteps_lock = np.dot(R[0:2, 0:2], self.footsteps_lock) \
-            - self.dt * np.tile(vel[0:2, 0:1], (1, 4))
+        self.footsteps_lock = np.dot(R[0:2, 0:2], self.footsteps_lock
+                                     - self.dt * np.tile(vel[0:2, 0:1], (1, 4)))
 
         return 0
 

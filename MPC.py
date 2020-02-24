@@ -124,12 +124,10 @@ class MPC:
         ftraj_gen -- FootTrajectoryGenerator object
         """
 
-        self.footholds = ftraj_gen.desired_pos
-        self.footholds_lock = ftraj_gen.footsteps_lock
-        self.footholds_no_lock = fstep_planner.footsteps
+        self.footholds[0:2, :] = ftraj_gen.footsteps_lock
 
         # Information in world frame for visualisation purpose
-        self.footholds_world = ftraj_gen.desired_pos_world
+        self.footholds_world = ftraj_gen.footsteps_lock_world
 
         return 0
 
