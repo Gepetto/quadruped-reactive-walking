@@ -17,6 +17,10 @@ class Logger:
         self.log_state = np.zeros((12, k_max_loop))
         self.log_state_ref = np.zeros((12, k_max_loop))
 
+        # Log footholds position in world frame
+        self.log_footholds = np.zeros((4, k_max_loop, 2))
+        self.log_footholds_w = np.zeros((4, k_max_loop, 2))
+
     def log_state_vectors(self, mpc, k_loop):
         """ Log current and reference state vectors (position + velocity)
         """
@@ -26,12 +30,24 @@ class Logger:
 
         return 0
 
+    def log_various_footholds(self, mpc, k_loop):
+        """ Log current and reference state vectors (position + velocity)
+        """
+
+        self.log_footholds[:, k_loop, :] = mpc.footholds[0:2, :].transpose()
+        self.log_footholds_w[:, k_loop, :] = mpc.footholds_world[0:2, :].transpose()
+
+        return 0
+
     def call_log_functions(self, fstep_planner, ftraj_gen, mpc, k_loop):
         """ Call logging functions of the Logger class
         """
 
         # Logging reference and current state vectors
         self.log_state_vectors(mpc, k_loop)
+
+        # Log footholds
+        self.log_various_footholds(mpc, k_loop)
 
         return 0
 
@@ -64,10 +80,24 @@ class Logger:
 
         plt.figure()
         plt.plot(self.log_state[0, :], self.log_state[1, :], "b", linewidth=2)
-        plt.plot(self.log_state_ref[0, :], self.log_state_ref[1, :], "b", linewidth=2)
+        plt.plot(self.log_state_ref[0, :], self.log_state_ref[1, :], "r", linewidth=2)
+        for i_foot in range(4):
+            plt.plot(self.log_footholds_w[i_foot, :, 0],
+                     self.log_footholds_w[i_foot, :, 1], linestyle=None, marker="*")
         plt.legend(["Robot", "Reference"])
         plt.xlabel("Position X [m]")
-        plt.ylabel("Position X [m]")
+        plt.ylabel("Position Y [m]")
+
+        plt.figure()
+        for i in range(4):
+            plt.subplot(4, 2, 2*i+1)
+            plt.plot(log_t, self.log_footholds[i_foot, :, 0], linewidth=2)
+            plt.xlabel("Time [s]")
+            plt.ylabel("Position X [m]")
+            plt.subplot(4, 2, 2*i+2)
+            plt.plot(log_t, self.log_footholds[i_foot, :, 1], linewidth=2)
+            plt.xlabel("Time [s]")
+            plt.ylabel("Position Y [m]")
 
         plt.show(block=True)
         return 0

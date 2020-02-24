@@ -100,7 +100,7 @@ class FootstepPlanner:
         p = np.tile(np.array([[0], [0]]), (1, 4)) + self.shoulders  # + np.dot(R, shoulders)
 
         # Shift initial position of contact outwards for more stability
-        p[1, :] += np.array([0.025, -0.025, 0.025, -0.025])
+        # p[1, :] += np.array([0.025, -0.025, 0.025, -0.025])
 
         # Add symmetry term
         p += sequencer.t_stance * 0.5 * mpc.v[0:2, 0:1]
@@ -122,11 +122,11 @@ class FootstepPlanner:
                 t_remaining[0, i] = sequencer.T_gait
             else:
                 index = (indexes_stance[indexes_stance > indexes_swing[0]])[0]
-                t_remaining[0, i] = index * self.dt"""
+                t_remaining[0, i] = index * self.dt
 
         # Add velocity forecast
         #  p += np.tile(v[0:2, 0:1], (1, 4)) * t_remaining
-        """for i in range(4):
+        for i in range(4):
             yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * mpc.v[5, 0]
             p[0, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.cos(yaw) - mpc.v[1, 0] * np.sin(yaw)))[-1]
             p[1, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.sin(yaw) + mpc.v[1, 0] * np.cos(yaw)))[-1]"""
