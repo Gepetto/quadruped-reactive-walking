@@ -211,7 +211,7 @@ F_\mu = \begin{bmatrix}
 \end{bmatrix}
 \end{equation}
 
-The $K$ matrix is defined as $N = 0_{60 \times 1}$.
+The $K$ matrix is defined as $K = 0_{60 \times 1}$.
 
 Matrix $P$ in the cost function $\frac{1}{2}\mathbb{X}^T.P.\mathbb{X} + \mathbb{X}^T.Q$ is diagonal. That way the first term of the cost function looks like $\sum_{k=1}^{3} c_{k,X} \cdot (X_1 - X_1^\star)^2 + \sum_{k=0}^{2} c_{k,f} \cdot f_k^2$ with $c_{k,X}$ and $c_{k,f}$ with size $(12, 1)$. With $c_{k,X} > 0$ it push the solver into minimizing the error $X_k - X_k^\star$ to the reference trajectory that we want to follow while $c_{k,f}$ are small positive coefficients that act as a regularization of the force to get a solution with a norm as low as possible for the reaction force. In the 3 time steps example $P$ has a size of 72 by 72. (12 x 3 lines/columns for $\mathcal{X}_{1,2,3}$ and 12 x 3 lines/columns for $f_{1,2,3}$).
  
@@ -240,7 +240,7 @@ In the $L$ matrix:
 	\item Columns of $F_\mu$ matrices have to be set to zero or set back to non-zero values depending on the states of the contacts (just like the columns of $B_k$ matrices)
 \end{itemize}
 
-The $N$ matrix never change and is always full of zeros.
+The $K$ matrix never change and is always full of zeros.
 
 \section*{Output of the MPC}
 
