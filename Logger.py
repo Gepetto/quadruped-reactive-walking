@@ -22,7 +22,7 @@ class Logger:
         """
 
         self.log_state[:, k_loop:(k_loop+1)] = np.vstack((mpc.q_w, mpc.v))
-        self.log_state_ref[:, k_loop:(k_loop+1)] = mpc.x_ref[:, 1:2]
+        self.log_state_ref[:, k_loop:(k_loop+1)] = mpc.xref[:, 1:2]
 
         return 0
 
@@ -40,7 +40,8 @@ class Logger:
         log_t = [k*dt for k in range(self.k_max_loop)]
 
         plt.figure()
-        ylabels = ["Position X", "Position Y", "Position Z", "Orientation Roll", "Orientation Pitch", "Orientation Yaw"]
+        ylabels = ["Position X", "Position Y", "Position Z",
+                   "Orientation Roll", "Orientation Pitch", "Orientation Yaw"]
         for i, j in enumerate([1, 3, 5, 2, 4, 6]):
             plt.subplot(3, 2, j)
             plt.plot(log_t, self.log_state[i, :], "b", linewidth=2)
@@ -51,7 +52,8 @@ class Logger:
             plt.ylabel(ylabels[i])
 
         plt.figure()
-        ylabels = ["Linear vel X", "Linear vel Y", "Linear vel Z", "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+        ylabels = ["Linear vel X", "Linear vel Y", "Linear vel Z",
+                   "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
         for i, j in enumerate([1, 3, 5, 2, 4, 6]):
             plt.subplot(3, 2, j)
             plt.plot(log_t, self.log_state[i+6, :], "b", linewidth=2)
@@ -59,6 +61,13 @@ class Logger:
             plt.legend(["Robot", "Reference"])
             plt.xlabel("Time [s]")
             plt.ylabel(ylabels[i])
-        plt.show(block=True)
 
+        plt.figure()
+        plt.plot(self.log_state[0, :], self.log_state[1, :], "b", linewidth=2)
+        plt.plot(self.log_state_ref[0, :], self.log_state_ref[1, :], "b", linewidth=2)
+        plt.legend(["Robot", "Reference"])
+        plt.xlabel("Position X [m]")
+        plt.ylabel("Position X [m]")
+
+        plt.show(block=True)
         return 0

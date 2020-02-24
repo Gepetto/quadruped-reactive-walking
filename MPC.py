@@ -7,6 +7,7 @@ import osqp as osqp
 from matplotlib import pyplot as plt
 import utils
 
+
 class MPC:
     """Wrapper for the MPC to create constraint matrices, call the QP solver and
     retrieve the result.
@@ -71,7 +72,7 @@ class MPC:
 
         return 0
 
-    def getRefStates(self, sequencer):
+    def getRefStates(self, k, sequencer):
         """Returns the reference trajectory of the robot for each time step of the
         predition horizon. The ouput is a matrix of size 12 by N with N the number
         of time steps (around T_gait / dt) and 12 the position / orientation /
@@ -84,34 +85,33 @@ class MPC:
         T_gait -- period of the current gait
         """
 
-        # TODO: Put stuff directly in x_ref instead of allocating qu_ref temporarily each time the function is called
+        # Update x and y velocities taking into account the rotation of the base over the prediction horizon
+        yaw = np.linspace(0, sequencer.T_gait-self.dt, self.n_steps) * self.v_ref[5, 0]
+        self.xref[6, 1:] = self.v_ref[0, 0] * np.cos(yaw) - self.v_ref[1, 0] * np.sin(yaw)
+        self.xref[7, 1:] = self.v_ref[0, 0] * np.sin(yaw) + self.v_ref[1, 0] * np.cos(yaw)
 
-        n_steps = int(np.round(sequencer.T_gait/self.dt))
-        qu_ref = np.zeros((6, n_steps))
+        # Update x and y depending on x and y velocities (cumulative sum)
+        self.xref[0, 1:] = self.dt * np.cumsum(self.xref[6, 1:])
+        self.xref[1, 1:] = self.dt * np.cumsum(self.xref[7, 1:])
 
-        dt_vector = np.linspace(self.dt, sequencer.T_gait, n_steps)
-        qu_ref = self.v_ref_world * dt_vector
+        # Desired height is supposed constant so we only need to set it once
+        if k == 0:
+            self.xref[2, 1:] = self.h_ref
 
-        # Take into account the rotation of the base over the prediction horizon
-        yaw = np.linspace(0, sequencer.T_gait-self.dt, n_steps) * self.v_ref_world[5, 0]
-        qu_ref[0, :] = self.dt * np.cumsum(self.v_ref_world[0, 0] * np.cos(yaw) -
-                                           self.v_ref_world[1, 0] * np.sin(yaw))
-        qu_ref[1, :] = self.dt * np.cumsum(self.v_ref_world[0, 0] * np.sin(yaw) +
-                                           self.v_ref_world[1, 0] * np.cos(yaw))
+        # No need to update Z velocity as the reference is always 0
+        # No need to update roll and roll velocity as the reference is always 0 for those
+        # No need to update pitch and pitch velocity as the reference is always 0 for those
+        # Update yaw and yaw velocity
+        dt_vector = np.linspace(self.dt, sequencer.T_gait, self.n_steps)
+        self.xref[5, 1:] = self.v_ref[5, 0] * dt_vector
+        self.xref[11, 1:] = self.v_ref[5, 0]
 
-        # Stack the reference velocity to the reference position to get the reference state vector
-        self.x_ref = np.vstack((qu_ref, np.tile(self.v_ref_world, (1, n_steps))))
-
-        # Desired height is supposed constant
-        self.x_ref[2, :] = self.h_ref
-
-        # Stack the reference trajectory (future states) with the current state
-        self.xref[6:, 0:1] = self.v_ref
-        self.xref[:, 1:] = self.x_ref
-        self.xref[2, 0] = self.h_ref
+        # Update the current state
+        self.xref[:6, 0:1] = self.q
+        self.xref[6:, 0:1] = self.v
 
         # Current state vector of the robot
-        self.x0 = np.vstack((self.q, self.v))
+        self.x0 = self.xref[:, 0:1]
 
         return 0
 
@@ -157,7 +157,7 @@ class MPC:
         self.M = np.zeros((12*self.n_steps*2, 12*self.n_steps*2))
 
         # Put identity matrices in M
-        self.M[np.arange(0, 12*self.n_steps, 1), np.arange(0, 12*self.n_steps, 1)] = - np.ones((12*self.n_steps)) 
+        self.M[np.arange(0, 12*self.n_steps, 1), np.arange(0, 12*self.n_steps, 1)] = - np.ones((12*self.n_steps))
 
         # Create matrix A
         self.A = np.eye(12)
@@ -188,7 +188,8 @@ class MPC:
         # Add lines to enable/disable forces
         # With = sequencer.S.reshape((-1,)) we directly initialize with the contact sequence but we have a dependency on the sequencer
         # With = np.ones((12*self.n_steps, )) we would not have this dependency but he would have to set the active forces later
-        self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps, 12*self.n_steps*2, 1)] = 1 - np.repeat(sequencer.S.reshape((-1,)),3)
+        self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps,
+                                                                           12*self.n_steps*2, 1)] = 1 - np.repeat(sequencer.S.reshape((-1,)), 3)
 
         return 0
 
@@ -235,7 +236,8 @@ class MPC:
 
         # Create C matrix
         self.C = np.zeros((5, 3))
-        self.C[[0, 1, 2, 3] * 2 + [4], [0, 0, 1, 1, 2, 2, 2, 2, 2]] = np.array([1, -1, 1, -1, -self.mu, -self.mu, -self.mu, -self.mu, -1])
+        self.C[[0, 1, 2, 3] * 2 + [4], [0, 0, 1, 1, 2, 2, 2, 2, 2]
+               ] = np.array([1, -1, 1, -1, -self.mu, -self.mu, -self.mu, -self.mu, -1])
 
         # Create F matrix
         self.F = np.zeros((20, 12))
@@ -277,7 +279,7 @@ class MPC:
         # Hand-tuning of parameters if you want to give more weight to specific components
         P_data[0::12] = 1000  # position along x
         P_data[1::12] = 1000  # position along y
-        P_data[2::12] = 400 # position along z
+        P_data[2::12] = 400  # position along z
         P_data[3::12] = 300  # roll
         P_data[4::12] = 300  # pitch
         P_data[5::12] = 100  # yaw
@@ -298,10 +300,11 @@ class MPC:
         P_data[(n_x * self.n_steps + 2)::3] = 1e-4  # force along z
 
         # Convert P into a csc matrix for the solver
-        self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(n_x * self.n_steps * 2, n_x * self.n_steps * 2))
+        self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(
+            n_x * self.n_steps * 2, n_x * self.n_steps * 2))
 
         # Declaration of the Q matrix in "x^T.P.x + x^T.Q"
-        self.Q = np.hstack((np.zeros(n_x * self.n_steps,), 0.00 * \
+        self.Q = np.hstack((np.zeros(n_x * self.n_steps,), 0.00 *
                             np.ones((n_x * self.n_steps * 2-n_x * self.n_steps, ))))
 
         # Weight for the z component of contact forces (fz > 0 so with a positive weight it tries to minimize fz)
@@ -349,7 +352,8 @@ class MPC:
             self.M[(k*12):((k+1)*12), (12*(self.n_steps+k)):(12*(self.n_steps+k+1))] = self.B
 
         # Update lines to enable/disable forces
-        self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps, 12*self.n_steps*2, 1)] = 1 - np.repeat(sequencer.S.reshape((-1,)),3)
+        self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps,
+                                                                           12*self.n_steps*2, 1)] = 1 - np.repeat(sequencer.S.reshape((-1,)), 3)
 
         return 0
 
@@ -444,7 +448,7 @@ class MPC:
             self.n_contacts = np.roll(self.n_contacts, -1, axis=0)
 
         # Get the reference trajectory over the prediction horizon
-        self.getRefStates(sequencer)
+        self.getRefStates(k, sequencer)
 
         # Retrieve data from FootstepPlanner and FootTrajectoryGenerator
         self.retrieve_data(fstep_planner, ftraj_gen)

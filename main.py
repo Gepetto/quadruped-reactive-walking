@@ -12,7 +12,7 @@ import utils
 dt = 0.02
 
 # Maximum number of loops
-k_max_loop = 50
+k_max_loop = 200
 
 # Enable/Disable Gepetto viewer
 enable_gepetto_viewer = False
