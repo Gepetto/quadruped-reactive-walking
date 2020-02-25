@@ -21,7 +21,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 600  # number of time steps simulated
+N_SIMULATION = 800  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -83,6 +83,11 @@ for k in range(int(N_SIMULATION)):
         if k == 200:
             mpc.v[0, 0] += 0.1
         # settings.vu_m[4] *= -1  # Pitch is inversed
+
+        # Add random noise
+        mpc.q[2:5, 0] += np.random.normal(0.00 * np.array([0.001, 0.001, 0.001]), scale=np.array([0.001, 0.001, 0.001]))
+        mpc.v[:, 0] += np.random.normal(0.00 * np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]),
+                                        scale=np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))
 
     ###########################################
     # FOOTSTEP PLANNER & TRAJECTORY GENERATOR #
