@@ -3,37 +3,86 @@
 import numpy as np
 import matplotlib.pylab as plt
 import utils
+import time
 
-##################
-# INITIALISATION #
-##################
+import pybullet as pyb
+import pybullet_data
+from TSID_Debug_controller_four_legs_fb_vel import controller, dt, q0, omega
+import Safety_controller
+import EmergencyStop_controller
+import ForceMonitor
+
+########################################################################
+#                        Parameters definition                         #
+########################################################################
 
 # Time step
-dt = 0.02
+dt_mpc = 0.005
+t = 0.0  # Time
 
-# Maximum number of loops
-k_max_loop = 200
+# Simulation parameters
+N_SIMULATION = 600  # number of time steps simulated
+
+# Initialize the error for the simulation time
+time_error = False
+
+t_list = []
 
 # Enable/Disable Gepetto viewer
 enable_gepetto_viewer = False
-if enable_gepetto_viewer:
-    solo = utils.init_viewer()
 
 # Create Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator
 # and MpcSolver objects
-joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger = utils.init_objects(dt, k_max_loop)
+joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger = utils.init_objects(dt_mpc, N_SIMULATION)
 
-#############
-# MAIN LOOP #
-#############
+########################################################################
+#                            Gepetto viewer                            #
+########################################################################
 
-for k in range(k_max_loop):
+solo = utils.init_viewer()
+
+########################################################################
+#                              PyBullet                                #
+########################################################################
+
+pyb_sim = utils.pybullet_simulator()
+
+########################################################################
+#                             Simulator                                #
+########################################################################
+
+myController = controller(q0, omega, t, int(N_SIMULATION))
+mySafetyController = Safety_controller.controller_12dof()
+myEmergencyStop = EmergencyStop_controller.controller_12dof()
+myForceMonitor = ForceMonitor.ForceMonitor(mpc.footholds, pyb_sim.robotId, pyb_sim.planeId)
+
+for k in range(int(N_SIMULATION)):
+
+    if k % 100:
+        print("Iteration: ", k)
 
     joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
     mpc.update_v_ref(joystick)  # Retrieve reference velocity
 
     if k > 0:
         sequencer.updateSequence()  # Update contact sequence
+
+    if k > 0:
+        RPY = utils.rotationMatrixToEulerAngles(myController.robot.framePosition(
+            myController.invdyn.data(), myController.model.getFrameId("base_link")).rotation)
+        """settings.qu_m[2] = myController.robot.framePosition(
+                myController.invdyn.data(), myController.model.getFrameId("base_link")).translation[2, 0]"""
+
+        # RPY[1] *= -1  # Pitch is inversed
+
+        mpc.q[0:2, 0] = np.array([0.0, 0.0])
+        mpc.q[2] = myController.robot.com(myController.invdyn.data())[2]
+        mpc.q[3:5, 0] = RPY[0:2]
+        mpc.q[5, 0] = 0.0
+        mpc.v = myController.vtsid[:6, 0:1]
+        """if k == 10:
+            mpc.v[0, 0] += 0.1"""
+        # settings.vu_m[4] *= -1  # Pitch is inversed
 
     ###########################################
     # FOOTSTEP PLANNER & TRAJECTORY GENERATOR #
@@ -67,9 +116,124 @@ for k in range(k_max_loop):
     # Logging various stuff
     logger.call_log_functions(fstep_planner, ftraj_gen, mpc, k)
 
-    # Offset to see how the MPC handles perturbation
-    if k <= 25:
-        mpc.q[2] += 0.001
+    for i in range(1):
+
+        time_start = time.time()
+
+        ####################################################################
+        #                 Data collection from PyBullet                    #
+        ####################################################################
+
+        jointStates = pyb.getJointStates(pyb_sim.robotId, pyb_sim.revoluteJointIndices)  # State of all joints
+        baseState = pyb.getBasePositionAndOrientation(pyb_sim.robotId)  # Position and orientation of the trunk
+        baseVel = pyb.getBaseVelocity(pyb_sim.robotId)  # Velocity of the trunk
+
+        # Joints configuration and velocity vector for free-flyer + 12 actuators
+        qmes12 = np.vstack((np.array([baseState[0]]).T, np.array([baseState[1]]).T,
+                            np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
+        vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
+                            np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))
+
+        ####################################################################
+        #                Select the appropriate controller 				   #
+        #                               &								   #
+        #               Load the joint torques into the robot			   #
+        ####################################################################
+
+        # If the limit bounds are reached, controller is switched to a pure derivative controller
+        """if(myController.error):
+            print("Safety bounds reached. Switch to a safety controller")
+            myController = mySafetyController"""
+
+        # If the simulation time is too long, controller is switched to a zero torques controller
+        """time_error = time_error or (time.time()-time_start > 0.01)
+        if (time_error):
+            print("Computation time lasted to long. Switch to a zero torque control")
+            myController = myEmergencyStop"""
+
+        # Retrieve the joint torques from the appropriate controller
+        jointTorques = myController.control(qmes12, vmes12, t, i+k, solo, mpc).reshape((12, 1))
+
+        # Set control torque for all joints
+        pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,
+                                      controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
+
+        # Compute one step of simulation
+        # pyb.stepSimulation()
+
+        # Time incrementation
+        t += dt
+
+        # Time spent to run this iteration of the loop
+        time_spent = time.time() - time_start
+
+        # Logging the time spent
+        t_list.append(time_spent)
+
+        # Refresh force monitoring for PyBullet
+        # myForceMonitor.display_contact_forces()
+        # time.sleep(0.001)
+
 
 # Display graphs of the logger
-logger.plot_graphs(dt, k_max_loop)
+# logger.plot_graphs(dt_mpc, N_SIMULATION)
+
+# Plot TSID related graphs
+plt.figure(1)
+plt.title("Trajectory of the front right foot over time")
+l_str = ["X", "Y", "Z"]
+for i in range(3):
+    plt.subplot(3, 1, 1*i+1)
+    plt.plot(myController.f_pos_ref[1, :, i])
+    plt.plot(myController.f_pos[1, :, i])
+    plt.legend(["Ref pos along " + l_str[i], "Pos along " + l_str[i]])
+
+plt.figure()
+plt.title("Velocity of the front right foot over time")
+l_str = ["X", "Y", "Z"]
+for i in range(3):
+    plt.subplot(3, 1, 1*i+1)
+    plt.plot(myController.f_vel_ref[1, :, i])
+    plt.plot(myController.f_vel[1, :, i])
+    plt.legend(["Ref vel along " + l_str[i], "Vel along " + l_str[i]])
+    """plt.subplot(3, 3, 3*i+3)
+    plt.plot(myController.f_acc_ref[1, :, i])
+    plt.plot(myController.f_acc[1, :, i])
+    plt.legend(["Ref acc along " + l_str[i], "Acc along " + l_str[i]])"""
+
+plt.figure()
+l_str = ["X", "Y", "Z", "Roll", "Pitch", "Yaw"]
+for i in range(3):
+    plt.subplot(3, 1, i+1)
+    plt.plot(myController.b_pos[:, i])
+    if i < 2:
+        plt.plot(np.zeros((N_SIMULATION,)))
+    else:
+        plt.plot((0.2027) * np.ones((N_SIMULATION,)))
+    plt.legend([l_str[i], "Reference Base"])
+
+plt.figure()
+l_str = ["X", "Y", "Z", "Roll", "Pitch", "Yaw"]
+for i in range(3):
+    plt.subplot(3, 1, i+1)
+    plt.plot(myController.b_vel[:, i])
+    plt.plot(np.zeros((N_SIMULATION,)))
+    plt.legend(["Velocity of base along" + l_str[i], "Reference velocity of base along" + l_str[i]])
+
+if hasattr(myController, 'com_pos_ref'):
+    plt.figure()
+    plt.title("Trajectory of the CoM over time")
+    for i in range(3):
+        plt.subplot(3, 1, i+1)
+        plt.plot(myController.com_pos_ref[:, i], "b", linewidth=3)
+        plt.plot(myController.com_pos[:, i], "r", linewidth=2)
+        plt.legend(["COM Ref pos along " + l_str[0], "Pos along " + l_str[i-1]])
+
+
+plt.show()
+
+plt.figure(9)
+plt.plot(t_list, 'k+')
+plt.show()
+
+quit()

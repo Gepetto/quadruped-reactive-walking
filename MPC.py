@@ -277,16 +277,16 @@ class MPC:
         # Hand-tuning of parameters if you want to give more weight to specific components
         P_data[0::12] = 1000  # position along x
         P_data[1::12] = 1000  # position along y
-        P_data[2::12] = 400  # position along z
+        P_data[2::12] = 500  # position along z
         P_data[3::12] = 300  # roll
         P_data[4::12] = 300  # pitch
-        P_data[5::12] = 100  # yaw
-        P_data[6::12] = 30  # linear velocity along x
-        P_data[7::12] = 30  # linear velocity along y
-        P_data[8::12] = 0  # linear velocity along z
+        P_data[5::12] = 300  # yaw
+        P_data[6::12] = 100  # linear velocity along x
+        P_data[7::12] = 100  # linear velocity along y
+        P_data[8::12] = 100  # linear velocity along z
         P_data[9::12] = 100  # angular velocity along x
         P_data[10::12] = 100  # angular velocity along y
-        P_data[11::12] = 30  # angular velocity along z
+        P_data[11::12] = 100  # angular velocity along z
 
         # Define weights for the force components of the optimization vector
         P_row = np.hstack((P_row, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
