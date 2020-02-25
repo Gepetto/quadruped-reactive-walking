@@ -22,7 +22,7 @@ class Logger:
         self.log_footholds_w = np.zeros((4, k_max_loop, 2))
 
         # Log a few predicted trajectories along time to see how it changes
-        self.log_predicted_traj = np.zeros((12, 59, 120))
+        self.log_predicted_traj = np.zeros((12, int((k_max_loop/20)), 120))
 
         # Log contact forces
         self.log_contact_forces = np.zeros((4, k_max_loop, 3))

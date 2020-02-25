@@ -310,7 +310,7 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qmes12, vmes12, t, k_simu, solo, mpc):
+    def control(self, qmes12, vmes12, t, k_simu, solo, mpc, sequencer):
 
         if k_simu == 0:
             self.qtsid = qmes12
@@ -476,7 +476,13 @@ class controller:
                 self.contacts[i_foot].setRegularizationTaskWeightVector(
                     np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
 
-        for j, i_foot in enumerate([0, 1, 2, 3]):
+        """for j, i_foot in enumerate([0, 1, 2, 3]):
+            self.contacts[i_foot].setForceReference(self.w_reg_f * np.matrix(mpc.f_applied[3*j:3*(j+1)]).T)
+            self.contacts[i_foot].setRegularizationTaskWeightVector(
+                np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
+
+        in_stance_phase = np.where(sequencer.S[0, :] == 1)
+        for j, i_foot in enumerate(in_stance_phase[1]):
             self.contacts[i_foot].setForceReference(self.w_reg_f * np.matrix(mpc.f_applied[3*j:3*(j+1)]).T)
             self.contacts[i_foot].setRegularizationTaskWeightVector(
                 np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
@@ -614,7 +620,7 @@ class controller:
         self.qtsid = pin.integrate(self.model, self.qtsid, self.vtsid * dt)
 
         # Call display and log function
-        # self.display(t, solo, k_simu)
+        self.display(t, solo, k_simu)
         self.log(t, solo, k_simu)
 
         # Placeholder torques for PyBullet
@@ -648,6 +654,7 @@ class controller:
                     "world/sphere"+str(i)+"_target", (self.feetGoal[i].translation[0, 0],
                                                       self.feetGoal[i].translation[1, 0],
                                                       self.feetGoal[i].translation[2, 0], 1., 0., 0., 0.))
+                # print("Foothold " + str(i) + " : " + self.feetGoal[i].translation.transpose())
 
             # Display current 3D positions of footholds with magenta spheres (gepetto gui)
             rgbt = [1.0, 0.0, 1.0, 0.5]

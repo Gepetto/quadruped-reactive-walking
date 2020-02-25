@@ -21,7 +21,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 800  # number of time steps simulated
+N_SIMULATION = 200  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -79,15 +79,29 @@ for k in range(int(N_SIMULATION)):
         mpc.q[2] = myController.robot.com(myController.invdyn.data())[2]
         mpc.q[3:5, 0] = RPY[0:2]
         mpc.q[5, 0] = 0.0
-        mpc.v = myController.vtsid[:6, 0:1]
-        if k == 200:
+        mpc.v = myController.vtsid[:6, 0:1].copy()
+        if k >= 10 and k < 11:
+            mpc.v[0, 0] = 0.6
+
+        """if k == 200:
             mpc.v[0, 0] += 0.1
+        if k == 400:
+            mpc.v[1, 0] += 0.1
+        if k == 600:
+            mpc.v[2, 0] += 0.1
+        if k == 800:
+            mpc.v[3, 0] += 0.05
+        if k == 1000:
+            mpc.v[4, 0] += 0.05
+        if k == 1200:
+            mpc.v[5, 0] += 0.05"""
+
         # settings.vu_m[4] *= -1  # Pitch is inversed
 
         # Add random noise
-        mpc.q[2:5, 0] += np.random.normal(0.00 * np.array([0.001, 0.001, 0.001]), scale=np.array([0.001, 0.001, 0.001]))
+        """mpc.q[2:5, 0] += np.random.normal(0.00 * np.array([0.001, 0.001, 0.001]), scale=np.array([0.001, 0.001, 0.001]))
         mpc.v[:, 0] += np.random.normal(0.00 * np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]),
-                                        scale=np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))
+                                        scale=np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))"""
 
     ###########################################
     # FOOTSTEP PLANNER & TRAJECTORY GENERATOR #
@@ -157,7 +171,7 @@ for k in range(int(N_SIMULATION)):
             myController = myEmergencyStop"""
 
         # Retrieve the joint torques from the appropriate controller
-        jointTorques = myController.control(qmes12, vmes12, t, i+k, solo, mpc).reshape((12, 1))
+        jointTorques = myController.control(qmes12, vmes12, t, i+k, solo, mpc, sequencer).reshape((12, 1))
 
         # Set control torque for all joints
         pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,

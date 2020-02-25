@@ -48,6 +48,7 @@ class ContactSequencer:
         self.S[0, :] = np.ones((1, 4))
         self.S[int(self.S.shape[0]*0.5), :] = np.ones((1, 4))
 
+        # For 4 feet stance phase
         self.S = np.matrix(np.ones(self.S.shape))
 
         return 0
