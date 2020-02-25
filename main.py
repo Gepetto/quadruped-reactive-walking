@@ -58,7 +58,7 @@ myForceMonitor = ForceMonitor.ForceMonitor(mpc.footholds, pyb_sim.robotId, pyb_s
 
 for k in range(int(N_SIMULATION)):
 
-    if k % 100:
+    if (k % 100) == 0:
         print("Iteration: ", k)
 
     joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
@@ -73,15 +73,15 @@ for k in range(int(N_SIMULATION)):
         """settings.qu_m[2] = myController.robot.framePosition(
                 myController.invdyn.data(), myController.model.getFrameId("base_link")).translation[2, 0]"""
 
-        # RPY[1] *= -1  # Pitch is inversed
+        # RPY[1] *= -1  # Pitch is inversed
 
         mpc.q[0:2, 0] = np.array([0.0, 0.0])
         mpc.q[2] = myController.robot.com(myController.invdyn.data())[2]
         mpc.q[3:5, 0] = RPY[0:2]
         mpc.q[5, 0] = 0.0
         mpc.v = myController.vtsid[:6, 0:1]
-        """if k == 10:
-            mpc.v[0, 0] += 0.1"""
+        if k == 200:
+            mpc.v[0, 0] += 0.1
         # settings.vu_m[4] *= -1  # Pitch is inversed
 
     ###########################################
@@ -110,11 +110,11 @@ for k in range(int(N_SIMULATION)):
         utils.display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc)
 
     # Get measured position and velocity after one time step (here perfect simulation)
-    mpc.q[[2, 3, 4]] = mpc.q_next[[2, 3, 4]]  # coordinates in x, y, yaw are always 0 in local frame
-    mpc.v = mpc.v_next
+    # mpc.q[[2, 3, 4]] = mpc.q_next[[2, 3, 4]]  # coordinates in x, y, yaw are always 0 in local frame
+    # mpc.v = mpc.v_next
 
     # Logging various stuff
-    logger.call_log_functions(fstep_planner, ftraj_gen, mpc, k)
+    logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
     for i in range(1):
 
@@ -176,17 +176,17 @@ for k in range(int(N_SIMULATION)):
 
 
 # Display graphs of the logger
-# logger.plot_graphs(dt_mpc, N_SIMULATION)
+logger.plot_graphs(dt_mpc, N_SIMULATION, myController)
 
 # Plot TSID related graphs
-plt.figure(1)
+plt.figure()
 plt.title("Trajectory of the front right foot over time")
 l_str = ["X", "Y", "Z"]
 for i in range(3):
     plt.subplot(3, 1, 1*i+1)
     plt.plot(myController.f_pos_ref[1, :, i])
     plt.plot(myController.f_pos[1, :, i])
-    plt.legend(["Ref pos along " + l_str[i], "Pos along " + l_str[i]])
+    plt.legend(["FR Foot ref pos along " + l_str[i], "FR foot pos along " + l_str[i]])
 
 plt.figure()
 plt.title("Velocity of the front right foot over time")
@@ -195,7 +195,7 @@ for i in range(3):
     plt.subplot(3, 1, 1*i+1)
     plt.plot(myController.f_vel_ref[1, :, i])
     plt.plot(myController.f_vel[1, :, i])
-    plt.legend(["Ref vel along " + l_str[i], "Vel along " + l_str[i]])
+    plt.legend(["FR Foot ref vel along " + l_str[i], "FR foot vel along " + l_str[i]])
     """plt.subplot(3, 3, 3*i+3)
     plt.plot(myController.f_acc_ref[1, :, i])
     plt.plot(myController.f_acc[1, :, i])
@@ -210,7 +210,7 @@ for i in range(3):
         plt.plot(np.zeros((N_SIMULATION,)))
     else:
         plt.plot((0.2027) * np.ones((N_SIMULATION,)))
-    plt.legend([l_str[i], "Reference Base"])
+    plt.legend([l_str[i] + "of base", l_str[i] + "reference of base"])
 
 plt.figure()
 l_str = ["X", "Y", "Z", "Roll", "Pitch", "Yaw"]
@@ -227,7 +227,7 @@ if hasattr(myController, 'com_pos_ref'):
         plt.subplot(3, 1, i+1)
         plt.plot(myController.com_pos_ref[:, i], "b", linewidth=3)
         plt.plot(myController.com_pos[:, i], "r", linewidth=2)
-        plt.legend(["COM Ref pos along " + l_str[0], "Pos along " + l_str[i-1]])
+        plt.legend(["COo ref pos along " + l_str[0], "CoM pos along " + l_str[i-1]])
 
 
 plt.show()

@@ -80,6 +80,7 @@ class controller:
         self.b_vel = np.zeros((k_max_loop, 6))
         self.com_pos = np.zeros((k_max_loop, 3))
         self.com_pos_ref = np.zeros((k_max_loop, 3))
+        self.c_forces = np.zeros((4, k_max_loop, 3))
 
         # Position of the shoulders in local frame
         self.shoulders = np.array([[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
@@ -740,6 +741,8 @@ class controller:
             self.f_pos[i_foot, k_simu:(k_simu+1), :] = pos.translation[0:3].transpose()
             self.f_vel[i_foot, k_simu:(k_simu+1), :] = vel.vector[0:3].transpose()
             self.f_acc[i_foot, k_simu:(k_simu+1), :] = acc.vector[0:3].transpose()
+
+        self.c_forces[:, k_simu, :] = self.fc.reshape((4, 3))
 
         # Log position of the base
         pos_trunk = self.robot.framePosition(self.invdyn.data(), self.model.getFrameId("base_link"))
