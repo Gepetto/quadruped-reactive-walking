@@ -44,7 +44,7 @@ class controller:
         # Constraining the contacts
         mu = 2  				# friction coefficient
         fMin = 1.0				# minimum normal force
-        fMax = 100.0  			# maximum normal force
+        fMax = 25.0  			# maximum normal force
         contactNormal = np.matrix([0., 0., 1.]).T  # direction of the normal to the contact surface
 
         # Coefficients of the posture task

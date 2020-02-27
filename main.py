@@ -21,7 +21,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 200  # number of time steps simulated
+N_SIMULATION = 250  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -259,9 +259,10 @@ for k in range(int(N_SIMULATION)):
                                       controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
 
         # Apply perturbation
-        if k >= 100 and k < 150:
-            pyb.applyExternalForce(pyb_sim.robotId, -1, [10.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
-
+        if k >= 50 and k < 100:
+            pyb.applyExternalForce(pyb_sim.robotId, -1, [20.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+        if k >= 150 and k < 200:
+            pyb.applyExternalForce(pyb_sim.robotId, -1, [0.0, 20.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
         # Compute one step of simulation
         pyb.stepSimulation()
 
