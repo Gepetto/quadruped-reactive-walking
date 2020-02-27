@@ -101,6 +101,19 @@ class controller:
         c, s = np.cos(delta_yaw), np.sin(delta_yaw)
         self.R_yaw = np.array([[c, s], [-s, c]])
 
+        # Rotation matrix
+        self.R = np.eye(3)
+
+        # Feedforward torques
+        self.tau_ff = np.zeros((12, 1))
+
+        # Torques sent to the robot
+        self.torques12 = np.zeros((12, 1))
+        self.tau = np.zeros((12, ))
+
+        self.ID_base = None  # ID of base link
+        self.ID_feet = [None] * 4  # ID of feet links
+
         # Footstep planner object
         self.fstep_planner = FootstepPlanner.FootstepPlanner(0.005)
         self.v_ref = np.zeros((6, 1))
@@ -131,6 +144,11 @@ class controller:
 
         # Compute the problem data with a solver based on EiQuadProg
         self.invdyn.computeProblemData(t, self.qtsid, self.vtsid)
+
+        # Saving IDs for later
+        self.ID_base = self.model.getFrameId("base_link")
+        for i, name in enumerate(self.foot_frames):
+            self.ID_feet[i] = self.model.getFrameId(name)
 
         #####################
         # LEGS POSTURE TASK #
@@ -166,7 +184,7 @@ class controller:
             self.contacts[i].useLocalFrame(False)
 
             # Set the contact reference position
-            H_ref = self.robot.framePosition(self.invdyn.data(), self.model.getFrameId(name))
+            H_ref = self.robot.framePosition(self.invdyn.data(), self.ID_feet[i])
             H_ref.translation = np.matrix(
                 [H_ref.translation[0, 0],
                  H_ref.translation[1, 0],
@@ -219,7 +237,7 @@ class controller:
         # self.invdyn.addMotionTask(self.trunkTask, w_trunk, 1, 0.0)
 
         # TSID Trajectory (creating the trajectory object and linking it to the task)
-        self.trunk_ref = self.robot.framePosition(self.invdyn.data(), self.model.getFrameId('base_link'))
+        self.trunk_ref = self.robot.framePosition(self.invdyn.data(), self.ID_base)
         self.trajTrunk = tsid.TrajectorySE3Constant("traj_base_link", self.trunk_ref)
         self.sampleTrunk = self.trajTrunk.computeNext()
         self.sampleTrunk.pos(np.matrix([0.0, 0.0, 0.2027682, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)
@@ -323,7 +341,7 @@ class controller:
             self.pos_contact = 4*[None]
             for i_foot in range(4):
                 self.feetGoal[i_foot] = self.robot.framePosition(
-                    self.invdyn.data(), self.model.getFrameId(self.foot_frames[i_foot]))
+                    self.invdyn.data(), self.ID_feet[i_foot])
                 footTraj = tsid.TrajectorySE3Constant("foot_traj", self.feetGoal[i_foot])
                 self.sampleFeet[i_foot] = footTraj.computeNext()
 
@@ -478,12 +496,13 @@ class controller:
                     np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
 
         RPY = utils.rotationMatrixToEulerAngles(self.robot.framePosition(
-            self.invdyn.data(), self.model.getFrameId("base_link")).rotation)
+            self.invdyn.data(), self.ID_base).rotation)
         c, s = np.cos(RPY[2]), np.sin(RPY[2])
-        R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
+        self.R[:2, :2] = np.array([[c, -s], [s, c]])
 
         for j, i_foot in enumerate([0, 1, 2, 3]):
-            self.contacts[i_foot].setForceReference(self.w_reg_f * np.matrix(np.dot(R, mpc.f_applied[3*j:3*(j+1)])).T)
+            self.contacts[i_foot].setForceReference(
+                self.w_reg_f * np.matrix(np.dot(self.R, mpc.f_applied[3*j:3*(j+1)])).T)
             self.contacts[i_foot].setRegularizationTaskWeightVector(
                 np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
 
@@ -538,7 +557,7 @@ class controller:
                     for i_foot in [0, 3]:
                         # Update the position of the contacts and enable them
                         pos_foot = self.robot.framePosition(
-                            self.invdyn.data(), self.model.getFrameId(self.foot_frames[i_foot]))
+                            self.invdyn.data(), self.ID_feet[i_foot])
                         self.pos_contact[i_foot] = pos_foot.translation.transpose()
                         self.memory_contacts[:, i_foot] = self.footsteps[:,
                                                                          i_foot]  #  pos_foot.translation[0:2].flatten()
@@ -579,7 +598,7 @@ class controller:
                 for i_foot in [1, 2]:
                     # Update the position of the contacts and enable them
                     pos_foot = self.robot.framePosition(
-                        self.invdyn.data(), self.model.getFrameId(self.foot_frames[i_foot]))
+                        self.invdyn.data(), self.ID_feet[i_foot])
                     self.pos_contact[i_foot] = pos_foot.translation.transpose()
                     self.memory_contacts[:, i_foot] = self.footsteps[:, i_foot]  #  pos_foot.translation[0:2].flatten()
                     self.contacts[i_foot].setReference(pos_foot)
@@ -617,7 +636,7 @@ class controller:
         self.sol = self.solver.solve(HQPData)
 
         # Torques, accelerations, velocities and configuration computation
-        tau_ff = self.invdyn.getActuatorForces(self.sol)
+        self.tau_ff = self.invdyn.getActuatorForces(self.sol)
         self.fc = self.invdyn.getContactForces(self.sol)
         #print(k_simu, " : ", self.fc.transpose())
         # print(self.fc.transpose())
@@ -626,27 +645,28 @@ class controller:
         self.qtsid = pin.integrate(self.model, self.qtsid, self.vtsid * dt)
 
         # Call display and log function
-        # self.display(t, solo, k_simu, sequencer)
-        self.log(t, solo, k_simu, sequencer)
+        #self.display(t, solo, k_simu, sequencer)
+        #self.log(t, solo, k_simu, sequencer)
 
         # Placeholder torques for PyBullet
-        tau = np.zeros((12, 1))
+        # tau = np.zeros((12, 1))
 
         # Check for NaN value
-        if np.any(np.isnan(tau_ff)):
+        if np.any(np.isnan(self.tau_ff)):
             # self.error = True
-            tau = np.zeros((12, 1))
+            self.tau = np.zeros((12, ))
         else:
             # Torque PD controller
             P = 3.0  # 10.0  # 5  # 50
             D = 0.3  # 0.05  # 0.05  #  0.2
-            torques12 = P * (self.qtsid[7:] - qmes12[7:]) + D * (self.vtsid[6:] - vmes12[6:]) + tau_ff
+            torques12 = P * (self.qtsid[7:] - qmes12[7:]) + D * (self.vtsid[6:] - vmes12[6:]) + self.tau_ff
 
             # Saturation to limit the maximal torque
             t_max = 2.5
-            tau = np.clip(torques12, -t_max, t_max)  # faster than np.maximum(a_min, np.minimum(a, a_max))
+            # faster than np.maximum(a_min, np.minimum(a, a_max))
+            self.tau = np.clip(torques12, -t_max, t_max).flatten()
 
-        return tau.flatten()
+        return self.tau
 
     def display(self, t, solo, k_simu, sequencer):
 
@@ -667,7 +687,7 @@ class controller:
             for i in range(0, 4):
                 if (t == 0):
                     solo.viewer.gui.addSphere("world/sphere"+str(i)+"_pos", .02, rgbt)  # .1 is the radius
-                pos_foot = self.robot.framePosition(self.invdyn.data(), self.model.getFrameId(self.foot_frames[i]))
+                pos_foot = self.robot.framePosition(self.invdyn.data(), self.ID_feet[i])
                 solo.viewer.gui.applyConfiguration(
                     "world/sphere"+str(i)+"_pos", (pos_foot.translation[0, 0],
                                                    pos_foot.translation[1, 0],
@@ -736,7 +756,7 @@ class controller:
                 solo.viewer.gui.setCurveLineWidth("world/orientation_curve", 8.0)
                 solo.viewer.gui.setColor("world/orientation_curve", [1.0, 0.0, 0.0, 0.5])
 
-            pos_trunk = self.robot.framePosition(self.invdyn.data(), self.model.getFrameId("base_link"))
+            pos_trunk = self.robot.framePosition(self.invdyn.data(), self.ID_base)
             line_rot = np.dot(pos_trunk.rotation, np.array([[1, 0, 0]]).transpose())
             solo.viewer.gui.setCurvePoints("world/orientation_curve",
                                            [pos_trunk.translation.flatten().tolist()[0],
@@ -758,11 +778,11 @@ class controller:
             self.f_vel_ref[i_foot, k_simu:(k_simu+1), :] = self.sampleFeet[i_foot].vel()[0:3].transpose()
             self.f_acc_ref[i_foot, k_simu:(k_simu+1), :] = self.sampleFeet[i_foot].acc()[0:3].transpose()
 
-            pos = self.robot.framePosition(self.invdyn.data(), self.model.getFrameId(self.foot_frames[i_foot]))
+            pos = self.robot.framePosition(self.invdyn.data(), self.ID_feet[i_foot])
             vel = self.robot.frameVelocityWorldOriented(
-                self.invdyn.data(), self.model.getFrameId(self.foot_frames[i_foot]))
+                self.invdyn.data(), self.ID_feet[i_foot])
             acc = self.robot.frameAccelerationWorldOriented(
-                self.invdyn.data(), self.model.getFrameId(self.foot_frames[i_foot]))
+                self.invdyn.data(), self.ID_feet[i_foot])
             self.f_pos[i_foot, k_simu:(k_simu+1), :] = pos.translation[0:3].transpose()
             self.f_vel[i_foot, k_simu:(k_simu+1), :] = vel.vector[0:3].transpose()
             self.f_acc[i_foot, k_simu:(k_simu+1), :] = acc.vector[0:3].transpose()
@@ -773,9 +793,9 @@ class controller:
         self.c_forces[:, k_simu, :] = c_f.transpose()  #  self.fc.reshape((4, 3))
 
         # Log position of the base
-        pos_trunk = self.robot.framePosition(self.invdyn.data(), self.model.getFrameId("base_link"))
+        pos_trunk = self.robot.framePosition(self.invdyn.data(), self.ID_base)
         self.b_pos[k_simu:(k_simu+1), 0:3] = pos_trunk.translation[0:3].transpose()
-        vel_trunk = self.robot.frameVelocityWorldOriented(self.invdyn.data(), self.model.getFrameId("base_link"))
+        vel_trunk = self.robot.frameVelocityWorldOriented(self.invdyn.data(), self.ID_base)
         self.b_vel[k_simu:(k_simu+1), 0:3] = vel_trunk.vector[0:3].transpose()
 
         # Log position and reference of the CoM

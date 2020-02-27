@@ -21,15 +21,16 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 200  # number of time steps simulated
+N_SIMULATION = 100  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
 
-t_list = []
+t_list_mpc = []
+t_list_tsid = []
 
 # Enable/Disable Gepetto viewer
-enable_gepetto_viewer = True
+enable_gepetto_viewer = False
 
 # Create Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator
 # and MpcSolver objects
@@ -45,7 +46,7 @@ solo = utils.init_viewer()
 #                              PyBullet                                #
 ########################################################################
 
-pyb_sim = utils.pybullet_simulator()
+pyb_sim = utils.pybullet_simulator(dt=dt_mpc)
 
 ########################################################################
 #                             Simulator                                #
@@ -54,12 +55,32 @@ pyb_sim = utils.pybullet_simulator()
 myController = controller(q0, omega, t, int(N_SIMULATION))
 mySafetyController = Safety_controller.controller_12dof()
 myEmergencyStop = EmergencyStop_controller.controller_12dof()
-myForceMonitor = ForceMonitor.ForceMonitor(mpc.footholds, pyb_sim.robotId, pyb_sim.planeId)
+myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
 for k in range(int(N_SIMULATION)):
 
+    time_start = time.time()
+
     if (k % 100) == 0:
         print("Iteration: ", k)
+
+    ####################################################################
+    #                 Data collection from PyBullet                    #
+    ####################################################################
+
+    jointStates = pyb.getJointStates(pyb_sim.robotId, pyb_sim.revoluteJointIndices)  # State of all joints
+    baseState = pyb.getBasePositionAndOrientation(pyb_sim.robotId)  # Position and orientation of the trunk
+    baseVel = pyb.getBaseVelocity(pyb_sim.robotId)  # Velocity of the trunk
+
+    # Joints configuration and velocity vector for free-flyer + 12 actuators
+    qmes12 = np.vstack((np.array([baseState[0]]).T, np.array([baseState[1]]).T,
+                        np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
+    vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
+                        np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))
+
+    #######################################################
+    #                 Update MPC state                    #
+    #######################################################
 
     joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
     mpc.update_v_ref(joystick)  # Retrieve reference velocity
@@ -67,7 +88,7 @@ for k in range(int(N_SIMULATION)):
     if k > 0:
         sequencer.updateSequence()  # Update contact sequence
 
-    if k > 0:
+    if False:  # k > 0: # Feedback from TSID
         RPY = utils.rotationMatrixToEulerAngles(myController.robot.framePosition(
             myController.invdyn.data(), myController.model.getFrameId("base_link")).rotation)
         """settings.qu_m[2] = myController.robot.framePosition(
@@ -105,6 +126,21 @@ for k in range(int(N_SIMULATION)):
         mpc.v[:, 0] += np.random.normal(0.00 * np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]),
                                         scale=np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))"""
 
+    if k > 0:  # Feedback from PyBullet
+        mpc.q[0:2, 0] = np.array([0.0, 0.0])
+        mpc.q[2] = qmes12[2] - 0.0323
+        mpc.q[3:5, 0] = utils.quaternionToRPY(qmes12[3:7, 0])[0:2, 0]
+        mpc.q[5, 0] = 0.0
+        mpc.v[0:6, 0:1] = vmes12[0:6, 0:1]
+
+        # Add random noise
+        """mpc.q[2:5, 0] += np.random.normal(0.00 * np.array([0.001, 0.001, 0.001]),
+                                          scale=np.array([0.001, 0.001, 0.001]))
+        mpc.v[:, 0] += np.random.normal(0.00 * np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]),
+                                        scale=np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))"""
+        """if k >= 100 and k < 115:
+            mpc.v[0, 0] = 0.01"""
+
     ###########################################
     # FOOTSTEP PLANNER & TRAJECTORY GENERATOR #
     ###########################################
@@ -126,6 +162,12 @@ for k in range(int(N_SIMULATION)):
     # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
     mpc.run(k, sequencer, fstep_planner, ftraj_gen)
 
+    # Time spent to run this iteration of the loop
+    time_spent = time.time() - time_start
+
+    # Logging the time spent
+    t_list_mpc.append(time_spent)
+
     # Visualisation with gepetto viewer
     if enable_gepetto_viewer:
         utils.display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc)
@@ -139,7 +181,7 @@ for k in range(int(N_SIMULATION)):
     # Logging various stuff
     logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
-    if k == 145 or k == 146:
+    if k in [100, 101, 102, 103, 110, 120, 130]:
         fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
 
         # Plot desired contact forces
@@ -177,20 +219,6 @@ for k in range(int(N_SIMULATION)):
         time_start = time.time()
 
         ####################################################################
-        #                 Data collection from PyBullet                    #
-        ####################################################################
-
-        jointStates = pyb.getJointStates(pyb_sim.robotId, pyb_sim.revoluteJointIndices)  # State of all joints
-        baseState = pyb.getBasePositionAndOrientation(pyb_sim.robotId)  # Position and orientation of the trunk
-        baseVel = pyb.getBaseVelocity(pyb_sim.robotId)  # Velocity of the trunk
-
-        # Joints configuration and velocity vector for free-flyer + 12 actuators
-        qmes12 = np.vstack((np.array([baseState[0]]).T, np.array([baseState[1]]).T,
-                            np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
-        vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
-                            np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))
-
-        ####################################################################
         #                Select the appropriate controller 				   #
         #                               &								   #
         #               Load the joint torques into the robot			   #
@@ -210,13 +238,6 @@ for k in range(int(N_SIMULATION)):
         # Retrieve the joint torques from the appropriate controller
         jointTorques = myController.control(qmes12, vmes12, t, i+k, solo, mpc, sequencer).reshape((12, 1))
 
-        # Set control torque for all joints
-        pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,
-                                      controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
-
-        # Compute one step of simulation
-        # pyb.stepSimulation()
-
         # Time incrementation
         t += dt
 
@@ -224,12 +245,33 @@ for k in range(int(N_SIMULATION)):
         time_spent = time.time() - time_start
 
         # Logging the time spent
-        t_list.append(time_spent)
+        t_list_tsid.append(time_spent)
+
+        ############
+        # PYBULLET #
+        ############
+
+        # Set control torque for all joints
+        pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,
+                                      controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
+
+        # Apply perturbation
+        if k >= 100 and k < 150:
+            pyb.applyExternalForce(pyb_sim.robotId, -1, [10.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+
+        # Compute one step of simulation
+        pyb.stepSimulation()
 
         # Refresh force monitoring for PyBullet
         # myForceMonitor.display_contact_forces()
         # time.sleep(0.001)
 
+
+plt.figure(10)
+plt.plot(t_list_mpc, 'k+')
+plt.figure(9)
+plt.plot(t_list_tsid, 'k+')
+plt.show(block=True)
 
 # Display graphs of the logger
 logger.plot_graphs(dt_mpc, N_SIMULATION, myController)
@@ -289,7 +331,7 @@ if hasattr(myController, 'com_pos_ref'):
 plt.show()
 
 plt.figure(9)
-plt.plot(t_list, 'k+')
+plt.plot(t_list_tsid, 'k+')
 plt.show()
 
 quit()

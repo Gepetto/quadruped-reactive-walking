@@ -1,13 +1,13 @@
 # coding: utf8
 
 import numpy as np
+import pybullet as pyb
 
 
 class ForceMonitor:
 
-    def __init__(self, p, robotId, planeId):
+    def __init__(self, robotId, planeId):
 
-        self.pyb_simu = p
         self.lines = []
         self.robotId = robotId
         self.planeId = planeId
@@ -29,10 +29,10 @@ class ForceMonitor:
     def display_contact_forces(self):
 
         # Info about contact points with the ground
-        contactPoints_FL = self.pyb_simu.getContactPoints(self.robotId, self.planeId, linkIndexA=3)  # Front left  foot
-        contactPoints_FR = self.pyb_simu.getContactPoints(self.robotId, self.planeId, linkIndexA=7)  # Front right foot
-        contactPoints_HL = self.pyb_simu.getContactPoints(self.robotId, self.planeId, linkIndexA=11)  # Hind left  foot
-        contactPoints_HR = self.pyb_simu.getContactPoints(self.robotId, self.planeId, linkIndexA=15)  # Hind right foot
+        contactPoints_FL = pyb.getContactPoints(self.robotId, self.planeId, linkIndexA=3)  # Front left  foot
+        contactPoints_FR = pyb.getContactPoints(self.robotId, self.planeId, linkIndexA=7)  # Front right foot
+        contactPoints_HL = pyb.getContactPoints(self.robotId, self.planeId, linkIndexA=11)  # Hind left  foot
+        contactPoints_HR = pyb.getContactPoints(self.robotId, self.planeId, linkIndexA=15)  # Hind right foot
         # print(len(contactPoint_FL), len(contactPoint_FR), len(contactPoint_HL), len(contactPoint_HR))
 
         # Sort contacts points to get only one contact per foot
@@ -59,25 +59,26 @@ class ForceMonitor:
                                           contact[11][i_direction] + contact[12] * contact[13][i_direction])
                     end[i_direction] += K * f_tmp[i_direction]
 
-                if contact[3] < 10:
+                """if contact[3] < 10:
                     print("Link  ", contact[3], "| Contact force: (", f_tmp[0], ", ", f_tmp[1], ", ", f_tmp[2], ")")
                 else:
-                    print("Link ", contact[3], "| Contact force: (", f_tmp[0], ", ", f_tmp[1], ", ", f_tmp[2], ")")
+                    print("Link ", contact[3], "| Contact force: (", f_tmp[0], ", ", f_tmp[1], ", ", f_tmp[2], ")")"""
 
                 f_x += f_tmp[0]
                 f_y += f_tmp[1]
                 f_z += f_tmp[2]
 
                 if (i_line+1) > len(self.lines):  # If not enough existing lines in line storage a new item is created
-                    lineID = self.pyb_simu.addUserDebugLine(start, end, lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8)
+                    lineID = pyb.addUserDebugLine(start, end, lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8)
                     self.lines.append(lineID)
                 else:  # If there is already an existing line item we modify it (to avoid flickering)
-                    self.lines[i_line] = self.pyb_simu.addUserDebugLine(start, end, lineColorRGB=[
+                    self.lines[i_line] = pyb.addUserDebugLine(start, end, lineColorRGB=[
                         1.0, 0.0, 0.0], lineWidth=8, replaceItemUniqueId=self.lines[i_line])
                 i_line += 1
 
-        print("Total ground reaction force: (", f_x, ", ", f_y, ", ", f_z, ")")  # Should be around 21,5 (2.2 kg * 9.81 m^2/s)
+        # Should be around 21,5 (2.2 kg * 9.81 m^2/s)
+        # print("Total ground reaction force: (", f_x, ", ", f_y, ", ", f_z, ")")
 
         for i_zero in range(i_line, len(self.lines)):
-            self.lines[i_zero] = self.pyb_simu.addUserDebugLine([0.0, 0.0, 0.0], [0.0, 0.0, 0.0], lineColorRGB=[
+            self.lines[i_zero] = pyb.addUserDebugLine([0.0, 0.0, 0.0], [0.0, 0.0, 0.0], lineColorRGB=[
                 1.0, 0.0, 0.0], lineWidth=8, replaceItemUniqueId=self.lines[i_zero])

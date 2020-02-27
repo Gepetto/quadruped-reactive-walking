@@ -298,9 +298,9 @@ class MPC:
         P_col = np.hstack((P_col, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
         P_data = np.hstack((P_data, 0.0*np.ones((n_x * self.n_steps * 2 - n_x * self.n_steps,))))
 
-        P_data[(n_x * self.n_steps)::3] = 5e-4  # force along x
-        P_data[(n_x * self.n_steps + 1)::3] = 5e-4  # force along y
-        P_data[(n_x * self.n_steps + 2)::3] = 5e-4  # force along z
+        P_data[(n_x * self.n_steps)::3] = 5e-3  # force along x
+        P_data[(n_x * self.n_steps + 1)::3] = 5e-3  # force along y
+        P_data[(n_x * self.n_steps + 2)::3] = 5e-3  # force along z
 
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(
