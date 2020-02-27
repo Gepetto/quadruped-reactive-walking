@@ -21,7 +21,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 100  # number of time steps simulated
+N_SIMULATION = 200  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -134,10 +134,13 @@ for k in range(int(N_SIMULATION)):
         mpc.v[0:6, 0:1] = vmes12[0:6, 0:1]
 
         # Add random noise
-        """mpc.q[2:5, 0] += np.random.normal(0.00 * np.array([0.001, 0.001, 0.001]),
-                                          scale=np.array([0.001, 0.001, 0.001]))
-        mpc.v[:, 0] += np.random.normal(0.00 * np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]),
-                                        scale=np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))"""
+        mpc.q_noise = np.random.normal(0.00 * np.array([0.001, 0.001, 0.001]),
+                                       scale=np.array([0.001, 0.001, 0.001]))
+        mpc.v_noise = np.random.normal(0.00 * np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]),
+                                       scale=np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))
+        mpc.q[2:5, 0] += mpc.q_noise
+        mpc.v[:, 0] += mpc.v_noise
+
         """if k >= 100 and k < 115:
             mpc.v[0, 0] = 0.01"""
 
@@ -181,7 +184,7 @@ for k in range(int(N_SIMULATION)):
     # Logging various stuff
     logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
-    if k in [100, 101, 102, 103, 110, 120, 130]:
+    """if k in [100, 101, 102, 103, 110, 120, 130]:
         fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
 
         # Plot desired contact forces
@@ -209,7 +212,7 @@ for k in range(int(N_SIMULATION)):
             plt.ylabel("Contact force along Z [N]")
             plt.legend([legends[i] + "_MPC"])
 
-        plt.show(block=False)
+        plt.show(block=False)"""
 
     if k >= 245:
         debug = 1
@@ -263,15 +266,15 @@ for k in range(int(N_SIMULATION)):
         pyb.stepSimulation()
 
         # Refresh force monitoring for PyBullet
-        # myForceMonitor.display_contact_forces()
+        myForceMonitor.display_contact_forces()
         # time.sleep(0.001)
 
 
-plt.figure(10)
+"""plt.figure(10)
 plt.plot(t_list_mpc, 'k+')
 plt.figure(9)
 plt.plot(t_list_tsid, 'k+')
-plt.show(block=True)
+plt.show(block=True)"""
 
 # Display graphs of the logger
 logger.plot_graphs(dt_mpc, N_SIMULATION, myController)

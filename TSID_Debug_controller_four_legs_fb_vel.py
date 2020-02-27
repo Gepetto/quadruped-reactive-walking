@@ -346,8 +346,8 @@ class controller:
                 self.sampleFeet[i_foot] = footTraj.computeNext()
 
                 self.pos_contact[i_foot] = np.matrix([self.footsteps[0, i_foot], self.footsteps[1, i_foot], 0.0])
-        """else:
-            # Encoders (position of joints)
+        else:
+            """# Encoders (position of joints)
             self.qtsid[7:] = qmes12[7:]
 
             # Gyroscopes (angular velocity of trunk)
@@ -355,6 +355,15 @@ class controller:
 
             # IMU estimation of orientation of the trunk
             self.qtsid[3:7] = qmes12[3:7]"""
+
+            self.qtsid = qmes12.copy()
+            self.qtsid[2] -= 0.01205385
+            self.vtsid = vmes12.copy()
+
+            self.qtsid[2, 0] += mpc.q_noise[0]
+            self.qtsid[3:7] = utils.getQuaternion(utils.quaternionToRPY(
+                qmes12[3:7, 0]) + np.vstack((np.array([mpc.q_noise[1:]]).transpose(), 0.0)))
+            self.vtsid[:6, 0] += mpc.v_noise
 
         #####################
         # FOOTSTEPS PLANNER #
@@ -638,15 +647,15 @@ class controller:
         # Torques, accelerations, velocities and configuration computation
         self.tau_ff = self.invdyn.getActuatorForces(self.sol)
         self.fc = self.invdyn.getContactForces(self.sol)
-        #print(k_simu, " : ", self.fc.transpose())
+        # print(k_simu, " : ", self.fc.transpose())
         # print(self.fc.transpose())
         self.ades = self.invdyn.getAccelerations(self.sol)
-        self.vtsid += self.ades * dt
-        self.qtsid = pin.integrate(self.model, self.qtsid, self.vtsid * dt)
+        # self.vtsid += self.ades * dt
+        # self.qtsid = pin.integrate(self.model, self.qtsid, self.vtsid * dt)
 
         # Call display and log function
-        #self.display(t, solo, k_simu, sequencer)
-        #self.log(t, solo, k_simu, sequencer)
+        self.display(t, solo, k_simu, sequencer)
+        self.log(t, solo, k_simu, sequencer)
 
         # Placeholder torques for PyBullet
         # tau = np.zeros((12, 1))
@@ -659,7 +668,8 @@ class controller:
             # Torque PD controller
             P = 3.0  # 10.0  # 5  # 50
             D = 0.3  # 0.05  # 0.05  #  0.2
-            torques12 = P * (self.qtsid[7:] - qmes12[7:]) + D * (self.vtsid[6:] - vmes12[6:]) + self.tau_ff
+            # torques12 = P * (self.qtsid[7:] - qmes12[7:]) + D * (self.vtsid[6:] - vmes12[6:]) + self.tau_ff
+            torques12 = self.tau_ff
 
             # Saturation to limit the maximal torque
             t_max = 2.5
