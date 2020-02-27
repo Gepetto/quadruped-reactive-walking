@@ -14,6 +14,7 @@ import tsid
 import FootTrajectoryGenerator as ftg
 import FootstepPlanner
 import pybullet as pyb
+import utils
 
 pin.switchToNumpyMatrix()
 
@@ -221,7 +222,7 @@ class controller:
         self.trunk_ref = self.robot.framePosition(self.invdyn.data(), self.model.getFrameId('base_link'))
         self.trajTrunk = tsid.TrajectorySE3Constant("traj_base_link", self.trunk_ref)
         self.sampleTrunk = self.trajTrunk.computeNext()
-        self.sampleTrunk.pos(np.matrix([0.0, 0.0, 0.2027, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)
+        self.sampleTrunk.pos(np.matrix([0.0, 0.0, 0.2027682, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)
         self.sampleTrunk.vel(np.matrix([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T)
         self.sampleTrunk.acc(np.matrix([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T)
         self.trunkTask.setReference(self.sampleTrunk)
@@ -380,7 +381,7 @@ class controller:
         self.fstep_planner.update_footsteps_tsid(self.v_ref, self.vu_m, self.t_stance,
                                                  self.t_remaining, self.T_gait, self.h_ref)
 
-        self.footsteps = self.memory_contacts + self.fstep_planner.footsteps
+        self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
 
         # Rotate footsteps depending on TSID orientation
         """RPY = pyb.getEulerFromQuaternion(self.qtsid[3:7])
@@ -413,7 +414,7 @@ class controller:
         self.sample_com.pos(tmp)
         """tmp[0:3, 0] = mpc.vu[0:3, 0:1]
         self.sample_com.vel(tmp)
-        mass = 3.0
+        mass = 2.97784899
         tmp[0, 0] = np.sum(mpc.f_applied[0::3]) / mass
         tmp[1, 0] = np.sum(mpc.f_applied[2::3]) / mass
         tmp[2, 0] = np.sum(mpc.f_applied[3::3]) / mass - 9.81
@@ -476,16 +477,21 @@ class controller:
                 self.contacts[i_foot].setRegularizationTaskWeightVector(
                     np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
 
-        """for j, i_foot in enumerate([0, 1, 2, 3]):
-            self.contacts[i_foot].setForceReference(self.w_reg_f * np.matrix(mpc.f_applied[3*j:3*(j+1)]).T)
-            self.contacts[i_foot].setRegularizationTaskWeightVector(
-                np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
+        RPY = utils.rotationMatrixToEulerAngles(self.robot.framePosition(
+            self.invdyn.data(), self.model.getFrameId("base_link")).rotation)
+        c, s = np.cos(RPY[2]), np.sin(RPY[2])
+        R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
 
-        in_stance_phase = np.where(sequencer.S[0, :] == 1)
+        for j, i_foot in enumerate([0, 1, 2, 3]):
+            self.contacts[i_foot].setForceReference(self.w_reg_f * np.matrix(np.dot(R, mpc.f_applied[3*j:3*(j+1)])).T)
+            self.contacts[i_foot].setRegularizationTaskWeightVector(
+                np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
+
+        """in_stance_phase = np.where(sequencer.S[0, :] == 1)
         for j, i_foot in enumerate(in_stance_phase[1]):
             self.contacts[i_foot].setForceReference(self.w_reg_f * np.matrix(mpc.f_applied[3*j:3*(j+1)]).T)
             self.contacts[i_foot].setRegularizationTaskWeightVector(
-                np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
+                np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
 
         ################
         # UPDATE TASKS #
@@ -620,8 +626,8 @@ class controller:
         self.qtsid = pin.integrate(self.model, self.qtsid, self.vtsid * dt)
 
         # Call display and log function
-        self.display(t, solo, k_simu)
-        self.log(t, solo, k_simu)
+        # self.display(t, solo, k_simu, sequencer)
+        self.log(t, solo, k_simu, sequencer)
 
         # Placeholder torques for PyBullet
         tau = np.zeros((12, 1))
@@ -642,7 +648,7 @@ class controller:
 
         return tau.flatten()
 
-    def display(self, t, solo, k_simu):
+    def display(self, t, solo, k_simu, sequencer):
 
         if self.verbose:
             # Display target 3D positions of footholds with green spheres (gepetto gui)
@@ -700,14 +706,26 @@ class controller:
                     feet = [0, 3]
                     feet_0 = [1, 2]"""
                 feet = [0, 1, 2, 3]
+                feet_stance = np.where(sequencer.S[0, :] == 1)[1]
+                cpt_foot = 0
                 for i, i_foot in enumerate(feet):
-                    Kreduce = 0.04
-                    solo.viewer.gui.setCurvePoints("world/force_curve"+str(i_foot),
-                                                   [[self.memory_contacts[0, i_foot],
-                                                     self.memory_contacts[1, i_foot], 0.0],
-                                                    [self.memory_contacts[0, i_foot] + Kreduce * self.fc[3*i+0, 0],
-                                                     self.memory_contacts[1, i_foot] + Kreduce * self.fc[3*i+1, 0],
-                                                     Kreduce * self.fc[3*i+2, 0]]])
+                    if i_foot in feet_stance:
+                        Kreduce = 0.04
+                        solo.viewer.gui.setCurvePoints("world/force_curve"+str(i_foot),
+                                                       [[self.memory_contacts[0, i_foot],
+                                                         self.memory_contacts[1, i_foot], 0.0],
+                                                        [self.memory_contacts[0, i_foot] + Kreduce * self.fc[3*cpt_foot+0, 0],
+                                                         self.memory_contacts[1, i_foot] +
+                                                         Kreduce * self.fc[3*cpt_foot+1, 0],
+                                                         Kreduce * self.fc[3*cpt_foot+2, 0]]])
+                        cpt_foot += 1
+                    else:
+                        solo.viewer.gui.setCurvePoints("world/force_curve"+str(i_foot),
+                                                       [[self.memory_contacts[0, i_foot],
+                                                         self.memory_contacts[1, i_foot], 0.0],
+                                                        [self.memory_contacts[0, i_foot] + 0.0,
+                                                         self.memory_contacts[1, i_foot] + 0.0,
+                                                         0.0]])
                 """for i, i_foot in enumerate(feet_0):
                     solo.viewer.gui.setCurvePoints("world/force_curve"+str(i_foot),
                                                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])"""
@@ -732,7 +750,7 @@ class controller:
                 solo.viewer.gui.refresh()
                 solo.display(self.qtsid)
 
-    def log(self, t, solo, k_simu):
+    def log(self, t, solo, k_simu, sequencer):
 
         # Log pos, vel, acc of the flying foot
         for i_foot in range(4):
@@ -749,7 +767,10 @@ class controller:
             self.f_vel[i_foot, k_simu:(k_simu+1), :] = vel.vector[0:3].transpose()
             self.f_acc[i_foot, k_simu:(k_simu+1), :] = acc.vector[0:3].transpose()
 
-        self.c_forces[:, k_simu, :] = self.fc.reshape((4, 3))
+        c_f = np.zeros((3, 4))
+        for i, j in enumerate(np.where(sequencer.S[0, :] == 1)[1]):
+            c_f[:, j:(j+1)] = self.fc[(3*i):(3*(i+1))]
+        self.c_forces[:, k_simu, :] = c_f.transpose()  #  self.fc.reshape((4, 3))
 
         # Log position of the base
         pos_trunk = self.robot.framePosition(self.invdyn.data(), self.model.getFrameId("base_link"))

@@ -20,13 +20,13 @@ class MPC:
         self.dt = dt
 
         # Mass of the robot
-        self.mass = 3.0
+        self.mass = 2.97784899
 
         # Inertia matrix of the robot in body frame (found in urdf)
         self.gI = np.diag([0.00578574, 0.01938108, 0.02476124])
 
         # Friction coefficient
-        self.mu = 2
+        self.mu = 1
 
         # Number of time steps in the prediction horizon
         self.n_steps = sequencer.S.shape[0]
@@ -35,8 +35,11 @@ class MPC:
         # the robot in column 0 and the N steps of the prediction horizon in the others
         self.xref = np.zeros((12, 1 + self.n_steps))
 
+        # Result of the QP solver
+        self.x = np.zeros((12 * self.n_steps * 2,))
+
         # Initial state vector of the robot (x, y, z, roll, pitch, yaw)
-        self.q = np.array([[0.0, 0.0, 0.2027, 0.0, 0.0, 0.0]]).transpose()
+        self.q = np.array([[0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0]]).transpose()
 
         # State vector of the trunk in the world frame
         self.q_w = self.q.copy()
@@ -124,10 +127,12 @@ class MPC:
         ftraj_gen -- FootTrajectoryGenerator object
         """
 
-        self.footholds[0:2, :] = ftraj_gen.footsteps_lock
+        self.footholds[0:2, :] = ftraj_gen.footsteps_lock.copy()
+        self.footholds[0:2, :] = np.array(
+            [[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
 
         # Information in world frame for visualisation purpose
-        self.footholds_world = ftraj_gen.footsteps_lock_world
+        self.footholds_world = ftraj_gen.footsteps_lock_world.copy()
 
         return 0
 
@@ -281,8 +286,8 @@ class MPC:
         P_data[3::12] = 1000  # roll
         P_data[4::12] = 1000  # pitch
         P_data[5::12] = 10  # yaw
-        P_data[6::12] = 1000  # linear velocity along x
-        P_data[7::12] = 1000  # linear velocity along y
+        P_data[6::12] = 5000  # linear velocity along x
+        P_data[7::12] = 5000  # linear velocity along y
         P_data[8::12] = 10  # linear velocity along z
         P_data[9::12] = 10  # angular velocity along x
         P_data[10::12] = 10  # angular velocity along y
@@ -293,9 +298,9 @@ class MPC:
         P_col = np.hstack((P_col, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
         P_data = np.hstack((P_data, 0.0*np.ones((n_x * self.n_steps * 2 - n_x * self.n_steps,))))
 
-        P_data[(n_x * self.n_steps)::3] = 1e-4  # force along x
-        P_data[(n_x * self.n_steps + 1)::3] = 1e-4  # force along y
-        P_data[(n_x * self.n_steps + 2)::3] = 1e-4  # force along z
+        P_data[(n_x * self.n_steps)::3] = 5e-4  # force along x
+        P_data[(n_x * self.n_steps + 1)::3] = 5e-4  # force along y
+        P_data[(n_x * self.n_steps + 2)::3] = 5e-4  # force along z
 
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(
@@ -386,10 +391,11 @@ class MPC:
             (np.repeat(tmp, 4)-2) / (4 - 2) * (self.mass * 9.81 * 0.25)
 
         # Keep initial guess only for enabled feet
-        f_temp = np.array(np.multiply(np.repeat(sequencer.S.reshape((-1,)), 3), f_temp)).flatten()
+        # f_temp = np.array(np.multiply(np.repeat(sequencer.S.reshape((-1,)), 3), f_temp)).flatten()
+        f_temp = self.x[self.xref.shape[0] * (self.xref.shape[1]-1):]
 
         # Initial guess (current state + guess for forces) to warm start the solver
-        initx = np.hstack((np.zeros((12 * self.n_steps,)), f_temp))
+        initx = np.hstack((np.zeros((12 * self.n_steps,)), np.roll(f_temp, -12)))
 
         # Create the QP solver object
         prob = osqp.OSQP()
@@ -404,7 +410,7 @@ class MPC:
         prob.setup(P=self.P, q=self.Q, A=qp_A, l=qp_l, u=qp_u, verbose=False)
         prob.warm_start(x=initx)
         """
-        else:  # Code to update the QP problem without creating it again 
+        else:  # Code to update the QP problem without creating it again
             qp_A = scipy.sparse.vstack([G, A]).tocsc()
             qp_l = np.hstack([l, b])
             qp_u = np.hstack([h, b])
@@ -428,7 +434,7 @@ class MPC:
         # Retrieve the "contact forces" part of the solution of the QP problem
         self.f_applied = self.x[self.xref.shape[0]*(self.xref.shape[1]-1):(self.xref.shape[0] *
                                                                            (self.xref.shape[1]-1)
-                                                                           + self.n_contacts[0, 0]*3)]
+                                                                           + 12)]
 
         # As the QP problem is solved for (x_robot - x_ref), we need to add x_ref to the result to get x_robot
         self.x_robot += self.xref[:, 1:]

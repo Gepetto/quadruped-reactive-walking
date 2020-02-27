@@ -29,7 +29,7 @@ time_error = False
 t_list = []
 
 # Enable/Disable Gepetto viewer
-enable_gepetto_viewer = False
+enable_gepetto_viewer = True
 
 # Create Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator
 # and MpcSolver objects
@@ -73,16 +73,18 @@ for k in range(int(N_SIMULATION)):
         """settings.qu_m[2] = myController.robot.framePosition(
                 myController.invdyn.data(), myController.model.getFrameId("base_link")).translation[2, 0]"""
 
-        # RPY[1] *= -1  # Pitch is inversed
+        # RPY[1] *= -1  # Pitch is inversed
 
         mpc.q[0:2, 0] = np.array([0.0, 0.0])
-        mpc.q[2] = myController.robot.com(myController.invdyn.data())[2]
+        mpc.q[2] = myController.robot.com(myController.invdyn.data())[2].copy()
         mpc.q[3:5, 0] = RPY[0:2]
         mpc.q[5, 0] = 0.0
-        mpc.v = myController.vtsid[:6, 0:1].copy()
-        if k >= 10 and k < 11:
-            mpc.v[0, 0] = 0.6
+        mpc.v[0:3, 0:1] = myController.robot.com_vel(myController.invdyn.data()).copy()
+        mpc.v[3:6, 0:1] = myController.vtsid[3:6, 0:1].copy()
 
+        """if k >= 100 and k < 115:
+            mpc.v[1, 0] = 0.01
+        """
         """if k == 200:
             mpc.v[0, 0] += 0.1
         if k == 400:
@@ -129,11 +131,46 @@ for k in range(int(N_SIMULATION)):
         utils.display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc)
 
     # Get measured position and velocity after one time step (here perfect simulation)
-    # mpc.q[[2, 3, 4]] = mpc.q_next[[2, 3, 4]]  # coordinates in x, y, yaw are always 0 in local frame
-    # mpc.v = mpc.v_next
+    """mpc.q[[0, 1]] = np.array([[0.0], [0.0]])
+    mpc.q[[2, 3, 4]] = mpc.q_next[[2, 3, 4]].copy()  # coordinates in x, y, yaw are always 0 in local frame
+    mpc.q[5] = 0.0
+    mpc.v = mpc.v_next.copy()"""
 
     # Logging various stuff
     logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
+
+    if k == 145 or k == 146:
+        fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
+
+        # Plot desired contact forces
+        plt.figure()
+        c = ["r", "g", "b", "rebeccapurple"]
+        legends = ["FL", "FR", "HL", "HR"]
+        for i in range(4):
+            plt.subplot(3, 4, i+1)
+            plt.plot(fc[3*i, :], color="r", linewidth=3)
+            plt.xlabel("Time [s]")
+            plt.ylabel("Contact force along X [N]")
+            plt.legend([legends[i] + "_MPC"])
+
+        for i in range(4):
+            plt.subplot(3, 4, i+5)
+            plt.plot(fc[3*i+1, :], color="r", linewidth=3)
+            plt.xlabel("Time [s]")
+            plt.ylabel("Contact force along Y [N]")
+            plt.legend([legends[i] + "_MPC"])
+
+        for i in range(4):
+            plt.subplot(3, 4, i+9)
+            plt.plot(fc[3*i+2, :], color="r", linewidth=3)
+            plt.xlabel("Time [s]")
+            plt.ylabel("Contact force along Z [N]")
+            plt.legend([legends[i] + "_MPC"])
+
+        plt.show(block=False)
+
+    if k >= 245:
+        debug = 1
 
     for i in range(1):
 
@@ -228,7 +265,7 @@ for i in range(3):
     if i < 2:
         plt.plot(np.zeros((N_SIMULATION,)))
     else:
-        plt.plot((0.2027) * np.ones((N_SIMULATION,)))
+        plt.plot((0.2027682) * np.ones((N_SIMULATION,)))
     plt.legend([l_str[i] + "of base", l_str[i] + "reference of base"])
 
 plt.figure()
@@ -246,7 +283,7 @@ if hasattr(myController, 'com_pos_ref'):
         plt.subplot(3, 1, i+1)
         plt.plot(myController.com_pos_ref[:, i], "b", linewidth=3)
         plt.plot(myController.com_pos[:, i], "r", linewidth=2)
-        plt.legend(["COo ref pos along " + l_str[0], "CoM pos along " + l_str[i-1]])
+        plt.legend(["CoM ref pos along " + l_str[0], "CoM pos along " + l_str[0]])
 
 
 plt.show()

@@ -23,6 +23,7 @@ class Logger:
 
         # Log a few predicted trajectories along time to see how it changes
         self.log_predicted_traj = np.zeros((12, int((k_max_loop/20)), 120))
+        self.log_predicted_fc = np.zeros((12, int((k_max_loop/20)), 120))
 
         # Log contact forces
         self.log_contact_forces = np.zeros((4, k_max_loop, 3))
@@ -68,12 +69,14 @@ class Logger:
         """ Log the output contact forces of the MPC
         """
 
-        cpt = 0
+        """cpt = 0
         update = np.array(sequencer.S[0]).ravel()
         for i in range(4):
             if update[i]:
                 self.log_contact_forces[i, k_loop, :] = mpc.f_applied[(cpt*3):((cpt+1)*3)]
-                cpt += 1
+                cpt += 1"""
+
+        self.log_contact_forces[:, k_loop, :] = mpc.f_applied.reshape((4, 3))
 
         return 0
 
@@ -139,11 +142,11 @@ class Logger:
         plt.figure()
         for i in range(4):
             plt.subplot(4, 2, 2*i+1)
-            plt.plot(log_t, self.log_footholds[i_foot, :, 0], linewidth=2)
+            plt.plot(log_t, self.log_footholds[i, :, 0], linewidth=2)
             plt.xlabel("Time [s]")
             plt.ylabel("Position X [m]")
             plt.subplot(4, 2, 2*i+2)
-            plt.plot(log_t, self.log_footholds[i_foot, :, 1], linewidth=2)
+            plt.plot(log_t, self.log_footholds[i, :, 1], linewidth=2)
             plt.xlabel("Time [s]")
             plt.ylabel("Position Y [m]")
 

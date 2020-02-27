@@ -77,7 +77,7 @@ class FootstepPlanner:
             p[1, i] += t_remaining[0, i] * vel_cur[1, 0]"""
 
         # Update target_footholds_no_lock
-        self.footsteps = np.tile(p, (1, 4))
+        self.footsteps_tsid = np.tile(p, (1, 4))
 
         return 0
 
