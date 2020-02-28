@@ -48,7 +48,7 @@ class controller:
         contactNormal = np.matrix([0., 0., 1.]).T  # direction of the normal to the contact surface
 
         # Coefficients of the posture task
-        kp_posture = 0.0		# proportionnal gain of the posture task
+        kp_posture = 10.0		# proportionnal gain of the posture task
         w_posture = 1.0         # weight of the posture task
 
         # Coefficients of the contact tasks
@@ -57,7 +57,7 @@ class controller:
         self. w_reg_f = 100.0
 
         # Coefficients of the foot tracking task
-        kp_foot = 1.0               # proportionnal gain for the tracking task
+        kp_foot = 100.0               # proportionnal gain for the tracking task
         self.w_foot = 10000.0       # weight of the tracking task
 
         # Coefficients of the trunk task
@@ -357,7 +357,7 @@ class controller:
             self.qtsid[3:7] = qmes12[3:7]"""
 
             self.qtsid = qmes12.copy()
-            self.qtsid[2] -= 0.01205385
+            # self.qtsid[2] -= 0.015  # 0.01205385
             self.vtsid = vmes12.copy()
 
             self.qtsid[2, 0] += mpc.q_noise[0]

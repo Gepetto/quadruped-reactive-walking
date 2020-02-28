@@ -21,7 +21,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 250  # number of time steps simulated
+N_SIMULATION = 150  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -135,9 +135,9 @@ for k in range(int(N_SIMULATION)):
 
         # Add random noise
         mpc.q_noise = np.random.normal(0.00 * np.array([0.001, 0.001, 0.001]),
-                                       scale=np.array([0.001, 0.001, 0.001]))
+                                       scale=0.0*np.array([0.001, 0.001, 0.001]))
         mpc.v_noise = np.random.normal(0.00 * np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]),
-                                       scale=np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))
+                                       scale=0.0*np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))
         mpc.q[2:5, 0] += mpc.q_noise
         mpc.v[:, 0] += mpc.v_noise
 
@@ -184,7 +184,7 @@ for k in range(int(N_SIMULATION)):
     # Logging various stuff
     logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
-    """if k in [100, 101, 102, 103, 110, 120, 130]:
+    if k in [59, 60, 61, 62]:
         fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
 
         # Plot desired contact forces
@@ -212,7 +212,7 @@ for k in range(int(N_SIMULATION)):
             plt.ylabel("Contact force along Z [N]")
             plt.legend([legends[i] + "_MPC"])
 
-        plt.show(block=False)"""
+        plt.show(block=False)
 
     if k >= 245:
         debug = 1

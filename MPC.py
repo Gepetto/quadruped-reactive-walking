@@ -286,8 +286,8 @@ class MPC:
         P_data[3::12] = 1000  # roll
         P_data[4::12] = 1000  # pitch
         P_data[5::12] = 10  # yaw
-        P_data[6::12] = 5000  # linear velocity along x
-        P_data[7::12] = 5000  # linear velocity along y
+        P_data[6::12] = 1000  # linear velocity along x
+        P_data[7::12] = 1000  # linear velocity along y
         P_data[8::12] = 10  # linear velocity along z
         P_data[9::12] = 10  # angular velocity along x
         P_data[10::12] = 10  # angular velocity along y
@@ -402,6 +402,7 @@ class MPC:
 
         # Stack equality and inequality matrices
         inf_lower_bound = -np.inf * np.ones(len(self.K))
+        inf_lower_bound[4::5] = - 25
         qp_A = scipy.sparse.vstack([self.L, self.M]).tocsc()
         qp_l = np.hstack([inf_lower_bound, self.N.ravel()])
         qp_u = np.hstack([self.K, self.N.ravel()])
