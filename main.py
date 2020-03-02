@@ -11,6 +11,7 @@ from TSID_Debug_controller_four_legs_fb_vel import controller, dt, q0, omega
 import Safety_controller
 import EmergencyStop_controller
 import ForceMonitor
+from IPython import embed
 
 ########################################################################
 #                        Parameters definition                         #
@@ -142,6 +143,7 @@ for k in range(int(N_SIMULATION)):
         # Retrieve data from mpc_interface
         mpc.q[0:3, 0:1] = mpc_interface.lC
         mpc.q[3:6, 0:1] = mpc_interface.abg
+        mpc.q[4, 0] *= -1
         mpc.v[0:3, 0:1] = mpc_interface.lV
         mpc.v[3:6, 0:1] = mpc_interface.lW
 
@@ -175,7 +177,7 @@ for k in range(int(N_SIMULATION)):
 
     # Run the MPC to get the reference forces and the next predicted state
     # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
-    mpc.run(k, sequencer, fstep_planner, ftraj_gen)
+    mpc.run(k, sequencer, fstep_planner, ftraj_gen, mpc_interface)
 
     # Time spent to run this iteration of the loop
     time_spent = time.time() - time_start
@@ -196,7 +198,7 @@ for k in range(int(N_SIMULATION)):
     # Logging various stuff
     logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
-    if k in [59, 60, 61, 62]:
+    if k in [96, 97]:
         fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
 
         # Plot desired contact forces
@@ -224,7 +226,31 @@ for k in range(int(N_SIMULATION)):
             plt.ylabel("Contact force along Z [N]")
             plt.legend([legends[i] + "_MPC"])
 
+        # Evolution of the position and orientation of the robot over time
+        plt.figure()
+        ylabels = ["Position X", "Position Y", "Position Z",
+                   "Orientation Roll", "Orientation Pitch", "Orientation Yaw"]
+        for i, j in enumerate([1, 3, 5, 2, 4, 6]):
+            plt.subplot(3, 2, j)
+            plt.plot(mpc.x_robot[i, :], "b", linewidth=2)
+            plt.legend(["Robot"])
+            plt.xlabel("Time [s]")
+            plt.ylabel(ylabels[i])
+
+        # Evolution of the linear and angular velocities of the robot over time
+        plt.figure()
+        ylabels = ["Linear vel X", "Linear vel Y", "Linear vel Z",
+                   "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+        for i, j in enumerate([1, 3, 5, 2, 4, 6]):
+            plt.subplot(3, 2, j)
+            plt.plot(mpc.x_robot[i+6, :], "b", linewidth=2)
+            plt.legend(["Robot"])
+            plt.xlabel("Time [s]")
+            plt.ylabel(ylabels[i])
+
         plt.show(block=False)
+
+        embed()
 
     if k >= 245:
         debug = 1

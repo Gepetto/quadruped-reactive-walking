@@ -118,7 +118,7 @@ class MPC:
 
         return 0
 
-    def retrieve_data(self, fstep_planner, ftraj_gen):
+    def retrieve_data(self, fstep_planner, ftraj_gen, mpc_interface):
         """Retrieve footsteps information from the FootstepPlanner
         and the FootTrajectoryGenerator
 
@@ -130,6 +130,8 @@ class MPC:
         self.footholds[0:2, :] = ftraj_gen.footsteps_lock.copy()
         self.footholds[0:2, :] = np.array(
             [[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
+
+        self.footholds[0:2, :] = mpc_interface.l_feet[0:2, :]
 
         # Information in world frame for visualisation purpose
         self.footholds_world = ftraj_gen.footsteps_lock_world.copy()
@@ -282,16 +284,16 @@ class MPC:
         # Hand-tuning of parameters if you want to give more weight to specific components
         P_data[0::12] = 10  # position along x
         P_data[1::12] = 10  # position along y
-        P_data[2::12] = 1000  # position along z
-        P_data[3::12] = 1000  # roll
-        P_data[4::12] = 1000  # pitch
-        P_data[5::12] = 10  # yaw
-        P_data[6::12] = 1000  # linear velocity along x
-        P_data[7::12] = 1000  # linear velocity along y
+        P_data[2::12] = 2000  # position along z
+        P_data[3::12] = 1  # roll
+        P_data[4::12] = 1  # pitch
+        P_data[5::12] = 1  # yaw
+        P_data[6::12] = 200  # linear velocity along x
+        P_data[7::12] = 200  # linear velocity along y
         P_data[8::12] = 10  # linear velocity along z
         P_data[9::12] = 10  # angular velocity along x
         P_data[10::12] = 10  # angular velocity along y
-        P_data[11::12] = 1000  # angular velocity along z
+        P_data[11::12] = 10  # angular velocity along z
 
         # Define weights for the force components of the optimization vector
         P_row = np.hstack((P_row, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
@@ -446,7 +448,7 @@ class MPC:
 
         return 0
 
-    def run(self, k, sequencer, fstep_planner, ftraj_gen):
+    def run(self, k, sequencer, fstep_planner, ftraj_gen, mpc_interface):
 
         # Get number of feet in contact with the ground for each step of the gait sequence
         if k > 0:
@@ -456,7 +458,7 @@ class MPC:
         self.getRefStates(k, sequencer)
 
         # Retrieve data from FootstepPlanner and FootTrajectoryGenerator
-        self.retrieve_data(fstep_planner, ftraj_gen)
+        self.retrieve_data(fstep_planner, ftraj_gen, mpc_interface)
 
         # Create the constraint and weight matrices used by the QP solver
         # Minimize x^T.P.x + x^T.Q with constraints M.X == N and L.X <= K

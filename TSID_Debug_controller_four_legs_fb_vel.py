@@ -553,7 +553,7 @@ class controller:
                                             R[1, 0], R[1, 1], R[1, 2], R[2, 0], R[2, 1], R[2, 2]]).T,)
             self.trunkTask.setReference(self.sampleTrunk)"""
 
-        if False:  # k_simu >= 0:
+        if k_simu >= 0:
             if k_loop == 0:  # Start swing phase
 
                 # Update active feet pair

@@ -43,9 +43,11 @@ class MpcInterface:
 
         # Update average height of feet
         self.mean_feet_z = 0.0
-        for i in self.indexes:
+        """for i in self.indexes:
             self.mean_feet_z += solo.data.oMf[i].translation[2, 0]
-        self.mean_feet_z *= 0.25
+        self.mean_feet_z *= 0.25"""
+        for i in self.indexes:
+            self.mean_feet_z = np.min((self.mean_feet_z, solo.data.oMf[i].translation[2, 0]))
 
         # Store position, linear velocity and angular velocity in global frame
         self.oC = solo.data.com[0]
