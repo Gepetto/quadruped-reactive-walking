@@ -10,6 +10,7 @@ import FootTrajectoryGenerator
 import MpcSolver
 import MPC
 import Logger
+import MpcInterface
 
 import pybullet as pyb  # Pybullet server
 import pybullet_data
@@ -155,7 +156,10 @@ def init_objects(dt, k_max_loop):
     # Create logger object
     logger = Logger.Logger(k_max_loop)
 
-    return joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger
+    # Create MpcInterface object
+    mpc_interface = MpcInterface.MpcInterface()
+
+    return joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface
 
 
 def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):

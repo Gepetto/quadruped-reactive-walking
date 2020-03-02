@@ -21,7 +21,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 150  # number of time steps simulated
+N_SIMULATION = 300  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -34,7 +34,7 @@ enable_gepetto_viewer = False
 
 # Create Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator
 # and MpcSolver objects
-joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger = utils.init_objects(dt_mpc, N_SIMULATION)
+joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = utils.init_objects(dt_mpc, N_SIMULATION)
 
 ########################################################################
 #                            Gepetto viewer                            #
@@ -77,6 +77,12 @@ for k in range(int(N_SIMULATION)):
                         np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
     vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
                         np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))
+
+    ########################
+    # Update MPC interface #
+    ########################
+
+    mpc_interface.update(solo, qmes12, vmes12)
 
     #######################################################
     #                 Update MPC state                    #
@@ -127,11 +133,17 @@ for k in range(int(N_SIMULATION)):
                                         scale=np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))"""
 
     if k > 0:  # Feedback from PyBullet
-        mpc.q[0:2, 0] = np.array([0.0, 0.0])
+        """mpc.q[0:2, 0] = np.array([0.0, 0.0])
         mpc.q[2] = qmes12[2] - 0.0323
         mpc.q[3:5, 0] = utils.quaternionToRPY(qmes12[3:7, 0])[0:2, 0]
         mpc.q[5, 0] = 0.0
-        mpc.v[0:6, 0:1] = vmes12[0:6, 0:1]
+        mpc.v[0:6, 0:1] = vmes12[0:6, 0:1]"""
+
+        # Retrieve data from mpc_interface
+        mpc.q[0:3, 0:1] = mpc_interface.lC
+        mpc.q[3:6, 0:1] = mpc_interface.abg
+        mpc.v[0:3, 0:1] = mpc_interface.lV
+        mpc.v[3:6, 0:1] = mpc_interface.lW
 
         # Add random noise
         mpc.q_noise = np.random.normal(0.00 * np.array([0.001, 0.001, 0.001]),
@@ -260,9 +272,9 @@ for k in range(int(N_SIMULATION)):
 
         # Apply perturbation
         if k >= 50 and k < 100:
-            pyb.applyExternalForce(pyb_sim.robotId, -1, [20.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+            pyb.applyExternalForce(pyb_sim.robotId, -1, [10.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
         if k >= 150 and k < 200:
-            pyb.applyExternalForce(pyb_sim.robotId, -1, [0.0, 20.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+            pyb.applyExternalForce(pyb_sim.robotId, -1, [0.0, 10.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
         # Compute one step of simulation
         pyb.stepSimulation()
 

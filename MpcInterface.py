@@ -3,8 +3,6 @@
 import numpy as np
 import pybullet as pyb
 import pinocchio as pin
-from IPython import embed
-import utils
 
 
 class MpcInterface:
@@ -46,21 +44,21 @@ class MpcInterface:
         # Update average height of feet
         self.mean_feet_z = 0.0
         for i in self.indexes:
-            self.mean_feet_z += solo.data.oMf[i].translation[2]
+            self.mean_feet_z += solo.data.oMf[i].translation[2, 0]
         self.mean_feet_z *= 0.25
-
-        # Get SE3 object from world frame to base frame
-        self.oMb = pin.SE3(pin.Quaternion(qmes12[3:7]), qmes12[0:3])
-        self.RPY = pin.rpy.matrixToRpy(self.oMb.rotation)
-
-        # Get SE3 object from world frame to local frame
-        self.oMl = pin.SE3(pin.utils.rotate('z', self.RPY[2, 0]),
-                           np.array([qmes12[0, 0], qmes12[1, 0], self.mean_feet_z]))
 
         # Store position, linear velocity and angular velocity in global frame
         self.oC = solo.data.com[0]
         self.oV = solo.data.vcom[0]
         self.oW = vmes12[3:6]
+
+        # Get SE3 object from world frame to base frame
+        self.oMb = pin.SE3(pin.Quaternion(qmes12[3:7]), self.oC)
+        self.RPY = pin.rpy.matrixToRpy(self.oMb.rotation)
+
+        # Get SE3 object from world frame to local frame
+        self.oMl = pin.SE3(pin.utils.rotate('z', self.RPY[2, 0]),
+                           np.array([self.oC[0, 0], self.oC[1, 0], self.mean_feet_z]))
 
         # Get position, linear velocity and angular velocity in local frame
         self.lC = self.oMl.inverse() * self.oC
@@ -69,7 +67,7 @@ class MpcInterface:
 
         # Position of feet in local frame
         for i, j in enumerate(self.indexes):
-            self.l_feet[:, i] = self.oMl.inverse() * solo.data.oMf[j].translation
+            self.l_feet[:, i:(i+1)] = self.oMl.inverse() * solo.data.oMf[j].translation
 
         # Orientation of the base in local frame
         # Base and local frames have the same yaw orientation in world frame
