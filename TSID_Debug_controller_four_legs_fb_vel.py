@@ -42,7 +42,7 @@ class controller:
         self.foot_frames = ['FL_FOOT', 'FR_FOOT', 'HL_FOOT', 'HR_FOOT']
 
         # Constraining the contacts
-        mu = 2  				# friction coefficient
+        mu = 1  				# friction coefficient
         fMin = 1.0				# minimum normal force
         fMax = 25.0  			# maximum normal force
         contactNormal = np.matrix([0., 0., 1.]).T  # direction of the normal to the contact surface
@@ -280,7 +280,7 @@ class controller:
     #           Method to updated desired foot position                #
     ####################################################################
 
-    def update_feet_tasks(self, k_loop, pair, looping):
+    def update_feet_tasks(self, k_loop, pair, looping, mpc_interface):
 
         # Target (x, y) positions for both feet
         x1 = self.footsteps[0, :]
@@ -307,6 +307,9 @@ class controller:
                 self.sampleFeet[i_foot].pos()[1, 0], self.sampleFeet[i_foot].vel()[
                     1, 0], self.sampleFeet[i_foot].acc()[1, 0],
                 x1[i_foot], y1[i_foot], t0,  t1, dt)
+
+            # Take into account vertical offset of Pybullet
+            z0 += mpc_interface.mean_feet_z
 
             # Get sample object
             footTraj = tsid.TrajectorySE3Constant("foot_traj", self.feetGoal[i_foot])
@@ -561,16 +564,17 @@ class controller:
                 self.pair = -1
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
 
                 if k_simu >= looping:  # 600:
                     for i_foot in [0, 3]:
                         # Update the position of the contacts and enable them
                         pos_foot = self.robot.framePosition(
                             self.invdyn.data(), self.ID_feet[i_foot])
+                        pos_foot.translation = mpc_interface.o_feet[:, i_foot]
                         self.pos_contact[i_foot] = pos_foot.translation.transpose()
-                        self.memory_contacts[:, i_foot] = self.footsteps[:,
-                                                                         i_foot]  #  pos_foot.translation[0:2].flatten()
+                        self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
+                        self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
                         self.contacts[i_foot].setReference(pos_foot)
                         self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
 
@@ -583,7 +587,7 @@ class controller:
                 self.pair = 0
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
 
                 for i_foot in [1, 2]:
                     # Disable the contacts for both feet (1 and 2)
@@ -592,10 +596,30 @@ class controller:
                     # Enable the foot tracking task for both feet (1 and 2)
                     self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
 
+                for i_foot in [0, 3]:
+                    # Update position of contacts
+                    pos_foot = self.robot.framePosition(
+                        self.invdyn.data(), self.ID_feet[i_foot])
+                    pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                    self.pos_contact[i_foot] = pos_foot.translation.transpose()
+                    self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
+                    self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
+                    self.contacts[i_foot].setReference(pos_foot)
+
             elif k_loop > 1 and k_loop < (looping*0.5):  # 300:
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
+
+                for i_foot in [0, 3]:
+                    # Update position of contacts
+                    pos_foot = self.robot.framePosition(
+                        self.invdyn.data(), self.ID_feet[i_foot])
+                    pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                    self.pos_contact[i_foot] = pos_foot.translation.transpose()
+                    self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
+                    self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
+                    self.contacts[i_foot].setReference(pos_foot)
 
             elif k_loop == (looping*0.5):  # :300:
 
@@ -603,14 +627,16 @@ class controller:
                 self.pair = -1
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
 
                 for i_foot in [1, 2]:
                     # Update the position of the contacts and enable them
                     pos_foot = self.robot.framePosition(
                         self.invdyn.data(), self.ID_feet[i_foot])
+                    pos_foot.translation = mpc_interface.o_feet[:, i_foot]
                     self.pos_contact[i_foot] = pos_foot.translation.transpose()
-                    self.memory_contacts[:, i_foot] = self.footsteps[:, i_foot]  #  pos_foot.translation[0:2].flatten()
+                    self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
+                    self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
                     self.contacts[i_foot].setReference(pos_foot)
                     self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
 
@@ -623,7 +649,7 @@ class controller:
                 self.pair = 1
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
 
                 for i_foot in [0, 3]:
                     # Disable the contacts for both feet (0 and 3)
@@ -632,10 +658,30 @@ class controller:
                     # Enable the foot tracking task for both feet (0 and 3)
                     self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
 
+                for i_foot in [1, 2]:
+                    # Update position of contacts
+                    pos_foot = self.robot.framePosition(
+                        self.invdyn.data(), self.ID_feet[i_foot])
+                    pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                    self.pos_contact[i_foot] = pos_foot.translation.transpose()
+                    self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
+                    self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
+                    self.contacts[i_foot].setReference(pos_foot)
+
             else:
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
+
+                for i_foot in [1, 2]:
+                    # Update position of contacts
+                    pos_foot = self.robot.framePosition(
+                        self.invdyn.data(), self.ID_feet[i_foot])
+                    pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                    self.pos_contact[i_foot] = pos_foot.translation.transpose()
+                    self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
+                    self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
+                    self.contacts[i_foot].setReference(pos_foot)
 
         ###############
         # HQP PROBLEM #

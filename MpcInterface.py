@@ -22,6 +22,7 @@ class MpcInterface:
         self.lRb = np.eye(3)  # rotation matrix from the local frame to the base frame
         self.abg = np.zeros((3, 1))  # roll, pitch, yaw of the base in local frame
         self.l_feet = np.zeros((3, 4))  # position of feet in local frame
+        self.o_feet = np.zeros((3, 4))  # position of feet in world frame
 
         # Indexes of feet frames
         self.indexes = [10, 18, 26, 34]
@@ -42,11 +43,11 @@ class MpcInterface:
         pin.updateFramePlacements(solo.model, solo.data)
 
         # Update average height of feet
-        self.mean_feet_z = 0.0
+        self.mean_feet_z = solo.data.oMf[self.indexes[0]].translation[2, 0]
         """for i in self.indexes:
             self.mean_feet_z += solo.data.oMf[i].translation[2, 0]
         self.mean_feet_z *= 0.25"""
-        for i in self.indexes:
+        for i in self.indexes[1:]:
             self.mean_feet_z = np.min((self.mean_feet_z, solo.data.oMf[i].translation[2, 0]))
 
         # Store position, linear velocity and angular velocity in global frame
@@ -69,6 +70,7 @@ class MpcInterface:
 
         # Position of feet in local frame
         for i, j in enumerate(self.indexes):
+            self.o_feet[:, i:(i+1)] = solo.data.oMf[j].translation
             self.l_feet[:, i:(i+1)] = self.oMl.inverse() * solo.data.oMf[j].translation
 
         # Orientation of the base in local frame

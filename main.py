@@ -83,7 +83,10 @@ for k in range(int(N_SIMULATION)):
     # Update MPC interface #
     ########################
 
-    mpc_interface.update(solo, qmes12, vmes12)
+    if k >= 0:
+        mpc_interface.update(solo, qmes12, vmes12)
+    else:
+        mpc_interface.update(solo, myController.qtsid, myController.vtsid)
 
     #######################################################
     #                 Update MPC state                    #
@@ -143,7 +146,7 @@ for k in range(int(N_SIMULATION)):
         # Retrieve data from mpc_interface
         mpc.q[0:3, 0:1] = mpc_interface.lC
         mpc.q[3:6, 0:1] = mpc_interface.abg
-        mpc.q[4, 0] *= -1
+        # mpc.q[4, 0] *= -1
         mpc.v[0:3, 0:1] = mpc_interface.lV
         mpc.v[3:6, 0:1] = mpc_interface.lW
 
@@ -198,7 +201,7 @@ for k in range(int(N_SIMULATION)):
     # Logging various stuff
     # logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
-    if False:  # k in [96, 97]:
+    if False:  # k in [96, 126]:
         fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
 
         # Plot desired contact forces
@@ -299,9 +302,9 @@ for k in range(int(N_SIMULATION)):
 
         # Apply perturbation
         if k >= 50 and k < 100:
-            pyb.applyExternalForce(pyb_sim.robotId, -1, [10.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+            pyb.applyExternalForce(pyb_sim.robotId, -1, [1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
         if k >= 150 and k < 200:
-            pyb.applyExternalForce(pyb_sim.robotId, -1, [0.0, 10.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+            pyb.applyExternalForce(pyb_sim.robotId, -1, [0.0, 1.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
         # Compute one step of simulation
         pyb.stepSimulation()
 
