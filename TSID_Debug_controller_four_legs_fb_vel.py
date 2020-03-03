@@ -334,6 +334,8 @@ class controller:
 
     def control(self, qmes12, vmes12, t, k_simu, solo, mpc, sequencer, mpc_interface):
 
+        self.v_ref = mpc.v_ref
+
         if k_simu == 0:
             self.qtsid = qmes12
             self.qtsid[:3] = np.zeros((3, 1))  # Discard x and y drift and height position

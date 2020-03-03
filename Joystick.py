@@ -14,7 +14,7 @@ class Joystick:
         self.t_start = clock()
 
         # Reference velocity in local frame
-        self.v_ref = np.array([[0.00, 0.0, 0.0, 0.0, 0.0, 0.00]]).T
+        self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.2]]).T
 
     def update_v_ref(self, k_loop):
 
