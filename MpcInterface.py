@@ -30,6 +30,11 @@ class MpcInterface:
         # Average height of feet in local frame
         self.mean_feet_z = 0.0
 
+        # Projection of shoulders on the ground in local and world frame
+        self.l_shoulders = np.array([[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005,
+                                                                  0.15005, -0.15005], [0.0, 0.0, 0.0, 0.0]])
+        self.o_shoulders = np.zeros((3, 4))
+
     def update(self, solo, qmes12, vmes12):
 
         ################
@@ -76,5 +81,9 @@ class MpcInterface:
         # Orientation of the base in local frame
         # Base and local frames have the same yaw orientation in world frame
         self.abg[0:2] = self.RPY[0:2]
+
+        # Position of shoulders in world frame
+        for i in range(4):
+            self.o_shoulders[:, i:(i+1)] = self.oMl * self.l_shoulders[:, i]
 
         return 0

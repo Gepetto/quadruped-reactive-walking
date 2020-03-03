@@ -412,7 +412,8 @@ class controller:
         self.fstep_planner.update_footsteps_tsid(self.v_ref, self.vu_m, self.t_stance,
                                                  self.t_remaining, self.T_gait, self.h_ref)
 
-        self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
+        # self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
+        self.footsteps = mpc_interface.o_shoulders[0:2, :] + self.fstep_planner.footsteps_tsid
 
         # Rotate footsteps depending on TSID orientation
         """RPY = pyb.getEulerFromQuaternion(self.qtsid[3:7])
