@@ -40,7 +40,7 @@ class FootTrajectoryGenerator:
         self.desired_pos_world = self.desired_pos.copy()
 
         # Maximum height at which the robot should lift its feet during swing phase
-        self.max_height_feet = 0.03
+        self.max_height_feet = 0.02
 
         # Lock target positions of footholds before touchdown
         self.t_lock_before_touchdown = 0.01

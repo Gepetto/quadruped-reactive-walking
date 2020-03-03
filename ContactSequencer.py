@@ -13,10 +13,10 @@ class ContactSequencer:
         self.dt = dt
 
         # Stance duration
-        self.t_stance = 0.3
+        self.t_stance = 0.15
 
         # Gait duration
-        self.T_gait = 0.6
+        self.T_gait = 0.3
 
         # Order of feet is FL, FR, HL, HR
         self.phases = np.array([[0, 0.5, 0.5, 0]])

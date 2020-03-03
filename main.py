@@ -196,9 +196,9 @@ for k in range(int(N_SIMULATION)):
     mpc.v = mpc.v_next.copy()"""
 
     # Logging various stuff
-    logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
+    # logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
-    if k in [96, 97]:
+    if False:  # k in [96, 97]:
         fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
 
         # Plot desired contact forces
@@ -277,7 +277,8 @@ for k in range(int(N_SIMULATION)):
             myController = myEmergencyStop"""
 
         # Retrieve the joint torques from the appropriate controller
-        jointTorques = myController.control(qmes12, vmes12, t, i+k, solo, mpc, sequencer).reshape((12, 1))
+        jointTorques = myController.control(qmes12, vmes12, t, i+k, solo, mpc,
+                                            sequencer, mpc_interface).reshape((12, 1))
 
         # Time incrementation
         t += dt

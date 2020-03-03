@@ -75,7 +75,7 @@ class MPC:
 
         return 0
 
-    def getRefStates(self, k, sequencer):
+    def getRefStates(self, k, sequencer, mpc_interface):
         """Returns the reference trajectory of the robot for each time step of the
         predition horizon. The ouput is a matrix of size 12 by N with N the number
         of time steps (around T_gait / dt) and 12 the position / orientation /
@@ -96,6 +96,10 @@ class MPC:
         # Update x and y depending on x and y velocities (cumulative sum)
         self.xref[0, 1:] = self.dt * np.cumsum(self.xref[6, 1:])
         self.xref[1, 1:] = self.dt * np.cumsum(self.xref[7, 1:])
+
+        # Start from position of the CoM in local frame
+        self.xref[0, 1:] += mpc_interface.lC[0, 0]
+        self.xref[1, 1:] += mpc_interface.lC[1, 0]
 
         # Desired height is supposed constant so we only need to set it once
         if k == 0:
@@ -455,7 +459,7 @@ class MPC:
             self.n_contacts = np.roll(self.n_contacts, -1, axis=0)
 
         # Get the reference trajectory over the prediction horizon
-        self.getRefStates(k, sequencer)
+        self.getRefStates(k, sequencer, mpc_interface)
 
         # Retrieve data from FootstepPlanner and FootTrajectoryGenerator
         self.retrieve_data(fstep_planner, ftraj_gen, mpc_interface)

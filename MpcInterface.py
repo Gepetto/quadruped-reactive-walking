@@ -60,7 +60,7 @@ class MpcInterface:
 
         # Get SE3 object from world frame to local frame
         self.oMl = pin.SE3(pin.utils.rotate('z', self.RPY[2, 0]),
-                           np.array([self.oC[0, 0], self.oC[1, 0], self.mean_feet_z]))
+                           np.array([qmes12[0, 0], qmes12[1, 0], self.mean_feet_z]))
 
         # Get position, linear velocity and angular velocity in local frame
         self.lC = self.oMl.inverse() * self.oC

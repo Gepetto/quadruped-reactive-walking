@@ -118,8 +118,8 @@ class controller:
         self.fstep_planner = FootstepPlanner.FootstepPlanner(0.005)
         self.v_ref = np.zeros((6, 1))
         self.vu_m = np.zeros((6, 1))
-        self.t_stance = 0.3
-        self.T_gait = 0.6
+        self.t_stance = 0.15
+        self.T_gait = 0.3
         self.t_remaining = np.zeros((1, 4))
         self.h_ref = 0.235 - 0.01205385
 
@@ -280,22 +280,22 @@ class controller:
     #           Method to updated desired foot position                #
     ####################################################################
 
-    def update_feet_tasks(self, k_loop, pair):
+    def update_feet_tasks(self, k_loop, pair, looping):
 
         # Target (x, y) positions for both feet
         x1 = self.footsteps[0, :]
         y1 = self.footsteps[1, :]
 
         dt = 0.005  #  [s]
-        t1 = 0.3 - dt  #  0.28  #  [s]
+        t1 = 0.15 - dt  #  0.28  #  [s]
 
         if pair == -1:
             return 0
         elif pair == 0:
-            t0 = ((k_loop-1) / 59) * t1  #  ((k_loop-20) / 280) * t1
+            t0 = ((k_loop-1) / (looping*0.5-1)) * t1  #  ((k_loop-20) / 280) * t1
             feet = [1, 2]
         else:
-            t0 = ((k_loop-61) / 59) * t1  # ((k_loop-320) / 280) * t1
+            t0 = ((k_loop-(looping*0.5+1)) / (looping*0.5-1)) * t1  # ((k_loop-320) / 280) * t1
             feet = [0, 3]
 
         for i_foot in feet:
@@ -329,7 +329,7 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qmes12, vmes12, t, k_simu, solo, mpc, sequencer):
+    def control(self, qmes12, vmes12, t, k_simu, solo, mpc, sequencer, mpc_interface):
 
         if k_simu == 0:
             self.qtsid = qmes12
@@ -369,21 +369,22 @@ class controller:
         # FOOTSTEPS PLANNER #
         #####################
 
-        k_loop = (k_simu - 0) % 120  # 600
+        looping = int(self.T_gait/dt)
+        k_loop = (k_simu - 0) % looping  # 120  # 600
 
         for i_foot in [1, 2]:
-            self.t_remaining[0, i_foot] = np.max((0.0, 0.3 * (60 - k_loop) * 0.005))
+            self.t_remaining[0, i_foot] = np.max((0.0, 0.15 * (looping*0.5 - k_loop) * 0.005))
         for i_foot in [0, 3]:
-            if k_loop < 60:
+            if k_loop < int(looping*0.5):
                 self.t_remaining[0, i_foot] = 0.0
             else:
-                self.t_remaining[0, i_foot] = 0.3 * (120 - k_loop) * 0.005
+                self.t_remaining[0, i_foot] = 0.15 * (looping - k_loop) * 0.005
 
         # Get PyBullet velocity in local frame
-        """RPY = pyb.getEulerFromQuaternion(qmes12[3:7])
+        RPY = pyb.getEulerFromQuaternion(qmes12[3:7])
         c, s = np.cos(RPY[2]), np.sin(RPY[2])
         R = np.array([[c, s], [-s, c]])
-        self.vu_m[0:2, 0:1] = np.dot(R, vmes12[0:2,0:1])"""
+        self.vu_m[0:2, 0:1] = np.dot(R, vmes12[0:2, 0:1])
 
         """if k_simu == 1000:
             self.vu_m[0:2, 0:1] = np.array([[0.0, 0.1]]).transpose()
@@ -560,9 +561,9 @@ class controller:
                 self.pair = -1
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair)
+                self.update_feet_tasks(k_loop, self.pair, looping)
 
-                if k_simu >= 120:  # 600:
+                if k_simu >= looping:  # 600:
                     for i_foot in [0, 3]:
                         # Update the position of the contacts and enable them
                         pos_foot = self.robot.framePosition(
@@ -582,7 +583,7 @@ class controller:
                 self.pair = 0
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair)
+                self.update_feet_tasks(k_loop, self.pair, looping)
 
                 for i_foot in [1, 2]:
                     # Disable the contacts for both feet (1 and 2)
@@ -591,18 +592,18 @@ class controller:
                     # Enable the foot tracking task for both feet (1 and 2)
                     self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
 
-            elif k_loop > 1 and k_loop < 60:  # 300:
+            elif k_loop > 1 and k_loop < (looping*0.5):  # 300:
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair)
+                self.update_feet_tasks(k_loop, self.pair, looping)
 
-            elif k_loop == 60:  # :300:
+            elif k_loop == (looping*0.5):  # :300:
 
                 # Update active feet pair
                 self.pair = -1
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair)
+                self.update_feet_tasks(k_loop, self.pair, looping)
 
                 for i_foot in [1, 2]:
                     # Update the position of the contacts and enable them
@@ -616,13 +617,13 @@ class controller:
                     # Disable both foot tracking tasks
                     self.invdyn.removeTask("foot_track_" + str(i_foot), 0.0)
 
-            elif k_loop == 61:  # 320:
+            elif k_loop == (looping*0.5+1):  # 320:
 
                 # Update active feet pair
                 self.pair = 1
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair)
+                self.update_feet_tasks(k_loop, self.pair, looping)
 
                 for i_foot in [0, 3]:
                     # Disable the contacts for both feet (0 and 3)
@@ -634,7 +635,7 @@ class controller:
             else:
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair)
+                self.update_feet_tasks(k_loop, self.pair, looping)
 
         ###############
         # HQP PROBLEM #
