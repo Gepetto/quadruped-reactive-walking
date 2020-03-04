@@ -52,12 +52,12 @@ class controller:
         w_posture = 1.0         # weight of the posture task
 
         # Coefficients of the contact tasks
-        kp_contact = 100.0         # proportionnal gain for the contacts
+        kp_contact = 0.0         # proportionnal gain for the contacts
         self.w_forceRef = 100.0  # weight of the forces regularization
         self. w_reg_f = 100.0
 
         # Coefficients of the foot tracking task
-        kp_foot = 100.0               # proportionnal gain for the tracking task
+        kp_foot = 1000.0               # proportionnal gain for the tracking task
         self.w_foot = 10000.0       # weight of the tracking task
 
         # Coefficients of the trunk task
@@ -82,6 +82,7 @@ class controller:
         self.com_pos = np.zeros((k_max_loop, 3))
         self.com_pos_ref = np.zeros((k_max_loop, 3))
         self.c_forces = np.zeros((4, k_max_loop, 3))
+        self.h_ref_feet = np.zeros((k_max_loop, ))
 
         # Position of the shoulders in local frame
         self.shoulders = np.array([[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
@@ -287,7 +288,7 @@ class controller:
         y1 = self.footsteps[1, :]
 
         dt = 0.005  #  [s]
-        t1 = 0.15 - dt  #  0.28  #  [s]
+        t1 = 0.15  # - dt  #  0.28  #  [s]
 
         if pair == -1:
             return 0
@@ -386,10 +387,8 @@ class controller:
                 self.t_remaining[0, i_foot] = 0.15 * (looping - k_loop) * 0.005
 
         # Get PyBullet velocity in local frame
-        RPY = pyb.getEulerFromQuaternion(qmes12[3:7])
-        c, s = np.cos(RPY[2]), np.sin(RPY[2])
-        R = np.array([[c, s], [-s, c]])
-        self.vu_m[0:2, 0:1] = np.dot(R, vmes12[0:2, 0:1])
+        self.vu_m[0:2, 0:1] = mpc_interface.lV[0:2, 0:1]
+        # np.dot(R, vmes12[0:2, 0:1])
 
         """if k_simu == 1000:
             self.vu_m[0:2, 0:1] = np.array([[0.0, 0.1]]).transpose()
@@ -415,7 +414,8 @@ class controller:
                                                  self.t_remaining, self.T_gait, self.h_ref)
 
         # self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
-        self.footsteps = mpc_interface.o_shoulders[0:2, :] + self.fstep_planner.footsteps_tsid
+        self.footsteps = mpc_interface.o_shoulders[0:2, :] + \
+            np.array(np.tile(mpc_interface.oMl * self.fstep_planner.footsteps_tsid, (1, 4))[0:2, :])
 
         # Rotate footsteps depending on TSID orientation
         """RPY = pyb.getEulerFromQuaternion(self.qtsid[3:7])
@@ -705,7 +705,7 @@ class controller:
 
         # Call display and log function
         self.display(t, solo, k_simu, sequencer)
-        self.log(t, solo, k_simu, sequencer)
+        self.log(t, solo, k_simu, sequencer, mpc_interface)
 
         # Placeholder torques for PyBullet
         # tau = np.zeros((12, 1))
@@ -830,7 +830,9 @@ class controller:
                 solo.viewer.gui.refresh()
                 solo.display(self.qtsid)
 
-    def log(self, t, solo, k_simu, sequencer):
+    def log(self, t, solo, k_simu, sequencer, mpc_interface):
+
+        self.h_ref_feet[k_simu] = mpc_interface.mean_feet_z
 
         # Log pos, vel, acc of the flying foot
         for i_foot in range(4):
@@ -843,7 +845,8 @@ class controller:
                 self.invdyn.data(), self.ID_feet[i_foot])
             acc = self.robot.frameAccelerationWorldOriented(
                 self.invdyn.data(), self.ID_feet[i_foot])
-            self.f_pos[i_foot, k_simu:(k_simu+1), :] = pos.translation[0:3].transpose()
+            self.f_pos[i_foot, k_simu:(k_simu+1), :] = mpc_interface.o_feet[:,
+                                                                            i_foot]  # pos.translation[0:3].transpose()
             self.f_vel[i_foot, k_simu:(k_simu+1), :] = vel.vector[0:3].transpose()
             self.f_acc[i_foot, k_simu:(k_simu+1), :] = acc.vector[0:3].transpose()
 

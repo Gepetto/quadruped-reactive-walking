@@ -51,20 +51,20 @@ class FootstepPlanner:
 
         # Order of feet: FL, FR, HL, HR
 
-        p = np.zeros((2, 1))
+        p = np.zeros((3, 1))
 
         # Shift initial position of contact outwards for more stability
         # p[1, :] += np.array([0.025, -0.025, 0.025, -0.025])
 
         # Add symmetry term
-        p += t_stance * 0.5 * vel_cur[0:2, 0:1]
+        p[0:2, :] += t_stance * 0.5 * vel_cur[0:2, 0:1]
 
         # Add feedback term
-        p += self.k_feedback * (vel_cur[0:2, 0:1] - vel_ref[0:2, 0:1])
+        p[0:2, :] += self.k_feedback * (vel_cur[0:2, 0:1] - vel_ref[0:2, 0:1])
 
         # Add centrifugal term
         cross = np.cross(vel_cur[0:3, 0:1], vel_ref[3:6, 0:1], 0, 0).T
-        p += 0.5 * np.sqrt(h/self.g) * cross[0:2, 0:1]
+        p[0:2, :] += 0.5 * np.sqrt(h/self.g) * cross[0:2, 0:1]
 
         # Add velocity forecast
         #  p += np.tile(v[0:2, 0:1], (1, 4)) * t_remaining
@@ -77,7 +77,7 @@ class FootstepPlanner:
             p[1, i] += t_remaining[0, i] * vel_cur[1, 0]"""
 
         # Update target_footholds_no_lock
-        self.footsteps_tsid = np.tile(p, (1, 4))
+        self.footsteps_tsid = p  # np.tile(p, (1, 4))
 
         return 0
 

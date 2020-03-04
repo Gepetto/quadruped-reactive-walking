@@ -22,7 +22,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 1000  # number of time steps simulated
+N_SIMULATION = 50  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -83,10 +83,10 @@ for k in range(int(N_SIMULATION)):
     # Update MPC interface #
     ########################
 
-    if k >= 0:
-        mpc_interface.update(solo, qmes12, vmes12)
-    else:
-        mpc_interface.update(solo, myController.qtsid, myController.vtsid)
+    """if k > 0:
+        qmes12[:, :] = myController.qtsid
+        vmes12[:, :] = myController.vtsid"""
+    mpc_interface.update(solo, qmes12, vmes12)
 
     #######################################################
     #                 Update MPC state                    #
@@ -301,10 +301,10 @@ for k in range(int(N_SIMULATION)):
                                       controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
 
         # Apply perturbation
-        if k >= 50 and k < 100:
+        """if k >= 50 and k < 100:
             pyb.applyExternalForce(pyb_sim.robotId, -1, [1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
         if k >= 150 and k < 200:
-            pyb.applyExternalForce(pyb_sim.robotId, -1, [0.0, 1.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+            pyb.applyExternalForce(pyb_sim.robotId, -1, [0.0, 1.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)"""
         # Compute one step of simulation
         pyb.stepSimulation()
 
@@ -324,14 +324,29 @@ logger.plot_graphs(dt_mpc, N_SIMULATION, myController)
 
 # Plot TSID related graphs
 plt.figure()
+for i in range(4):
+    plt.subplot(2, 2, 1*i+1)
+    plt.title("Trajectory of the front right foot over time")
+    l_str = ["X", "Y", "Z"]
+    plt.plot(myController.f_pos_ref[i, :, 2], linewidth=2, marker='x')
+    plt.plot(myController.f_pos[i, :, 2], linewidth=2, marker='x')
+    plt.plot(myController.h_ref_feet, linewidth=2, marker='x')
+    plt.legend(["FR Foot ref pos along " + l_str[2], "FR foot pos along " + l_str[2], "Zero altitude"])
+    plt.xlim((0, 70))
+
+plt.figure()
 plt.title("Trajectory of the front right foot over time")
 l_str = ["X", "Y", "Z"]
 for i in range(3):
     plt.subplot(3, 1, 1*i+1)
     plt.plot(myController.f_pos_ref[1, :, i])
     plt.plot(myController.f_pos[1, :, i])
-    plt.legend(["FR Foot ref pos along " + l_str[i], "FR foot pos along " + l_str[i]])
-
+    if i == 2:
+        plt.plot(myController.h_ref_feet)
+        plt.legend(["FR Foot ref pos along " + l_str[i], "FR foot pos along " + l_str[i], "Zero altitude"])
+    else:
+        plt.legend(["FR Foot ref pos along " + l_str[i], "FR foot pos along " + l_str[i]])
+    plt.xlim((20, 40))
 plt.figure()
 plt.title("Velocity of the front right foot over time")
 l_str = ["X", "Y", "Z"]
@@ -340,6 +355,7 @@ for i in range(3):
     plt.plot(myController.f_vel_ref[1, :, i])
     plt.plot(myController.f_vel[1, :, i])
     plt.legend(["FR Foot ref vel along " + l_str[i], "FR foot vel along " + l_str[i]])
+    plt.xlim((20, 40))
     """plt.subplot(3, 3, 3*i+3)
     plt.plot(myController.f_acc_ref[1, :, i])
     plt.plot(myController.f_acc[1, :, i])

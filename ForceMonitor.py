@@ -51,8 +51,8 @@ class ForceMonitor:
         f_tmp = [0.0] * 3
         for contact in contactPoints:
             if not isinstance(contact, int):  # type(contact) != type(0):
-                start = [contact[6][0], contact[6][1], contact[6][2]]
-                end = [contact[6][0], contact[6][1], contact[6][2]]
+                start = [contact[6][0], contact[6][1], contact[6][2]+0.04]
+                end = [contact[6][0], contact[6][1], contact[6][2]+0.04]
                 K = 0.02
                 for i_direction in range(0, 3):
                     f_tmp[i_direction] = (contact[9] * contact[7][i_direction] + contact[10] *

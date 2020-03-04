@@ -211,7 +211,7 @@ class pybullet_simulator:
         pyb.setGravity(0, 0, -9.81)
 
         # Load Quadruped robot
-        robotStartPos = [0, 0, 0.235]
+        robotStartPos = [0, 0, 0.235+0.0045]
         robotStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0])
         pyb.setAdditionalSearchPath("/opt/openrobots/share/example-robot-data/robots/solo_description/robots")
         self.robotId = pyb.loadURDF("solo12.urdf", robotStartPos, robotStartOrientation)
@@ -236,3 +236,7 @@ class pybullet_simulator:
 
         # Set time step for the simulation
         pyb.setTimeStep(dt)
+
+        # Change camera position
+        pyb.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0,
+                                       cameraTargetPosition=[0.19, 0.15005, 0])
