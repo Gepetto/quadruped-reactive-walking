@@ -57,7 +57,7 @@ class controller:
         self. w_reg_f = 100.0
 
         # Coefficients of the foot tracking task
-        kp_foot = 1000.0               # proportionnal gain for the tracking task
+        kp_foot = 100.0               # proportionnal gain for the tracking task
         self.w_foot = 10000.0       # weight of the tracking task
 
         # Coefficients of the trunk task
@@ -410,12 +410,13 @@ class controller:
         self.vtsid[0:2, 0:1] = np.dot(R, self.vu_m[0:2, 0:1])"""
 
         # Update desired location of footsteps using the footsteps planner
-        self.fstep_planner.update_footsteps_tsid(self.v_ref, self.vu_m, self.t_stance,
-                                                 self.t_remaining, self.T_gait, self.h_ref)
+        self.fstep_planner.update_footsteps_tsid(sequencer, self.v_ref, self.vu_m, self.t_stance,
+                                                 self.t_remaining, self.T_gait, self.qtsid[2, 0])
 
         # self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
-        self.footsteps = mpc_interface.o_shoulders[0:2, :] + \
-            np.array(np.tile(mpc_interface.oMl * self.fstep_planner.footsteps_tsid, (1, 4))[0:2, :])
+        for i in range(4):
+            self.footsteps[:, i:(i+1)] = mpc_interface.o_shoulders[0:2, i:(i+1)] + \
+                (mpc_interface.oMl * self.fstep_planner.footsteps_tsid[:, i])[0:2, :]
 
         # Rotate footsteps depending on TSID orientation
         """RPY = pyb.getEulerFromQuaternion(self.qtsid[3:7])
@@ -518,7 +519,7 @@ class controller:
 
         for j, i_foot in enumerate([0, 1, 2, 3]):
             self.contacts[i_foot].setForceReference(
-                self.w_reg_f * np.matrix(np.dot(self.R, mpc.f_applied[3*j:3*(j+1)])).T)
+                self.w_reg_f * (mpc_interface.oMl * mpc.f_applied[3*j:3*(j+1)]))
             self.contacts[i_foot].setRegularizationTaskWeightVector(
                 np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
 

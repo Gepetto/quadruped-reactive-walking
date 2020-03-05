@@ -36,7 +36,10 @@ class FootstepPlanner:
         # Previous variable but in world frame for visualisation purpose
         self.footsteps_world = self.footsteps.copy()
 
-    def update_footsteps_tsid(self, vel_ref, vel_cur, t_stance, t_remaining, T, h):
+        # To store the result of the get_prediction function
+        self.footsteps_prediction = np.zeros((3, 4))
+
+    def update_footsteps_tsid(self, sequencer, vel_ref, vel_cur, t_stance, t_remaining, T, h):
         """Returns a 2 by 4 matrix containing the [x, y]^T position of the next desired footholds for the four feet
         For feet in a swing phase it is where they should land and for feet currently touching the ground it is
         where they should land at the end of their next swing phase
@@ -51,7 +54,7 @@ class FootstepPlanner:
 
         # Order of feet: FL, FR, HL, HR
 
-        p = np.zeros((3, 1))
+        p = np.zeros((3, 4))
 
         # Shift initial position of contact outwards for more stability
         # p[1, :] += np.array([0.025, -0.025, 0.025, -0.025])
@@ -76,12 +79,31 @@ class FootstepPlanner:
             p[0, i] += t_remaining[0, i] * vel_cur[0, 0]
             p[1, i] += t_remaining[0, i] * vel_cur[1, 0]"""
 
+        # Time remaining before the end of the currrent swing phase
+        t_remaining = np.zeros((1, 4))
+        for i in range(4):
+            indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
+            indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
+            # index = (np.where(S[:, i] == True))[0][0]
+            if (sequencer.S[0, i] == True) and (sequencer.S[-1, i] == False):
+                t_remaining[0, i] = sequencer.T_gait
+            else:
+                index = (indexes_stance[indexes_stance > indexes_swing[0]])[0]
+                t_remaining[0, i] = index * self.dt
+
+        # Add velocity forecast
+        #  p += np.tile(v[0:2, 0:1], (1, 4)) * t_remaining
+        for i in range(4):
+            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * vel_cur[5, 0]
+            p[0, i] += (self.dt * np.cumsum(vel_cur[0, 0] * np.cos(yaw) - vel_cur[1, 0] * np.sin(yaw)))[-1]
+            p[1, i] += (self.dt * np.cumsum(vel_cur[0, 0] * np.sin(yaw) + vel_cur[1, 0] * np.cos(yaw)))[-1]
+
         # Update target_footholds_no_lock
         self.footsteps_tsid = p  # np.tile(p, (1, 4))
 
         return 0
 
-    def update_footsteps_mpc(self, sequencer, mpc):
+    def update_footsteps_mpc(self, sequencer, mpc, mpc_interface):
         """Returns a 2 by 4 matrix containing the [x, y]^T position of the next desired footholds for the four feet
         For feet in a swing phase it is where they should land and for feet currently touching the ground it is
         where they should land at the end of their next swing phase
@@ -113,7 +135,7 @@ class FootstepPlanner:
         p += 0.5 * np.sqrt(mpc.q[2, 0]/self.g) * cross[0:2, 0:1]
 
         # Time remaining before the end of the currrent swing phase
-        """t_remaining = np.zeros((1, 4))
+        t_remaining = np.zeros((1, 4))
         for i in range(4):
             indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
             indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
@@ -129,13 +151,55 @@ class FootstepPlanner:
         for i in range(4):
             yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * mpc.v[5, 0]
             p[0, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.cos(yaw) - mpc.v[1, 0] * np.sin(yaw)))[-1]
-            p[1, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.sin(yaw) + mpc.v[1, 0] * np.cos(yaw)))[-1]"""
+            p[1, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.sin(yaw) + mpc.v[1, 0] * np.cos(yaw)))[-1]
 
         # Update target_footholds_no_lock
-        self.footsteps = p
+        self.footsteps = mpc_interface.l_feet[0:2, :].copy()
+        for i in np.where(sequencer.S[0, :] == False)[0]:
+            self.footsteps[:, i] = p[:, i]
 
         # Updating quantities expressed in world frame
         self.update_world_frame(mpc.q_w)
+
+        return 0
+
+    def get_prediction(self, S, t_stance, T_gait, q, v, v_ref):
+
+        # Order of feet: FL, FR, HL, HR
+
+        p = np.zeros((3, 4))
+
+        # Add shoulders
+        p[0:2, :] += self.shoulders
+
+        # Add symmetry term
+        p[0:2, :] += t_stance * 0.5 * v[0:2, 0:1]
+
+        # Add feedback term
+        p[0:2, :] += self.k_feedback * (v[0:2, 0:1] - v_ref[0:2, 0:1])
+
+        # Add centrifugal term
+        cross = np.cross(v[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
+        p[0:2, :] += 0.5 * np.sqrt(q[2, 0]/self.g) * cross[0:2, 0:1]
+
+        # Time remaining before the end of the currrent swing phase
+        t_remaining = np.zeros((1, 4))
+        for i in range(4):
+            indexes_stance = (np.where(S[:, i] == True))[0]
+            indexes_swing = (np.where(S[:, i] == False))[0]
+            if (S[0, i] == True) and (S[-1, i] == False):
+                t_remaining[0, i] = T_gait
+            else:
+                index = (indexes_stance[indexes_stance > indexes_swing[0]])[0]
+                t_remaining[0, i] = index * self.dt
+
+        # Add velocity forecast
+        for i in range(4):
+            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * v[5, 0]
+            p[0, i] += (self.dt * np.cumsum(v[0, 0] * np.cos(yaw) - v[1, 0] * np.sin(yaw)))[-1]
+            p[1, i] += (self.dt * np.cumsum(v[0, 0] * np.sin(yaw) + v[1, 0] * np.cos(yaw)))[-1]
+
+        self.footsteps_prediction = p
 
         return 0
 

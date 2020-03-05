@@ -22,7 +22,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 50  # number of time steps simulated
+N_SIMULATION = 200  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -165,14 +165,14 @@ for k in range(int(N_SIMULATION)):
     # FOOTSTEP PLANNER & TRAJECTORY GENERATOR #
     ###########################################
 
-    if k > 0:  # In local frame, contacts moves in the opposite direction of the base
-        ftraj_gen.update_frame(mpc.v)  # Update contacts depending on the velocity of the base
+    # if k > 0:  # In local frame, contacts moves in the opposite direction of the base
+        # ftraj_gen.update_frame(mpc.v)  # Update contacts depending on the velocity of the base
 
     # Update desired location of footsteps using the footsteps planner
-    fstep_planner.update_footsteps_mpc(sequencer, mpc)
+    fstep_planner.update_footsteps_mpc(sequencer, mpc, mpc_interface)
 
     # Update 3D desired feet pos using the trajectory generator
-    ftraj_gen.update_desired_feet_pos(sequencer, fstep_planner, mpc)
+    # ftraj_gen.update_desired_feet_pos(sequencer, fstep_planner, mpc)
 
     ###################
     #  MPC FUNCTIONS  #
@@ -199,9 +199,9 @@ for k in range(int(N_SIMULATION)):
     mpc.v = mpc.v_next.copy()"""
 
     # Logging various stuff
-    # logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
+    logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
-    if False:  # k in [96, 126]:
+    if k in [156]:
         fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
 
         # Plot desired contact forces

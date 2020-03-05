@@ -321,7 +321,7 @@ class MPC:
 
         return 0
 
-    def update_matrices(self, sequencer):
+    def update_matrices(self, sequencer, fstep_planner):
         """Update the M, N, L and K constraint matrices depending on what happened
         """
 
@@ -329,7 +329,7 @@ class MPC:
         # - lever_arms changes since the robot moves
         # - I_inv changes if the reference velocity vector is modified
         # - footholds need to be enabled/disabled depending on the contact sequence
-        self.update_M(sequencer)
+        self.update_M(sequencer, fstep_planner)
 
         # N need to be updated between each iteration:
         # - X0 changes since the robot moves
@@ -341,8 +341,20 @@ class MPC:
 
         return 0
 
-    def update_M(self, sequencer):
+    def update_M(self, sequencer, fstep_planner):
 
+        # self.footholds contains the current position of feet in local frame
+        future_fth = self.footholds.copy()
+        S_tmp = sequencer.S.copy()
+
+        # Put the future position of feet in swing phase in tmp
+        fstep_planner.get_prediction(S_tmp, sequencer.t_stance,
+                                     sequencer.T_gait, self.q, self.v, self.v_ref)
+        for i in np.where(S_tmp[0, :] == False)[1]:
+            future_fth[:, i] = fstep_planner.footsteps_prediction[:, i]
+
+        print("####")
+        print(future_fth[0, :])
         # The left part of M with A and identity matrices is constant
 
         # The right part of M need to be updated because B matrices are modified
@@ -353,8 +365,19 @@ class MPC:
             R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
             I_inv = np.linalg.inv(np.dot(R, self.gI))
 
+            if k > 0:
+                S_tmp = np.roll(S_tmp, -1, axis=0)
+                update = np.where((S_tmp[0, :] == False) & (S_tmp[-1, :] == True))[1]
+                if np.any(update):
+                    fstep_planner.get_prediction(S_tmp, sequencer.t_stance,
+                                                 sequencer.T_gait, self.q, self.v, self.v_ref)
+                    T = (self.xref[0:3, k] - self.xref[0:3, 0])
+                    for i in update:
+                        future_fth[0:2, i] = (np.dot(R, fstep_planner.footsteps_prediction[:, i]) + T)[0:2]
+
+            print(future_fth[0, :])
             # Get skew-symetric matrix for each foothold
-            lever_arms = self.footholds - self.xref[0:3, k:(k+1)]
+            lever_arms = future_fth - self.xref[0:3, k:(k+1)]
             for i in range(4):
                 self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils.getSkew(lever_arms[:, i]))
 
@@ -469,7 +492,7 @@ class MPC:
         if k == 0:
             self.create_matrices(sequencer)
         else:
-            self.update_matrices(sequencer)
+            self.update_matrices(sequencer, fstep_planner)
 
         # Create an initial guess and call the solver to solve the QP problem
         self.call_solver(sequencer)
