@@ -416,7 +416,7 @@ class controller:
         # self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
         for i in range(4):
             self.footsteps[:, i:(i+1)] = mpc_interface.o_shoulders[0:2, i:(i+1)] + \
-                (mpc_interface.oMl * self.fstep_planner.footsteps_tsid[:, i])[0:2, :]
+                (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid[:, i]).T[0:2, :]
 
         # Rotate footsteps depending on TSID orientation
         """RPY = pyb.getEulerFromQuaternion(self.qtsid[3:7])
@@ -519,7 +519,7 @@ class controller:
 
         for j, i_foot in enumerate([0, 1, 2, 3]):
             self.contacts[i_foot].setForceReference(
-                self.w_reg_f * (mpc_interface.oMl * mpc.f_applied[3*j:3*(j+1)]))
+                self.w_reg_f * (mpc_interface.oMl.rotation @ mpc.f_applied[3*j:3*(j+1)]).T)
             self.contacts[i_foot].setRegularizationTaskWeightVector(
                 np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
 

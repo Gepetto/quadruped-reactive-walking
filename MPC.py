@@ -321,7 +321,7 @@ class MPC:
 
         return 0
 
-    def update_matrices(self, sequencer, fstep_planner):
+    def update_matrices(self, sequencer, fstep_planner, mpc_interface):
         """Update the M, N, L and K constraint matrices depending on what happened
         """
 
@@ -329,7 +329,7 @@ class MPC:
         # - lever_arms changes since the robot moves
         # - I_inv changes if the reference velocity vector is modified
         # - footholds need to be enabled/disabled depending on the contact sequence
-        self.update_M(sequencer, fstep_planner)
+        self.update_M(sequencer, fstep_planner, mpc_interface)
 
         # N need to be updated between each iteration:
         # - X0 changes since the robot moves
@@ -341,7 +341,9 @@ class MPC:
 
         return 0
 
-    def update_M(self, sequencer, fstep_planner):
+    def update_M(self, sequencer, fstep_planner, mpc_interface):
+
+        fth_w = np.zeros((4, self.n_steps, 3))
 
         # self.footholds contains the current position of feet in local frame
         future_fth = self.footholds.copy()
@@ -353,8 +355,8 @@ class MPC:
         for i in np.where(S_tmp[0, :] == False)[1]:
             future_fth[:, i] = fstep_planner.footsteps_prediction[:, i]
 
-        print("####")
-        print(future_fth[0, :])
+        # print("####")
+        #print(future_fth[0, :])
         # The left part of M with A and identity matrices is constant
 
         # The right part of M need to be updated because B matrices are modified
@@ -375,7 +377,11 @@ class MPC:
                     for i in update:
                         future_fth[0:2, i] = (np.dot(R, fstep_planner.footsteps_prediction[:, i]) + T)[0:2]
 
-            print(future_fth[0, :])
+            #print(future_fth[0, :])
+
+            for i in range(4):
+                fth_w[i, k:(k+1), :] = (mpc_interface.oMl * future_fth[:, i]).transpose()
+
             # Get skew-symetric matrix for each foothold
             lever_arms = future_fth - self.xref[0:3, k:(k+1)]
             for i in range(4):
@@ -386,6 +392,20 @@ class MPC:
         # Update lines to enable/disable forces
         self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps,
                                                                            12*self.n_steps*2, 1)] = 1 - np.repeat(sequencer.S.reshape((-1,)), 3)
+
+        """plt.figure()
+        for i in range(4):
+            plt.subplot(4, 2, 2*i+1)
+            plt.plot(fth_w[i, :, 0], linewidth=2)
+            plt.plot([mpc_interface.o_feet[0, i]], marker="x")
+            plt.xlabel("Time [s]")
+            plt.ylabel("Position X [m]")
+            plt.subplot(4, 2, 2*i+2)
+            plt.plot(fth_w[i, :, 1], linewidth=2)
+            plt.plot([mpc_interface.o_feet[1, i]], marker="x")
+            plt.xlabel("Time [s]")
+            plt.ylabel("Position Y [m]")
+        plt.show(block=True)"""
 
         return 0
 
@@ -492,7 +512,7 @@ class MPC:
         if k == 0:
             self.create_matrices(sequencer)
         else:
-            self.update_matrices(sequencer, fstep_planner)
+            self.update_matrices(sequencer, fstep_planner, mpc_interface)
 
         # Create an initial guess and call the solver to solve the QP problem
         self.call_solver(sequencer)

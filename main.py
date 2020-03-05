@@ -22,7 +22,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 200  # number of time steps simulated
+N_SIMULATION = 1500  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -201,7 +201,7 @@ for k in range(int(N_SIMULATION)):
     # Logging various stuff
     logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
-    if k in [156]:
+    if False:  # k in [156]:
         fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
 
         # Plot desired contact forces
