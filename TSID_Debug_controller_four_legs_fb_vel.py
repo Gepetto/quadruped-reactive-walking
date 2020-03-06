@@ -388,6 +388,7 @@ class controller:
 
         # Get PyBullet velocity in local frame
         self.vu_m[0:2, 0:1] = mpc_interface.lV[0:2, 0:1]
+        self.vu_m[5, 0] = mpc_interface.lW[2, 0]
         # np.dot(R, vmes12[0:2, 0:1])
 
         """if k_simu == 1000:
