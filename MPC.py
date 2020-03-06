@@ -156,8 +156,8 @@ class MPC:
 
         self.create_ML(sequencer)
         self.create_NK()
-        # print("ML equal M stacked L: ", np.array_equal(np.vstack((self.M, self.L)), self.ML))
-        # print("NK equal N stacked K: ", np.array_equal(np.vstack((self.N, np.array([self.K]).transpose())), self.NK))
+        """print("ML equal M stacked L: ", np.array_equal(np.vstack((self.M, self.L)), self.ML.toarray()))
+        print("NK equal N stacked K: ", np.array_equal(np.vstack((self.N, np.array([self.K]).transpose())), self.NK))"""
 
         # Create the weight matrices
         self.create_weight_matrices()
@@ -332,10 +332,6 @@ class MPC:
         # Transformation into CSC matrix
         self.ML = scipy.sparse.csc.csc_matrix(self.ML, shape=self.ML.shape)
 
-        # Update state of legs
-        self.ML.data[(66*self.n_steps-18):((66*self.n_steps-18)+12*self.n_steps)
-                     ] = (1 - np.repeat(sequencer.S.reshape((-1,)), 3)).ravel()
-
         # Create indices list that will be used to update ML
         self.i_x_B = [6, 10, 11, 7, 9, 11, 8, 9, 10] * 4
         self.i_y_B = np.repeat(np.arange(0, 12, 1), 3)
@@ -350,6 +346,9 @@ class MPC:
         i_off = np.roll(np.cumsum(i_S + i_off), 1)
         i_off[0] = 0
         self.i_update_S = i_S + i_off + i_start
+
+        # Update state of legs
+        self.ML.data[self.i_update_S] = (1 - np.repeat(sequencer.S.reshape((-1,)), 3)).ravel()
 
         return 0
 
@@ -466,8 +465,8 @@ class MPC:
         # self.update_N()
         self.update_NK()
 
-        # print("ML equal M stacked L: ", np.array_equal(np.vstack((self.M, self.L)), self.ML))
-        # print("NK equal N stacked K: ", np.array_equal(np.vstack((self.N, np.array([self.K]).transpose())), self.NK))
+        """print("ML equal M stacked L: ", np.array_equal(np.vstack((self.M, self.L)), self.ML.toarray()))
+        print("NK equal N stacked K: ", np.array_equal(np.vstack((self.N, np.array([self.K]).transpose())), self.NK))"""
 
         # L matrix is constant
         # K matrix is constant
@@ -563,18 +562,18 @@ class MPC:
         # The right part of M need to be updated because B matrices are modified
         # Only the last rows of B need to be updated (those with lever arms of footholds)
         # Get inverse of the inertia matrix for time step k
-        c, s = np.cos(self.xref[5, 1]), np.sin(self.xref[5, 1])
+        """c, s = np.cos(self.xref[5, 1]), np.sin(self.xref[5, 1])
         R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
-        I_inv = np.linalg.inv(np.dot(R, self.gI))
+        I_inv = np.linalg.inv(np.dot(R, self.gI))"""
         for k in range(self.n_steps):
             # Get inverse of the inertia matrix for time step k
-            """c, s = np.cos(self.xref[5, k]), np.sin(self.xref[5, k])
+            c, s = np.cos(self.xref[5, k]), np.sin(self.xref[5, k])
             R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
-            I_inv = np.linalg.inv(np.dot(R, self.gI))"""
+            I_inv = np.linalg.inv(np.dot(R, self.gI))
 
             if k > 0:
                 # S_tmp = np.roll(S_tmp, -1, axis=0)
-                update = np.where((S_tmp[(k+1) % self.n_steps, :] == False) & (S_tmp[k, :] == True))[1]
+                update = np.where((S_tmp[(k % self.n_steps), :] == False) & (S_tmp[k-1, :] == True))[1]
 
                 if np.any(update):
                     fstep_planner.get_prediction(np.roll(S_tmp, -k, axis=0), sequencer.t_stance,
@@ -593,7 +592,7 @@ class MPC:
             for i in range(4):
                 self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils.getSkew(lever_arms[:, i]))
 
-            """self.ML[(k*12):((k+1)*12), (12*(self.n_steps+k)):(12*(self.n_steps+k+1))] = self.B"""
+            # self.ML[(k*12):((k+1)*12), (12*(self.n_steps+k)):(12*(self.n_steps+k+1))] = self.B
 
             """self.ML.data[(30*self.n_steps-18+36*k):(30*self.n_steps-18+36*(k+1))
                          ] = self.B[i_x, i_y]"""
