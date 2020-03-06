@@ -149,10 +149,15 @@ class MPC:
         """
 
         # Create the constraint matrices
-        self.create_M(sequencer)
+        """self.create_M(sequencer)
         self.create_N()
         self.create_L()
-        self.create_K()
+        self.create_K()"""
+
+        self.create_ML(sequencer)
+        self.create_NK()
+        # print("ML equal M stacked L: ", np.array_equal(np.vstack((self.M, self.L)), self.ML))
+        # print("NK equal N stacked K: ", np.array_equal(np.vstack((self.N, np.array([self.K]).transpose())), self.NK))
 
         # Create the weight matrices
         self.create_weight_matrices()
@@ -267,6 +272,129 @@ class MPC:
 
         return 0
 
+    def create_ML(self, sequencer):
+        """ Create the M and L matrices involved in the MPC constraint equations M.X = N and L.X <= K """
+
+        # Create matrix ML
+        self.ML = np.zeros((12*self.n_steps*2 + 20*self.n_steps, 12*self.n_steps*2))
+        self.offset_L = 12*self.n_steps*2
+
+        # Put identity matrices in M
+        self.ML[np.arange(0, 12*self.n_steps, 1), np.arange(0, 12*self.n_steps, 1)] = - np.ones((12*self.n_steps))
+
+        # Create matrix A
+        self.A = np.eye(12)
+        self.A[[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11]] = np.ones((6,)) * self.dt
+
+        # Put A matrices in M
+        for k in range(self.n_steps-1):
+            self.ML[((k+1)*12):((k+2)*12), (k*12):((k+1)*12)] = self.A
+
+        # Create matrix B
+        self.B = np.zeros((12, 12))
+        self.B[np.tile([6, 7, 8], 4), np.arange(0, 12, 1)] = (self.dt / self.mass) * np.ones((12,))
+
+        # Put B matrices in M
+        for k in range(self.n_steps):
+            # Get inverse of the inertia matrix for time step k
+            c, s = np.cos(self.xref[5, k]), np.sin(self.xref[5, k])
+            R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
+            I_inv = np.linalg.inv(np.dot(R, self.gI))
+
+            # Get skew-symetric matrix for each foothold
+            lever_arms = self.footholds - self.xref[0:3, k:(k+1)]
+            for i in range(4):
+                self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils.getSkew(lever_arms[:, i]))
+
+            self.ML[(k*12):((k+1)*12), (12*(self.n_steps+k)):(12*(self.n_steps+k+1))] = self.B
+
+        # Add lines to enable/disable forces
+        # With = sequencer.S.reshape((-1,)) we directly initialize with the contact sequence but we have a dependency on the sequencer
+        # With = np.ones((12*self.n_steps, )) we would not have this dependency but he would have to set the active forces later
+        self.ML[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps,
+                                                                            12*self.n_steps*2, 1)] = np.ones((12*self.n_steps,))
+
+        # Create C matrix
+        self.C = np.zeros((5, 3))
+        self.C[[0, 1, 2, 3] * 2 + [4], [0, 0, 1, 1, 2, 2, 2, 2, 2]
+               ] = np.array([1, -1, 1, -1, -self.mu, -self.mu, -self.mu, -self.mu, -1])
+
+        # Create F matrix
+        self.F = np.zeros((20, 12))
+        for i in range(4):
+            self.F[(5*i):(5*(i+1)), (3*i):(3*(i+1))] = self.C
+
+        # Fill ML matrix with F matrices
+        for k in range(self.n_steps):
+            self.ML[(self.offset_L+20*k):(self.offset_L+20*(k+1)),
+                    (12*(self.n_steps+k)):(12*(self.n_steps+1+k))] = self.F
+
+        # Transformation into CSC matrix
+        self.ML = scipy.sparse.csc.csc_matrix(self.ML, shape=self.ML.shape)
+
+        # Update state of legs
+        self.ML.data[(66*self.n_steps-18):((66*self.n_steps-18)+12*self.n_steps)
+                     ] = (1 - np.repeat(sequencer.S.reshape((-1,)), 3)).ravel()
+
+        # Create indices list that will be used to update ML
+        self.i_x_B = [6, 10, 11, 7, 9, 11, 8, 9, 10] * 4
+        self.i_y_B = np.repeat(np.arange(0, 12, 1), 3)
+
+        i_start = 30*self.n_steps-18
+        i_data = np.tile(np.array([0, 1, 2, 6, 7, 8, 12, 13, 14]), 4)
+        i_foot = np.repeat(np.array([0, 1, 2, 3]) * 21, 9)
+        self.i_update_B = i_data + i_foot + i_start
+
+        i_S = 3 * np.ones((12*self.n_steps), dtype='int64')
+        i_off = np.tile(np.array([3, 3, 6]), 4*self.n_steps)
+        i_off = np.roll(np.cumsum(i_S + i_off), 1)
+        i_off[0] = 0
+        self.i_update_S = i_S + i_off + i_start
+
+        return 0
+
+    def create_NK(self):
+        """ Create the N and K matrices involved in the MPC constraint equations M.X = N and L.X <= K """
+
+        # Create N matrix
+        self.NK = np.zeros((12*self.n_steps * 2 + 20*self.n_steps, 1))
+
+        # Create g matrix
+        self.g = np.zeros((12, 1))
+        self.g[8, 0] = -9.81 * self.dt
+
+        # Fill N matrix with g matrices
+        for k in range(self.n_steps):
+            self.NK[(12*k):(12*(k+1)), 0:1] = - self.g
+
+        # Including - A*X0 in the first row of N
+        self.NK[0:12, 0:1] += np.dot(self.A, - self.x0)
+
+        # Create matrix D (third term of N)
+        self.D = np.zeros((12*self.n_steps, 12*self.n_steps))
+
+        # Put identity matrices in D
+        self.D[np.arange(0, 12*self.n_steps, 1), np.arange(0, 12*self.n_steps, 1)] = np.ones((12*self.n_steps))
+
+        # Put A matrices in D
+        for k in range(self.n_steps-1):
+            self.D[((k+1)*12):((k+2)*12), (k*12):((k+1)*12)] = - self.A
+
+        # Add third term to matrix N
+        self.NK[:12*self.n_steps, :] += np.dot(self.D, self.xref[:, 1:].reshape((-1, 1), order='F'))
+
+        # Lines to enable/disable forces are already initialized (0 values)
+        # Matrix K is already initialized (0 values)
+
+        self.NK_inf = np.zeros((12*self.n_steps * 2 + 20*self.n_steps, ))
+        self.inf_lower_bound = -np.inf * np.ones((20*self.n_steps,))
+        self.inf_lower_bound[4::5] = - 25
+
+        self.NK_inf[:12*self.n_steps * 2] = self.NK[:12*self.n_steps * 2, 0]
+        self.NK_inf[12*self.n_steps * 2:] = self.inf_lower_bound
+
+        return 0
+
     def create_weight_matrices(self):
         """Create the weight matrices in the cost x^T.P.x + x^T.q of the QP problem
         """
@@ -329,12 +457,17 @@ class MPC:
         # - lever_arms changes since the robot moves
         # - I_inv changes if the reference velocity vector is modified
         # - footholds need to be enabled/disabled depending on the contact sequence
-        self.update_M(sequencer, fstep_planner, mpc_interface)
+        # self.update_M(sequencer, fstep_planner, mpc_interface)
+        self.update_ML(sequencer, fstep_planner, mpc_interface)
 
         # N need to be updated between each iteration:
         # - X0 changes since the robot moves
         # - Xk* changes since X0 is not the same
-        self.update_N()
+        # self.update_N()
+        self.update_NK()
+
+        # print("ML equal M stacked L: ", np.array_equal(np.vstack((self.M, self.L)), self.ML))
+        # print("NK equal N stacked K: ", np.array_equal(np.vstack((self.N, np.array([self.K]).transpose())), self.NK))
 
         # L matrix is constant
         # K matrix is constant
@@ -356,7 +489,7 @@ class MPC:
             future_fth[:, i] = fstep_planner.footsteps_prediction[:, i]
 
         # print("####")
-        #print(future_fth[0, :])
+        # print(future_fth[0, :])
         # The left part of M with A and identity matrices is constant
 
         # The right part of M need to be updated because B matrices are modified
@@ -377,7 +510,7 @@ class MPC:
                     for i in update:
                         future_fth[0:2, i] = (np.dot(R, fstep_planner.footsteps_prediction[:, i]) + T)[0:2]
 
-            #print(future_fth[0, :])
+            # print(future_fth[0, :])
 
             for i in range(4):
                 fth_w[i, k:(k+1), :] = (mpc_interface.oMl * future_fth[:, i]).transpose()
@@ -392,6 +525,90 @@ class MPC:
         # Update lines to enable/disable forces
         self.M[np.arange(12*self.n_steps, 12*self.n_steps*2, 1), np.arange(12*self.n_steps,
                                                                            12*self.n_steps*2, 1)] = 1 - np.repeat(sequencer.S.reshape((-1,)), 3)
+
+        """plt.figure()
+        for i in range(4):
+            plt.subplot(4, 2, 2*i+1)
+            plt.plot(fth_w[i, :, 0], linewidth=2)
+            plt.plot([mpc_interface.o_feet[0, i]], marker="x")
+            plt.xlabel("Time [s]")
+            plt.ylabel("Position X [m]")
+            plt.subplot(4, 2, 2*i+2)
+            plt.plot(fth_w[i, :, 1], linewidth=2)
+            plt.plot([mpc_interface.o_feet[1, i]], marker="x")
+            plt.xlabel("Time [s]")
+            plt.ylabel("Position Y [m]")
+        plt.show(block=True)"""
+
+        return 0
+
+    def update_ML(self, sequencer, fstep_planner, mpc_interface):
+
+        fth_w = np.zeros((4, self.n_steps, 3))
+
+        # self.footholds contains the current position of feet in local frame
+        future_fth = self.footholds.copy()
+        S_tmp = sequencer.S.copy()
+
+        # Put the future position of feet in swing phase in tmp
+        fstep_planner.get_prediction(S_tmp, sequencer.t_stance,
+                                     sequencer.T_gait, self.q, self.v, self.v_ref)
+        for i in np.where(S_tmp[0, :] == False)[1]:
+            future_fth[:, i] = fstep_planner.footsteps_prediction[:, i]
+
+        # print("####")
+        # print(future_fth[0, :])
+        # The left part of M with A and identity matrices is constant
+
+        # The right part of M need to be updated because B matrices are modified
+        # Only the last rows of B need to be updated (those with lever arms of footholds)
+        # Get inverse of the inertia matrix for time step k
+        c, s = np.cos(self.xref[5, 1]), np.sin(self.xref[5, 1])
+        R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
+        I_inv = np.linalg.inv(np.dot(R, self.gI))
+        for k in range(self.n_steps):
+            # Get inverse of the inertia matrix for time step k
+            """c, s = np.cos(self.xref[5, k]), np.sin(self.xref[5, k])
+            R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
+            I_inv = np.linalg.inv(np.dot(R, self.gI))"""
+
+            if k > 0:
+                # S_tmp = np.roll(S_tmp, -1, axis=0)
+                update = np.where((S_tmp[(k+1) % self.n_steps, :] == False) & (S_tmp[k, :] == True))[1]
+
+                if np.any(update):
+                    fstep_planner.get_prediction(np.roll(S_tmp, -k, axis=0), sequencer.t_stance,
+                                                 sequencer.T_gait, self.q, self.v, self.v_ref)
+                    T = (self.xref[0:3, k] - self.xref[0:3, 0])
+                    for i in update:
+                        future_fth[0:2, i] = (np.dot(R, fstep_planner.footsteps_prediction[:, i]) + T)[0:2]
+
+            # print(future_fth[0, :])
+
+            """for i in range(4):
+                fth_w[i, k:(k+1), :] = (mpc_interface.oMl * future_fth[:, i]).transpose()"""
+
+            # Get skew-symetric matrix for each foothold
+            lever_arms = future_fth - self.xref[0:3, k:(k+1)]
+            for i in range(4):
+                self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils.getSkew(lever_arms[:, i]))
+
+            """self.ML[(k*12):((k+1)*12), (12*(self.n_steps+k)):(12*(self.n_steps+k+1))] = self.B"""
+
+            """self.ML.data[(30*self.n_steps-18+36*k):(30*self.n_steps-18+36*(k+1))
+                         ] = self.B[i_x, i_y]"""
+
+            i_iter = 21 * 4 * k
+            self.ML.data[self.i_update_B + i_iter] = self.B[self.i_x_B, self.i_y_B]
+
+        # Update lines to enable/disable forces
+        tmp = 1 - np.repeat(sequencer.S.reshape((-1,)), 3)
+        """self.ML[np.arange(12*self.n_steps, 12*self.n_steps*2, 1),
+                np.arange(12*self.n_steps, 12*self.n_steps*2, 1)] = scipy.sparse.csc.csc_matrix(tmp, shape=tmp.shape)"""
+        self.ML.data[self.i_update_S] = tmp.ravel()
+
+        """self.ML.data[(66*self.n_steps-18):((66*self.n_steps-18)+12*self.n_steps)
+                     ] = (1 - np.repeat(sequencer.S.reshape((-1,)), 3)).ravel()"""
 
         """plt.figure()
         for i in range(4):
@@ -426,6 +643,23 @@ class MPC:
 
         return 0
 
+    def update_NK(self):
+        """ Update the N and K matrices involved in the MPC constraint equations M.X = N and L.X <= K """
+
+        # Matrix g is already created and not changed
+        # Fill N matrix with g matrices
+        for k in range(self.n_steps):
+            self.NK[(12*k):(12*(k+1)), 0:1] = - self.g
+
+        # Including - A*X0 in the first row of N
+        self.NK[0:12, 0:1] += np.dot(self.A, - self.x0)
+
+        # Matrix D is already created and not changed
+        # Add third term to matrix N
+        self.NK[0:12*self.n_steps, 0:1] += np.dot(self.D, self.xref[:, 1:].reshape((-1, 1), order='F'))
+
+        return 0
+
     def call_solver(self, sequencer):
         """Create an initial guess and call the solver to solve the QP problem
         """
@@ -450,14 +684,22 @@ class MPC:
         prob = osqp.OSQP()
 
         # Stack equality and inequality matrices
-        inf_lower_bound = -np.inf * np.ones(len(self.K))
+        """inf_lower_bound = -np.inf * np.ones((20*self.n_steps,))
         inf_lower_bound[4::5] = - 25
-        qp_A = scipy.sparse.vstack([self.L, self.M]).tocsc()
-        qp_l = np.hstack([inf_lower_bound, self.N.ravel()])
-        qp_u = np.hstack([self.K, self.N.ravel()])
+
+        print("###")
+        t0 = clock()
+        self.qp_A = scipy.sparse.vstack([self.L, self.M]).tocsc()
+        self.qp_l = np.hstack([inf_lower_bound, self.N.ravel()])
+        self.qp_u = np.hstack([self.K, self.N.ravel()])
+        print(clock() - t0)"""
+
+        self.qp_Abis = self.ML
+        self.qp_ubis = self.NK.ravel()
+        self.NK_inf[:12*self.n_steps * 2] = self.NK[:12*self.n_steps * 2, 0]
 
         # Setup the solver with the matrices and a warm start
-        prob.setup(P=self.P, q=self.Q, A=qp_A, l=qp_l, u=qp_u, verbose=False)
+        prob.setup(P=self.P, q=self.Q, A=self.qp_Abis, l=self.NK_inf, u=self.qp_ubis, verbose=False)
         prob.warm_start(x=initx)
         """
         else:  # Code to update the QP problem without creating it again

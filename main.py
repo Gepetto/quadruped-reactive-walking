@@ -312,6 +312,8 @@ for k in range(int(N_SIMULATION)):
         myForceMonitor.display_contact_forces()
         # time.sleep(0.001)
 
+    print("Whole loop:", time.time() - time_start)
+
 
 """plt.figure(10)
 plt.plot(t_list_mpc, 'k+')
