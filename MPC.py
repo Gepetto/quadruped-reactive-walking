@@ -296,15 +296,9 @@ class MPC:
 
         # Put B matrices in M
         for k in range(self.n_steps):
-            # Get inverse of the inertia matrix for time step k
-            c, s = np.cos(self.xref[5, k]), np.sin(self.xref[5, k])
-            R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
-            I_inv = np.linalg.inv(np.dot(R, self.gI))
-
-            # Get skew-symetric matrix for each foothold
-            lever_arms = self.footholds - self.xref[0:3, k:(k+1)]
+            # Force coefficients to non sparse value
             for i in range(4):
-                self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils.getSkew(lever_arms[:, i]))
+                self.B[-3:, (i*3):((i+1)*3)] = 8 * np.ones((3, 3))
 
             self.ML[(k*12):((k+1)*12), (12*(self.n_steps+k)):(12*(self.n_steps+k+1))] = self.B
 
@@ -333,19 +327,34 @@ class MPC:
         self.ML = scipy.sparse.csc.csc_matrix(self.ML, shape=self.ML.shape)
 
         # Create indices list that will be used to update ML
-        self.i_x_B = [6, 10, 11, 7, 9, 11, 8, 9, 10] * 4
-        self.i_y_B = np.repeat(np.arange(0, 12, 1), 3)
+        self.i_x_B = [6, 9, 10, 11, 7, 9, 10, 11, 8, 9, 10, 11] * 4
+        self.i_y_B = np.repeat(np.arange(0, 12, 1), 4)
 
         i_start = 30*self.n_steps-18
-        i_data = np.tile(np.array([0, 1, 2, 6, 7, 8, 12, 13, 14]), 4)
-        i_foot = np.repeat(np.array([0, 1, 2, 3]) * 21, 9)
+        i_data = np.tile(np.array([0, 1, 2, 3, 7, 8, 9, 10, 14, 15, 16, 17]), 4)
+        i_foot = np.repeat(np.array([0, 1, 2, 3]) * 24, 12)
         self.i_update_B = i_data + i_foot + i_start
 
-        i_S = 3 * np.ones((12*self.n_steps), dtype='int64')
+        i_S = 4 * np.ones((12*self.n_steps), dtype='int64')
         i_off = np.tile(np.array([3, 3, 6]), 4*self.n_steps)
         i_off = np.roll(np.cumsum(i_S + i_off), 1)
         i_off[0] = 0
         self.i_update_S = i_S + i_off + i_start
+
+        # Update state of B
+        for k in range(self.n_steps):
+            # Get inverse of the inertia matrix for time step k
+            c, s = np.cos(self.xref[5, k]), np.sin(self.xref[5, k])
+            R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
+            I_inv = np.linalg.inv(np.dot(R, self.gI))
+
+            # Get skew-symetric matrix for each foothold
+            lever_arms = self.footholds - self.xref[0:3, k:(k+1)]
+            for i in range(4):
+                self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils.getSkew(lever_arms[:, i]))
+
+            i_iter = 24 * 4 * k
+            self.ML.data[self.i_update_B + i_iter] = self.B[self.i_x_B, self.i_y_B]
 
         # Update state of legs
         self.ML.data[self.i_update_S] = (1 - np.repeat(sequencer.S.reshape((-1,)), 3)).ravel()
@@ -597,7 +606,7 @@ class MPC:
             """self.ML.data[(30*self.n_steps-18+36*k):(30*self.n_steps-18+36*(k+1))
                          ] = self.B[i_x, i_y]"""
 
-            i_iter = 21 * 4 * k
+            i_iter = 24 * 4 * k
             self.ML.data[self.i_update_B + i_iter] = self.B[self.i_x_B, self.i_y_B]
 
         # Update lines to enable/disable forces
