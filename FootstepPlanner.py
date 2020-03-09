@@ -31,7 +31,8 @@ class FootstepPlanner:
         # The desired (x,y) position of footsteps
         # If a foot is in swing phase it is where it should land
         # If a foot is in stance phase is is where it should land at the end of its next swing phase
-        self.footsteps = self.shoulders.copy()
+        R = np.array([[0.0, -1.0], [1.0, 0.0]])
+        self.footsteps = R @ self.shoulders.copy()
 
         # Previous variable but in world frame for visualisation purpose
         self.footsteps_world = self.footsteps.copy()

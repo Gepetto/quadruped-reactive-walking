@@ -82,12 +82,12 @@ for k in range(int(N_SIMULATION)):
                         np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
     vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
                         np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))
-    if k > 50:
+    """if k > 50:
         # Joints configuration and velocity vector for free-flyer + 12 actuators
         qmes12 = np.vstack((np.array([baseState[0]]).T, np.array([test2]).transpose(),  # np.array([baseState[1]]).T,
                             np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
         vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
-                            np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))
+                            np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))"""
 
     ########################
     # Update MPC interface #

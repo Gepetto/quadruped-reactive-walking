@@ -27,7 +27,7 @@ class controller:
 
     def __init__(self, q0, omega, t, N_simulation):
 
-        self.q_ref = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.0, 1.0,
+        self.q_ref = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.7071067811865475, 0.7071067811865475,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
                                 0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()
 
@@ -86,8 +86,9 @@ class controller:
 
         # Position of the shoulders in local frame
         self.shoulders = np.array([[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
-        self.footsteps = self.shoulders.copy()
-        self.memory_contacts = self.shoulders.copy()
+        R = np.array([[0.0, -1.0], [1.0, 0.0]])
+        self.footsteps = R @ self.shoulders.copy()
+        self.memory_contacts = R @ self.shoulders.copy()
 
         # Foot trajectory generator
         max_height_feet = 0.04

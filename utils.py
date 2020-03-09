@@ -124,7 +124,11 @@ def init_viewer():
     if ('viewer' in solo.viz.__dict__):
         solo.viewer.gui.addFloor('world/floor')
         solo.viewer.gui.setRefreshIsSynchronous(False)
-    solo.display(solo.q0)
+    offset = np.zeros((19, 1))
+    offset[5, 0] = 0.7071067811865475
+    offset[6, 0] = 0.7071067811865475 - 1.0
+    temp = solo.q0 + offset
+    solo.display(temp)
 
     return solo
 
@@ -212,7 +216,7 @@ class pybullet_simulator:
 
         # Load Quadruped robot
         robotStartPos = [0, 0, 0.235+0.0045]
-        robotStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0])
+        robotStartOrientation = pyb.getQuaternionFromEuler([0, 0, np.pi*0.5])
         pyb.setAdditionalSearchPath("/opt/openrobots/share/example-robot-data/robots/solo_description/robots")
         self.robotId = pyb.loadURDF("solo12.urdf", robotStartPos, robotStartOrientation)
 

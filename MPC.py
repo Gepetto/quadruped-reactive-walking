@@ -62,6 +62,9 @@ class MPC:
              [0.15005, -0.15005, 0.15005, -0.15005],
              [0.0, 0.0, 0.0, 0.0]])
 
+        R = np.array([[0.0, -1.0], [1.0, 0.0]])
+        self.footholds[0:2, :] = R @ self.footholds[0:2, :]
+
     def update_v_ref(self, joystick):
 
         # Retrieving the reference velocity from the joystick
@@ -780,6 +783,12 @@ class MPC:
         # Variation of orientation in world frame using the angular speed in local frame
         self.q_w[3:5, 0] = self.q_next[3:5, 0]
         self.q_w[5, 0] += self.q_next[5, 0]
+
+        print("###")
+        print("k: ", k)
+        print(mpc_interface.lC)
+        print(self.f_applied)
+        print(self.q_next)
 
         return 0
 

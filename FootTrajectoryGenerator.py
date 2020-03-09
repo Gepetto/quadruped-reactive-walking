@@ -26,13 +26,14 @@ class FootTrajectoryGenerator:
         # self.footsteps = self.shoulders.copy()
 
         # Desired (x, y) position of footsteps with lock mechanism before impact
-        self.footsteps_lock = self.shoulders.copy()
+        R = np.array([[0.0, -1.0], [1.0, 0.0]])
+        self.footsteps_lock = R @ self.shoulders.copy()
 
         # Desired footsteps with lock in world frame for visualisation purpose
         self.footsteps_lock_world = self.footsteps_lock.copy()
 
         # Desired position, velocity and acceleration of feet in 3D, in local frame
-        self.desired_pos = np.vstack((self.shoulders, np.zeros((1, 4))))
+        self.desired_pos = np.vstack((R @ self.shoulders, np.zeros((1, 4))))
         self.desired_vel = np.zeros(self.desired_pos.shape)
         self.desired_acc = np.zeros(self.desired_pos.shape)
 
