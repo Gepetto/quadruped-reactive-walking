@@ -302,11 +302,16 @@ class controller:
         for i_foot in feet:
 
             # Get desired 3D position
-            [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
+            """[x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
                 self.sampleFeet[i_foot].pos()[0, 0], self.sampleFeet[i_foot].vel()[
                     0, 0], self.sampleFeet[i_foot].acc()[1, 0],
                 self.sampleFeet[i_foot].pos()[1, 0], self.sampleFeet[i_foot].vel()[
                     1, 0], self.sampleFeet[i_foot].acc()[1, 0],
+                x1[i_foot], y1[i_foot], t0,  t1, dt)"""
+
+            [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
+                mpc_interface.o_feet[0, i_foot], mpc_interface.ov_feet[0, i_foot], mpc_interface.oa_feet[0, i_foot],
+                mpc_interface.o_feet[1, i_foot], mpc_interface.ov_feet[1, i_foot], mpc_interface.oa_feet[0, i_foot],
                 x1[i_foot], y1[i_foot], t0,  t1, dt)
 
             # Take into account vertical offset of Pybullet
@@ -455,7 +460,7 @@ class controller:
         tmp[1, 0] = np.sum(mpc.f_applied[2::3]) / mass
         tmp[2, 0] = np.sum(mpc.f_applied[3::3]) / mass - 9.81
         self.sample_com.acc(tmp)"""
-        self.comTask.setReference(self.sample_com)
+        # self.comTask.setReference(self.sample_com)
 
         """self.sampleTrunk.pos(np.matrix([tmp[0, 0], tmp[1, 0], 0.235 - 0.01205385,
                                         1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)

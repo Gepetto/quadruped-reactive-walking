@@ -556,6 +556,7 @@ class MPC:
 
         # self.footholds contains the current position of feet in local frame
         future_fth = self.footholds.copy()
+        print(self.footholds[0:2, :])
         S_tmp = sequencer.S.copy()
 
         # Put the future position of feet in swing phase in tmp

@@ -22,7 +22,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 1500  # number of time steps simulated
+N_SIMULATION = 500  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -73,11 +73,21 @@ for k in range(int(N_SIMULATION)):
     baseState = pyb.getBasePositionAndOrientation(pyb_sim.robotId)  # Position and orientation of the trunk
     baseVel = pyb.getBaseVelocity(pyb_sim.robotId)  # Velocity of the trunk
 
+    test1 = pyb.getEulerFromQuaternion(np.array([baseState[1]]).T)
+    test1 = [test1[0], test1[1], test1[2] + 3.1415 * 0.5]
+    test2 = pyb.getQuaternionFromEuler(test1)
+
     # Joints configuration and velocity vector for free-flyer + 12 actuators
     qmes12 = np.vstack((np.array([baseState[0]]).T, np.array([baseState[1]]).T,
                         np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
     vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
                         np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))
+    if k > 50:
+        # Joints configuration and velocity vector for free-flyer + 12 actuators
+        qmes12 = np.vstack((np.array([baseState[0]]).T, np.array([test2]).transpose(),  # np.array([baseState[1]]).T,
+                            np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
+        vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
+                            np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))
 
     ########################
     # Update MPC interface #
@@ -201,7 +211,7 @@ for k in range(int(N_SIMULATION)):
     # Logging various stuff
     logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
-    if False:  # k in [156]:
+    if False:  # k in [228]:
         fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
 
         # Plot desired contact forces

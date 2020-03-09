@@ -94,7 +94,7 @@ class FootstepPlanner:
         # Add velocity forecast
         #  p += np.tile(v[0:2, 0:1], (1, 4)) * t_remaining
         for i in range(4):
-            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * vel_cur[5, 0]
+            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * vel_ref[5, 0]
             p[0, i] += (self.dt * np.cumsum(vel_cur[0, 0] * np.cos(yaw) - vel_cur[1, 0] * np.sin(yaw)))[-1]
             p[1, i] += (self.dt * np.cumsum(vel_cur[0, 0] * np.sin(yaw) + vel_cur[1, 0] * np.cos(yaw)))[-1]
 
@@ -149,7 +149,7 @@ class FootstepPlanner:
         # Add velocity forecast
         #  p += np.tile(v[0:2, 0:1], (1, 4)) * t_remaining
         for i in range(4):
-            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * mpc.v[5, 0]
+            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * mpc.v_ref[5, 0]
             p[0, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.cos(yaw) - mpc.v[1, 0] * np.sin(yaw)))[-1]
             p[1, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.sin(yaw) + mpc.v[1, 0] * np.cos(yaw)))[-1]
 
@@ -195,7 +195,7 @@ class FootstepPlanner:
 
         # Add velocity forecast
         for i in range(4):
-            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * v[5, 0]
+            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * v_ref[5, 0]
             p[0, i] += (self.dt * np.cumsum(v[0, 0] * np.cos(yaw) - v[1, 0] * np.sin(yaw)))[-1]
             p[1, i] += (self.dt * np.cumsum(v[0, 0] * np.sin(yaw) + v[1, 0] * np.cos(yaw)))[-1]
 

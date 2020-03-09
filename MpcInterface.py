@@ -23,6 +23,10 @@ class MpcInterface:
         self.abg = np.zeros((3, 1))  # roll, pitch, yaw of the base in local frame
         self.l_feet = np.zeros((3, 4))  # position of feet in local frame
         self.o_feet = np.zeros((3, 4))  # position of feet in world frame
+        self.lv_feet = np.zeros((3, 4))  # velocity of feet in local frame
+        self.ov_feet = np.zeros((3, 4))  # velocity of feet in world frame
+        self.la_feet = np.zeros((3, 4))  # acceleration of feet in local frame
+        self.oa_feet = np.zeros((3, 4))  # acceleration of feet in world frame
 
         # Indexes of feet frames
         self.indexes = [10, 18, 26, 34]
@@ -77,6 +81,14 @@ class MpcInterface:
         for i, j in enumerate(self.indexes):
             self.o_feet[:, i:(i+1)] = solo.data.oMf[j].translation
             self.l_feet[:, i:(i+1)] = self.oMl.inverse() * solo.data.oMf[j].translation
+            # getFrameVelocity output is in the frame of the foot
+            self.ov_feet[:, i:(i+1)] = solo.data.oMf[j].rotation @ pin.getFrameVelocity(solo.model,
+                                                                                        solo.data, j).vector[0:3, 0:1]
+            self.lv_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.ov_feet[:, i:(i+1)]
+            # getFrameAcceleration output is in the frame of the foot
+            self.oa_feet[:, i:(i+1)] = solo.data.oMf[j].rotation @ pin.getFrameAcceleration(solo.model,
+                                                                                            solo.data, j).vector[0:3, 0:1]
+            self.la_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.oa_feet[:, i:(i+1)]
 
         # Orientation of the base in local frame
         # Base and local frames have the same yaw orientation in world frame

@@ -14,18 +14,22 @@ class Joystick:
         self.t_start = clock()
 
         # Reference velocity in local frame
-        self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.2]]).T
+        self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
     def update_v_ref(self, k_loop):
 
         # Change reference velocity during the simulation (in trunk frame)
-
         # Moving forwards
-        """if k_loop == 75:
-            self.v_ref = np.array([[0.1, 0, 0.0, 0, 0, 0.0]]).T"""
+        """if k_loop == 200:
+            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
+        """
 
         # Turning
-        """if k_loop == 151:
-            self.v_ref = np.array([[0.1, 0, 0.0, 0, 0, 0.4]]).T"""
+        if k_loop == 2500:
+            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.2]]).T"""
+
+        # Moving forwards
+        if k_loop == 3500:
+            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         return 0

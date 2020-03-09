@@ -199,7 +199,7 @@ class pybullet_simulator:
     def __init__(self, dt=0.001):
 
         # Start the client for PyBullet
-        physicsClient = pyb.connect(pyb.DIRECT)
+        physicsClient = pyb.connect(pyb.GUI)
         # p.GUI for graphical version
         # p.DIRECT for non-graphical version
 
@@ -238,5 +238,5 @@ class pybullet_simulator:
         pyb.setTimeStep(dt)
 
         # Change camera position
-        pyb.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0,
-                                       cameraTargetPosition=[0.19, 0.15005, 0])
+        """pyb.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0,
+                                       cameraTargetPosition=[0.19, 0.15005, 0])"""
