@@ -45,11 +45,18 @@ class MpcInterface:
         # Process data #
         ################
 
+        print("##")
+        print("q12:", qmes12.transpose())
+        print("v12:", vmes12.transpose())
+
         # Get center of mass from Pinocchio
         pin.centerOfMass(solo.model, solo.data, qmes12, vmes12)
 
         # Update position/orientation of frames
         pin.updateFramePlacements(solo.model, solo.data)
+
+        print("CoM:", solo.data.com[0].transpose())
+        print("vCoM:", solo.data.vcom[0].transpose())
 
         # Update average height of feet
         self.mean_feet_z = solo.data.oMf[self.indexes[0]].translation[2, 0]

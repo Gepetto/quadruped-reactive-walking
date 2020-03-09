@@ -73,6 +73,12 @@ for k in range(int(N_SIMULATION)):
     baseState = pyb.getBasePositionAndOrientation(pyb_sim.robotId)  # Position and orientation of the trunk
     baseVel = pyb.getBaseVelocity(pyb_sim.robotId)  # Velocity of the trunk
 
+    print("jointStates:", jointStates)
+    print("baseState[0]:", baseState[0])
+    print("baseState[1]:", baseState[1])
+    print("baseVel[0]:", baseVel[0])
+    print("baseVel[1]:", baseVel[1])
+
     test1 = pyb.getEulerFromQuaternion(np.array([baseState[1]]).T)
     test1 = [test1[0], test1[1], test1[2] + 3.1415 * 0.5]
     test2 = pyb.getQuaternionFromEuler(test1)
@@ -89,6 +95,9 @@ for k in range(int(N_SIMULATION)):
         vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
                             np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))"""
 
+    print("q12:", qmes12.transpose())
+    print("v12:", vmes12.transpose())
+
     ########################
     # Update MPC interface #
     ########################
@@ -97,6 +106,12 @@ for k in range(int(N_SIMULATION)):
         qmes12[:, :] = myController.qtsid
         vmes12[:, :] = myController.vtsid"""
     mpc_interface.update(solo, qmes12, vmes12)
+
+    print("lC:", mpc_interface.lC.transpose())
+    print("abg:", mpc_interface.abg.transpose())
+    print("lV:", mpc_interface.lV.transpose())
+    print("lW:", mpc_interface.lW.transpose())
+    print("oV:", mpc_interface.oV.transpose())
 
     #######################################################
     #                 Update MPC state                    #
@@ -171,12 +186,15 @@ for k in range(int(N_SIMULATION)):
         """if k >= 100 and k < 115:
             mpc.v[0, 0] = 0.01"""
 
+    print("q: ", mpc.q.transpose())
+    print("v: ", mpc.v.transpose())
+
     ###########################################
     # FOOTSTEP PLANNER & TRAJECTORY GENERATOR #
     ###########################################
 
     # if k > 0:  # In local frame, contacts moves in the opposite direction of the base
-        # ftraj_gen.update_frame(mpc.v)  # Update contacts depending on the velocity of the base
+    # ftraj_gen.update_frame(mpc.v)  # Update contacts depending on the velocity of the base
 
     # Update desired location of footsteps using the footsteps planner
     fstep_planner.update_footsteps_mpc(sequencer, mpc, mpc_interface)
@@ -293,6 +311,7 @@ for k in range(int(N_SIMULATION)):
         jointTorques = myController.control(qmes12, vmes12, t, i+k, solo, mpc,
                                             sequencer, mpc_interface).reshape((12, 1))
 
+        print(jointTorques)
         # Time incrementation
         t += dt
 

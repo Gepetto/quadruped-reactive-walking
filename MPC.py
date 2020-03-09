@@ -559,14 +559,21 @@ class MPC:
 
         # self.footholds contains the current position of feet in local frame
         future_fth = self.footholds.copy()
+        print("Start update")
         print(self.footholds[0:2, :])
         S_tmp = sequencer.S.copy()
 
+        print(self.q.transpose())
+        print(self.v_ref.transpose())
+        print(self.v.transpose())
         # Put the future position of feet in swing phase in tmp
         fstep_planner.get_prediction(S_tmp, sequencer.t_stance,
                                      sequencer.T_gait, self.q, self.v, self.v_ref)
         for i in np.where(S_tmp[0, :] == False)[1]:
             future_fth[:, i] = fstep_planner.footsteps_prediction[:, i]
+
+        print("Mid update")
+        print(future_fth)
 
         # print("####")
         # print(future_fth[0, :])
@@ -584,6 +591,10 @@ class MPC:
             R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
             I_inv = np.linalg.inv(np.dot(R, self.gI))
 
+            if k == 0:
+                print("Iinv:")
+                print(I_inv)
+
             if k > 0:
                 # S_tmp = np.roll(S_tmp, -1, axis=0)
                 update = np.where((S_tmp[(k % self.n_steps), :] == False) & (S_tmp[k-1, :] == True))[1]
@@ -594,7 +605,8 @@ class MPC:
                     T = (self.xref[0:3, k] - self.xref[0:3, 0])
                     for i in update:
                         future_fth[0:2, i] = (np.dot(R, fstep_planner.footsteps_prediction[:, i]) + T)[0:2]
-
+                    print("Update")
+                    print(future_fth)
             # print(future_fth[0, :])
 
             """for i in range(4):
@@ -636,6 +648,8 @@ class MPC:
             plt.ylabel("Position Y [m]")
         plt.show(block=True)"""
 
+        print("End update")
+        print(future_fth[0:2, :])
         return 0
 
     def update_N(self):
@@ -786,9 +800,9 @@ class MPC:
 
         print("###")
         print("k: ", k)
-        print(mpc_interface.lC)
-        print(self.f_applied)
-        print(self.q_next)
+        print("lC: ", mpc_interface.lC)
+        print("f_applied: ", self.f_applied)
+        print("q_next: ", self.q_next)
 
         return 0
 
