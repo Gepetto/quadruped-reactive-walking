@@ -54,18 +54,11 @@ class MpcInterface:
         self.vmes12_base[3:6, 0:1] = self.oRb.transpose() @ self.vmes12_base[3:6, 0:1]
         # qmes12[0:2, 0:1] = R @ qmes12[0:2, 0:1]
 
-        print("##")
-        print("q12:", qmes12.transpose())
-        print("v12:", vmes12.transpose())
-
         # Get center of mass from Pinocchio
         pin.centerOfMass(solo.model, solo.data, qmes12, self.vmes12_base)
 
         # Update position/orientation of frames
         pin.updateFramePlacements(solo.model, solo.data)
-
-        print("CoM:", solo.data.com[0].transpose())
-        print("vCoM:", solo.data.vcom[0].transpose())
 
         # Update average height of feet
         self.mean_feet_z = solo.data.oMf[self.indexes[0]].translation[2, 0]
