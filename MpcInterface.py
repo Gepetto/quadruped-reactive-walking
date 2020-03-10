@@ -10,6 +10,8 @@ class MpcInterface:
     def __init__(self):
 
         # Initialisation of matrices
+        self.oRb = np.eye(3)  # rotation matrix from the world frame to the base frame
+        self.vmes12_base = np.zeros((18, 1))  # pinocchio needs the linear and angular vel in base frame
         self.oMb = pin.SE3.Identity()  # transform from world to base frame ("1")
         self.oMl = pin.SE3.Identity()  #  transform from world to local frame ("L")
         self.RPY = np.zeros((3, 1))  # roll, pitch, yaw of the base in world frame
@@ -45,12 +47,19 @@ class MpcInterface:
         # Process data #
         ################
 
+        self.oRb = pin.Quaternion(qmes12[3:7]).matrix()
+
+        self.vmes12_base = vmes12.copy()
+        self.vmes12_base[0:3, 0:1] = self.oRb.transpose() @ self.vmes12_base[0:3, 0:1]
+        self.vmes12_base[3:6, 0:1] = self.oRb.transpose() @ self.vmes12_base[3:6, 0:1]
+        # qmes12[0:2, 0:1] = R @ qmes12[0:2, 0:1]
+
         print("##")
         print("q12:", qmes12.transpose())
         print("v12:", vmes12.transpose())
 
         # Get center of mass from Pinocchio
-        pin.centerOfMass(solo.model, solo.data, qmes12, vmes12)
+        pin.centerOfMass(solo.model, solo.data, qmes12, self.vmes12_base)
 
         # Update position/orientation of frames
         pin.updateFramePlacements(solo.model, solo.data)
