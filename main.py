@@ -22,7 +22,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 6500  # number of time steps simulated
+N_SIMULATION = 15500  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -47,7 +47,9 @@ solo = utils.init_viewer()
 #                              PyBullet                                #
 ########################################################################
 
-pyb_sim = utils.pybullet_simulator(dt=dt_mpc)
+pyb_sim = utils.pybullet_simulator(dt=0.001)
+flag_sphere1 = True
+flag_sphere2 = True
 
 ########################################################################
 #                             Simulator                                #
@@ -60,11 +62,6 @@ myEmergencyStop = EmergencyStop_controller.controller_12dof()
 myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
 for k in range(int(N_SIMULATION)):
-
-    if k == 500:
-        cubeStartPos = [0.05, 0.06, 1.0]
-        cubeStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0])
-        pyb.resetBasePositionAndOrientation(pyb_sim.cubeId, cubeStartPos, cubeStartOrientation)
 
     time_start = time.time()
 
@@ -94,6 +91,14 @@ for k in range(int(N_SIMULATION)):
                             np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
         vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
                             np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))"""
+
+    if flag_sphere1 and (qmes12[1, 0] >= 0.9):
+        pyb.resetBaseVelocity(pyb_sim.sphereId1, linearVelocity=[3.0, 0.0, 2.0])
+        flag_sphere1 = False
+
+    if flag_sphere2 and (qmes12[1, 0] >= 1.1):
+        pyb.resetBaseVelocity(pyb_sim.sphereId2, linearVelocity=[-3.0, 0.0, 2.0])
+        flag_sphere2 = False
 
     ########################
     # Update MPC interface #
@@ -312,17 +317,19 @@ for k in range(int(N_SIMULATION)):
         # PYBULLET #
         ############
 
-        # Set control torque for all joints
-        pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,
-                                      controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
+        for i_pyb in range(5):
+            # Set control torque for all joints
+            pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,
+                                          controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
 
-        # Apply perturbation
-        """if k >= 50 and k < 100:
-            pyb.applyExternalForce(pyb_sim.robotId, -1, [1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
-        if k >= 150 and k < 200:
-            pyb.applyExternalForce(pyb_sim.robotId, -1, [0.0, 1.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)"""
-        # Compute one step of simulation
-        pyb.stepSimulation()
+            # Apply perturbation
+            """if k >= 50 and k < 100:
+                pyb.applyExternalForce(pyb_sim.robotId, -1, [1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+            if k >= 150 and k < 200:
+                pyb.applyExternalForce(pyb_sim.robotId, -1, [0.0, 1.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)"""
+
+            # Compute one step of simulation
+            pyb.stepSimulation()
 
         # Refresh force monitoring for PyBullet
         myForceMonitor.display_contact_forces()

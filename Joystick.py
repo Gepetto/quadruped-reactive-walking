@@ -20,9 +20,9 @@ class Joystick:
 
         # Change reference velocity during the simulation (in trunk frame)
         # Moving forwards
-        """if k_loop == 200:
+        if k_loop == 200:
             self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
+        """
         # Turning
         if k_loop == 1500:
             self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, -0.2]]).T

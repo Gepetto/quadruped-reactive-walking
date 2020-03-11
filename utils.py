@@ -211,12 +211,97 @@ class pybullet_simulator:
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
         self.planeId = pyb.loadURDF("plane.urdf")
 
-        cubeStartPos = [0.0, 0.15, 1.0]
+        mesh_scale = [1.0, 0.1, 0.02]
+        visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                              fileName="cube.obj",
+                                              halfExtents=[0.5, 0.5, 0.1],
+                                              rgbaColor=[1.0, 0.0, 0.0, 1.0],
+                                              specularColor=[0.4, .4, 0],
+                                              visualFramePosition=[0.0, 0.0, 0.0],
+                                              meshScale=mesh_scale)
+
+        collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
+                                                    fileName="cube.obj",
+                                                    collisionFramePosition=[0.0, 0.0, 0.0],
+                                                    meshScale=mesh_scale)
+        for i in range(4):
+            pyb.createMultiBody(baseMass=0.0,
+                                baseInertialFramePosition=[0, 0, 0],
+                                baseCollisionShapeIndex=collisionShapeId,
+                                baseVisualShapeIndex=visualShapeId,
+                                basePosition=[0.0, 0.5+0.2*i, 0.01],
+                                useMaximalCoordinates=True)
+
+        pyb.createMultiBody(baseMass=0.0,
+                            baseInertialFramePosition=[0, 0, 0],
+                            baseCollisionShapeIndex=collisionShapeId,
+                            baseVisualShapeIndex=visualShapeId,
+                            basePosition=[0.5, 0.5+0.2*4, 0.01],
+                            useMaximalCoordinates=True)
+
+        pyb.createMultiBody(baseMass=0.0,
+                            baseInertialFramePosition=[0, 0, 0],
+                            baseCollisionShapeIndex=collisionShapeId,
+                            baseVisualShapeIndex=visualShapeId,
+                            basePosition=[0.5, 0.5+0.2*5, 0.01],
+                            useMaximalCoordinates=True)
+
+        mesh_scale = [0.2, 0.1, 0.01]
+        visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                              fileName="cube.obj",
+                                              halfExtents=[0.5, 0.5, 0.1],
+                                              rgbaColor=[0.0, 1.0, 0.0, 1.0],
+                                              specularColor=[0.4, .4, 0],
+                                              visualFramePosition=[0.0, 0.0, 0.0],
+                                              meshScale=mesh_scale)
+
+        collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
+                                                    fileName="cube.obj",
+                                                    collisionFramePosition=[0.0, 0.0, 0.0],
+                                                    meshScale=mesh_scale)
+
+        for i in range(3):
+            pyb.createMultiBody(baseMass=0.0,
+                                baseInertialFramePosition=[0, 0, 0],
+                                baseCollisionShapeIndex=collisionShapeId,
+                                baseVisualShapeIndex=visualShapeId,
+                                basePosition=[0.15 * (-1)**i, 0.9+0.2*i, 0.025],
+                                useMaximalCoordinates=True)
+
+        mesh_scale = [0.05, 0.05, 0.05]
+        visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                              fileName="sphere_smooth.obj",
+                                              halfExtents=[0.5, 0.5, 0.1],
+                                              rgbaColor=[1.0, 0.0, 0.0, 1.0],
+                                              specularColor=[0.4, .4, 0],
+                                              visualFramePosition=[0.0, 0.0, 0.0],
+                                              meshScale=mesh_scale)
+
+        collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
+                                                    fileName="sphere_smooth.obj",
+                                                    collisionFramePosition=[0.0, 0.0, 0.0],
+                                                    meshScale=mesh_scale)
+
+        self.sphereId1 = pyb.createMultiBody(baseMass=0.3,
+                                             baseInertialFramePosition=[0, 0, 0],
+                                             baseCollisionShapeIndex=collisionShapeId,
+                                             baseVisualShapeIndex=visualShapeId,
+                                             basePosition=[-0.6, 0.9, 0.05],
+                                             useMaximalCoordinates=True)
+
+        self.sphereId2 = pyb.createMultiBody(baseMass=0.3,
+                                             baseInertialFramePosition=[0, 0, 0],
+                                             baseCollisionShapeIndex=collisionShapeId,
+                                             baseVisualShapeIndex=visualShapeId,
+                                             basePosition=[0.6, 1.1, 0.05],
+                                             useMaximalCoordinates=True)
+
+        """cubeStartPos = [0.0, 0.45, 0.0]
         cubeStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0])
         self.cubeId = pyb.loadURDF("cube_small.urdf",
                                    cubeStartPos, cubeStartOrientation)
         pyb.changeDynamics(self.cubeId, -1, mass=0.5)
-        print("Mass of cube:", pyb.getDynamicsInfo(self.cubeId, -1)[0])
+        print("Mass of cube:", pyb.getDynamicsInfo(self.cubeId, -1)[0])"""
 
         # Set the gravity
         pyb.setGravity(0, 0, -9.81)
@@ -249,5 +334,6 @@ class pybullet_simulator:
         pyb.setTimeStep(dt)
 
         # Change camera position
-        """pyb.resetDebugVisualizerCamera(cameraDistance=3, cameraYaw=0, cameraPitch=0,
-                                       cameraTargetPosition=[0.19, 0.15005, 0])"""
+        print(pyb.getDebugVisualizerCamera())
+        pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=50, cameraPitch=-35,
+                                       cameraTargetPosition=[0.0, 0.6, 0.0])
