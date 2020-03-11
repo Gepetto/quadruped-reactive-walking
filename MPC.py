@@ -6,6 +6,7 @@ import scipy as scipy
 import osqp as osqp
 from matplotlib import pyplot as plt
 import utils
+import time
 
 
 class MPC:
@@ -64,6 +65,9 @@ class MPC:
 
         R = np.array([[0.0, -1.0], [1.0, 0.0]])
         self.footholds[0:2, :] = R @ self.footholds[0:2, :]
+
+        # Create the QP solver object
+        self.prob = osqp.OSQP()
 
     def update_v_ref(self, joystick):
 
@@ -671,11 +675,11 @@ class MPC:
 
         return 0
 
-    def call_solver(self, sequencer):
+    def call_solver(self, k, sequencer):
         """Create an initial guess and call the solver to solve the QP problem
         """
 
-        # Initial guess for forces (mass evenly supported by all legs in contact)
+        """# Initial guess for forces (mass evenly supported by all legs in contact)
         f_temp = np.zeros((12*self.n_steps))
         # f_temp[2::3] = 2.2 * 9.81 / np.sum(sequencer.S[0,:])
         tmp = np.array(np.sum(sequencer.S, axis=1)).ravel().astype(int)
@@ -689,10 +693,7 @@ class MPC:
         f_temp = self.x[self.xref.shape[0] * (self.xref.shape[1]-1):]
 
         # Initial guess (current state + guess for forces) to warm start the solver
-        initx = np.hstack((np.zeros((12 * self.n_steps,)), np.roll(f_temp, -12)))
-
-        # Create the QP solver object
-        prob = osqp.OSQP()
+        initx = np.hstack((np.zeros((12 * self.n_steps,)), np.roll(f_temp, -12)))"""
 
         # Stack equality and inequality matrices
         """inf_lower_bound = -np.inf * np.ones((20*self.n_steps,))
@@ -705,24 +706,21 @@ class MPC:
         self.qp_u = np.hstack([self.K, self.N.ravel()])
         print(clock() - t0)"""
 
-        self.qp_Abis = self.ML
-        self.qp_ubis = self.NK.ravel()
+        # self.qp_Abis = self.ML
+        # self.qp_ubis = self.NK.ravel()
+
         self.NK_inf[:12*self.n_steps * 2] = self.NK[:12*self.n_steps * 2, 0]
 
         # Setup the solver with the matrices and a warm start
-        prob.setup(P=self.P, q=self.Q, A=self.qp_Abis, l=self.NK_inf, u=self.qp_ubis, verbose=False)
-        prob.warm_start(x=initx)
-        """
+        if k == 0:
+            self.prob.setup(P=self.P, q=self.Q, A=self.ML, l=self.NK_inf, u=self.NK.ravel(), verbose=False)
+            # self.prob.warm_start(x=initx)
         else:  # Code to update the QP problem without creating it again
-            qp_A = scipy.sparse.vstack([G, A]).tocsc()
-            qp_l = np.hstack([l, b])
-            qp_u = np.hstack([h, b])
-            prob.update(A=qp_A, l=qp_l, u=qp_u)
-        """
+            self.prob.update(Ax=self.ML.data, l=self.NK_inf, u=self.NK.ravel())
 
         # Run the solver to solve the QP problem
         # x = solve_qp(P, q, G, h, A, b, solver='osqp')
-        self.x = prob.solve().x
+        self.x = self.prob.solve().x
 
         return 0
 
@@ -768,7 +766,7 @@ class MPC:
             self.update_matrices(sequencer, fstep_planner, mpc_interface)
 
         # Create an initial guess and call the solver to solve the QP problem
-        self.call_solver(sequencer)
+        self.call_solver(k, sequencer)
 
         # Extract relevant information from the output of the QP solver
         self.retrieve_result()
