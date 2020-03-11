@@ -334,6 +334,5 @@ class pybullet_simulator:
         pyb.setTimeStep(dt)
 
         # Change camera position
-        print(pyb.getDebugVisualizerCamera())
         pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=50, cameraPitch=-35,
                                        cameraTargetPosition=[0.0, 0.6, 0.0])

@@ -15,7 +15,7 @@ import FootTrajectoryGenerator as ftg
 import FootstepPlanner
 import pybullet as pyb
 import utils
-
+import time
 pin.switchToNumpyMatrix()
 
 
@@ -117,11 +117,11 @@ class controller:
         self.ID_feet = [None] * 4  # ID of feet links
 
         # Footstep planner object
-        self.fstep_planner = FootstepPlanner.FootstepPlanner(0.005)
+        self.fstep_planner = FootstepPlanner.FootstepPlanner(0.001)
         self.v_ref = np.zeros((6, 1))
         self.vu_m = np.zeros((6, 1))
-        self.t_stance = 0.15
-        self.T_gait = 0.3
+        self.t_stance = 0.16
+        self.T_gait = 0.32
         self.t_remaining = np.zeros((1, 4))
         self.h_ref = 0.235 - 0.01205385
 
@@ -288,8 +288,8 @@ class controller:
         x1 = self.footsteps[0, :]
         y1 = self.footsteps[1, :]
 
-        dt = 0.005  #  [s]
-        t1 = 0.15  # - dt  #  0.28  #  [s]
+        dt = 0.001  #  [s]
+        t1 = 0.16  # - dt  #  0.28  #  [s]
 
         if pair == -1:
             return 0
@@ -385,12 +385,12 @@ class controller:
         k_loop = (k_simu - 0) % looping  # 120  # 600
 
         for i_foot in [1, 2]:
-            self.t_remaining[0, i_foot] = np.max((0.0, 0.15 * (looping*0.5 - k_loop) * 0.005))
+            self.t_remaining[0, i_foot] = np.max((0.0, 0.16 * (looping*0.5 - k_loop) * 0.001))
         for i_foot in [0, 3]:
             if k_loop < int(looping*0.5):
                 self.t_remaining[0, i_foot] = 0.0
             else:
-                self.t_remaining[0, i_foot] = 0.15 * (looping - k_loop) * 0.005
+                self.t_remaining[0, i_foot] = 0.16 * (looping - k_loop) * 0.001
 
         # Get PyBullet velocity in local frame
         self.vu_m[0:2, 0:1] = mpc_interface.lV[0:2, 0:1]
@@ -880,7 +880,7 @@ class controller:
 # Parameters for the controller
 
 
-dt = 0.005				# controller time step
+dt = 0.001			# controller time step
 
 q0 = np.zeros((19, 1))  # initial configuration
 

@@ -18,11 +18,11 @@ from IPython import embed
 ########################################################################
 
 # Time step
-dt_mpc = 0.005
+dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 15500  # number of time steps simulated
+N_SIMULATION = 1000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -116,7 +116,7 @@ for k in range(int(N_SIMULATION)):
     joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
     mpc.update_v_ref(joystick)  # Retrieve reference velocity
 
-    if k > 0:
+    if (k > 0) and ((k % 20) == 0):
         sequencer.updateSequence()  # Update contact sequence
 
     if False:  # k > 0: # Feedback from TSID
@@ -182,45 +182,48 @@ for k in range(int(N_SIMULATION)):
         """if k >= 100 and k < 115:
             mpc.v[0, 0] = 0.01"""
 
-    ###########################################
-    # FOOTSTEP PLANNER & TRAJECTORY GENERATOR #
-    ###########################################
+    if (k % 20) == 0:
+        ###########################################
+        # FOOTSTEP PLANNER & TRAJECTORY GENERATOR #
+        ###########################################
 
-    # if k > 0:  # In local frame, contacts moves in the opposite direction of the base
-    # ftraj_gen.update_frame(mpc.v)  # Update contacts depending on the velocity of the base
+        # if k > 0:  # In local frame, contacts moves in the opposite direction of the base
+        # ftraj_gen.update_frame(mpc.v)  # Update contacts depending on the velocity of the base
 
-    # Update desired location of footsteps using the footsteps planner
-    fstep_planner.update_footsteps_mpc(sequencer, mpc, mpc_interface)
+        # Update desired location of footsteps using the footsteps planner
+        fstep_planner.update_footsteps_mpc(sequencer, mpc, mpc_interface)
 
-    # Update 3D desired feet pos using the trajectory generator
-    # ftraj_gen.update_desired_feet_pos(sequencer, fstep_planner, mpc)
+        # Update 3D desired feet pos using the trajectory generator
+        # ftraj_gen.update_desired_feet_pos(sequencer, fstep_planner, mpc)
 
-    ###################
-    #  MPC FUNCTIONS  #
-    ###################
+        ###################
+        #  MPC FUNCTIONS  #
+        ###################
 
-    # Run the MPC to get the reference forces and the next predicted state
-    # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
-    mpc.run(k, sequencer, fstep_planner, ftraj_gen, mpc_interface)
+        time_mpc = time.time()
 
-    # Time spent to run this iteration of the loop
-    time_spent = time.time() - time_start
+        # Run the MPC to get the reference forces and the next predicted state
+        # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
+        mpc.run((k/20), sequencer, fstep_planner, ftraj_gen, mpc_interface)
 
-    # Logging the time spent
-    t_list_mpc.append(time_spent)
+        # Time spent to run this iteration of the loop
+        time_spent = time.time() - time_mpc
 
-    # Visualisation with gepetto viewer
-    if enable_gepetto_viewer:
-        utils.display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc)
+        # Logging the time spent
+        t_list_mpc.append(time_spent)
 
-    # Get measured position and velocity after one time step (here perfect simulation)
-    """mpc.q[[0, 1]] = np.array([[0.0], [0.0]])
-    mpc.q[[2, 3, 4]] = mpc.q_next[[2, 3, 4]].copy()  # coordinates in x, y, yaw are always 0 in local frame
-    mpc.q[5] = 0.0
-    mpc.v = mpc.v_next.copy()"""
+        # Visualisation with gepetto viewer
+        if enable_gepetto_viewer:
+            utils.display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc)
 
-    # Logging various stuff
-    logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
+        # Get measured position and velocity after one time step (here perfect simulation)
+        """mpc.q[[0, 1]] = np.array([[0.0], [0.0]])
+        mpc.q[[2, 3, 4]] = mpc.q_next[[2, 3, 4]].copy()  # coordinates in x, y, yaw are always 0 in local frame
+        mpc.q[5] = 0.0
+        mpc.v = mpc.v_next.copy()"""
+
+        # Logging various stuff
+        # logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
     if False:  # k in [228]:
         fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
@@ -317,32 +320,34 @@ for k in range(int(N_SIMULATION)):
         # PYBULLET #
         ############
 
-        for i_pyb in range(5):
-            # Set control torque for all joints
-            pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,
-                                          controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
+        # Set control torque for all joints
+        pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,
+                                      controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
 
-            # Apply perturbation
-            """if k >= 50 and k < 100:
-                pyb.applyExternalForce(pyb_sim.robotId, -1, [1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
-            if k >= 150 and k < 200:
-                pyb.applyExternalForce(pyb_sim.robotId, -1, [0.0, 1.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)"""
+        # Apply perturbation
+        """if k >= 50 and k < 100:
+            pyb.applyExternalForce(pyb_sim.robotId, -1, [1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+        if k >= 150 and k < 200:
+            pyb.applyExternalForce(pyb_sim.robotId, -1, [0.0, 1.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)"""
 
-            # Compute one step of simulation
-            pyb.stepSimulation()
+        # Compute one step of simulation
+        pyb.stepSimulation()
 
         # Refresh force monitoring for PyBullet
         myForceMonitor.display_contact_forces()
-        # time.sleep(0.001)
+
+        time.sleep(0.01)
 
     # print("Whole loop:", time.time() - time_start)
 
 
-"""plt.figure(10)
+plt.figure(10)
 plt.plot(t_list_mpc, 'k+')
+plt.title("Time MPC")
 plt.figure(9)
 plt.plot(t_list_tsid, 'k+')
-plt.show(block=True)"""
+plt.title("Time TSID")
+plt.show(block=True)
 
 # Display graphs of the logger
 logger.plot_graphs(dt_mpc, N_SIMULATION, myController)
