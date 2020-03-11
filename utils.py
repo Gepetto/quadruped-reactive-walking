@@ -203,13 +203,20 @@ class pybullet_simulator:
     def __init__(self, dt=0.001):
 
         # Start the client for PyBullet
-        physicsClient = pyb.connect(pyb.DIRECT)
+        physicsClient = pyb.connect(pyb.GUI)
         # p.GUI for graphical version
         # p.DIRECT for non-graphical version
 
         # Load horizontal plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
         self.planeId = pyb.loadURDF("plane.urdf")
+
+        cubeStartPos = [0.0, 0.15, 1.0]
+        cubeStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0])
+        self.cubeId = pyb.loadURDF("cube_small.urdf",
+                                   cubeStartPos, cubeStartOrientation)
+        pyb.changeDynamics(self.cubeId, -1, mass=0.5)
+        print("Mass of cube:", pyb.getDynamicsInfo(self.cubeId, -1)[0])
 
         # Set the gravity
         pyb.setGravity(0, 0, -9.81)

@@ -22,7 +22,7 @@ dt_mpc = 0.005
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 500  # number of time steps simulated
+N_SIMULATION = 6500  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -53,12 +53,18 @@ pyb_sim = utils.pybullet_simulator(dt=dt_mpc)
 #                             Simulator                                #
 ########################################################################
 
+time.sleep(2.0)
 myController = controller(q0, omega, t, int(N_SIMULATION))
 mySafetyController = Safety_controller.controller_12dof()
 myEmergencyStop = EmergencyStop_controller.controller_12dof()
 myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
 for k in range(int(N_SIMULATION)):
+
+    if k == 500:
+        cubeStartPos = [0.05, 0.06, 1.0]
+        cubeStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0])
+        pyb.resetBasePositionAndOrientation(pyb_sim.cubeId, cubeStartPos, cubeStartOrientation)
 
     time_start = time.time()
 
