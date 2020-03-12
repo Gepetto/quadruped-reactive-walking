@@ -794,7 +794,7 @@ class controller:
                     feet = [0, 3]
                     feet_0 = [1, 2]"""
                 feet = [0, 1, 2, 3]
-                feet_stance = np.where(sequencer.S[0, :] == 1)[1]
+                feet_stance = np.where(sequencer.S[0, :] == 1)[0]
                 cpt_foot = 0
                 for i, i_foot in enumerate(feet):
                     if i_foot in feet_stance:
@@ -859,7 +859,7 @@ class controller:
             self.f_acc[i_foot, k_simu:(k_simu+1), :] = acc.vector[0:3].transpose()
 
         c_f = np.zeros((3, 4))
-        for i, j in enumerate(np.where(sequencer.S[0, :] == 1)[1]):
+        for i, j in enumerate(np.where(sequencer.S[0, :] == 1)[0]):
             c_f[:, j:(j+1)] = self.fc[(3*i):(3*(i+1))]
         self.c_forces[:, k_simu, :] = c_f.transpose()  #  self.fc.reshape((4, 3))
 

@@ -39,7 +39,7 @@ class ContactSequencer:
         phases -- phase offset for each foot compared to the default sequence
         """
 
-        t_seq = np.matrix(np.linspace(t, t+self.T_gait-self.dt, int(np.round(self.T_gait/self.dt)))).T
+        t_seq = np.linspace(t, t+self.T_gait-self.dt, int(np.round(self.T_gait/self.dt))).reshape((-1, 1))
         phases_seq = (np.hstack((t_seq, t_seq, t_seq, t_seq)) - self.phases * self.T_gait) * 2 * np.pi / self.T_gait
         self.S = (np.sin(phases_seq) >= 0).astype(float)
 
