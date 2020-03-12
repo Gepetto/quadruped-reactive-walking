@@ -26,8 +26,7 @@ class Joystick:
         self.vYawScale = 0.4/32768
 
     def update_v_ref(self, k_loop):
-
-        events = inputs.get_gamepad()
+        """events = inputs.get_gamepad()
         for event in events:
             # print(event.ev_type, event.code, event.state)
             if (event.ev_type == 'Absolute'):
@@ -39,12 +38,12 @@ class Joystick:
                     self.vYaw = event.state * self.vYawScale
                 print(- self.vY, - self.vX, - self.vYaw)
 
-        self.v_ref = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
+        self.v_ref = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T"""
 
         # Change reference velocity during the simulation (in trunk frame)
         # Moving forwards
-        """if k_loop == 200:
-            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
+        if k_loop == 200:
+            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
         """
         # Turning
         if k_loop == 1500:

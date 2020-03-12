@@ -698,6 +698,12 @@ class controller:
         # HQP PROBLEM #
         ###############
 
+        self.solve_HQP_problem(t)
+
+        return self.tau
+
+    def solve_HQP_problem(self, t):
+
         # Resolution of the HQP problem
         HQPData = self.invdyn.computeProblemData(t, self.qtsid, self.vtsid)
         self.sol = self.solver.solve(HQPData)
@@ -734,7 +740,7 @@ class controller:
             # faster than np.maximum(a_min, np.minimum(a, a_max))
             self.tau = np.clip(torques12, -t_max, t_max).flatten()
 
-        return self.tau
+        return 0
 
     def display(self, t, solo, k_simu, sequencer):
 
