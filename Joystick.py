@@ -2,6 +2,7 @@
 
 import numpy as np
 from time import clock
+import inputs
 
 
 class Joystick:
@@ -16,12 +17,34 @@ class Joystick:
         # Reference velocity in local frame
         self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
+        # Joystick variables
+        self.vX = 0.
+        self.vY = 0.
+        self.vYaw = 0.
+        self.VxScale = 0.1/32768
+        self.VyScale = 0.1/32768
+        self.vYawScale = 0.4/32768
+
     def update_v_ref(self, k_loop):
+
+        events = inputs.get_gamepad()
+        for event in events:
+            # print(event.ev_type, event.code, event.state)
+            if (event.ev_type == 'Absolute'):
+                if event.code == 'ABS_X':
+                    self.vX = event.state * self.VxScale
+                if event.code == 'ABS_Y':
+                    self.vY = event.state * self.VyScale
+                if event.code == 'ABS_RX':
+                    self.vYaw = event.state * self.vYawScale
+                print(- self.vY, - self.vX, - self.vYaw)
+
+        self.v_ref = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
 
         # Change reference velocity during the simulation (in trunk frame)
         # Moving forwards
-        if k_loop == 200:
-            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+        """if k_loop == 200:
+            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
         """
         # Turning
         if k_loop == 1500:
