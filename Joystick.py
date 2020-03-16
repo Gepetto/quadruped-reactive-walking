@@ -2,7 +2,7 @@
 
 import numpy as np
 from time import clock
-import inputs
+# import inputs
 
 
 class Joystick:

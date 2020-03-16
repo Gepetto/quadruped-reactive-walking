@@ -28,6 +28,9 @@ class FootstepPlanner:
         # Value of the gravity acceleartion
         self.g = 9.81
 
+        # Value of the maximum allowed deviation due to leg length
+        self.L = 0.06
+
         # The desired (x,y) position of footsteps
         # If a foot is in swing phase it is where it should land
         # If a foot is in stance phase is is where it should land at the end of its next swing phase
@@ -99,6 +102,9 @@ class FootstepPlanner:
             p[0, i] += (self.dt * np.cumsum(vel_cur[0, 0] * np.cos(yaw) - vel_cur[1, 0] * np.sin(yaw)))[-1]
             p[1, i] += (self.dt * np.cumsum(vel_cur[0, 0] * np.sin(yaw) + vel_cur[1, 0] * np.cos(yaw)))[-1]
 
+        # Legs have a limited length so the deviation has to be limited
+        p[0:2, :] = np.clip(p[0:2, :], -self.L, self.L)
+
         # Update target_footholds_no_lock
         self.footsteps_tsid = p  # np.tile(p, (1, 4))
 
@@ -119,8 +125,8 @@ class FootstepPlanner:
 
         # Order of feet: FL, FR, HL, HR
 
-        # Start with shoulder term
-        p = np.tile(np.array([[0], [0]]), (1, 4)) + self.shoulders  # + np.dot(R, shoulders)
+        # Initial deviation
+        p = np.zeros((2, 4))
 
         # Shift initial position of contact outwards for more stability
         # p[1, :] += np.array([0.025, -0.025, 0.025, -0.025])
@@ -154,6 +160,12 @@ class FootstepPlanner:
             p[0, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.cos(yaw) - mpc.v[1, 0] * np.sin(yaw)))[-1]
             p[1, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.sin(yaw) + mpc.v[1, 0] * np.cos(yaw)))[-1]
 
+        # Legs have a limited length so the deviation has to be limited
+        p[0:2, :] = np.clip(p[0:2, :], -self.L, self.L)
+
+        # Add shoulders
+        p[0:2, :] += self.shoulders
+
         # Update target_footholds_no_lock
         self.footsteps = mpc_interface.l_feet[0:2, :].copy()
         for i in np.where(sequencer.S[0, :] == False)[0]:
@@ -169,9 +181,6 @@ class FootstepPlanner:
         # Order of feet: FL, FR, HL, HR
 
         p = np.zeros((3, 4))
-
-        # Add shoulders
-        p[0:2, :] += self.shoulders
 
         # Add symmetry term
         p[0:2, :] += t_stance * 0.5 * v[0:2, 0:1]
@@ -199,6 +208,12 @@ class FootstepPlanner:
             yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * v_ref[5, 0]
             p[0, i] += (self.dt * np.cumsum(v[0, 0] * np.cos(yaw) - v[1, 0] * np.sin(yaw)))[-1]
             p[1, i] += (self.dt * np.cumsum(v[0, 0] * np.sin(yaw) + v[1, 0] * np.cos(yaw)))[-1]
+
+        # Legs have a limited length so the deviation has to be limited
+        p[0:2, :] = np.clip(p[0:2, :], -self.L, self.L)
+
+        # Add shoulders
+        p[0:2, :] += self.shoulders
 
         self.footsteps_prediction = p
 
