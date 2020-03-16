@@ -96,11 +96,14 @@ class FootstepPlanner:
                 t_remaining[0, i] = index * self.dt
 
         # Add velocity forecast
-        #  p += np.tile(v[0:2, 0:1], (1, 4)) * t_remaining
-        for i in range(4):
-            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * vel_ref[5, 0]
-            p[0, i] += (self.dt * np.cumsum(vel_cur[0, 0] * np.cos(yaw) - vel_cur[1, 0] * np.sin(yaw)))[-1]
-            p[1, i] += (self.dt * np.cumsum(vel_cur[0, 0] * np.sin(yaw) + vel_cur[1, 0] * np.cos(yaw)))[-1]
+        if vel_ref[5, 0] != 0:
+            p[0, :] += (vel_cur[0, 0] * np.sin(vel_ref[5, 0] * t_remaining[0, :]) +
+                        vel_cur[1, 0] * (np.cos(vel_ref[5, 0] * t_remaining[0, :]) - 1)) / vel_ref[5, 0]
+            p[1, :] += (vel_cur[1, 0] * np.sin(vel_ref[5, 0] * t_remaining[0, :]) -
+                        vel_cur[0, 0] * (np.cos(vel_ref[5, 0] * t_remaining[0, :]) - 1)) / vel_ref[5, 0]       
+        else:
+            p[0, :] += vel_cur[0, 0] * t_remaining[0, :]
+            p[1, :] += vel_cur[1, 0] * t_remaining[0, :]
 
         # Legs have a limited length so the deviation has to be limited
         p[0:2, :] = np.clip(p[0:2, :], -self.L, self.L)
@@ -154,11 +157,14 @@ class FootstepPlanner:
                 t_remaining[0, i] = index * self.dt
 
         # Add velocity forecast
-        #  p += np.tile(v[0:2, 0:1], (1, 4)) * t_remaining
-        for i in range(4):
-            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * mpc.v_ref[5, 0]
-            p[0, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.cos(yaw) - mpc.v[1, 0] * np.sin(yaw)))[-1]
-            p[1, i] += (self.dt * np.cumsum(mpc.v[0, 0] * np.sin(yaw) + mpc.v[1, 0] * np.cos(yaw)))[-1]
+        if mpc.v_ref[5, 0] != 0:
+            p[0, :] += (mpc.v[0, 0] * np.sin(mpc.v_ref[5, 0] * t_remaining[0, :]) +
+                        mpc.v[1, 0] * (np.cos(mpc.v_ref[5, 0] * t_remaining[0, :]) - 1)) / mpc.v_ref[5, 0]
+            p[1, :] += (mpc.v[1, 0] * np.sin(mpc.v_ref[5, 0] * t_remaining[0, :]) -
+                        mpc.v[0, 0] * (np.cos(mpc.v_ref[5, 0] * t_remaining[0, :]) - 1)) / mpc.v_ref[5, 0]       
+        else:
+            p[0, :] += mpc.v[0, 0] * t_remaining[0, :]
+            p[1, :] += mpc.v[1, 0] * t_remaining[0, :]
 
         # Legs have a limited length so the deviation has to be limited
         p[0:2, :] = np.clip(p[0:2, :], -self.L, self.L)
@@ -204,10 +210,14 @@ class FootstepPlanner:
                 t_remaining[0, i] = index * self.dt
 
         # Add velocity forecast
-        for i in range(4):
-            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * v_ref[5, 0]
-            p[0, i] += (self.dt * np.cumsum(v[0, 0] * np.cos(yaw) - v[1, 0] * np.sin(yaw)))[-1]
-            p[1, i] += (self.dt * np.cumsum(v[0, 0] * np.sin(yaw) + v[1, 0] * np.cos(yaw)))[-1]
+        if v_ref[5, 0] != 0:
+            p[0, :] += (v[0, 0] * np.sin(v_ref[5, 0] * t_remaining[0, :]) +
+                        v[1, 0] * (np.cos(v_ref[5, 0] * t_remaining[0, :]) - 1)) / v_ref[5, 0]
+            p[1, :] += (v[1, 0] * np.sin(v_ref[5, 0] * t_remaining[0, :]) -
+                        v[0, 0] * (np.cos(v_ref[5, 0] * t_remaining[0, :]) - 1)) / v_ref[5, 0]       
+        else:
+            p[0, :] += v[0, 0] * t_remaining[0, :]
+            p[1, :] += v[1, 0] * t_remaining[0, :]
 
         # Legs have a limited length so the deviation has to be limited
         p[0:2, :] = np.clip(p[0:2, :], -self.L, self.L)

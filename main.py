@@ -23,7 +23,7 @@ dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 2000  # number of time steps simulated
+N_SIMULATION = 4000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -338,16 +338,14 @@ for k in range(int(N_SIMULATION)):
         myForceMonitor.display_contact_forces()
 
         # Save PyBullet camera frame
-        img = pyb.getCameraImage(width=1920, height=1080, renderer=pyb.ER_BULLET_HARDWARE_OPENGL)
+        """img = pyb.getCameraImage(width=1920, height=1080, renderer=pyb.ER_BULLET_HARDWARE_OPENGL)
         if k == 0:
             newpath = r'/tmp/recording'
             if not os.path.exists(newpath):
                 os.makedirs(newpath)
-        plt.imsave('/tmp/recording/frame_'+str(k)+'.png', img[2])
+        plt.imsave('/tmp/recording/frame_'+str(k)+'.png', img[2])"""
 
     # print("Whole loop:", time.time() - time_start)
-
-quit()
 
 plt.figure(10)
 plt.plot(t_list_mpc, 'k+')
@@ -357,6 +355,8 @@ plt.plot(t_list_tsid, 'k+')
 plt.title("Time TSID")
 plt.show(block=True)
 print(np.mean(np.array(t_list_mpc)))
+
+quit()
 
 # Display graphs of the logger
 logger.plot_graphs(dt_mpc, N_SIMULATION, myController)

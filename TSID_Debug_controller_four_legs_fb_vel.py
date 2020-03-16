@@ -319,8 +319,8 @@ class controller:
             z0 += mpc_interface.mean_feet_z
 
             # Get sample object
-            footTraj = tsid.TrajectorySE3Constant("foot_traj", self.feetGoal[i_foot])
-            self.sampleFeet[i_foot] = footTraj.computeNext()
+            # footTraj = tsid.TrajectorySE3Constant("foot_traj", self.feetGoal[i_foot])
+            # self.sampleFeet[i_foot] = footTraj.computeNext()
 
             # Update desired pos, vel, acc
             self.sampleFeet[i_foot].pos(np.matrix([x0, y0, z0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)
@@ -384,52 +384,7 @@ class controller:
         looping = int(self.T_gait/dt)
         k_loop = (k_simu - 0) % looping  # 120  # 600
 
-        for i_foot in [1, 2]:
-            self.t_remaining[0, i_foot] = np.max((0.0, 0.16 * (looping*0.5 - k_loop) * 0.001))
-        for i_foot in [0, 3]:
-            if k_loop < int(looping*0.5):
-                self.t_remaining[0, i_foot] = 0.0
-            else:
-                self.t_remaining[0, i_foot] = 0.16 * (looping - k_loop) * 0.001
-
-        # Get PyBullet velocity in local frame
-        self.vu_m[0:2, 0:1] = mpc_interface.lV[0:2, 0:1]
-        self.vu_m[5, 0] = mpc_interface.lW[2, 0]
-        # np.dot(R, vmes12[0:2, 0:1])
-
-        """if k_simu == 1000:
-            self.vu_m[0:2, 0:1] = np.array([[0.0, 0.1]]).transpose()
-            self.vtsid[0:2, 0:1] = np.array([[0.0, 0.1]]).transpose()
-        elif k_simu > 1000:
-            self.vu_m[0:2, 0:1] = self.vtsid[0:2, 0:1].copy()"""
-
-        """if k_simu == 1500:
-            self.vu_m[0:2, 0:1] = np.array([[0.1, 0.0]]).transpose()
-            self.v_ref[0:2, 0:1] = np.array([[0.1, 0.0]]).transpose()"""
-
-        """if k_simu == 6000:
-            self.vu_m[0:2, 0:1] = np.array([[0.0, 0.0]]).transpose()
-            self.v_ref[0:2, 0:1] = np.array([[0.0, 0.0]]).transpose()"""
-
-        """RPY = pyb.getEulerFromQuaternion(self.qtsid[3:7])
-        c, s = np.cos(-RPY[2]), np.sin(-RPY[2])
-        R = np.array([[c, s], [-s, c]])
-        self.vtsid[0:2, 0:1] = np.dot(R, self.vu_m[0:2, 0:1])"""
-
-        # Update desired location of footsteps using the footsteps planner
-        self.fstep_planner.update_footsteps_tsid(sequencer, self.v_ref, self.vu_m, self.t_stance,
-                                                 self.t_remaining, self.T_gait, self.qtsid[2, 0])
-
-        # self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
-        for i in range(4):
-            self.footsteps[:, i:(i+1)] = mpc_interface.o_shoulders[0:2, i:(i+1)] + \
-                (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid[:, i]).T[0:2, :]
-
-        # Rotate footsteps depending on TSID orientation
-        """RPY = pyb.getEulerFromQuaternion(self.qtsid[3:7])
-        c, s = np.cos(RPY[2]), np.sin(RPY[2])
-        R = np.array([[c, s], [-s, c]])
-        self.footsteps = np.dot(R, self.footsteps)"""
+        self.update_footsteps(k_simu, k_loop, looping, sequencer, mpc_interface)
 
         #############################
         # UPDATE ROTATION ON ITSELF #
@@ -454,6 +409,7 @@ class controller:
         tmp[0, 0] = np.mean(self.footsteps[0, :])
         tmp[1, 0] = np.mean(self.footsteps[1, :])
         self.sample_com.pos(tmp)
+
         """tmp[0:3, 0] = mpc.vu[0:3, 0:1]
         self.sample_com.vel(tmp)
         mass = 2.97784899
@@ -540,33 +496,42 @@ class controller:
         # UPDATE TASKS #
         ################
 
-        # To follow a sinus in pitch then roll
-        """if k_simu >= 6000:
-            c, s = 0.2 * np.cos((k_simu - 300) * 0.001 * 2 * np.pi * 0.2 + np.pi * 0.5), \
-                0.2 * np.sin((k_simu - 300) * 0.001 * 2 * np.pi * 0.2 + np.pi * 0.5)
-            self.sampleTrunk.pos(np.matrix([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c]).T)
-            self.trunkTask.setReference(self.sampleTrunk)
-        elif k_simu >= 300:
-            c, s = 0.2 * np.cos((k_simu - 300) * 0.001 * 2 * np.pi * 0.2 + np.pi * 0.5), \
-                0.2 * np.sin((k_simu - 300) * 0.001 * 2 * np.pi * 0.2 + np.pi * 0.5)
-            self.sampleTrunk.pos(np.matrix([0.0, 0.0, 0.0, c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c]).T)
-            self.trunkTask.setReference(self.sampleTrunk)"""
+        self.update_tasks(k_simu, k_loop, looping, mpc_interface)
 
-        # To follow a sinus both in pitch and roll
-        """if k_simu >= 300:
-            c, s = 0.2 * np.cos((k_simu - 300) * 0.001 * 2 * np.pi * 0.1 + np.pi * 0.5), \
-                0.2 * np.sin((k_simu - 300) * 0.001 * 2 * np.pi * 0.1 + np.pi * 0.5)
-            R1 = np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
-            c, s = 0.2 * np.cos((k_simu - 300) * 0.001 * 2 * np.pi * 0.1 + np.pi * 0.5), \
-                0.2 * np.sin((k_simu - 300) * 0.001 * 2 * np.pi * 0.1 + np.pi * 0.5)
-            R2 = np.array([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
-            c, s = 0.2 * np.cos((k_simu - 300) * 0.001 * 2 * np.pi * 0.4 + np.pi * 0.5), \
-                0.2 * np.sin((k_simu - 300) * 0.001 * 2 * np.pi * 0.4 + np.pi * 0.5)
-            R3 = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
-            R = np.dot(R2, R1)
-            self.sampleTrunk.pos(np.matrix([0.0, 0.0, 0.0, R[0, 0], R[0, 1], R[0, 2],
-                                            R[1, 0], R[1, 1], R[1, 2], R[2, 0], R[2, 1], R[2, 2]]).T,)
-            self.trunkTask.setReference(self.sampleTrunk)"""
+        ###############
+        # HQP PROBLEM #
+        ###############
+
+        self.solve_HQP_problem(t)
+
+        return self.tau
+
+    def update_footsteps(self, k_simu, k_loop, looping, sequencer, mpc_interface):
+
+        for i_foot in [1, 2]:
+            self.t_remaining[0, i_foot] = np.max((0.0, 0.16 * (looping*0.5 - k_loop) * 0.001))
+        for i_foot in [0, 3]:
+            if k_loop < int(looping*0.5):
+                self.t_remaining[0, i_foot] = 0.0
+            else:
+                self.t_remaining[0, i_foot] = 0.16 * (looping - k_loop) * 0.001
+
+        # Get PyBullet velocity in local frame
+        self.vu_m[0:2, 0:1] = mpc_interface.lV[0:2, 0:1]
+        self.vu_m[5, 0] = mpc_interface.lW[2, 0]
+
+        # Update desired location of footsteps using the footsteps planner
+        self.fstep_planner.update_footsteps_tsid(sequencer, self.v_ref, self.vu_m, self.t_stance,
+                                                 self.t_remaining, self.T_gait, self.qtsid[2, 0])
+
+        # self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
+        for i in range(4):
+            self.footsteps[:, i:(i+1)] = mpc_interface.o_shoulders[0:2, i:(i+1)] + \
+                (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid[:, i]).T[0:2, :]
+
+        return 0
+
+    def update_tasks(self, k_simu, k_loop, looping, mpc_interface):
 
         if k_simu >= 0:
             if k_loop == 0:  # Start swing phase
@@ -693,14 +658,8 @@ class controller:
                     self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
                     self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
                     self.contacts[i_foot].setReference(pos_foot)
-
-        ###############
-        # HQP PROBLEM #
-        ###############
-
-        self.solve_HQP_problem(t)
-
-        return self.tau
+        
+        return 0
 
     def solve_HQP_problem(self, t):
 
