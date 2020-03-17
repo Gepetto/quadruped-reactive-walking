@@ -347,6 +347,8 @@ for k in range(int(N_SIMULATION)):
 
     # print("Whole loop:", time.time() - time_start)
 
+quit()
+
 plt.figure(10)
 plt.plot(t_list_mpc, 'k+')
 plt.title("Time MPC")
@@ -356,7 +358,6 @@ plt.title("Time TSID")
 plt.show(block=True)
 print(np.mean(np.array(t_list_mpc)))
 
-quit()
 
 # Display graphs of the logger
 logger.plot_graphs(dt_mpc, N_SIMULATION, myController)

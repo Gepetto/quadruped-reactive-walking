@@ -199,6 +199,8 @@ class controller:
             else:
                 self.contacts[i].setForceReference(np.matrix([0.0, 0.0, w_reg_f * 17.0]).T)
             self.contacts[i].setRegularizationTaskWeightVector(np.matrix([w_reg_f, w_reg_f, w_reg_f]).T)"""
+            self.contacts[i].setRegularizationTaskWeightVector(
+                np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
 
             # Adding the rigid contact after the reference contact force has been set
             self.invdyn.addRigidContact(self.contacts[i], self.w_forceRef)
@@ -368,14 +370,16 @@ class controller:
             # IMU estimation of orientation of the trunk
             self.qtsid[3:7] = qmes12[3:7]"""
 
-            self.qtsid = qmes12.copy()
+            """self.qtsid = qmes12.copy()
             # self.qtsid[2] -= 0.015  # 0.01205385
             self.vtsid = vmes12.copy()
 
             self.qtsid[2, 0] += mpc.q_noise[0]
             self.qtsid[3:7] = utils.getQuaternion(utils.quaternionToRPY(
                 qmes12[3:7, 0]) + np.vstack((np.array([mpc.q_noise[1:]]).transpose(), 0.0)))
-            self.vtsid[:6, 0] += mpc.v_noise
+            self.vtsid[:6, 0] += mpc.v_noise"""
+
+            self.update_state(qmes12, vmes12, mpc)
 
         #####################
         # FOOTSTEPS PLANNER #
@@ -405,10 +409,10 @@ class controller:
             tmp[0, 0] = + 0.1 * np.min((1.0, 1.0 - (2000 - k_simu) / 500))
             self.sample_com.vel(tmp)"""
 
-        tmp = self.sample_com.pos()  # Temp variable to store CoM position
+        """tmp = self.sample_com.pos()  # Temp variable to store CoM position
         tmp[0, 0] = np.mean(self.footsteps[0, :])
         tmp[1, 0] = np.mean(self.footsteps[1, :])
-        self.sample_com.pos(tmp)
+        self.sample_com.pos(tmp)"""
 
         """tmp[0:3, 0] = mpc.vu[0:3, 0:1]
         self.sample_com.vel(tmp)
@@ -475,16 +479,7 @@ class controller:
                 self.contacts[i_foot].setRegularizationTaskWeightVector(
                     np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
 
-        RPY = utils.rotationMatrixToEulerAngles(self.robot.framePosition(
-            self.invdyn.data(), self.ID_base).rotation)
-        c, s = np.cos(RPY[2]), np.sin(RPY[2])
-        self.R[:2, :2] = np.array([[c, -s], [s, c]])
-
-        for j, i_foot in enumerate([0, 1, 2, 3]):
-            self.contacts[i_foot].setForceReference(
-                self.w_reg_f * (mpc_interface.oMl.rotation @ mpc.f_applied[3*j:3*(j+1)]).T)
-            self.contacts[i_foot].setRegularizationTaskWeightVector(
-                np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
+        self.update_ref_forces(mpc_interface, mpc)
 
         """in_stance_phase = np.where(sequencer.S[0, :] == 1)
         for j, i_foot in enumerate(in_stance_phase[1]):
@@ -506,6 +501,19 @@ class controller:
 
         return self.tau
 
+    def update_state(self, qmes12, vmes12, mpc):
+
+        self.qtsid = qmes12.copy()
+        # self.qtsid[2] -= 0.015  # 0.01205385
+        self.vtsid = vmes12.copy()
+
+        self.qtsid[2, 0] += mpc.q_noise[0]
+        self.qtsid[3:7] = utils.getQuaternion(utils.quaternionToRPY(
+            qmes12[3:7, 0]) + np.vstack((np.array([mpc.q_noise[1:]]).transpose(), 0.0)))
+        self.vtsid[:6, 0] += mpc.v_noise
+
+        return 0
+
     def update_footsteps(self, k_simu, k_loop, looping, sequencer, mpc_interface):
 
         for i_foot in [1, 2]:
@@ -517,17 +525,32 @@ class controller:
                 self.t_remaining[0, i_foot] = 0.16 * (looping - k_loop) * 0.001
 
         # Get PyBullet velocity in local frame
-        self.vu_m[0:2, 0:1] = mpc_interface.lV[0:2, 0:1]
-        self.vu_m[5, 0] = mpc_interface.lW[2, 0]
+        """self.vu_m[0:2, 0:1] = mpc_interface.lV[0:2, 0:1]
+        self.vu_m[5, 0] = mpc_interface.lW[2, 0]"""
 
         # Update desired location of footsteps using the footsteps planner
-        self.fstep_planner.update_footsteps_tsid(sequencer, self.v_ref, self.vu_m, self.t_stance,
+        self.fstep_planner.update_footsteps_tsid(sequencer, self.v_ref, mpc_interface.lV[0:2, 0:1], self.t_stance,
                                                  self.t_remaining, self.T_gait, self.qtsid[2, 0])
 
         # self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
         for i in range(4):
             self.footsteps[:, i:(i+1)] = mpc_interface.o_shoulders[0:2, i:(i+1)] + \
                 (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid[:, i]).T[0:2, :]
+
+        return 0
+
+    def update_ref_forces(self, mpc_interface, mpc):
+
+        """RPY = utils.rotationMatrixToEulerAngles(self.robot.framePosition(
+            self.invdyn.data(), self.ID_base).rotation)
+        c, s = np.cos(RPY[2]), np.sin(RPY[2])
+        self.R[:2, :2] = np.array([[c, -s], [s, c]])"""
+
+        for j, i_foot in enumerate([0, 1, 2, 3]):
+            self.contacts[i_foot].setForceReference(
+                self.w_reg_f * (mpc_interface.oMl.rotation @ mpc.f_applied[3*j:3*(j+1)]).T)
+            """self.contacts[i_foot].setRegularizationTaskWeightVector(
+                np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
 
         return 0
 

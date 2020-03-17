@@ -8,8 +8,6 @@ class FootstepPlanner:
     footsteps location depending on the current and reference
     velocities of the quadruped.
 
-    :param k_feedback: A float, the gain for the feedback term of the planner
-    :param shoulders: A 2 by 4 numpy array, the position of shoulders in local frame
     :param dt: A float, time step of the contact sequence
     """
 
@@ -43,7 +41,11 @@ class FootstepPlanner:
         # To store the result of the get_prediction function
         self.footsteps_prediction = np.zeros((3, 4))
 
-    def update_footsteps_tsid(self, sequencer, vel_ref, vel_cur, t_stance, t_remaining, T, h):
+        # To store the result of the update_footsteps_tsid function
+        self.footsteps_tsid = np.zeros((3, 4))
+        self.t_remaining_tsid = np.zeros((1, 4))
+
+    def update_footsteps_tsid(self, sequencer, vel_ref, v_xy, t_stance, t_remaining, T, h):
         """Returns a 2 by 4 matrix containing the [x, y]^T position of the next desired footholds for the four feet
         For feet in a swing phase it is where they should land and for feet currently touching the ground it is
         where they should land at the end of their next swing phase
@@ -58,20 +60,21 @@ class FootstepPlanner:
 
         # Order of feet: FL, FR, HL, HR
 
-        p = np.zeros((3, 4))
+        # self.footsteps_tsid = np.zeros((3, 4))
 
         # Shift initial position of contact outwards for more stability
         # p[1, :] += np.array([0.025, -0.025, 0.025, -0.025])
 
         # Add symmetry term
-        p[0:2, :] += t_stance * 0.5 * vel_cur[0:2, 0:1]
+        self.footsteps_tsid[0:2, :] = t_stance * 0.5 * np.tile(v_xy, 4)
 
         # Add feedback term
-        p[0:2, :] += self.k_feedback * (vel_cur[0:2, 0:1] - vel_ref[0:2, 0:1])
+        self.footsteps_tsid[0:2, :] += self.k_feedback * (v_xy - vel_ref[0:2, 0:1])
 
         # Add centrifugal term
-        cross = np.cross(vel_cur[0:3, 0:1], vel_ref[3:6, 0:1], 0, 0).T
-        p[0:2, :] += 0.5 * np.sqrt(h/self.g) * cross[0:2, 0:1]
+        # cross = np.cross(vel_cur[0:3, 0:1], vel_ref[3:6, 0:1], 0, 0).T
+        self.footsteps_tsid[0:2, :] += 0.5 * np.sqrt(h/self.g) * np.array([[v_xy[1, 0] * vel_ref[5, 0]],
+                                                                           [- v_xy[0, 0] * vel_ref[5, 0]]])
 
         # Add velocity forecast
         #  p += np.tile(v[0:2, 0:1], (1, 4)) * t_remaining
@@ -84,32 +87,32 @@ class FootstepPlanner:
             p[1, i] += t_remaining[0, i] * vel_cur[1, 0]"""
 
         # Time remaining before the end of the currrent swing phase
-        t_remaining = np.zeros((1, 4))
+        self.t_remaining_tsid = np.zeros((1, 4))
         for i in range(4):
             indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
             indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
             # index = (np.where(S[:, i] == True))[0][0]
             if (sequencer.S[0, i] == True) and (sequencer.S[-1, i] == False):
-                t_remaining[0, i] = sequencer.T_gait
+                self.t_remaining_tsid[0, i] = sequencer.T_gait
             else:
                 index = (indexes_stance[indexes_stance > indexes_swing[0]])[0]
-                t_remaining[0, i] = index * self.dt
+                self.t_remaining_tsid[0, i] = index * self.dt
 
         # Add velocity forecast
         if vel_ref[5, 0] != 0:
-            p[0, :] += (vel_cur[0, 0] * np.sin(vel_ref[5, 0] * t_remaining[0, :]) +
-                        vel_cur[1, 0] * (np.cos(vel_ref[5, 0] * t_remaining[0, :]) - 1)) / vel_ref[5, 0]
-            p[1, :] += (vel_cur[1, 0] * np.sin(vel_ref[5, 0] * t_remaining[0, :]) -
-                        vel_cur[0, 0] * (np.cos(vel_ref[5, 0] * t_remaining[0, :]) - 1)) / vel_ref[5, 0]       
+            self.footsteps_tsid[0, :] += (v_xy[0, 0] * np.sin(vel_ref[5, 0] * self.t_remaining_tsid[0, :]) +
+                                          v_xy[1, 0] * (np.cos(vel_ref[5, 0] * self.t_remaining_tsid[0, :]) - 1)) / vel_ref[5, 0]
+            self.footsteps_tsid[1, :] += (v_xy[1, 0] * np.sin(vel_ref[5, 0] * self.t_remaining_tsid[0, :]) -
+                                          v_xy[0, 0] * (np.cos(vel_ref[5, 0] * self.t_remaining_tsid[0, :]) - 1)) / vel_ref[5, 0]
         else:
-            p[0, :] += vel_cur[0, 0] * t_remaining[0, :]
-            p[1, :] += vel_cur[1, 0] * t_remaining[0, :]
+            self.footsteps_tsid[0, :] += v_xy[0, 0] * self.t_remaining_tsid[0, :]
+            self.footsteps_tsid[1, :] += v_xy[1, 0] * self.t_remaining_tsid[0, :]
 
         # Legs have a limited length so the deviation has to be limited
-        p[0:2, :] = np.clip(p[0:2, :], -self.L, self.L)
+        self.footsteps_tsid[0:2, :] = np.clip(self.footsteps_tsid[0:2, :], -self.L, self.L)
 
         # Update target_footholds_no_lock
-        self.footsteps_tsid = p  # np.tile(p, (1, 4))
+        # self.footsteps_tsid = p  # np.tile(p, (1, 4))
 
         return 0
 
