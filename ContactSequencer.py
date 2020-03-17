@@ -41,12 +41,12 @@ class ContactSequencer:
 
         t_seq = np.linspace(t, t+self.T_gait-self.dt, int(np.round(self.T_gait/self.dt))).reshape((-1, 1))
         phases_seq = (np.hstack((t_seq, t_seq, t_seq, t_seq)) - self.phases * self.T_gait) * 2 * np.pi / self.T_gait
-        self.S = (np.sin(phases_seq) >= 0).astype(float)
+        self.S = (np.sin(phases_seq) >= 0).astype(int)
 
         # To have a four feet stance phase at the start
         # Likely due to numerical effect we don't have it
-        self.S[0, :] = np.ones((1, 4))
-        self.S[int(self.S.shape[0]*0.5), :] = np.ones((1, 4))
+        self.S[0, :] = np.ones((1, 4), dtype=np.int)
+        self.S[int(self.S.shape[0]*0.5), :] = np.ones((1, 4), dtype=np.int)
 
         # For 4 feet stance phase
         # self.S = np.matrix(np.ones(self.S.shape))
@@ -55,6 +55,6 @@ class ContactSequencer:
 
     def updateSequence(self):
 
-        self.S = np.vstack((self.S[1:, :], self.S[0:1, :]))
+        self.S = np.roll(self.S, -1, axis=0)
 
         return 0

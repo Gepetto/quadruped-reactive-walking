@@ -45,7 +45,7 @@ class FootstepPlanner:
         self.footsteps_tsid = np.zeros((3, 4))
         self.t_remaining_tsid = np.zeros((1, 4))
 
-    def update_footsteps_tsid(self, sequencer, vel_ref, v_xy, t_stance, t_remaining, T, h):
+    def update_footsteps_tsid(self, sequencer, vel_ref, v_xy, t_stance, T, h):
         """Returns a 2 by 4 matrix containing the [x, y]^T position of the next desired footholds for the four feet
         For feet in a swing phase it is where they should land and for feet currently touching the ground it is
         where they should land at the end of their next swing phase

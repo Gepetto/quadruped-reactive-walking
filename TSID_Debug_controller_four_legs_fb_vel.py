@@ -98,6 +98,10 @@ class controller:
         # Which pair of feet is active (0 for [1, 2] and 1 for [0, 3])
         self.pair = -1
 
+        # For update_feet_tasks function
+        self.dt = 0.001  #  [s], time step
+        self.t1 = 0.16  # [s], duration of swing phase
+
         # Rotation along the vertical axis
         delta_yaw = (2 * np.pi / 10) * t
         c, s = np.cos(delta_yaw), np.sin(delta_yaw)
@@ -287,42 +291,28 @@ class controller:
     def update_feet_tasks(self, k_loop, pair, looping, mpc_interface):
 
         # Target (x, y) positions for both feet
-        x1 = self.footsteps[0, :]
-        y1 = self.footsteps[1, :]
-
-        dt = 0.001  #  [s]
-        t1 = 0.16  # - dt  #  0.28  #  [s]
+        # x1 = self.footsteps[0, :]
+        # y1 = self.footsteps[1, :]
 
         if pair == -1:
             return 0
         elif pair == 0:
-            t0 = ((k_loop-1) / (looping*0.5-1)) * t1  #  ((k_loop-20) / 280) * t1
+            t0 = ((k_loop-1) / (looping*0.5-1)) * self.t1  #  ((k_loop-20) / 280) * t1
             feet = [1, 2]
         else:
-            t0 = ((k_loop-(looping*0.5+1)) / (looping*0.5-1)) * t1  # ((k_loop-320) / 280) * t1
+            t0 = ((k_loop-(looping*0.5+1)) / (looping*0.5-1)) * self.t1  # ((k_loop-320) / 280) * t1
             feet = [0, 3]
 
         for i_foot in feet:
 
-            # Get desired 3D position
-            """[x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
-                self.sampleFeet[i_foot].pos()[0, 0], self.sampleFeet[i_foot].vel()[
-                    0, 0], self.sampleFeet[i_foot].acc()[1, 0],
-                self.sampleFeet[i_foot].pos()[1, 0], self.sampleFeet[i_foot].vel()[
-                    1, 0], self.sampleFeet[i_foot].acc()[1, 0],
-                x1[i_foot], y1[i_foot], t0,  t1, dt)"""
-
+            # Get desired 3D position, velocity and acceleration
             [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
                 mpc_interface.o_feet[0, i_foot], mpc_interface.ov_feet[0, i_foot], mpc_interface.oa_feet[0, i_foot],
                 mpc_interface.o_feet[1, i_foot], mpc_interface.ov_feet[1, i_foot], mpc_interface.oa_feet[0, i_foot],
-                x1[i_foot], y1[i_foot], t0,  t1, dt)
+                self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0,  self.t1, self.dt)
 
             # Take into account vertical offset of Pybullet
             z0 += mpc_interface.mean_feet_z
-
-            # Get sample object
-            # footTraj = tsid.TrajectorySE3Constant("foot_traj", self.feetGoal[i_foot])
-            # self.sampleFeet[i_foot] = footTraj.computeNext()
 
             # Update desired pos, vel, acc
             self.sampleFeet[i_foot].pos(np.matrix([x0, y0, z0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)
@@ -528,7 +518,7 @@ class controller:
 
         # Update desired location of footsteps using the footsteps planner
         self.fstep_planner.update_footsteps_tsid(sequencer, self.v_ref, mpc_interface.lV[0:2, 0:1], self.t_stance,
-                                                 self.t_remaining, self.T_gait, self.qtsid[2, 0])
+                                                 self.T_gait, self.qtsid[2, 0])
 
         # self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
         """for i in range(4):
