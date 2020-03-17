@@ -516,13 +516,11 @@ class controller:
 
     def update_footsteps(self, k_simu, k_loop, looping, sequencer, mpc_interface):
 
-        for i_foot in [1, 2]:
-            self.t_remaining[0, i_foot] = np.max((0.0, 0.16 * (looping*0.5 - k_loop) * 0.001))
-        for i_foot in [0, 3]:
-            if k_loop < int(looping*0.5):
-                self.t_remaining[0, i_foot] = 0.0
-            else:
-                self.t_remaining[0, i_foot] = 0.16 * (looping - k_loop) * 0.001
+        self.t_remaining[0, [1, 2]] = np.max((0.0, 0.16 * (looping*0.5 - k_loop) * 0.001))
+        if k_loop < int(looping*0.5):
+            self.t_remaining[0, [0, 3]] = 0.0
+        else:
+            self.t_remaining[0, [0, 3]] = 0.16 * (looping - k_loop) * 0.001
 
         # Get PyBullet velocity in local frame
         """self.vu_m[0:2, 0:1] = mpc_interface.lV[0:2, 0:1]
@@ -533,9 +531,10 @@ class controller:
                                                  self.t_remaining, self.T_gait, self.qtsid[2, 0])
 
         # self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
-        for i in range(4):
+        """for i in range(4):
             self.footsteps[:, i:(i+1)] = mpc_interface.o_shoulders[0:2, i:(i+1)] + \
-                (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid[:, i]).T[0:2, :]
+                (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid[:, i]).T[0:2, :]"""
+        self.footsteps = np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
 
         return 0
 

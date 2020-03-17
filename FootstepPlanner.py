@@ -76,26 +76,16 @@ class FootstepPlanner:
         self.footsteps_tsid[0:2, :] += 0.5 * np.sqrt(h/self.g) * np.array([[v_xy[1, 0] * vel_ref[5, 0]],
                                                                            [- v_xy[0, 0] * vel_ref[5, 0]]])
 
-        # Add velocity forecast
-        #  p += np.tile(v[0:2, 0:1], (1, 4)) * t_remaining
-        """for i in range(4):
-            yaw = np.linspace(0, t_remaining[0, i]-self.dt, int(np.floor(t_remaining[0, i]/self.dt))) * vel_cur[5, 0]
-            p[0, i] += (self.dt * np.cumsum(vel_cur[0, 0] * np.cos(yaw) - vel_cur[1, 0] * np.sin(yaw)))[-1]
-            p[1, i] += (self.dt * np.cumsum(vel_cur[0, 0] * np.sin(yaw) + vel_cur[1, 0] * np.cos(yaw)))[-1]"""
-        """for i in range(4):
-            p[0, i] += t_remaining[0, i] * vel_cur[0, 0]
-            p[1, i] += t_remaining[0, i] * vel_cur[1, 0]"""
-
         # Time remaining before the end of the currrent swing phase
         self.t_remaining_tsid = np.zeros((1, 4))
         for i in range(4):
-            indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
-            indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
+            # indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
+            # indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
             # index = (np.where(S[:, i] == True))[0][0]
-            if (sequencer.S[0, i] == True) and (sequencer.S[-1, i] == False):
+            if (sequencer.S[0, i] == 1.0) and (sequencer.S[-1, i] == 0.0):
                 self.t_remaining_tsid[0, i] = sequencer.T_gait
             else:
-                index = (indexes_stance[indexes_stance > indexes_swing[0]])[0]
+                index = next((idx for idx, val in np.ndenumerate(sequencer.S[:, i]) if val==1.0), 0.0)[0]
                 self.t_remaining_tsid[0, i] = index * self.dt
 
         # Add velocity forecast
