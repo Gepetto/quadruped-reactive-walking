@@ -140,13 +140,13 @@ class FootstepPlanner:
         # Time remaining before the end of the currrent swing phase
         t_remaining = np.zeros((1, 4))
         for i in range(4):
-            indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
-            indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
+            # indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
+            # indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
             # index = (np.where(S[:, i] == True))[0][0]
-            if (sequencer.S[0, i] == True) and (sequencer.S[-1, i] == False):
+            if (sequencer.S[0, i] == 1.0) and (sequencer.S[-1, i] == 0.0):
                 t_remaining[0, i] = sequencer.T_gait
             else:
-                index = (indexes_stance[indexes_stance > indexes_swing[0]])[0]
+                index = next((idx for idx, val in np.ndenumerate(sequencer.S[:, i]) if val==1.0), 0.0)[0]
                 t_remaining[0, i] = index * self.dt
 
         # Add velocity forecast
