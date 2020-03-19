@@ -2,6 +2,7 @@
 
 import numpy as np
 from time import clock
+import gamepadClient as gC
 # import inputs
 
 
@@ -21,9 +22,11 @@ class Joystick:
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 0.1/32768
-        self.VyScale = 0.1/32768
-        self.vYawScale = 0.4/32768
+        self.VxScale = 0.1
+        self.VyScale = 0.1
+        self.vYawScale = 0.4
+
+        self.gp = gC.GamepadClient()
 
     def update_v_ref(self, k_loop):
         """events = inputs.get_gamepad()
@@ -36,14 +39,18 @@ class Joystick:
                     self.vY = event.state * self.VyScale
                 if event.code == 'ABS_RX':
                     self.vYaw = event.state * self.vYawScale
-                print(- self.vY, - self.vX, - self.vYaw)
+                print(- self.vY, - self.vX, - self.vYaw)"""
 
-        self.v_ref = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T"""
+        self.vX = self.gp.leftJoystickX.value * self.VxScale
+        self.vY = self.gp.leftJoystickY.value * self.VxScale
+        self.vYaw = self.gp.rightJoystickX.value * self.vYawScale
+        # print(- self.vY, - self.vX, - self.vYaw)
+        self.v_ref = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
 
         # Change reference velocity during the simulation (in trunk frame)
         # Moving forwards
-        if k_loop == 200:
-            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+        """if k_loop == 200:
+            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
         """
         # Turning
         if k_loop == 1500:

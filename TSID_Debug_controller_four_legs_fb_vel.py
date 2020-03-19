@@ -91,7 +91,7 @@ class controller:
         self.memory_contacts = R @ self.shoulders.copy()
 
         # Foot trajectory generator
-        max_height_feet = 0.04
+        max_height_feet = 0.05
         t_lock_before_touchdown = 0.05
         self.ftgs = [ftg.Foot_trajectory_generator(max_height_feet, t_lock_before_touchdown) for i in range(4)]
 
@@ -509,11 +509,14 @@ class controller:
 
     def update_footsteps(self, k_simu, k_loop, looping, sequencer, mpc_interface):
 
-        self.t_remaining[0, [1, 2]] = np.max((0.0, 0.16 * (looping*0.5 - k_loop) * 0.001))
+        """# self.t_remaining[0, [1, 2]] = np.max((0.0, 0.16 * (looping*0.5 - k_loop) * 0.001))
+        self.t_remaining[0, [1, 2]] = 0.16 * (looping*0.5 - k_loop) * 0.001
+        (self.t_remaining[0, [1, 2]])[self.t_remaining[0, [1, 2]] < 0.0] = 0.0
         if k_loop < int(looping*0.5):
             self.t_remaining[0, [0, 3]] = 0.0
         else:
-            self.t_remaining[0, [0, 3]] = 0.16 * (looping - k_loop) * 0.001
+            self.t_remaining[0, [0, 3]] = 0.16 * (looping - k_loop) * 0.001"""
+        self.test_tmp1(k_loop, looping)
 
         # Get PyBullet velocity in local frame
         """self.vu_m[0:2, 0:1] = mpc_interface.lV[0:2, 0:1]
@@ -527,8 +530,23 @@ class controller:
         """for i in range(4):
             self.footsteps[:, i:(i+1)] = mpc_interface.o_shoulders[0:2, i:(i+1)] + \
                 (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid[:, i]).T[0:2, :]"""
-        self.footsteps = np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
+        # self.footsteps = np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
+        self.test_tmp2(mpc_interface)
 
+        return 0
+
+    def test_tmp1(self, k_loop, looping):
+        # self.t_remaining[0, [1, 2]] = np.max((0.0, 0.16 * (looping*0.5 - k_loop) * 0.001))
+        self.t_remaining[0, [1, 2]] = 0.16 * (looping*0.5 - k_loop) * 0.001
+        (self.t_remaining[0, [1, 2]])[self.t_remaining[0, [1, 2]] < 0.0] = 0.0
+        if k_loop < int(looping*0.5):
+            self.t_remaining[0, [0, 3]] = 0.0
+        else:
+            self.t_remaining[0, [0, 3]] = 0.16 * (looping - k_loop) * 0.001
+        return 0
+
+    def test_tmp2(self, mpc_interface):
+        self.footsteps = np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
         return 0
 
     def update_ref_forces(self, mpc_interface, mpc):

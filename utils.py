@@ -210,6 +210,9 @@ class pybullet_simulator:
         # Load horizontal plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
         self.planeId = pyb.loadURDF("plane.urdf")
+        """self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")#, 
+                                     #basePosition=[-1.25, 3.5, -0.1],
+                                     #baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))"""
 
         mesh_scale = [1.0, 0.1, 0.02]
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,

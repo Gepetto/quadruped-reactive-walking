@@ -28,8 +28,8 @@ N_SIMULATION = 1000  # number of time steps simulated
 # Initialize the error for the simulation time
 time_error = False
 
-t_list_mpc = []
-t_list_tsid = []
+t_list_mpc = [0] * int(N_SIMULATION)
+t_list_tsid = [0] * int(N_SIMULATION)
 
 # Enable/Disable Gepetto viewer
 enable_gepetto_viewer = False
@@ -66,7 +66,7 @@ for k in range(int(N_SIMULATION)):
 
     time_start = time.time()
 
-    if (k % 100) == 0:
+    if (k % 1000) == 0:
         print("Iteration: ", k)
 
     ####################################################################
@@ -100,6 +100,9 @@ for k in range(int(N_SIMULATION)):
     if flag_sphere2 and (qmes12[1, 0] >= 1.1):
         pyb.resetBaseVelocity(pyb_sim.sphereId2, linearVelocity=[-3.0, 0.0, 2.0])
         flag_sphere2 = False
+
+    pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=50, cameraPitch=-35,
+                                       cameraTargetPosition=[qmes12[0, 0],qmes12[1, 0] + 0.0, 0.0])
 
     ########################
     # Update MPC interface #
@@ -211,7 +214,7 @@ for k in range(int(N_SIMULATION)):
         time_spent = time.time() - time_mpc
 
         # Logging the time spent
-        t_list_mpc.append(time_spent)
+        t_list_mpc[k] = time_spent
 
         # Visualisation with gepetto viewer
         if enable_gepetto_viewer:
@@ -315,7 +318,7 @@ for k in range(int(N_SIMULATION)):
         time_spent = time.time() - time_start
 
         # Logging the time spent
-        t_list_tsid.append(time_spent)
+        t_list_tsid[k] = time_spent
 
         ############
         # PYBULLET #
