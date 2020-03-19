@@ -82,7 +82,7 @@ class FootstepPlanner:
             # indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
             # indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
             # index = (np.where(S[:, i] == True))[0][0]
-            if (sequencer.S[0, i] == 1.0) and (sequencer.S[-1, i] == 0.0):
+            if (sequencer.S[0, i] == 1) and (sequencer.S[-1, i] == 0):
                 self.t_remaining_tsid[0, i] = sequencer.T_gait
             else:
                 index = next((idx for idx, val in np.ndenumerate(sequencer.S[:, i]) if val==1.0), 0.0)[0]
@@ -99,7 +99,8 @@ class FootstepPlanner:
             self.footsteps_tsid[1, :] += v_xy[1, 0] * self.t_remaining_tsid[0, :]
 
         # Legs have a limited length so the deviation has to be limited
-        self.footsteps_tsid[0:2, :] = np.clip(self.footsteps_tsid[0:2, :], -self.L, self.L)
+        (self.footsteps_tsid[0:2, :])[(self.footsteps_tsid[0:2, :]) > self.L] = self.L
+        (self.footsteps_tsid[0:2, :])[(self.footsteps_tsid[0:2, :]) < (-self.L)] = -self.L
 
         # Update target_footholds_no_lock
         # self.footsteps_tsid = p  # np.tile(p, (1, 4))

@@ -156,6 +156,9 @@ class controller:
         for i, name in enumerate(self.foot_frames):
             self.ID_feet[i] = self.model.getFrameId(name)
 
+        # Store a frame object to avoid creating one each time
+        self.pos_foot = self.robot.framePosition(self.invdyn.data(), self.ID_feet[0])
+
         #####################
         # LEGS POSTURE TASK #
         #####################
@@ -557,13 +560,13 @@ class controller:
                 if k_simu >= looping:  # 600:
                     for i_foot in [0, 3]:
                         # Update the position of the contacts and enable them
-                        pos_foot = self.robot.framePosition(
-                            self.invdyn.data(), self.ID_feet[i_foot])
-                        pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                        self.pos_contact[i_foot] = pos_foot.translation.transpose()
+                        """self.pos_foot = self.robot.framePosition(
+                            self.invdyn.data(), self.ID_feet[i_foot])"""
+                        self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                        self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
                         self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
                         self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                        self.contacts[i_foot].setReference(pos_foot)
+                        self.contacts[i_foot].setReference(self.pos_foot)
                         self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
 
                         # Disable both foot tracking tasks
@@ -586,13 +589,13 @@ class controller:
 
                 for i_foot in [0, 3]:
                     # Update position of contacts
-                    pos_foot = self.robot.framePosition(
-                        self.invdyn.data(), self.ID_feet[i_foot])
-                    pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                    self.pos_contact[i_foot] = pos_foot.translation.transpose()
+                    """self.pos_foot = self.robot.framePosition(
+                        self.invdyn.data(), self.ID_feet[i_foot])"""
+                    self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                    self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
                     self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
                     self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                    self.contacts[i_foot].setReference(pos_foot)
+                    self.contacts[i_foot].setReference(self.pos_foot)
 
             elif k_loop > 1 and k_loop < (looping*0.5):  # 300:
 
@@ -601,13 +604,13 @@ class controller:
 
                 for i_foot in [0, 3]:
                     # Update position of contacts
-                    pos_foot = self.robot.framePosition(
-                        self.invdyn.data(), self.ID_feet[i_foot])
-                    pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                    self.pos_contact[i_foot] = pos_foot.translation.transpose()
+                    """self.pos_foot = self.robot.framePosition(
+                        self.invdyn.data(), self.ID_feet[i_foot])"""
+                    self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                    self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
                     self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
                     self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                    self.contacts[i_foot].setReference(pos_foot)
+                    self.contacts[i_foot].setReference(self.pos_foot)
 
             elif k_loop == (looping*0.5):  # :300:
 
@@ -619,13 +622,13 @@ class controller:
 
                 for i_foot in [1, 2]:
                     # Update the position of the contacts and enable them
-                    pos_foot = self.robot.framePosition(
-                        self.invdyn.data(), self.ID_feet[i_foot])
-                    pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                    self.pos_contact[i_foot] = pos_foot.translation.transpose()
+                    """self.pos_foot = self.robot.framePosition(
+                        self.invdyn.data(), self.ID_feet[i_foot])"""
+                    self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                    self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
                     self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
                     self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                    self.contacts[i_foot].setReference(pos_foot)
+                    self.contacts[i_foot].setReference(self.pos_foot)
                     self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
 
                     # Disable both foot tracking tasks
@@ -648,13 +651,13 @@ class controller:
 
                 for i_foot in [1, 2]:
                     # Update position of contacts
-                    pos_foot = self.robot.framePosition(
-                        self.invdyn.data(), self.ID_feet[i_foot])
-                    pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                    self.pos_contact[i_foot] = pos_foot.translation.transpose()
+                    """self.pos_foot = self.robot.framePosition(
+                        self.invdyn.data(), self.ID_feet[i_foot])"""
+                    self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                    self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
                     self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
                     self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                    self.contacts[i_foot].setReference(pos_foot)
+                    self.contacts[i_foot].setReference(self.pos_foot)
 
             else:
 
@@ -663,13 +666,13 @@ class controller:
 
                 for i_foot in [1, 2]:
                     # Update position of contacts
-                    pos_foot = self.robot.framePosition(
-                        self.invdyn.data(), self.ID_feet[i_foot])
-                    pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                    self.pos_contact[i_foot] = pos_foot.translation.transpose()
+                    """self.pos_foot = self.robot.framePosition(
+                        self.invdyn.data(), self.ID_feet[i_foot])"""
+                    self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                    self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
                     self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
                     self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                    self.contacts[i_foot].setReference(pos_foot)
+                    self.contacts[i_foot].setReference(self.pos_foot)
         
         return 0
 
@@ -732,11 +735,11 @@ class controller:
             for i in range(0, 4):
                 if (t == 0):
                     solo.viewer.gui.addSphere("world/sphere"+str(i)+"_pos", .02, rgbt)  # .1 is the radius
-                pos_foot = self.robot.framePosition(self.invdyn.data(), self.ID_feet[i])
+                self.pos_foot = self.robot.framePosition(self.invdyn.data(), self.ID_feet[i])
                 solo.viewer.gui.applyConfiguration(
-                    "world/sphere"+str(i)+"_pos", (pos_foot.translation[0, 0],
-                                                   pos_foot.translation[1, 0],
-                                                   pos_foot.translation[2, 0], 1., 0., 0., 0.))
+                    "world/sphere"+str(i)+"_pos", (self.pos_foot.translation[0, 0],
+                                                   self.pos_foot.translation[1, 0],
+                                                   self.pos_foot.translation[2, 0], 1., 0., 0., 0.))
 
             # Display target 3D positions of footholds with green spheres (gepetto gui)
             rgbt = [0.0, 0.0, 1.0, 0.5]
