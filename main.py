@@ -28,8 +28,10 @@ N_SIMULATION = 1000  # number of time steps simulated
 # Initialize the error for the simulation time
 time_error = False
 
+# Lists to log the duration of 1 iteration of the MPC/TSID
 t_list_mpc = [0] * int(N_SIMULATION)
 t_list_tsid = [0] * int(N_SIMULATION)
+t_list_state = [0] * int(N_SIMULATION)
 
 # Enable/Disable Gepetto viewer
 enable_gepetto_viewer = False
@@ -42,29 +44,36 @@ joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = util
 #                            Gepetto viewer                            #
 ########################################################################
 
+# Initialisation of the Gepetto viewer
 solo = utils.init_viewer()
 
 ########################################################################
 #                              PyBullet                                #
 ########################################################################
 
+# Initialisation of the PyBullet simulator
 pyb_sim = utils.pybullet_simulator(dt=0.001)
+
+# Flag to launch the two spheres in the environment toward the robot
 flag_sphere1 = True
 flag_sphere2 = True
+
+# Force monitor to display contact forces in PyBullet with red lines
+myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
 ########################################################################
 #                             Simulator                                #
 ########################################################################
 
-time.sleep(2.0)
+# Define the default controller as well as emergency and safety controller
 myController = controller(q0, omega, t, int(N_SIMULATION))
 mySafetyController = Safety_controller.controller_12dof()
 myEmergencyStop = EmergencyStop_controller.controller_12dof()
-myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
 for k in range(int(N_SIMULATION)):
 
-    time_start = time.time()
+    # Starting time of the whole iteration
+    time_start_all = time.time()
 
     if (k % 1000) == 0:
         print("Iteration: ", k)
@@ -73,34 +82,28 @@ for k in range(int(N_SIMULATION)):
     #                 Data collection from PyBullet                    #
     ####################################################################
 
+    # Retrieve data from the simulation
     jointStates = pyb.getJointStates(pyb_sim.robotId, pyb_sim.revoluteJointIndices)  # State of all joints
     baseState = pyb.getBasePositionAndOrientation(pyb_sim.robotId)  # Position and orientation of the trunk
     baseVel = pyb.getBaseVelocity(pyb_sim.robotId)  # Velocity of the trunk
-
-    test1 = pyb.getEulerFromQuaternion(np.array([baseState[1]]).T)
-    test1 = [test1[0], test1[1], test1[2] + 3.1415 * 0.5]
-    test2 = pyb.getQuaternionFromEuler(test1)
 
     # Joints configuration and velocity vector for free-flyer + 12 actuators
     qmes12 = np.vstack((np.array([baseState[0]]).T, np.array([baseState[1]]).T,
                         np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
     vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
                         np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))
-    """if k > 50:
-        # Joints configuration and velocity vector for free-flyer + 12 actuators
-        qmes12 = np.vstack((np.array([baseState[0]]).T, np.array([test2]).transpose(),  # np.array([baseState[1]]).T,
-                            np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
-        vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
-                            np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))"""
 
+    # Check if the robot is in front of the first sphere to trigger it
     if flag_sphere1 and (qmes12[1, 0] >= 0.9):
         pyb.resetBaseVelocity(pyb_sim.sphereId1, linearVelocity=[3.0, 0.0, 2.0])
         flag_sphere1 = False
 
+    # Check if the robot is in front of the second sphere to trigger it
     if flag_sphere2 and (qmes12[1, 0] >= 1.1):
         pyb.resetBaseVelocity(pyb_sim.sphereId2, linearVelocity=[-3.0, 0.0, 2.0])
         flag_sphere2 = False
 
+    # Update the PyBullet camera on the robot position to do as if it was attached to the robot
     pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=50, cameraPitch=-35,
                                        cameraTargetPosition=[qmes12[0, 0],qmes12[1, 0] + 0.0, 0.0])
 
@@ -108,10 +111,12 @@ for k in range(int(N_SIMULATION)):
     # Update MPC interface #
     ########################
 
-    """if k > 0:
-        qmes12[:, :] = myController.qtsid
-        vmes12[:, :] = myController.vtsid"""
+    t_0 = time.time()
+    
+    # Call the mpc_interface that makes the interface between the simulation and the MPC/TSID
     mpc_interface.update(solo, qmes12, vmes12)
+
+    t_list_state[k] = time.time() - t_0
 
     #######################################################
     #                 Update MPC state                    #
@@ -120,72 +125,18 @@ for k in range(int(N_SIMULATION)):
     joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
     mpc.update_v_ref(joystick)  # Retrieve reference velocity
 
+    # Update contact sequence once every 20 iterations of TSID
     if (k > 0) and ((k % 20) == 0):
-        sequencer.updateSequence()  # Update contact sequence
+        sequencer.updateSequence()
 
-    if False:  # k > 0: # Feedback from TSID
-        RPY = utils.rotationMatrixToEulerAngles(myController.robot.framePosition(
-            myController.invdyn.data(), myController.model.getFrameId("base_link")).rotation)
-        """settings.qu_m[2] = myController.robot.framePosition(
-                myController.invdyn.data(), myController.model.getFrameId("base_link")).translation[2, 0]"""
-
-        # RPY[1] *= -1  # Pitch is inversed
-
-        mpc.q[0:2, 0] = np.array([0.0, 0.0])
-        mpc.q[2] = myController.robot.com(myController.invdyn.data())[2].copy()
-        mpc.q[3:5, 0] = RPY[0:2]
-        mpc.q[5, 0] = 0.0
-        mpc.v[0:3, 0:1] = myController.robot.com_vel(myController.invdyn.data()).copy()
-        mpc.v[3:6, 0:1] = myController.vtsid[3:6, 0:1].copy()
-
-        """if k >= 100 and k < 115:
-            mpc.v[1, 0] = 0.01
-        """
-        """if k == 200:
-            mpc.v[0, 0] += 0.1
-        if k == 400:
-            mpc.v[1, 0] += 0.1
-        if k == 600:
-            mpc.v[2, 0] += 0.1
-        if k == 800:
-            mpc.v[3, 0] += 0.05
-        if k == 1000:
-            mpc.v[4, 0] += 0.05
-        if k == 1200:
-            mpc.v[5, 0] += 0.05"""
-
-        # settings.vu_m[4] *= -1  # Pitch is inversed
-
-        # Add random noise
-        """mpc.q[2:5, 0] += np.random.normal(0.00 * np.array([0.001, 0.001, 0.001]), scale=np.array([0.001, 0.001, 0.001]))
-        mpc.v[:, 0] += np.random.normal(0.00 * np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]),
-                                        scale=np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))"""
-
-    if k > 0:  # Feedback from PyBullet
-        """mpc.q[0:2, 0] = np.array([0.0, 0.0])
-        mpc.q[2] = qmes12[2] - 0.0323
-        mpc.q[3:5, 0] = utils.quaternionToRPY(qmes12[3:7, 0])[0:2, 0]
-        mpc.q[5, 0] = 0.0
-        mpc.v[0:6, 0:1] = vmes12[0:6, 0:1]"""
-
-        # Retrieve data from mpc_interface
+    # Update MPC's state vectors by retrieving information from the mpc_interface
+    if k > 0:
         mpc.q[0:3, 0:1] = mpc_interface.lC
         mpc.q[3:6, 0:1] = mpc_interface.abg
-        # mpc.q[4, 0] *= -1
         mpc.v[0:3, 0:1] = mpc_interface.lV
         mpc.v[3:6, 0:1] = mpc_interface.lW
 
-        # Add random noise
-        mpc.q_noise = np.random.normal(0.00 * np.array([0.001, 0.001, 0.001]),
-                                       scale=0.0*np.array([0.001, 0.001, 0.001]))
-        mpc.v_noise = np.random.normal(0.00 * np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]),
-                                       scale=0.0*np.array([0.01, 0.01, 0.01, 0.001, 0.001, 0.001]))
-        mpc.q[2:5, 0] += mpc.q_noise
-        mpc.v[:, 0] += mpc.v_noise
-
-        """if k >= 100 and k < 115:
-            mpc.v[0, 0] = 0.01"""
-
+    # Run MPC once every 20 iterations of TSID
     if (k % 20) == 0:
         ###########################################
         # FOOTSTEP PLANNER & TRAJECTORY GENERATOR #
@@ -210,7 +161,7 @@ for k in range(int(N_SIMULATION)):
         # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
         mpc.run((k/20), sequencer, fstep_planner, ftraj_gen, mpc_interface)
 
-        # Time spent to run this iteration of the loop
+        # Time spent to run this iteration of the MPC
         time_spent = time.time() - time_mpc
 
         # Logging the time spent
@@ -219,12 +170,6 @@ for k in range(int(N_SIMULATION)):
         # Visualisation with gepetto viewer
         if enable_gepetto_viewer:
             utils.display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc)
-
-        # Get measured position and velocity after one time step (here perfect simulation)
-        """mpc.q[[0, 1]] = np.array([[0.0], [0.0]])
-        mpc.q[[2, 3, 4]] = mpc.q_next[[2, 3, 4]].copy()  # coordinates in x, y, yaw are always 0 in local frame
-        mpc.q[5] = 0.0
-        mpc.v = mpc.v_next.copy()"""
 
         # Logging various stuff
         # logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
@@ -283,8 +228,9 @@ for k in range(int(N_SIMULATION)):
 
         embed()
 
-    if k >= 245:
-        debug = 1
+    ##############
+    # TSID BLOCK #
+    ##############
 
     for i in range(1):
 
@@ -338,7 +284,7 @@ for k in range(int(N_SIMULATION)):
         pyb.stepSimulation()
 
         # Refresh force monitoring for PyBullet
-        myForceMonitor.display_contact_forces()
+        # myForceMonitor.display_contact_forces()
 
         # Save PyBullet camera frame
         """img = pyb.getCameraImage(width=1920, height=1080, renderer=pyb.ER_BULLET_HARDWARE_OPENGL)
@@ -348,20 +294,23 @@ for k in range(int(N_SIMULATION)):
                 os.makedirs(newpath)
         plt.imsave('/tmp/recording/frame_'+str(k)+'.png', img[2])"""
 
-    # print("Whole loop:", time.time() - time_start)
+####################
+# END OF MAIN LOOP #
+####################
 
+print(np.mean(t_list_state))
+quit()
 
-
-plt.figure(10)
+plt.figure()
 plt.plot(t_list_mpc, 'k+')
 plt.title("Time MPC")
-plt.figure(9)
+
+plt.figure()
 plt.plot(t_list_tsid, 'k+')
 plt.title("Time TSID")
 plt.show(block=True)
-print(np.mean(np.array(t_list_mpc)))
 
-quit()
+
 
 # Display graphs of the logger
 logger.plot_graphs(dt_mpc, N_SIMULATION, myController)

@@ -372,7 +372,7 @@ class controller:
                 qmes12[3:7, 0]) + np.vstack((np.array([mpc.q_noise[1:]]).transpose(), 0.0)))
             self.vtsid[:6, 0] += mpc.v_noise"""
 
-            self.update_state(qmes12, vmes12, mpc)
+            self.update_state(qmes12, vmes12)
 
         #####################
         # FOOTSTEPS PLANNER #
@@ -494,16 +494,11 @@ class controller:
 
         return self.tau
 
-    def update_state(self, qmes12, vmes12, mpc):
+    def update_state(self, qmes12, vmes12):
 
         self.qtsid = qmes12.copy()
         # self.qtsid[2] -= 0.015  # 0.01205385
         self.vtsid = vmes12.copy()
-
-        self.qtsid[2, 0] += mpc.q_noise[0]
-        self.qtsid[3:7] = utils.getQuaternion(utils.quaternionToRPY(
-            qmes12[3:7, 0]) + np.vstack((np.array([mpc.q_noise[1:]]).transpose(), 0.0)))
-        self.vtsid[:6, 0] += mpc.v_noise
 
         return 0
 
