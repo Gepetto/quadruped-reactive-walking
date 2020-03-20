@@ -334,9 +334,10 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qmes12, vmes12, t, k_simu, solo, mpc, sequencer, mpc_interface):
+    def control(self, qmes12, vmes12, t, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied):
 
-        self.v_ref = mpc.v_ref
+        self.v_ref = v_ref
+        self.f_applied = f_applied
 
         if k_simu == 0:
             self.qtsid = qmes12
@@ -472,7 +473,7 @@ class controller:
                 self.contacts[i_foot].setRegularizationTaskWeightVector(
                     np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
 
-        self.update_ref_forces(mpc_interface, mpc)
+        self.update_ref_forces(mpc_interface)
 
         """in_stance_phase = np.where(sequencer.S[0, :] == 1)
         for j, i_foot in enumerate(in_stance_phase[1]):
@@ -544,7 +545,7 @@ class controller:
         self.footsteps = np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
         return 0
 
-    def update_ref_forces(self, mpc_interface, mpc):
+    def update_ref_forces(self, mpc_interface):
 
         """RPY = utils.rotationMatrixToEulerAngles(self.robot.framePosition(
             self.invdyn.data(), self.ID_base).rotation)
@@ -553,7 +554,7 @@ class controller:
 
         for j, i_foot in enumerate([0, 1, 2, 3]):
             self.contacts[i_foot].setForceReference(
-                self.w_reg_f * (mpc_interface.oMl.rotation @ mpc.f_applied[3*j:3*(j+1)]).T)
+                self.w_reg_f * (mpc_interface.oMl.rotation @ self.f_applied[3*j:3*(j+1)]).T)
             """self.contacts[i_foot].setRegularizationTaskWeightVector(
                 np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
 

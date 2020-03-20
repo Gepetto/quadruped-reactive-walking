@@ -88,7 +88,7 @@ class MPC:
 
         return 0
 
-    def getRefStates(self, k, sequencer, mpc_interface):
+    def getRefStates(self, k):
         """Returns the reference trajectory of the robot for each time step of the
         predition horizon. The ouput is a matrix of size 12 by N with N the number
         of time steps (around T_gait / dt) and 12 the position / orientation /
@@ -102,7 +102,7 @@ class MPC:
         """
 
         # Update x and y velocities taking into account the rotation of the base over the prediction horizon
-        yaw = np.linspace(0, sequencer.T_gait-self.dt, self.n_steps) * self.v_ref[5, 0]
+        yaw = np.linspace(0, self.T_gait-self.dt, self.n_steps) * self.v_ref[5, 0]
         self.xref[6, 1:] = self.v_ref[0, 0] * np.cos(yaw) - self.v_ref[1, 0] * np.sin(yaw)
         self.xref[7, 1:] = self.v_ref[0, 0] * np.sin(yaw) + self.v_ref[1, 0] * np.cos(yaw)
 
@@ -111,8 +111,8 @@ class MPC:
         self.xref[1, 1:] = self.dt * np.cumsum(self.xref[7, 1:])
 
         # Start from position of the CoM in local frame
-        self.xref[0, 1:] += mpc_interface.lC[0, 0]
-        self.xref[1, 1:] += mpc_interface.lC[1, 0]
+        self.xref[0, 1:] += self.lC[0, 0]
+        self.xref[1, 1:] += self.lC[1, 0]
 
         # Desired height is supposed constant so we only need to set it once
         if k == 0:
@@ -122,7 +122,7 @@ class MPC:
         # No need to update roll and roll velocity as the reference is always 0 for those
         # No need to update pitch and pitch velocity as the reference is always 0 for those
         # Update yaw and yaw velocity
-        dt_vector = np.linspace(self.dt, sequencer.T_gait, self.n_steps)
+        dt_vector = np.linspace(self.dt, self.T_gait, self.n_steps)
         self.xref[5, 1:] = self.v_ref[5, 0] * dt_vector
         self.xref[11, 1:] = self.v_ref[5, 0]
 
@@ -155,7 +155,7 @@ class MPC:
 
         return 0
 
-    def create_matrices(self, sequencer):
+    def create_matrices(self):
         """
         Create the constraint matrices of the MPC (M.X = N and L.X <= K)
         Create the weight matrices P and Q of the MPC solver (cost 1/2 x^T * P * X + X^T * Q)
@@ -167,7 +167,7 @@ class MPC:
         self.create_L()
         self.create_K()"""
 
-        self.create_ML(sequencer)
+        self.create_ML()
         self.create_NK()
         """print("ML equal M stacked L: ", np.array_equal(np.vstack((self.M, self.L)), self.ML.toarray()))
         print("NK equal N stacked K: ", np.array_equal(np.vstack((self.N, np.array([self.K]).transpose())), self.NK))"""
@@ -285,7 +285,7 @@ class MPC:
 
         return 0
 
-    def create_ML(self, sequencer):
+    def create_ML(self):
         """ Create the M and L matrices involved in the MPC constraint equations M.X = N and L.X <= K """
 
         # Create matrix ML
@@ -370,7 +370,7 @@ class MPC:
             self.ML.data[self.i_update_B + i_iter] = self.B[self.i_x_B, self.i_y_B]
 
         # Update state of legs
-        self.ML.data[self.i_update_S] = (1 - np.repeat(sequencer.S.reshape((-1,)), 3)).ravel()
+        self.ML.data[self.i_update_S] = (1 - np.repeat(self.S.reshape((-1,)), 3)).ravel()
 
         return 0
 
@@ -471,7 +471,7 @@ class MPC:
 
         return 0
 
-    def update_matrices(self, sequencer, fstep_planner, mpc_interface):
+    def update_matrices(self):
         """Update the M, N, L and K constraint matrices depending on what happened
         """
 
@@ -480,7 +480,7 @@ class MPC:
         # - I_inv changes if the reference velocity vector is modified
         # - footholds need to be enabled/disabled depending on the contact sequence
         # self.update_M(sequencer, fstep_planner, mpc_interface)
-        self.update_ML(sequencer, fstep_planner, mpc_interface)
+        self.update_ML()
 
         # N need to be updated between each iteration:
         # - X0 changes since the robot moves
@@ -564,19 +564,17 @@ class MPC:
 
         return 0
 
-    def update_ML(self, sequencer, fstep_planner, mpc_interface):
+    def update_ML(self):
 
         # fth_w = np.zeros((4, self.n_steps, 3))
 
         # self.footholds contains the current position of feet in local frame
         future_fth = self.footholds.copy()
-        # S_tmp = sequencer.S.copy()
+        # S_tmp = self.S.copy()
 
         # Put the future position of feet in swing phase in tmp
-        fstep_planner.get_prediction(sequencer.S, sequencer.t_stance,
-                                     sequencer.T_gait, self.q, self.v, self.v_ref)
-        for i in np.where(sequencer.S[0, :] == False)[0]:
-            future_fth[:, i] = fstep_planner.footsteps_prediction[:, i]
+        for i in np.where(self.S[0, :] == False)[0]:
+            future_fth[:, i] = self.footsteps_prediction[:, i]
 
         # print("####")
         # print(future_fth[0, :])
@@ -588,7 +586,7 @@ class MPC:
         """c, s = np.cos(self.xref[5, 1]), np.sin(self.xref[5, 1])
         R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
         I_inv = np.linalg.inv(np.dot(R, self.gI))"""
-        c, s = np.cos(self.xref[5, :]), np.sin(self.xref[5, :])
+        """c, s = np.cos(self.xref[5, :]), np.sin(self.xref[5, :])
         for k in range(self.n_steps):
             # Get inverse of the inertia matrix for time step k
             R = np.array([[c[k], -s[k], 0], [s[k], c[k], 0], [0, 0, 1.0]])
@@ -596,14 +594,29 @@ class MPC:
 
             if k > 0:
                 # S_tmp = np.roll(S_tmp, -1, axis=0)
-                update = np.where((sequencer.S[(k % self.n_steps), :] == False) & (sequencer.S[k-1, :] == True))[0]
+                update = np.where((self.S[(k % self.n_steps), :] == False) & (self.S[k-1, :] == True))[0]
 
                 if np.any(update):
-                    fstep_planner.get_prediction(np.roll(sequencer.S, -k, axis=0), sequencer.t_stance,
-                                                 sequencer.T_gait, self.q, self.v, self.v_ref)
+                    fstep_planner.get_prediction(np.roll(self.S, -k, axis=0), self.t_stance,
+                                                 self.T_gait, self.q, self.v, self.v_ref)
                     T = (self.xref[0:3, k] - self.xref[0:3, 0])
                     for i in update:
-                        future_fth[0:2, i] = (np.dot(R, fstep_planner.footsteps_prediction[:, i]) + T)[0:2]
+                        future_fth[0:2, i] = (np.dot(R, fstep_planner.footsteps_prediction[:, i]) + T)[0:2]"""
+
+        i_update = 0
+        c, s = np.cos(self.xref[5, :]), np.sin(self.xref[5, :])
+        for k in range(self.n_steps):
+            # Get inverse of the inertia matrix for time step k
+            R = np.array([[c[k], -s[k], 0], [s[k], c[k], 0], [0, 0, 1.0]])
+            I_inv = np.linalg.inv(np.dot(R, self.gI))
+
+            if k > 0:
+                update = np.where((self.S[(k % self.n_steps), :] == False) & (self.S[k-1, :] == True))[0]
+                if np.any(update):
+                    for i in update:
+                        future_fth[0:2, i] = (self.future_update[i_update])[0:2, i]
+                    i_update += 1
+
 
             # print(future_fth[0, :])
 
@@ -626,10 +639,10 @@ class MPC:
         # Update lines to enable/disable forces
         """self.ML[np.arange(12*self.n_steps, 12*self.n_steps*2, 1),
                 np.arange(12*self.n_steps, 12*self.n_steps*2, 1)] = scipy.sparse.csc.csc_matrix(tmp, shape=tmp.shape)"""
-        self.ML.data[self.i_update_S] = 1 - np.repeat(sequencer.S.reshape((-1,)), 3)
+        self.ML.data[self.i_update_S] = 1 - np.repeat(self.S.reshape((-1,)), 3)
 
         """self.ML.data[(66*self.n_steps-18):((66*self.n_steps-18)+12*self.n_steps)
-                     ] = (1 - np.repeat(sequencer.S.reshape((-1,)), 3)).ravel()"""
+                     ] = (1 - np.repeat(self.S.reshape((-1,)), 3)).ravel()"""
 
         """plt.figure()
         for i in range(4):
@@ -681,7 +694,7 @@ class MPC:
 
         return 0
 
-    def call_solver(self, k, sequencer):
+    def call_solver(self, k):
         """Create an initial guess and call the solver to solve the QP problem
         """
 
@@ -758,21 +771,43 @@ class MPC:
         if k > 0:
             self.n_contacts = np.roll(self.n_contacts, -1, axis=0)
 
-        # Get the reference trajectory over the prediction horizon
-        self.getRefStates(k, sequencer, mpc_interface)
+        # Retrieve data required for the MPC
+        self.S = sequencer.S
+        self.T_gait = sequencer.T_gait
+        self.t_stance = sequencer.t_stance
+        self.lC = mpc_interface.lC
+        self.footholds[0:2, :] = mpc_interface.l_feet[0:2, :]
 
-        # Retrieve data from FootstepPlanner and FootTrajectoryGenerator
-        self.retrieve_data(fstep_planner, ftraj_gen, mpc_interface)
+        fstep_planner.get_prediction(self.S, self.t_stance,
+                                     self.T_gait, self.q, self.v, self.v_ref)
+        self.footsteps_prediction = fstep_planner.footsteps_prediction
+        
+        self.getRefStates(k) # Get the reference trajectory over the prediction horizon
+
+        self.future_update = []
+        c, s = np.cos(self.xref[5, :]), np.sin(self.xref[5, :])
+        for j in range(self.n_steps):
+            R = np.array([[c[j], -s[j], 0], [s[j], c[j], 0], [0, 0, 1.0]])
+            if j > 0:
+                update = np.where((self.S[(j % self.n_steps), :] == False) & (self.S[j-1, :] == True))[0]
+                if np.any(update):
+                    fstep_planner.get_prediction(np.roll(self.S, -j, axis=0), self.t_stance,
+                                                 self.T_gait, self.q, self.v, self.v_ref)
+                    T = (self.xref[0:3, j] - self.xref[0:3, 0])
+                    future_fth = np.zeros((2, 4))
+                    for i in update:
+                        future_fth[0:2, i] = (np.dot(R, fstep_planner.footsteps_prediction[:, i]) + T)[0:2]
+                    self.future_update.append(future_fth)   
 
         # Create the constraint and weight matrices used by the QP solver
         # Minimize x^T.P.x + x^T.Q with constraints M.X == N and L.X <= K
         if k == 0:
-            self.create_matrices(sequencer)
+            self.create_matrices()
         else:
-            self.update_matrices(sequencer, fstep_planner, mpc_interface)
+            self.update_matrices()
 
         # Create an initial guess and call the solver to solve the QP problem
-        self.call_solver(k, sequencer)
+        self.call_solver(k)
 
         # Extract relevant information from the output of the QP solver
         self.retrieve_result()

@@ -112,7 +112,7 @@ for k in range(int(N_SIMULATION)):
     ########################
 
     t_0 = time.time()
-    
+
     # Call the mpc_interface that makes the interface between the simulation and the MPC/TSID
     mpc_interface.update(solo, qmes12, vmes12)
 
@@ -173,6 +173,8 @@ for k in range(int(N_SIMULATION)):
 
         # Logging various stuff
         # logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
+
+        f_applied = mpc.f_applied
 
     if False:  # k in [228]:
         fc = mpc.x[mpc.xref.shape[0] * (mpc.xref.shape[1]-1):].reshape((12, -1), order='F')
@@ -254,8 +256,8 @@ for k in range(int(N_SIMULATION)):
             myController = myEmergencyStop"""
 
         # Retrieve the joint torques from the appropriate controller
-        jointTorques = myController.control(qmes12, vmes12, t, i+k, solo, mpc,
-                                            sequencer, mpc_interface).reshape((12, 1))
+        jointTorques = myController.control(qmes12, vmes12, t, i+k, solo,
+                                            sequencer, mpc_interface, joystick.v_ref, f_applied).reshape((12, 1))
 
         # Time incrementation
         t += dt
@@ -299,7 +301,6 @@ for k in range(int(N_SIMULATION)):
 ####################
 
 print(np.mean(t_list_state))
-quit()
 
 plt.figure()
 plt.plot(t_list_mpc, 'k+')
@@ -310,7 +311,7 @@ plt.plot(t_list_tsid, 'k+')
 plt.title("Time TSID")
 plt.show(block=True)
 
-
+quit()
 
 # Display graphs of the logger
 logger.plot_graphs(dt_mpc, N_SIMULATION, myController)
