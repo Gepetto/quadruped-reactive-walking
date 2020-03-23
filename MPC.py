@@ -15,7 +15,7 @@ class MPC:
 
     """
 
-    def __init__(self, dt, sequencer):
+    def __init__(self, dt, n_steps, n_contacts):
 
         # Time step of the MPC solver
         self.dt = dt
@@ -30,7 +30,7 @@ class MPC:
         self.mu = 1
 
         # Number of time steps in the prediction horizon
-        self.n_steps = sequencer.S.shape[0]
+        self.n_steps = n_steps
 
         # Reference trajectory matrix of size 12 by (1 + N)  with the current state of
         # the robot in column 0 and the N steps of the prediction horizon in the others
@@ -55,7 +55,7 @@ class MPC:
         self.h_ref = self.q[2, 0]
 
         # Get number of feet in contact with the ground for each step of the gait sequence
-        self.n_contacts = np.sum(sequencer.S, axis=1).astype(int)
+        self.n_contacts = n_contacts
 
         # Initial position of footholds in the "straight standing" default configuration
         self.footholds = np.array(
@@ -765,24 +765,38 @@ class MPC:
 
         return 0
 
-    def run(self, k, sequencer, fstep_planner, ftraj_gen, mpc_interface):
+    # def run(self, k, sequencer, fstep_planner, ftraj_gen, mpc_interface):
+    # run(self, k, sequencer.S, sequencer.T_gait, sequencer.t_stance, mpc_interface.lC, mpc_interface.l_feet, fstep_planner.footsteps_prediction):
+    def run(self, k, S, T_gait, t_stance, lC, abg, lV, lW, l_feet, footsteps_prediction, future_update, xref, x0):
+
+        # Update MPC's state vectors by retrieving information from the mpc_interface
+        if k > 0:
+            self.q[0:3, 0:1] = lC
+            self.q[3:6, 0:1] = abg
+            self.v[0:3, 0:1] = lV
+            self.v[3:6, 0:1] = lW
 
         # Get number of feet in contact with the ground for each step of the gait sequence
         if k > 0:
             self.n_contacts = np.roll(self.n_contacts, -1, axis=0)
 
         # Retrieve data required for the MPC
-        self.S = sequencer.S
-        self.T_gait = sequencer.T_gait
-        self.t_stance = sequencer.t_stance
-        self.lC = mpc_interface.lC
-        self.footholds[0:2, :] = mpc_interface.l_feet[0:2, :]
+        self.S = S
+        self.T_gait = T_gait
+        self.t_stance = t_stance
+        self.lC = lC
+        self.footholds[0:2, :] = l_feet[0:2, :]
 
-        fstep_planner.get_prediction(self.S, self.t_stance,
-                                     self.T_gait, self.q, self.v, self.v_ref)
-        self.footsteps_prediction = fstep_planner.footsteps_prediction
-        
-        self.getRefStates(k) # Get the reference trajectory over the prediction horizon
+        #fstep_planner.get_prediction(self.S, self.t_stance,
+        #                             self.T_gait, self.q, self.v, self.v_ref)
+        self.footsteps_prediction = footsteps_prediction
+
+        self.future_update = future_update
+
+        self.xref = xref
+        self.x0 = x0
+
+        """self.getRefStates(k) # Get the reference trajectory over the prediction horizon
 
         self.future_update = []
         c, s = np.cos(self.xref[5, :]), np.sin(self.xref[5, :])
@@ -797,7 +811,7 @@ class MPC:
                     future_fth = np.zeros((2, 4))
                     for i in update:
                         future_fth[0:2, i] = (np.dot(R, fstep_planner.footsteps_prediction[:, i]) + T)[0:2]
-                    self.future_update.append(future_fth)   
+                    self.future_update.append(future_fth)  """ 
 
         # Create the constraint and weight matrices used by the QP solver
         # Minimize x^T.P.x + x^T.Q with constraints M.X == N and L.X <= K

@@ -129,13 +129,6 @@ for k in range(int(N_SIMULATION)):
     if (k > 0) and ((k % 20) == 0):
         sequencer.updateSequence()
 
-    # Update MPC's state vectors by retrieving information from the mpc_interface
-    if k > 0:
-        mpc.q[0:3, 0:1] = mpc_interface.lC
-        mpc.q[3:6, 0:1] = mpc_interface.abg
-        mpc.v[0:3, 0:1] = mpc_interface.lV
-        mpc.v[3:6, 0:1] = mpc_interface.lW
-
     # Run MPC once every 20 iterations of TSID
     if (k % 20) == 0:
         ###########################################
@@ -151,6 +144,20 @@ for k in range(int(N_SIMULATION)):
         # Update 3D desired feet pos using the trajectory generator
         # ftraj_gen.update_desired_feet_pos(sequencer, fstep_planner, mpc)
 
+        #
+        # TEMPORARY
+        #
+
+        fstep_planner.getRefStates((k/20), sequencer.T_gait, mpc_interface.lC, mpc_interface.abg,
+                                   mpc_interface.lV, mpc_interface.lW, joystick.v_ref, h_ref=0.2027682)  # Get the reference trajectory over the prediction horizon
+
+        fstep_planner.get_future_prediction(sequencer.S, sequencer.t_stance, sequencer.T_gait, mpc_interface.lC,
+                                            mpc_interface.abg, mpc_interface.lV, mpc_interface.lW, joystick.v_ref)
+
+        # Call get_prediction after get_future_prediction since get_future_prediction temporarily use fstep_planner.footsteps_prediction
+        fstep_planner.get_prediction(sequencer.S, sequencer.t_stance, sequencer.T_gait, mpc_interface.lC,
+                                     mpc_interface.abg, mpc_interface.lV, mpc_interface.lW, joystick.v_ref)
+
         ###################
         #  MPC FUNCTIONS  #
         ###################
@@ -159,7 +166,11 @@ for k in range(int(N_SIMULATION)):
 
         # Run the MPC to get the reference forces and the next predicted state
         # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
-        mpc.run((k/20), sequencer, fstep_planner, ftraj_gen, mpc_interface)
+        # mpc.run((k/20), sequencer, fstep_planner, ftraj_gen, mpc_interface)
+        mpc.run((k/20), sequencer.S, sequencer.T_gait, sequencer.t_stance,
+                mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
+                mpc_interface.l_feet, fstep_planner.footsteps_prediction, fstep_planner.future_update,
+                fstep_planner.xref, fstep_planner.x0)
 
         # Time spent to run this iteration of the MPC
         time_spent = time.time() - time_mpc

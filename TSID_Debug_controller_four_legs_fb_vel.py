@@ -121,7 +121,7 @@ class controller:
         self.ID_feet = [None] * 4  # ID of feet links
 
         # Footstep planner object
-        self.fstep_planner = FootstepPlanner.FootstepPlanner(0.001)
+        self.fstep_planner = FootstepPlanner.FootstepPlanner(0.001, 16)
         self.v_ref = np.zeros((6, 1))
         self.vu_m = np.zeros((6, 1))
         self.t_stance = 0.16

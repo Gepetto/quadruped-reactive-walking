@@ -11,7 +11,7 @@ class FootstepPlanner:
     :param dt: A float, time step of the contact sequence
     """
 
-    def __init__(self, dt):
+    def __init__(self, dt, n_steps):
 
         # Feedback gain for the feedback term of the planner
         self.k_feedback = 0.03
@@ -44,6 +44,13 @@ class FootstepPlanner:
         # To store the result of the update_footsteps_tsid function
         self.footsteps_tsid = np.zeros((3, 4))
         self.t_remaining_tsid = np.zeros((1, 4))
+
+        # Number of time steps in the prediction horizon
+        self.n_steps = n_steps
+
+        # Reference trajectory matrix of size 12 by (1 + N)  with the current state of
+        # the robot in column 0 and the N steps of the prediction horizon in the others
+        self.xref = np.zeros((12, 1 + self.n_steps))
 
     def update_footsteps_tsid(self, sequencer, vel_ref, v_xy, t_stance, T, h):
         """Returns a 2 by 4 matrix containing the [x, y]^T position of the next desired footholds for the four feet
@@ -176,42 +183,43 @@ class FootstepPlanner:
 
         return 0
 
-    def get_prediction(self, S, t_stance, T_gait, q, v, v_ref):
+    def get_prediction(self, S, t_stance, T_gait, lC, abg, lV, lW, v_ref):
 
         # Order of feet: FL, FR, HL, HR
 
         p = np.zeros((3, 4))
 
         # Add symmetry term
-        p[0:2, :] += t_stance * 0.5 * v[0:2, 0:1]
+        p[0:2, :] += t_stance * 0.5 * lV[0:2, 0:1]
 
         # Add feedback term
-        p[0:2, :] += self.k_feedback * (v[0:2, 0:1] - v_ref[0:2, 0:1])
+        p[0:2, :] += self.k_feedback * (lV[0:2, 0:1] - v_ref[0:2, 0:1])
 
         # Add centrifugal term
-        cross = np.cross(v[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
-        p[0:2, :] += 0.5 * np.sqrt(q[2, 0]/self.g) * cross[0:2, 0:1]
+        cross = np.cross(lV[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
+        p[0:2, :] += 0.5 * np.sqrt(lC[2, 0]/self.g) * cross[0:2, 0:1]
 
         # Time remaining before the end of the currrent swing phase
         t_remaining = np.zeros((1, 4))
         for i in range(4):
-            indexes_stance = (np.where(S[:, i] == True))[0]
-            indexes_swing = (np.where(S[:, i] == False))[0]
-            if (S[0, i] == True) and (S[-1, i] == False):
+            # indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
+            # indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
+            # index = (np.where(S[:, i] == True))[0][0]
+            if (S[0, i] == 1.0) and (S[-1, i] == 0.0):
                 t_remaining[0, i] = T_gait
             else:
-                index = (indexes_stance[indexes_stance > indexes_swing[0]])[0]
+                index = next((idx for idx, val in np.ndenumerate(S[:, i]) if val==1.0), 0.0)[0]
                 t_remaining[0, i] = index * self.dt
 
         # Add velocity forecast
         if v_ref[5, 0] != 0:
-            p[0, :] += (v[0, 0] * np.sin(v_ref[5, 0] * t_remaining[0, :]) +
-                        v[1, 0] * (np.cos(v_ref[5, 0] * t_remaining[0, :]) - 1)) / v_ref[5, 0]
-            p[1, :] += (v[1, 0] * np.sin(v_ref[5, 0] * t_remaining[0, :]) -
-                        v[0, 0] * (np.cos(v_ref[5, 0] * t_remaining[0, :]) - 1)) / v_ref[5, 0]       
+            p[0, :] += (lV[0, 0] * np.sin(v_ref[5, 0] * t_remaining[0, :]) +
+                        lV[1, 0] * (np.cos(v_ref[5, 0] * t_remaining[0, :]) - 1)) / v_ref[5, 0]
+            p[1, :] += (lV[1, 0] * np.sin(v_ref[5, 0] * t_remaining[0, :]) -
+                        lV[0, 0] * (np.cos(v_ref[5, 0] * t_remaining[0, :]) - 1)) / v_ref[5, 0]  
         else:
-            p[0, :] += v[0, 0] * t_remaining[0, :]
-            p[1, :] += v[1, 0] * t_remaining[0, :]
+            p[0, :] += lV[0, 0] * t_remaining[0, :]
+            p[1, :] += lV[1, 0] * t_remaining[0, :]
 
         # Legs have a limited length so the deviation has to be limited
         p[0:2, :] = np.clip(p[0:2, :], -self.L, self.L)
@@ -220,6 +228,74 @@ class FootstepPlanner:
         p[0:2, :] += self.shoulders
 
         self.footsteps_prediction = p
+
+        return 0
+
+    def get_future_prediction(self, S, t_stance, T_gait, lC, abg, lV, lW, v_ref):
+
+        self.future_update = []
+        c, s = np.cos(self.xref[5, :]), np.sin(self.xref[5, :])
+        for j in range(self.n_steps):
+            R = np.array([[c[j], -s[j], 0], [s[j], c[j], 0], [0, 0, 1.0]])
+            if j > 0:
+                update = np.where((S[(j % self.n_steps), :] == False) & (S[j-1, :] == True))[0]
+                if np.any(update):
+                    self.get_prediction(np.roll(S, -j, axis=0), t_stance,
+                                                T_gait, lC, abg, lV, lW, v_ref)
+                    T = (self.xref[0:3, j] - self.xref[0:3, 0])
+                    future_fth = np.zeros((2, 4))
+                    for i in update:
+                        future_fth[0:2, i] = (np.dot(R, self.footsteps_prediction[:, i]) + T)[0:2]
+                    self.future_update.append(future_fth)
+
+        return 0
+
+    def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.2027682):
+        """Returns the reference trajectory of the robot for each time step of the
+        predition horizon. The ouput is a matrix of size 12 by N with N the number
+        of time steps (around T_gait / dt) and 12 the position / orientation /
+        linear velocity / angular velocity vertically stacked.
+
+        Keyword arguments:
+        qu -- current position/orientation of the robot (6 by 1)
+        v_ref -- reference velocity vector of the flying base (6 by 1, linear and angular stacked)
+        dt -- time step
+        T_gait -- period of the current gait
+        """
+
+        # Update x and y velocities taking into account the rotation of the base over the prediction horizon
+        yaw = np.linspace(0, T_gait-self.dt, self.n_steps) * v_ref[5, 0]
+        self.xref[6, 1:] = v_ref[0, 0] * np.cos(yaw) - v_ref[1, 0] * np.sin(yaw)
+        self.xref[7, 1:] = v_ref[0, 0] * np.sin(yaw) + v_ref[1, 0] * np.cos(yaw)
+
+        # Update x and y depending on x and y velocities (cumulative sum)
+        self.xref[0, 1:] = self.dt * np.cumsum(self.xref[6, 1:])
+        self.xref[1, 1:] = self.dt * np.cumsum(self.xref[7, 1:])
+
+        # Start from position of the CoM in local frame
+        self.xref[0, 1:] += lC[0, 0]
+        self.xref[1, 1:] += lC[1, 0]
+
+        # Desired height is supposed constant so we only need to set it once
+        if k == 0:
+            self.xref[2, 1:] = h_ref
+
+        # No need to update Z velocity as the reference is always 0
+        # No need to update roll and roll velocity as the reference is always 0 for those
+        # No need to update pitch and pitch velocity as the reference is always 0 for those
+        # Update yaw and yaw velocity
+        dt_vector = np.linspace(self.dt, T_gait, self.n_steps)
+        self.xref[5, 1:] = v_ref[5, 0] * dt_vector
+        self.xref[11, 1:] = v_ref[5, 0]
+
+        # Update the current state
+        self.xref[0:3, 0:1] = lC
+        self.xref[3:6, 0:1] = abg
+        self.xref[6:9, 0:1] = lV
+        self.xref[9:12, 0:1] = lW
+
+        # Current state vector of the robot
+        self.x0 = self.xref[:, 0:1]
 
         return 0
 
