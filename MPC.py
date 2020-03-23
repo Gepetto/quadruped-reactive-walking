@@ -767,7 +767,10 @@ class MPC:
 
     # def run(self, k, sequencer, fstep_planner, ftraj_gen, mpc_interface):
     # run(self, k, sequencer.S, sequencer.T_gait, sequencer.t_stance, mpc_interface.lC, mpc_interface.l_feet, fstep_planner.footsteps_prediction):
-    def run(self, k, S, T_gait, t_stance, lC, abg, lV, lW, l_feet, footsteps_prediction, future_update, xref, x0):
+    def run(self, k, S, T_gait, t_stance, lC, abg, lV, lW, l_feet, footsteps_prediction, future_update, xref, x0, v_ref):
+
+        # Retrieving the reference velocity from the joystick
+        self.v_ref = v_ref
 
         # Update MPC's state vectors by retrieving information from the mpc_interface
         if k > 0:
