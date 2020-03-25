@@ -52,6 +52,17 @@ class FootstepPlanner:
         # the robot in column 0 and the N steps of the prediction horizon in the others
         self.xref = np.zeros((12, 1 + self.n_steps))
 
+        # Gait duration
+        self.T_gait = 0.32
+
+        # Gait matrix
+        self.gait = np.zeros((6, 5))
+        self.fsteps = np.full((6, 13), np.nan)
+
+        # Create gait matrix
+        self.create_walking_trot()
+
+
     def update_footsteps_tsid(self, sequencer, vel_ref, v_xy, t_stance, T, h):
         """Returns a 2 by 4 matrix containing the [x, y]^T position of the next desired footholds for the four feet
         For feet in a swing phase it is where they should land and for feet currently touching the ground it is
@@ -330,5 +341,129 @@ class FootstepPlanner:
             viewer.gui.applyConfiguration(
                 "world/sphere"+str(i)+"_nolock", (self.footsteps_world[0, i],
                                                   self.footsteps_world[1, i], 0.0, 1., 0., 0., 0.))
+
+        return 0
+
+    def create_walking_trot(self):
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Starting status of the gait
+        # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
+        self.gait[0:4, 0] = np.array([1, N-1, 1, N-1])
+        self.fsteps[0:4, 0] = self.gait[0:4, 0]
+
+        # Set stance and swing phases
+        # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        self.gait[0, 1:] = np.ones((4,))
+        self.gait[1, [1, 4]] = np.ones((2,))
+        self.gait[2, 1:] = np.ones((4,))
+        self.gait[3, [2, 3]] = np.ones((2,))
+
+        return 0
+
+    def compute_footsteps(self, l_feet, v_cur, v_ref, h):
+
+        self.fsteps[:, 0] = self.gait[:, 0]
+
+        i = 1
+        dt_cum = 0
+
+        rpt_gait = np.repeat(self.gait[:, 1:] == 1, 3, axis=1)
+
+        # Set current position of feet for feet in stance phase
+        (self.fsteps[0, 1:])[rpt_gait[0, :]] = (l_feet.ravel(order='F'))[rpt_gait[0, :]]
+
+        while (self.gait[i, 0] != 0):
+
+            dt_cum += self.gait[i-1, 0] * self.dt
+
+            # Feet that were in stance phase and are still in stance phase do not move
+            if np.any(rpt_gait[i-1, :] & rpt_gait[i, :]):
+                (self.fsteps[i, 1:])[rpt_gait[i-1, :] & rpt_gait[i, :]] = (self.fsteps[i-1, 1:])[rpt_gait[i-1, :] & rpt_gait[i, :]]
+
+            # Feet that are in swing phase are NaN whether they were in stance phase previously or not
+            if np.any(rpt_gait[i, :] == False):
+                (self.fsteps[i, 1:])[rpt_gait[i, :] == False] = np.nan * np.ones((12,))[rpt_gait[i, :] == False]
+
+            # Feet that were in swing phase and are now in stance phase need to be updated
+            if np.any((rpt_gait[i-1, :] == False) & rpt_gait[i, :]):
+
+                # Get future desired position of footsteps
+                self.compute_next_footstep(v_ref, v_ref, h)
+
+                # Get future yaw angle compared to current position
+                angle = v_ref[5, 0] * dt_cum
+                c, s = np.cos(angle), np.sin(angle)
+                R = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
+
+                # Displacement following the reference velocity compared to current position
+                if v_ref[5, 0] != 0:
+                    dx = (v_cur[0, 0] * np.sin(v_ref[5, 0] * dt_cum) +
+                          v_cur[1, 0] * (np.cos(v_ref[5, 0] * dt_cum) - 1)) / v_ref[5, 0]
+                    dy = (v_cur[1, 0] * np.sin(v_ref[5, 0] * dt_cum) -
+                          v_cur[0, 0] * (np.cos(v_ref[5, 0] * dt_cum) - 1)) / v_ref[5, 0]
+                else:
+                    dx = v_cur[0, 0] * dt_cum
+                    dy = v_cur[1, 0] * dt_cum
+
+                # Get desired position of footstep compared to current position
+                next_ft = (np.dot(R, self.next_footstep) + np.array([[dx], [dy], [0.0]])).ravel(order='F')
+
+                # Assignement only to feet that have been in swing phase
+                (self.fsteps[i, 1:])[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]] = next_ft[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]]
+
+            i += 1
+
+        return 0
+
+    def compute_next_footstep(self, v_cur, v_ref, h):
+
+        # TODO: Automatic detection of t_stance to handle arbitrary gaits
+        t_stance = 0.3
+
+        # Order of feet: FL, FR, HL, HR
+
+        self.next_footstep = np.zeros((3, 4))
+
+        # Add symmetry term
+        self.next_footstep[0:2, :] += t_stance * 0.5 * v_cur[0:2, 0:1]
+
+        # Add feedback term
+        self.next_footstep[0:2, :] += self.k_feedback * (v_cur[0:2, 0:1] - v_ref[0:2, 0:1])
+
+        # Add centrifugal term
+        cross = np.cross(v_cur[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
+        self.next_footstep[0:2, :] += 0.5 * np.sqrt(h/self.g) * cross[0:2, 0:1]
+
+        # Legs have a limited length so the deviation has to be limited
+        (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) > self.L] = self.L
+        (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) < (-self.L)] = -self.L
+
+        # Add shoulders
+        self.next_footstep[0:2, :] += self.shoulders
+
+        return 0
+
+    def roll(self):
+
+        # Index of the first empty line
+        index = next((idx for idx, val in np.ndenumerate(self.gait[:, 0]) if val==0.0), 0.0)[0]
+
+        # Create a new phase is needed or increase the last one by 1 step
+        if np.array_equal(self.gait[0, 1:], self.gait[index-1, 1:]):
+            self.gait[index-1, 0] += 1.0
+        else:
+            self.gait[index, 1:] = self.gait[0, 1:]
+            self.gait[index, 0] = 1.0
+
+        # Decrease the current phase by 1 step and delete it if it has ended
+        if self.gait[0, 0] > 1.0:
+            self.gait[0, 0] -= 1.0
+        else:
+            self.gait = np.roll(self.gait, -1, axis=0)
+            self.gait[-1, :] = np.zeros((5, ))
 
         return 0

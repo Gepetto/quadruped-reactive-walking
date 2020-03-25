@@ -32,6 +32,7 @@ time_error = False
 t_list_mpc = [0] * int(N_SIMULATION)
 t_list_tsid = [0] * int(N_SIMULATION)
 t_list_state = [0] * int(N_SIMULATION)
+t_list_ft = [0] * int(N_SIMULATION)
 
 # Enable/Disable Gepetto viewer
 enable_gepetto_viewer = False
@@ -123,6 +124,15 @@ for k in range(int(N_SIMULATION)):
     ###############################
 
     joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
+
+    if k == 0:
+        fstep_planner.create_walking_trot()
+    elif (k % 20) == 0:
+        time_ft = time.time()
+        fstep_planner.compute_footsteps(mpc_interface.l_feet, vmes12[0:6, 0:1], joystick.v_ref, mpc_interface.lC[2, 0])
+        fstep_planner.construct_S()
+        fstep_planner.roll()
+        t_list_ft[k] = time.time() - time_ft
 
     ##############################################
     #  Run MPC once every 20 iterations of TSID  #
@@ -248,9 +258,13 @@ for k in range(int(N_SIMULATION)):
 # END OF MAIN LOOP #
 ####################
 
-quit()
+
 
 # Display duration of MPC block and Inverse Dynamics block
+plt.figure()
+plt.plot(t_list_ft, 'k+')
+plt.title("Time ft")
+
 plt.figure()
 plt.plot(t_list_mpc, 'k+')
 plt.title("Time MPC")
@@ -259,6 +273,10 @@ plt.figure()
 plt.plot(t_list_tsid, 'k+')
 plt.title("Time TSID")
 plt.show(block=True)
+
+
+quit()
+
 
 # Display graphs of the logger
 logger.plot_graphs(dt_mpc, N_SIMULATION, myController)

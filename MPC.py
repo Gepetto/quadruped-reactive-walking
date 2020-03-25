@@ -930,3 +930,17 @@ class MPC:
         plt.show(block=True)
 
         return 0
+
+    def construct_S(self, gait):
+
+        i = 0
+        k = 0
+
+        while (gait[i, 0] != 0):
+
+            self.S[(k*12):((k+np.int(gait[i, 0]))*12)] = np.tile(np.repeat(1.0 - gait[i, 1:], 3), (np.int(gait[i, 0]),))
+            k += np.int(gait[i, 0])
+            i += 1
+
+        return 0
+
