@@ -75,6 +75,8 @@ class MPC:
         # Lever arms of contact forces for update_ML function
         self.lever_arms = np.zeros((3, 4))
 
+        self.S_gait = np.zeros((12*self.n_steps,))
+
     def update_v_ref(self, joystick):
 
         # Retrieving the reference velocity from the joystick
@@ -471,7 +473,7 @@ class MPC:
 
         return 0
 
-    def update_matrices(self):
+    def update_matrices(self, gait, fsteps):
         """Update the M, N, L and K constraint matrices depending on what happened
         """
 
@@ -480,7 +482,7 @@ class MPC:
         # - I_inv changes if the reference velocity vector is modified
         # - footholds need to be enabled/disabled depending on the contact sequence
         # self.update_M(sequencer, fstep_planner, mpc_interface)
-        self.update_ML()
+        self.update_ML(gait, fsteps)
 
         # N need to be updated between each iteration:
         # - X0 changes since the robot moves
@@ -564,7 +566,7 @@ class MPC:
 
         return 0
 
-    def update_ML(self):
+    def update_ML(self, gait, fsteps):
 
         # fth_w = np.zeros((4, self.n_steps, 3))
 
@@ -636,6 +638,9 @@ class MPC:
             i_iter = 24 * 4 * k
             self.ML.data[self.i_update_B + i_iter] = self.B[self.i_x_B, self.i_y_B]
 
+            """if k==0:
+                    print(self.lever_arms)"""
+
         # Update lines to enable/disable forces
         """self.ML[np.arange(12*self.n_steps, 12*self.n_steps*2, 1),
                 np.arange(12*self.n_steps, 12*self.n_steps*2, 1)] = scipy.sparse.csc.csc_matrix(tmp, shape=tmp.shape)"""
@@ -657,6 +662,40 @@ class MPC:
             plt.xlabel("Time [s]")
             plt.ylabel("Position Y [m]")
         plt.show(block=True)"""
+
+        tmp = self.ML.data.copy()
+
+        fsteps[np.isnan(fsteps)] = 0.0
+
+        c, s = np.cos(self.xref[5, :]), np.sin(self.xref[5, :])
+
+        j = 0
+        k_cum = 0
+
+        while (gait[j, 0] != 0):
+            for k in range(k_cum, k_cum+np.int(gait[j, 0])):
+                # Get inverse of the inertia matrix for time step k
+                R = np.array([[c[k], -s[k], 0], [s[k], c[k], 0], [0, 0, 1.0]])
+                I_inv = np.linalg.inv(np.dot(R, self.gI))
+
+                # Get skew-symetric matrix for each foothold
+                self.lever_arms = np.reshape(fsteps[j, 1:], (3, 4), order='F') - self.xref[0:3, k:(k+1)]
+                for i in range(4):
+                    self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils.getSkew(self.lever_arms[:, i]))
+
+                i_iter = 24 * 4 * k
+                self.ML.data[self.i_update_B + i_iter] = self.B[self.i_x_B, self.i_y_B]
+
+                """if k==0:
+                    print(self.lever_arms)"""
+
+            k_cum += np.int(gait[j, 0])
+            j += 1
+
+        self.construct_S(gait)
+
+        # Update lines to enable/disable forces
+        self.ML.data[self.i_update_S] = self.S_gait
 
         return 0
 
@@ -767,7 +806,7 @@ class MPC:
 
     # def run(self, k, sequencer, fstep_planner, ftraj_gen, mpc_interface):
     # run(self, k, sequencer.S, sequencer.T_gait, sequencer.t_stance, mpc_interface.lC, mpc_interface.l_feet, fstep_planner.footsteps_prediction):
-    def run(self, k, S, T_gait, t_stance, lC, abg, lV, lW, l_feet, footsteps_prediction, future_update, xref, x0, v_ref):
+    def run(self, k, S, T_gait, t_stance, lC, abg, lV, lW, l_feet, footsteps_prediction, future_update, xref, x0, v_ref, gait, fsteps):
 
         # Retrieving the reference velocity from the joystick
         self.v_ref = v_ref
@@ -821,7 +860,7 @@ class MPC:
         if k == 0:
             self.create_matrices()
         else:
-            self.update_matrices()
+            self.update_matrices(gait, fsteps)
 
         # Create an initial guess and call the solver to solve the QP problem
         self.call_solver(k)
@@ -938,7 +977,7 @@ class MPC:
 
         while (gait[i, 0] != 0):
 
-            self.S[(k*12):((k+np.int(gait[i, 0]))*12)] = np.tile(np.repeat(1.0 - gait[i, 1:], 3), (np.int(gait[i, 0]),))
+            self.S_gait[(k*12):((k+np.int(gait[i, 0]))*12)] = np.tile(np.repeat(1.0 - gait[i, 1:], 3), (np.int(gait[i, 0]),))
             k += np.int(gait[i, 0])
             i += 1
 

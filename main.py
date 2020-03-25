@@ -127,11 +127,13 @@ for k in range(int(N_SIMULATION)):
 
     if k == 0:
         fstep_planner.create_walking_trot()
-    elif (k % 20) == 0:
+        
+    if (k % 20) == 0:
         time_ft = time.time()
+        #fstep_planner.roll()
         fstep_planner.compute_footsteps(mpc_interface.l_feet, vmes12[0:6, 0:1], joystick.v_ref, mpc_interface.lC[2, 0])
-        fstep_planner.construct_S()
-        fstep_planner.roll()
+        # fstep_planner.construct_S()
+        # fstep_planner.roll()
         t_list_ft[k] = time.time() - time_ft
 
     ##############################################
@@ -178,7 +180,8 @@ for k in range(int(N_SIMULATION)):
         mpc.run((k/20), sequencer.S, sequencer.T_gait, sequencer.t_stance,
                 mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
                 mpc_interface.l_feet, fstep_planner.footsteps_prediction, fstep_planner.future_update,
-                fstep_planner.xref, fstep_planner.x0, joystick.v_ref)
+                fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
+                fstep_planner.gait, fstep_planner.fsteps)
 
         # Logging the time spent to run this iteration of the MPC
         t_list_mpc[k] = time.time() - time_mpc
@@ -193,6 +196,12 @@ for k in range(int(N_SIMULATION)):
         # Output of the MPC
         f_applied = mpc.f_applied
 
+        if (k / 20) == 5:
+            print(f_applied)
+            deb = 1
+
+        fstep_planner.roll()
+        
     ####################
     # Inverse Dynamics #
     ####################
