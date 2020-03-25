@@ -23,7 +23,7 @@ dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 1000  # number of time steps simulated
+N_SIMULATION = 100000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -157,16 +157,16 @@ for k in range(int(N_SIMULATION)):
         # Compute desired location of footsteps over the prediction horizon using the footsteps planner for the
         # future stance phases. If FL and HR are in stance phase and FR and HL are in swing phase then
         # footsteps_prediction contains the desired position of FL and HR for their next stance phase
-        fstep_planner.get_future_prediction(sequencer.S, sequencer.t_stance, sequencer.T_gait, mpc_interface.lC,
-                                            mpc_interface.abg, mpc_interface.lV, mpc_interface.lW, joystick.v_ref)
+        #fstep_planner.get_future_prediction(sequencer.S, sequencer.t_stance, sequencer.T_gait, mpc_interface.lC,
+        #                                    mpc_interface.abg, mpc_interface.lV, mpc_interface.lW, joystick.v_ref)
 
         # Compute desired location of footsteps over the prediction horizon using the footsteps planner for the
         # incoming stance phase. If FL and HR are in stance phase and FR and HL are in swing phase then footsteps
         # prediction contains the current position of FL and HR and the targeted position for FR and HL
         # Call to get_prediction function after get_future_prediction since get_future_prediction temporarily
         # use fstep_planner.footsteps_prediction
-        fstep_planner.get_prediction(sequencer.S, sequencer.t_stance, sequencer.T_gait, mpc_interface.lC,
-                                     mpc_interface.abg, mpc_interface.lV, mpc_interface.lW, joystick.v_ref)
+        #fstep_planner.get_prediction(sequencer.S, sequencer.t_stance, sequencer.T_gait, mpc_interface.lC,
+        #                             mpc_interface.abg, mpc_interface.lV, mpc_interface.lW, joystick.v_ref)
 
         #########
         #  MPC  #
@@ -179,9 +179,8 @@ for k in range(int(N_SIMULATION)):
         # mpc.run((k/20), sequencer, fstep_planner, ftraj_gen, mpc_interface)
         mpc.run((k/20), sequencer.S, sequencer.T_gait, sequencer.t_stance,
                 mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
-                mpc_interface.l_feet, fstep_planner.footsteps_prediction, fstep_planner.future_update,
-                fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
-                fstep_planner.gait, fstep_planner.fsteps)
+                mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
+                fstep_planner.fsteps)
 
         # Logging the time spent to run this iteration of the MPC
         t_list_mpc[k] = time.time() - time_mpc
@@ -201,7 +200,7 @@ for k in range(int(N_SIMULATION)):
             deb = 1
 
         fstep_planner.roll()
-        
+
     ####################
     # Inverse Dynamics #
     ####################
@@ -256,12 +255,14 @@ for k in range(int(N_SIMULATION)):
     # myForceMonitor.display_contact_forces()
 
     # Save PyBullet camera frame
-    """img = pyb.getCameraImage(width=1920, height=1080, renderer=pyb.ER_BULLET_HARDWARE_OPENGL)
-    if k == 0:
-        newpath = r'/tmp/recording'
-        if not os.path.exists(newpath):
-            os.makedirs(newpath)
-    plt.imsave('/tmp/recording/frame_'+str(k)+'.png', img[2])"""
+    """if (k % 40) == 0:
+        print(k)
+        img = pyb.getCameraImage(width=1920, height=1080, renderer=pyb.ER_BULLET_HARDWARE_OPENGL)
+        if k == 0:
+            newpath = r'/tmp/recording'
+            if not os.path.exists(newpath):
+                os.makedirs(newpath)
+        plt.imsave('/tmp/recording/frame_'+str(int(k/20))+'.png', img[2])"""
 
 ####################
 # END OF MAIN LOOP #

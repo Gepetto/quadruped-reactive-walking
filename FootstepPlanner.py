@@ -367,6 +367,7 @@ class FootstepPlanner:
     def compute_footsteps(self, l_feet, v_cur, v_ref, h):
 
         self.fsteps[:, 0] = self.gait[:, 0]
+        self.fsteps[:, 1:] = np.nan
 
         i = 1
         dt_cum = 0
