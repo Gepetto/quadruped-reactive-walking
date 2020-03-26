@@ -1,9 +1,7 @@
 # coding: utf8
 
 import numpy as np
-from time import clock
 import gamepadClient as gC
-# import inputs
 
 
 class Joystick:
@@ -12,13 +10,10 @@ class Joystick:
 
     def __init__(self):
 
-        # Starting time if we want to ouput reference velocities based on elapsed time
-        self.t_start = clock()
-
         # Reference velocity in local frame
         self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        # Joystick variables
+        # Joystick variables (linear and angular velocity and their scaling for the joystick)
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
@@ -26,32 +21,37 @@ class Joystick:
         self.VyScale = 0.1
         self.vYawScale = 0.4
 
-        self.gp = gC.GamepadClient()
-
     def update_v_ref(self, k_loop):
-        """events = inputs.get_gamepad()
-        for event in events:
-            # print(event.ev_type, event.code, event.state)
-            if (event.ev_type == 'Absolute'):
-                if event.code == 'ABS_X':
-                    self.vX = event.state * self.VxScale
-                if event.code == 'ABS_Y':
-                    self.vY = event.state * self.VyScale
-                if event.code == 'ABS_RX':
-                    self.vYaw = event.state * self.vYawScale
-                print(- self.vY, - self.vX, - self.vYaw)"""
+        """Update the reference velocity of the robot along X, Y and Yaw in local frame by
+        listening to a gamepad handled by an independent thread
+
+        Args:
+            k_loop (int): number of MPC iterations since the start of the simulation
+        """
+
+        if k_loop == 0:
+            self.gp = gC.GamepadClient()
 
         self.vX = self.gp.leftJoystickX.value * self.VxScale
         self.vY = self.gp.leftJoystickY.value * self.VxScale
         self.vYaw = self.gp.rightJoystickX.value * self.vYawScale
-        # print(- self.vY, - self.vX, - self.vYaw)
+
         self.v_ref = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
 
-        # Change reference velocity during the simulation (in trunk frame)
-        # Moving forwards
-        """if k_loop == 200:
-            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
+        return 0
+
+    def update_v_ref_predefined(self, k_loop):
+        """Update the reference velocity of the robot along X, Y and Yaw in local frame
+        according to a predefined sequence
+
+        Args:
+            k_loop (int): number of MPC iterations since the start of the simulation
         """
+
+        # Moving forwards
+        if k_loop == 200:
+            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
         # Turning
         if k_loop == 1500:
             self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, -0.2]]).T
@@ -68,8 +68,8 @@ class Joystick:
         if k_loop == 4500:
             self.v_ref = np.array([[0.0, 0.1, 0.0, 0.0, 0.0, 0.0]]).T
 
-        # Sideways
+        # Sideways + Turning
         if k_loop == 5500:
-            self.v_ref = np.array([[0.0, 0.1, 0.0, 0.0, 0.0, 0.2]]).T"""
+            self.v_ref = np.array([[0.0, 0.1, 0.0, 0.0, 0.0, 0.2]]).T
 
         return 0
