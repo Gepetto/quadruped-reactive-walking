@@ -522,8 +522,8 @@ class controller:
         self.vu_m[5, 0] = mpc_interface.lW[2, 0]"""
 
         # Update desired location of footsteps using the footsteps planner
-        self.fstep_planner.update_footsteps_tsid(sequencer, self.v_ref, mpc_interface.lV[0:2, 0:1], self.t_stance,
-                                                 self.T_gait, self.qtsid[2, 0])
+        #self.fstep_planner.update_footsteps_tsid(sequencer, self.v_ref, mpc_interface.lV[0:2, 0:1], self.t_stance,
+        #                                         self.T_gait, self.qtsid[2, 0])
 
         # self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
         """for i in range(4):

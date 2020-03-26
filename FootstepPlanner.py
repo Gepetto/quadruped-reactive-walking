@@ -8,7 +8,9 @@ class FootstepPlanner:
     footsteps location depending on the current and reference
     velocities of the quadruped.
 
-    :param dt: A float, time step of the contact sequence
+    Args:
+        dt (float): Duration of one time step of the MPC
+        n_steps (int): Number of time steps in one gait cycle
     """
 
     def __init__(self, dt, n_steps):
@@ -62,216 +64,21 @@ class FootstepPlanner:
         # Create gait matrix
         self.create_walking_trot()
 
-
-    def update_footsteps_tsid(self, sequencer, vel_ref, v_xy, t_stance, T, h):
-        """Returns a 2 by 4 matrix containing the [x, y]^T position of the next desired footholds for the four feet
-        For feet in a swing phase it is where they should land and for feet currently touching the ground it is
-        where they should land at the end of their next swing phase
-
-        Keyword arguments:
-        vel_ref -- reference velocity vector of the flying base (6 by 1, linear and angular stacked)
-        vel_cur -- current velocity vector of the flying base (6 by 1, linear and angular stacked)
-        t_stance -- duration of the stance phase
-        t_remaining -- time remaining before the end of the currrent swing phase
-        T -- period of the current gait
-        """
-
-        # Order of feet: FL, FR, HL, HR
-
-        # self.footsteps_tsid = np.zeros((3, 4))
-
-        # Shift initial position of contact outwards for more stability
-        # p[1, :] += np.array([0.025, -0.025, 0.025, -0.025])
-
-        # Add symmetry term
-        self.footsteps_tsid[0:2, :] = t_stance * 0.5 * np.tile(v_xy, 4)
-
-        # Add feedback term
-        self.footsteps_tsid[0:2, :] += self.k_feedback * (v_xy - vel_ref[0:2, 0:1])
-
-        # Add centrifugal term
-        # cross = np.cross(vel_cur[0:3, 0:1], vel_ref[3:6, 0:1], 0, 0).T
-        self.footsteps_tsid[0:2, :] += 0.5 * np.sqrt(h/self.g) * np.array([[v_xy[1, 0] * vel_ref[5, 0]],
-                                                                           [- v_xy[0, 0] * vel_ref[5, 0]]])
-
-        # Time remaining before the end of the currrent swing phase
-        self.t_remaining_tsid = np.zeros((1, 4))
-        for i in range(4):
-            # indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
-            # indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
-            # index = (np.where(S[:, i] == True))[0][0]
-            if (sequencer.S[0, i] == 1) and (sequencer.S[-1, i] == 0):
-                self.t_remaining_tsid[0, i] = sequencer.T_gait
-            else:
-                index = next((idx for idx, val in np.ndenumerate(sequencer.S[:, i]) if val==1.0), 0.0)[0]
-                self.t_remaining_tsid[0, i] = index * self.dt
-
-        # Add velocity forecast
-        if vel_ref[5, 0] != 0:
-            self.footsteps_tsid[0, :] += (v_xy[0, 0] * np.sin(vel_ref[5, 0] * self.t_remaining_tsid[0, :]) +
-                                          v_xy[1, 0] * (np.cos(vel_ref[5, 0] * self.t_remaining_tsid[0, :]) - 1)) / vel_ref[5, 0]
-            self.footsteps_tsid[1, :] += (v_xy[1, 0] * np.sin(vel_ref[5, 0] * self.t_remaining_tsid[0, :]) -
-                                          v_xy[0, 0] * (np.cos(vel_ref[5, 0] * self.t_remaining_tsid[0, :]) - 1)) / vel_ref[5, 0]
-        else:
-            self.footsteps_tsid[0, :] += v_xy[0, 0] * self.t_remaining_tsid[0, :]
-            self.footsteps_tsid[1, :] += v_xy[1, 0] * self.t_remaining_tsid[0, :]
-
-        # Legs have a limited length so the deviation has to be limited
-        (self.footsteps_tsid[0:2, :])[(self.footsteps_tsid[0:2, :]) > self.L] = self.L
-        (self.footsteps_tsid[0:2, :])[(self.footsteps_tsid[0:2, :]) < (-self.L)] = -self.L
-
-        # Update target_footholds_no_lock
-        # self.footsteps_tsid = p  # np.tile(p, (1, 4))
-
-        return 0
-
-    def update_footsteps_mpc(self, sequencer, mpc, mpc_interface):
-        """Returns a 2 by 4 matrix containing the [x, y]^T position of the next desired footholds for the four feet
-        For feet in a swing phase it is where they should land and for feet currently touching the ground it is
-        where they should land at the end of their next swing phase
-
-        Keyword arguments:
-        vel_ref -- reference velocity vector of the flying base (6 by 1, linear and angular stacked)
-        vel_cur -- current velocity vector of the flying base (6 by 1, linear and angular stacked)
-        t_stance -- duration of the stance phase
-        S -- contact sequence that defines the current gait
-        T -- period of the current gait
-        """
-
-        # Order of feet: FL, FR, HL, HR
-
-        # Initial deviation
-        p = np.zeros((2, 4))
-
-        # Shift initial position of contact outwards for more stability
-        # p[1, :] += np.array([0.025, -0.025, 0.025, -0.025])
-
-        # Add symmetry term
-        p += sequencer.t_stance * 0.5 * mpc.v[0:2, 0:1]
-
-        # Add feedback term
-        p += self.k_feedback * (mpc.v[0:2, 0:1] - mpc.v_ref[0:2, 0:1])
-
-        # Add centrifugal term
-        cross = np.cross(mpc.v[0:3, 0:1], mpc.v_ref[3:6, 0:1], 0, 0).T
-        p += 0.5 * np.sqrt(mpc.q[2, 0]/self.g) * cross[0:2, 0:1]
-
-        # Time remaining before the end of the currrent swing phase
-        t_remaining = np.zeros((1, 4))
-        for i in range(4):
-            # indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
-            # indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
-            # index = (np.where(S[:, i] == True))[0][0]
-            if (sequencer.S[0, i] == 1.0) and (sequencer.S[-1, i] == 0.0):
-                t_remaining[0, i] = sequencer.T_gait
-            else:
-                index = next((idx for idx, val in np.ndenumerate(sequencer.S[:, i]) if val==1.0), 0.0)[0]
-                t_remaining[0, i] = index * self.dt
-
-        # Add velocity forecast
-        if mpc.v_ref[5, 0] != 0:
-            p[0, :] += (mpc.v[0, 0] * np.sin(mpc.v_ref[5, 0] * t_remaining[0, :]) +
-                        mpc.v[1, 0] * (np.cos(mpc.v_ref[5, 0] * t_remaining[0, :]) - 1)) / mpc.v_ref[5, 0]
-            p[1, :] += (mpc.v[1, 0] * np.sin(mpc.v_ref[5, 0] * t_remaining[0, :]) -
-                        mpc.v[0, 0] * (np.cos(mpc.v_ref[5, 0] * t_remaining[0, :]) - 1)) / mpc.v_ref[5, 0]       
-        else:
-            p[0, :] += mpc.v[0, 0] * t_remaining[0, :]
-            p[1, :] += mpc.v[1, 0] * t_remaining[0, :]
-
-        # Legs have a limited length so the deviation has to be limited
-        p[0:2, :] = np.clip(p[0:2, :], -self.L, self.L)
-
-        # Add shoulders
-        p[0:2, :] += self.shoulders
-
-        # Update target_footholds_no_lock
-        self.footsteps = mpc_interface.l_feet[0:2, :].copy()
-        for i in np.where(sequencer.S[0, :] == False)[0]:
-            self.footsteps[:, i] = p[:, i]
-
-        # Updating quantities expressed in world frame
-        self.update_world_frame(mpc.q_w)
-
-        return 0
-
-    def get_prediction(self, S, t_stance, T_gait, lC, abg, lV, lW, v_ref):
-
-        # Order of feet: FL, FR, HL, HR
-
-        p = np.zeros((3, 4))
-
-        # Add symmetry term
-        p[0:2, :] += t_stance * 0.5 * lV[0:2, 0:1]
-
-        # Add feedback term
-        p[0:2, :] += self.k_feedback * (lV[0:2, 0:1] - v_ref[0:2, 0:1])
-
-        # Add centrifugal term
-        cross = np.cross(lV[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
-        p[0:2, :] += 0.5 * np.sqrt(lC[2, 0]/self.g) * cross[0:2, 0:1]
-
-        # Time remaining before the end of the currrent swing phase
-        t_remaining = np.zeros((1, 4))
-        for i in range(4):
-            # indexes_stance = (np.where(sequencer.S[:, i] == True))[0]
-            # indexes_swing = (np.where(sequencer.S[:, i] == False))[0]
-            # index = (np.where(S[:, i] == True))[0][0]
-            if (S[0, i] == 1.0) and (S[-1, i] == 0.0):
-                t_remaining[0, i] = T_gait
-            else:
-                index = next((idx for idx, val in np.ndenumerate(S[:, i]) if val==1.0), 0.0)[0]
-                t_remaining[0, i] = index * self.dt
-
-        # Add velocity forecast
-        if v_ref[5, 0] != 0:
-            p[0, :] += (lV[0, 0] * np.sin(v_ref[5, 0] * t_remaining[0, :]) +
-                        lV[1, 0] * (np.cos(v_ref[5, 0] * t_remaining[0, :]) - 1)) / v_ref[5, 0]
-            p[1, :] += (lV[1, 0] * np.sin(v_ref[5, 0] * t_remaining[0, :]) -
-                        lV[0, 0] * (np.cos(v_ref[5, 0] * t_remaining[0, :]) - 1)) / v_ref[5, 0]  
-        else:
-            p[0, :] += lV[0, 0] * t_remaining[0, :]
-            p[1, :] += lV[1, 0] * t_remaining[0, :]
-
-        # Legs have a limited length so the deviation has to be limited
-        p[0:2, :] = np.clip(p[0:2, :], -self.L, self.L)
-
-        # Add shoulders
-        p[0:2, :] += self.shoulders
-
-        self.footsteps_prediction = p
-
-        return 0
-
-    def get_future_prediction(self, S, t_stance, T_gait, lC, abg, lV, lW, v_ref):
-
-        self.future_update = []
-        c, s = np.cos(self.xref[5, :]), np.sin(self.xref[5, :])
-        for j in range(self.n_steps):
-            R = np.array([[c[j], -s[j], 0], [s[j], c[j], 0], [0, 0, 1.0]])
-            if j > 0:
-                update = np.where((S[(j % self.n_steps), :] == False) & (S[j-1, :] == True))[0]
-                if np.any(update):
-                    self.get_prediction(np.roll(S, -j, axis=0), t_stance,
-                                                T_gait, lC, abg, lV, lW, v_ref)
-                    T = (self.xref[0:3, j] - self.xref[0:3, 0])
-                    future_fth = np.zeros((2, 4))
-                    for i in update:
-                        future_fth[0:2, i] = (np.dot(R, self.footsteps_prediction[:, i]) + T)[0:2]
-                    self.future_update.append(future_fth)
-
-        return 0
-
     def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.2027682):
         """Returns the reference trajectory of the robot for each time step of the
         predition horizon. The ouput is a matrix of size 12 by N with N the number
         of time steps (around T_gait / dt) and 12 the position / orientation /
         linear velocity / angular velocity vertically stacked.
 
-        Keyword arguments:
-        qu -- current position/orientation of the robot (6 by 1)
-        v_ref -- reference velocity vector of the flying base (6 by 1, linear and angular stacked)
-        dt -- time step
-        T_gait -- period of the current gait
+        Args:
+            k (int): the number of MPC iterations since the start of the simulation
+            T_gait (float): duration of one period of gait
+            lC (3x0 array): position of the center of mass in local frame
+            abg (3x0 array): orientation of the trunk in local frame
+            lV (3x0 array): linear velocity of the CoM in local frame
+            lW (3x0 array): angular velocity of the trunk in local frame
+            v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
+            h_ref (float): reference height for the trunk
         """
 
         # Update x and y velocities taking into account the rotation of the base over the prediction horizon
@@ -310,27 +117,15 @@ class FootstepPlanner:
 
         return 0
 
-    def update_world_frame(self, q_w):
-        """Update quantities expressed in the world frame
-
-        Keyword arguments:
-        :param q_w: Position vector of the quadruped in the world frame (6 by 1)
-        """
-
-        c, s = np.cos(q_w[5, 0]), np.sin(q_w[5, 0])
-        self.footsteps_world[0, :] = q_w[0, 0] \
-            + c * self.footsteps[0, :] - s * self.footsteps[1, :]
-        self.footsteps_world[1, :] = q_w[1, 0] \
-            + s * self.footsteps[0, :] + c * self.footsteps[1, :]
-
-        return 0
-
     def update_viewer(self, viewer, initialisation):
         """Update display for visualization purpose
 
-        Keyword arguments:
-        :param viewer: A gepetto viewer object
-        :param initialisation: A bool, is it the first iteration of the main loop
+        Create sphere objects during the first iteration of the main loop then only
+        update their location
+
+        Args:
+            viewer (gepetto-viewer): A gepetto viewer object
+            initialisation (bool): true if it is the first iteration of the main loop
         """
 
         # Display non-locked target footholds with green spheres (gepetto gui)
@@ -345,6 +140,10 @@ class FootstepPlanner:
         return 0
 
     def create_walking_trot(self):
+        """Create the matrices used to handle the gait and initialize them to perform a walking trot
+
+        self.gait and self.fsteps matrices contains information about the walking trot
+        """
 
         # Number of timesteps in a half period of gait
         N = np.int(0.5 * self.T_gait/self.dt)
@@ -365,6 +164,18 @@ class FootstepPlanner:
         return 0
 
     def compute_footsteps(self, l_feet, v_cur, v_ref, h):
+        """Compute the desired location of footsteps over the prediction horizon
+
+        Compute a X by 13 matrix containing the remaining number of steps of each phase of the gait (first column)
+        and the [x, y, z]^T desired position of each foot for each phase of the gait (12 other columns).
+        For feet currently touching the ground the desired position is where they currently are.
+
+        Args:
+            l_feet (3x4 array): current position of feet in local frame
+            v_cur (6x1 array): current velocity vector of the flying base in local frame (linear and angular stacked)
+            v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
+            h (float): desired height for the trunk of the robot
+        """
 
         self.fsteps[:, 0] = self.gait[:, 0]
         self.fsteps[:, 1:] = np.nan
@@ -421,6 +232,16 @@ class FootstepPlanner:
         return 0
 
     def compute_next_footstep(self, v_cur, v_ref, h):
+        """Compute the desired location of footsteps for a given pair of current/reference velocities
+
+        Compute a 3 by 4 matrix containing the desired location of each feet considering the current velocity of the
+        robot and the reference velocity
+
+        Args:
+            v_cur (6x1 array): current velocity vector of the flying base in local frame (linear and angular stacked)
+            v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
+            h (float): desired height for the trunk of the robot
+        """
 
         # TODO: Automatic detection of t_stance to handle arbitrary gaits
         t_stance = 0.3
@@ -449,6 +270,11 @@ class FootstepPlanner:
         return 0
 
     def roll(self):
+        """Move one step further in the gait cycle
+
+        Decrease by 1 the number of remaining step for the current phase of the gait and increase
+        by 1 the number of remaining step for the last phase of the gait (periodic motion)
+        """
 
         # Index of the first empty line
         index = next((idx for idx, val in np.ndenumerate(self.gait[:, 0]) if val==0.0), 0.0)[0]

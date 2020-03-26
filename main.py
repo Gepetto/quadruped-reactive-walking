@@ -23,7 +23,7 @@ dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 100000  # number of time steps simulated
+N_SIMULATION = 1000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -125,19 +125,24 @@ for k in range(int(N_SIMULATION)):
 
     joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
 
-    if k == 0:
-        fstep_planner.create_walking_trot()
-        
+    #######################################################
+    #  Update footsteps once every 20 iterations of TSID  #
+    #######################################################
+
     if (k % 20) == 0:
+
         time_ft = time.time()
-        #fstep_planner.roll()
+
+        if k > 0:
+            # Move one step further in the gait
+            fstep_planner.roll()
+
+        # Compute the desired location of footsteps over the prediction horizon
         fstep_planner.compute_footsteps(mpc_interface.l_feet, vmes12[0:6, 0:1], joystick.v_ref, mpc_interface.lC[2, 0])
-        # fstep_planner.construct_S()
-        # fstep_planner.roll()
+
         t_list_ft[k] = time.time() - time_ft
 
-        
-
+        # Display spheres for footsteps visualization
         i = 0
         up = np.isnan(fstep_planner.gait[:, 1:])
         while (fstep_planner.gait[i, 0] != 0):
@@ -155,10 +160,6 @@ for k in range(int(N_SIMULATION)):
 
     if (k % 20) == 0:
 
-        # Update contact sequence
-        if (k > 0):
-            sequencer.S = np.roll(sequencer.S, -1, axis=0)
-
         ####################
         # Footstep planner #
         ####################
@@ -166,20 +167,6 @@ for k in range(int(N_SIMULATION)):
         # Get the reference trajectory over the prediction horizon
         fstep_planner.getRefStates((k/20), sequencer.T_gait, mpc_interface.lC, mpc_interface.abg,
                                    mpc_interface.lV, mpc_interface.lW, joystick.v_ref, h_ref=0.2027682)
-
-        # Compute desired location of footsteps over the prediction horizon using the footsteps planner for the
-        # future stance phases. If FL and HR are in stance phase and FR and HL are in swing phase then
-        # footsteps_prediction contains the desired position of FL and HR for their next stance phase
-        #fstep_planner.get_future_prediction(sequencer.S, sequencer.t_stance, sequencer.T_gait, mpc_interface.lC,
-        #                                    mpc_interface.abg, mpc_interface.lV, mpc_interface.lW, joystick.v_ref)
-
-        # Compute desired location of footsteps over the prediction horizon using the footsteps planner for the
-        # incoming stance phase. If FL and HR are in stance phase and FR and HL are in swing phase then footsteps
-        # prediction contains the current position of FL and HR and the targeted position for FR and HL
-        # Call to get_prediction function after get_future_prediction since get_future_prediction temporarily
-        # use fstep_planner.footsteps_prediction
-        #fstep_planner.get_prediction(sequencer.S, sequencer.t_stance, sequencer.T_gait, mpc_interface.lC,
-        #                             mpc_interface.abg, mpc_interface.lV, mpc_interface.lW, joystick.v_ref)
 
         #########
         #  MPC  #
@@ -189,7 +176,6 @@ for k in range(int(N_SIMULATION)):
 
         # Run the MPC to get the reference forces and the next predicted state
         # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
-        # mpc.run((k/20), sequencer, fstep_planner, ftraj_gen, mpc_interface)
         mpc.run((k/20), sequencer.T_gait, sequencer.t_stance,
                 mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
                 mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
@@ -199,20 +185,14 @@ for k in range(int(N_SIMULATION)):
         t_list_mpc[k] = time.time() - time_mpc
 
         # Visualisation with gepetto viewer
-        if enable_gepetto_viewer:
-            utils.display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc)
+        # if enable_gepetto_viewer:
+        #     utils.display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc)
 
         # Logging various stuff
         # logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
         # Output of the MPC
         f_applied = mpc.f_applied
-
-        if (k / 20) == 5:
-            print(f_applied)
-            deb = 1
-
-        fstep_planner.roll()
 
     ####################
     # Inverse Dynamics #
@@ -283,7 +263,6 @@ for k in range(int(N_SIMULATION)):
 ####################
 
 print("END")
-quit()
 
 # Display duration of MPC block and Inverse Dynamics block
 plt.figure()
