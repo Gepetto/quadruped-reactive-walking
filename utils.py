@@ -299,6 +299,26 @@ class pybullet_simulator:
                                              basePosition=[0.6, 1.1, 0.05],
                                              useMaximalCoordinates=True)
 
+        mesh_scale = [0.015, 0.015, 0.015]
+        visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                              fileName="sphere_smooth.obj",
+                                              halfExtents=[0.5, 0.5, 0.1],
+                                              rgbaColor=[0.0, 0.0, 1.0, 1.0],
+                                              specularColor=[0.4, .4, 0],
+                                              visualFramePosition=[0.0, 0.0, 0.0],
+                                              meshScale=mesh_scale)
+
+        self.ftps_Ids = np.zeros((4, 5), dtype=np.int)
+        for i in range(4):
+            for j in range(5):
+                self.ftps_Ids[i, j] = pyb.createMultiBody(baseMass=0.0,
+                                                          baseInertialFramePosition=[0, 0, 0],
+                                                          baseVisualShapeIndex=visualShapeId,
+                                                          basePosition=[0.0, 0.0, -0.1],
+                                                          useMaximalCoordinates=True)
+
+
+
         """cubeStartPos = [0.0, 0.45, 0.0]
         cubeStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0])
         self.cubeId = pyb.loadURDF("cube_small.urdf",

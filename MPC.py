@@ -811,7 +811,7 @@ class MPC:
 
     # def run(self, k, sequencer, fstep_planner, ftraj_gen, mpc_interface):
     # run(self, k, sequencer.S, sequencer.T_gait, sequencer.t_stance, mpc_interface.lC, mpc_interface.l_feet, fstep_planner.footsteps_prediction):
-    def run(self, k, S, T_gait, t_stance, lC, abg, lV, lW, l_feet, xref, x0, v_ref, fsteps):
+    def run(self, k, T_gait, t_stance, lC, abg, lV, lW, l_feet, xref, x0, v_ref, fsteps):
 
         # Recontruct the gait based on the computed footsteps
         self.construct_gait(fsteps)
@@ -831,7 +831,6 @@ class MPC:
             self.n_contacts = np.roll(self.n_contacts, -1, axis=0)
 
         # Retrieve data required for the MPC
-        self.S = S
         self.T_gait = T_gait
         self.t_stance = t_stance
         self.lC = lC

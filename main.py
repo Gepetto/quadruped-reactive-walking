@@ -136,6 +136,19 @@ for k in range(int(N_SIMULATION)):
         # fstep_planner.roll()
         t_list_ft[k] = time.time() - time_ft
 
+        
+
+        i = 0
+        up = np.isnan(fstep_planner.gait[:, 1:])
+        while (fstep_planner.gait[i, 0] != 0):
+            for j in range(4):
+                if not up[i, j]:
+                    pos_tmp = np.array(mpc_interface.oMl * np.array([fstep_planner.fsteps[i, (1+j*3):(4+j*3)]]).transpose())
+                    pyb.resetBasePositionAndOrientation(pyb_sim.ftps_Ids[j, i],
+                                                        posObj=pos_tmp,
+                                                        ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
+            i += 1
+
     ##############################################
     #  Run MPC once every 20 iterations of TSID  #
     ##############################################
@@ -177,7 +190,7 @@ for k in range(int(N_SIMULATION)):
         # Run the MPC to get the reference forces and the next predicted state
         # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
         # mpc.run((k/20), sequencer, fstep_planner, ftraj_gen, mpc_interface)
-        mpc.run((k/20), sequencer.S, sequencer.T_gait, sequencer.t_stance,
+        mpc.run((k/20), sequencer.T_gait, sequencer.t_stance,
                 mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
                 mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
                 fstep_planner.fsteps)
@@ -268,7 +281,8 @@ for k in range(int(N_SIMULATION)):
 # END OF MAIN LOOP #
 ####################
 
-
+print("END")
+quit()
 
 # Display duration of MPC block and Inverse Dynamics block
 plt.figure()
@@ -283,7 +297,6 @@ plt.figure()
 plt.plot(t_list_tsid, 'k+')
 plt.title("Time TSID")
 plt.show(block=True)
-
 
 quit()
 
