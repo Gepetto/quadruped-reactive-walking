@@ -1,7 +1,7 @@
 # coding: utf8
 
 import numpy as np
-
+import pybullet as pyb
 
 class FootstepPlanner:
     """A footstep planner that handles the choice of future
@@ -292,5 +292,39 @@ class FootstepPlanner:
         else:
             self.gait = np.roll(self.gait, -1, axis=0)
             self.gait[-1, :] = np.zeros((5, ))
+
+        return 0
+
+    def update_fsteps(self, k, l_feet, v_cur, v_ref, h, oMl, ftps_Ids):
+        """Update the gait cycle and compute the desired location of footsteps for a given pair of current/reference velocities
+
+        Args:
+            k (int): number of MPC iterations since the start of the simulation
+            l_feet (3x4 array): current position of feet in local frame
+            v_cur (6x1 array): current velocity vector of the flying base in local frame (linear and angular stacked)
+            v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
+            h (float): desired height for the trunk of the robot
+            oMl (SE3): SE3 object that contains the translation and rotation to go from local frame to world frame
+            ftps_Ids (4xX array): IDs of PyBullet objects to visualize desired footsteps location with spheres
+        """
+
+        if k > 0:
+            # Move one step further in the gait
+            self.roll()
+
+        # Compute the desired location of footsteps over the prediction horizon
+        self.compute_footsteps(l_feet, v_cur, v_ref, h)
+
+        # Display spheres for footsteps visualization
+        i = 0
+        up = np.isnan(self.gait[:, 1:])
+        while (self.gait[i, 0] != 0):
+            for j in range(4):
+                if not up[i, j]:
+                    pos_tmp = np.array(oMl * np.array([self.fsteps[i, (1+j*3):(4+j*3)]]).transpose())
+                    pyb.resetBasePositionAndOrientation(ftps_Ids[j, i],
+                                                        posObj=pos_tmp,
+                                                        ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
+            i += 1
 
         return 0

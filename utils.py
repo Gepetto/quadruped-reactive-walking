@@ -308,6 +308,10 @@ class pybullet_simulator:
                                               visualFramePosition=[0.0, 0.0, 0.0],
                                               meshScale=mesh_scale)
 
+        # Flag to launch the two spheres in the environment toward the robot
+        self.flag_sphere1 = True
+        self.flag_sphere2 = True
+
         self.ftps_Ids = np.zeros((4, 5), dtype=np.int)
         for i in range(4):
             for j in range(5):
@@ -359,3 +363,42 @@ class pybullet_simulator:
         # Change camera position
         pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=50, cameraPitch=-35,
                                        cameraTargetPosition=[0.0, 0.6, 0.0])
+
+    def check_pyb_env(self, qmes12):
+        """Check the state of the robot to trigger events and update camera
+
+        Args:
+            qmes12 (19x1 array): the position/orientation of the trunk and angular position of actuators
+
+        """
+
+        # Check if the robot is in front of the first sphere to trigger it
+        if self.flag_sphere1 and (qmes12[1, 0] >= 0.9):
+            pyb.resetBaseVelocity(self.sphereId1, linearVelocity=[3.0, 0.0, 2.0])
+            self.flag_sphere1 = False
+
+        # Check if the robot is in front of the second sphere to trigger it
+        if self.flag_sphere2 and (qmes12[1, 0] >= 1.1):
+            pyb.resetBaseVelocity(self.sphereId2, linearVelocity=[-3.0, 0.0, 2.0])
+            self.flag_sphere2 = False
+
+        # Update the PyBullet camera on the robot position to do as if it was attached to the robot
+        pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=50, cameraPitch=-35,
+                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])
+
+        return 0
+
+    def retrieve_pyb_data(self):
+
+        # Retrieve data from the simulation
+        self.jointStates = pyb.getJointStates(self.robotId, self.revoluteJointIndices)  # State of all joints
+        self.baseState = pyb.getBasePositionAndOrientation(self.robotId)  # Position and orientation of the trunk
+        self.baseVel = pyb.getBaseVelocity(self.robotId)  # Velocity of the trunk
+
+        # Joints configuration and velocity vector for free-flyer + 12 actuators
+        self.qmes12 = np.vstack((np.array([self.baseState[0]]).T, np.array([self.baseState[1]]).T,
+                                 np.array([[self.jointStates[i_joint][0] for i_joint in range(len(self.jointStates))]]).T))
+        self.vmes12 = np.vstack((np.array([self.baseVel[0]]).T, np.array([self.baseVel[1]]).T,
+                                 np.array([[self.jointStates[i_joint][1] for i_joint in range(len(self.jointStates))]]).T))
+
+        return 0

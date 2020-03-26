@@ -23,7 +23,7 @@ dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 1000  # number of time steps simulated
+N_SIMULATION = 10000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -55,10 +55,6 @@ solo = utils.init_viewer()
 # Initialisation of the PyBullet simulator
 pyb_sim = utils.pybullet_simulator(dt=0.001)
 
-# Flag to launch the two spheres in the environment toward the robot
-flag_sphere1 = True
-flag_sphere2 = True
-
 # Force monitor to display contact forces in PyBullet with red lines
 myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
@@ -84,80 +80,43 @@ for k in range(int(N_SIMULATION)):
     ###################################
 
     # Retrieve data from the simulation
-    jointStates = pyb.getJointStates(pyb_sim.robotId, pyb_sim.revoluteJointIndices)  # State of all joints
-    baseState = pyb.getBasePositionAndOrientation(pyb_sim.robotId)  # Position and orientation of the trunk
-    baseVel = pyb.getBaseVelocity(pyb_sim.robotId)  # Velocity of the trunk
-
-    # Joints configuration and velocity vector for free-flyer + 12 actuators
-    qmes12 = np.vstack((np.array([baseState[0]]).T, np.array([baseState[1]]).T,
-                        np.array([[jointStates[i_joint][0] for i_joint in range(len(jointStates))]]).T))
-    vmes12 = np.vstack((np.array([baseVel[0]]).T, np.array([baseVel[1]]).T,
-                        np.array([[jointStates[i_joint][1] for i_joint in range(len(jointStates))]]).T))
+    pyb_sim.retrieve_pyb_data()
 
     ##########################
     #  PyBullet environment  #
     ##########################
 
-    # Check if the robot is in front of the first sphere to trigger it
-    if flag_sphere1 and (qmes12[1, 0] >= 0.9):
-        pyb.resetBaseVelocity(pyb_sim.sphereId1, linearVelocity=[3.0, 0.0, 2.0])
-        flag_sphere1 = False
-
-    # Check if the robot is in front of the second sphere to trigger it
-    if flag_sphere2 and (qmes12[1, 0] >= 1.1):
-        pyb.resetBaseVelocity(pyb_sim.sphereId2, linearVelocity=[-3.0, 0.0, 2.0])
-        flag_sphere2 = False
-
-    # Update the PyBullet camera on the robot position to do as if it was attached to the robot
-    pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=50, cameraPitch=-35,
-                                   cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])
+    # Check the state of the robot to trigger events and update the camera
+    pyb_sim.check_pyb_env(pyb_sim.qmes12)
 
     ########################
     # Update MPC interface #
     ########################
 
     # Call the mpc_interface that makes the interface between the simulation and the MPC/TSID
-    mpc_interface.update(solo, qmes12, vmes12)
+    mpc_interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
 
     ###############################
     #  Update reference velocity  #
     ###############################
 
-    joystick.update_v_ref(k)  # Update the reference velocity coming from the joystick
+    # Update the reference velocity coming from the joystick
+    joystick.update_v_ref(k)
 
-    #######################################################
-    #  Update footsteps once every 20 iterations of TSID  #
-    #######################################################
+    ######################
+    #  Update footsteps  #
+    ######################
 
+    # Update footsteps desired location once every 20 iterations of TSID
     if (k % 20) == 0:
+        fstep_planner.update_fsteps(k, mpc_interface.l_feet, pyb_sim.vmes12[0:6, 0:1], joystick.v_ref,
+                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids)
 
-        time_ft = time.time()
+    #############
+    #  Run MPC  #
+    #############
 
-        if k > 0:
-            # Move one step further in the gait
-            fstep_planner.roll()
-
-        # Compute the desired location of footsteps over the prediction horizon
-        fstep_planner.compute_footsteps(mpc_interface.l_feet, vmes12[0:6, 0:1], joystick.v_ref, mpc_interface.lC[2, 0])
-
-        t_list_ft[k] = time.time() - time_ft
-
-        # Display spheres for footsteps visualization
-        i = 0
-        up = np.isnan(fstep_planner.gait[:, 1:])
-        while (fstep_planner.gait[i, 0] != 0):
-            for j in range(4):
-                if not up[i, j]:
-                    pos_tmp = np.array(mpc_interface.oMl * np.array([fstep_planner.fsteps[i, (1+j*3):(4+j*3)]]).transpose())
-                    pyb.resetBasePositionAndOrientation(pyb_sim.ftps_Ids[j, i],
-                                                        posObj=pos_tmp,
-                                                        ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
-            i += 1
-
-    ##############################################
-    #  Run MPC once every 20 iterations of TSID  #
-    ##############################################
-
+    # Run MPC once every 20 iterations of TSID
     if (k % 20) == 0:
 
         ####################
@@ -220,7 +179,7 @@ for k in range(int(N_SIMULATION)):
     #####################################
 
     # Retrieve the joint torques from the current active controller
-    jointTorques = myController.control(qmes12, vmes12, t, k, solo,
+    jointTorques = myController.control(pyb_sim.qmes12, pyb_sim.vmes12, t, k, solo,
                                         sequencer, mpc_interface, joystick.v_ref, f_applied,
                                         fstep_planner.fsteps).reshape((12, 1))
 
