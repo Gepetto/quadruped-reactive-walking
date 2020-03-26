@@ -297,6 +297,9 @@ class controller:
         # x1 = self.footsteps[0, :]
         # y1 = self.footsteps[1, :]
 
+        if k_loop == 19:
+            deb = 1
+
         if pair == -1:
             return 0
         elif pair == 0:
@@ -334,7 +337,7 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qmes12, vmes12, t, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied):
+    def control(self, qmes12, vmes12, t, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied, fsteps):
 
         self.v_ref = v_ref
         self.f_applied = f_applied
@@ -382,7 +385,7 @@ class controller:
         looping = int(self.T_gait/dt)
         k_loop = (k_simu - 0) % looping  # 120  # 600
 
-        self.update_footsteps(k_simu, k_loop, looping, sequencer, mpc_interface)
+        self.update_footsteps(k_simu, k_loop, looping, sequencer, mpc_interface, fsteps)
 
         #############################
         # UPDATE ROTATION ON ITSELF #
@@ -503,7 +506,7 @@ class controller:
 
         return 0
 
-    def update_footsteps(self, k_simu, k_loop, looping, sequencer, mpc_interface):
+    def update_footsteps(self, k_simu, k_loop, looping, sequencer, mpc_interface, fsteps):
 
         """# self.t_remaining[0, [1, 2]] = np.max((0.0, 0.16 * (looping*0.5 - k_loop) * 0.001))
         self.t_remaining[0, [1, 2]] = 0.16 * (looping*0.5 - k_loop) * 0.001
@@ -527,7 +530,7 @@ class controller:
             self.footsteps[:, i:(i+1)] = mpc_interface.o_shoulders[0:2, i:(i+1)] + \
                 (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid[:, i]).T[0:2, :]"""
         # self.footsteps = np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
-        self.test_tmp2(mpc_interface)
+        self.test_tmp2(mpc_interface, fsteps)
 
         return 0
 
@@ -541,8 +544,15 @@ class controller:
             self.t_remaining[0, [0, 3]] = 0.16 * (looping - k_loop) * 0.001
         return 0
 
-    def test_tmp2(self, mpc_interface):
+    def test_tmp2(self, mpc_interface, fsteps):
+
         self.footsteps = np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
+
+        for i in range(4):
+            index = next((idx for idx, val in np.ndenumerate(fsteps[:, 3*i+1]) if (not (val==0))), [-1])[0]
+            pos_tmp = np.array(mpc_interface.oMl * (np.array([fsteps[index, (1+i*3):(4+i*3)]]).transpose()))
+            self.footsteps[:, i] = pos_tmp[0:2, 0]
+
         return 0
 
     def update_ref_forces(self, mpc_interface):

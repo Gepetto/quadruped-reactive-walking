@@ -241,7 +241,8 @@ for k in range(int(N_SIMULATION)):
 
     # Retrieve the joint torques from the current active controller
     jointTorques = myController.control(qmes12, vmes12, t, k, solo,
-                                        sequencer, mpc_interface, joystick.v_ref, f_applied).reshape((12, 1))
+                                        sequencer, mpc_interface, joystick.v_ref, f_applied,
+                                        fstep_planner.fsteps).reshape((12, 1))
 
     # Time incrementation
     t += dt
