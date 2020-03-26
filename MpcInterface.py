@@ -1,11 +1,13 @@
 # coding: utf8
 
 import numpy as np
-import pybullet as pyb
 import pinocchio as pin
 
 
 class MpcInterface:
+    """Interface between the simulation and the FootstepPlanner/MPC/TSID. Retrieve information from the simulator
+       (positions, orientations, velocities) and compute different useful quantities (transforms, roll-pitch-yaw)
+    """
 
     def __init__(self):
 
@@ -30,7 +32,7 @@ class MpcInterface:
         self.la_feet = np.zeros((3, 4))  # acceleration of feet in local frame
         self.oa_feet = np.zeros((3, 4))  # acceleration of feet in world frame
 
-        # Indexes of feet frames
+        # Indexes of feet frames in this order: [FL, FR, HL, HR]
         self.indexes = [10, 18, 26, 34]
 
         # Average height of feet in local frame
@@ -42,17 +44,22 @@ class MpcInterface:
         self.o_shoulders = np.zeros((3, 4))
 
     def update(self, solo, qmes12, vmes12):
+        """Update the quantities of the MpcInterface based on the last measurements from the simulation
 
-        ################
-        # Process data #
-        ################
+        Args:
+            solo (object): Pinocchio wrapper for the quadruped
+            qmes12 (19x1 array): the position/orientation of the trunk and angular position of actuators
+            vmes12 (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators
 
+        """
+
+        # Rotation matrix from the world frame to the base frame 
         self.oRb = pin.Quaternion(qmes12[3:7]).matrix()
 
+        # Linear and angular velocity in base frame
         self.vmes12_base = vmes12.copy()
         self.vmes12_base[0:3, 0:1] = self.oRb.transpose() @ self.vmes12_base[0:3, 0:1]
         self.vmes12_base[3:6, 0:1] = self.oRb.transpose() @ self.vmes12_base[3:6, 0:1]
-        # qmes12[0:2, 0:1] = R @ qmes12[0:2, 0:1]
 
         # Get center of mass from Pinocchio
         pin.centerOfMass(solo.model, solo.data, qmes12, self.vmes12_base)
@@ -60,7 +67,8 @@ class MpcInterface:
         # Update position/orientation of frames
         pin.updateFramePlacements(solo.model, solo.data)
 
-        # Update average height of feet
+        # Update minimum height of feet
+        # TODO: Rename mean_feet_z into min_feet_z
         self.mean_feet_z = solo.data.oMf[self.indexes[0]].translation[2, 0]
         """for i in self.indexes:
             self.mean_feet_z += solo.data.oMf[i].translation[2, 0]
@@ -86,15 +94,18 @@ class MpcInterface:
         self.lV = self.oMl.rotation.transpose() @ self.oV
         self.lW = self.oMl.rotation.transpose() @ self.oW
 
-        # Position of feet in local frame
+        # Pos, vel and acc of feet
         for i, j in enumerate(self.indexes):
+            # Position of feet in local frame
             self.o_feet[:, i:(i+1)] = solo.data.oMf[j].translation
             self.l_feet[:, i:(i+1)] = self.oMl.inverse() * solo.data.oMf[j].translation
-            # getFrameVelocity output is in the frame of the foot
+
+            # getFrameVelocity output is in the frame of the foot so a transform is required
             self.ov_feet[:, i:(i+1)] = solo.data.oMf[j].rotation @ pin.getFrameVelocity(solo.model,
                                                                                         solo.data, j).vector[0:3, 0:1]
             self.lv_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.ov_feet[:, i:(i+1)]
-            # getFrameAcceleration output is in the frame of the foot
+
+            # getFrameAcceleration output is in the frame of the foot so a transform is required
             self.oa_feet[:, i:(i+1)] = solo.data.oMf[j].rotation @ pin.getFrameAcceleration(solo.model,
                                                                                             solo.data, j).vector[0:3, 0:1]
             self.la_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.oa_feet[:, i:(i+1)]

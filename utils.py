@@ -389,6 +389,8 @@ class pybullet_simulator:
         return 0
 
     def retrieve_pyb_data(self):
+        """Retrieve the position and orientation of the base in world frame as well as its linear and angular velocities
+        """
 
         # Retrieve data from the simulation
         self.jointStates = pyb.getJointStates(self.robotId, self.revoluteJointIndices)  # State of all joints
