@@ -29,10 +29,7 @@ N_SIMULATION = 10000  # number of time steps simulated
 time_error = False
 
 # Lists to log the duration of 1 iteration of the MPC/TSID
-t_list_mpc = [0] * int(N_SIMULATION)
 t_list_tsid = [0] * int(N_SIMULATION)
-t_list_state = [0] * int(N_SIMULATION)
-t_list_ft = [0] * int(N_SIMULATION)
 
 # Enable/Disable Gepetto viewer
 enable_gepetto_viewer = False
@@ -69,69 +66,36 @@ myEmergencyStop = EmergencyStop_controller.controller_12dof()
 
 for k in range(int(N_SIMULATION)):
 
-    # Starting time of the whole iteration
-    time_start_all = time.time()
-
-    if (k % 1000) == 0:
+    if (k % 10000) == 0:
         print("Iteration: ", k)
 
-    ###################################
-    #  Data collection from PyBullet  #
-    ###################################
-
-    # Retrieve data from the simulation
+    # Retrieve data from the simulation (position/orientation/velocity of the robot)
     pyb_sim.retrieve_pyb_data()
 
-    ##########################
-    #  PyBullet environment  #
-    ##########################
-
-    # Check the state of the robot to trigger events and update the camera
+    # Check the state of the robot to trigger events and update the simulator camera
     pyb_sim.check_pyb_env(pyb_sim.qmes12)
 
-    ########################
-    # Update MPC interface #
-    ########################
-
-    # Call the mpc_interface that makes the interface between the simulation and the MPC/TSID
+    # Update the mpc_interface that makes the interface between the simulation and the MPC/TSID
     mpc_interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
 
-    ###############################
-    #  Update reference velocity  #
-    ###############################
-
-    # Update the reference velocity coming from the joystick
+    # Update the reference velocity coming from the gamepad
     joystick.update_v_ref(k)
-
-    ######################
-    #  Update footsteps  #
-    ######################
 
     # Update footsteps desired location once every 20 iterations of TSID
     if (k % 20) == 0:
         fstep_planner.update_fsteps(k, mpc_interface.l_feet, pyb_sim.vmes12[0:6, 0:1], joystick.v_ref,
                                     mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids)
 
-    #############
-    #  Run MPC  #
-    #############
+    #######
+    # MPC #
+    #######
 
     # Run MPC once every 20 iterations of TSID
     if (k % 20) == 0:
 
-        ####################
-        # Footstep planner #
-        ####################
-
         # Get the reference trajectory over the prediction horizon
         fstep_planner.getRefStates((k/20), sequencer.T_gait, mpc_interface.lC, mpc_interface.abg,
                                    mpc_interface.lV, mpc_interface.lW, joystick.v_ref, h_ref=0.2027682)
-
-        #########
-        #  MPC  #
-        #########
-
-        time_mpc = time.time()
 
         # Run the MPC to get the reference forces and the next predicted state
         # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
@@ -139,16 +103,6 @@ for k in range(int(N_SIMULATION)):
                 mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
                 mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
                 fstep_planner.fsteps)
-
-        # Logging the time spent to run this iteration of the MPC
-        t_list_mpc[k] = time.time() - time_mpc
-
-        # Visualisation with gepetto viewer
-        # if enable_gepetto_viewer:
-        #     utils.display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc)
-
-        # Logging various stuff
-        # logger.call_log_functions(sequencer, fstep_planner, ftraj_gen, mpc, k)
 
         # Output of the MPC
         f_applied = mpc.f_applied
@@ -159,10 +113,7 @@ for k in range(int(N_SIMULATION)):
 
     time_tsid = time.time()
 
-    #############################
-    # Check if an error occured #
-    #############################
-
+    # Check if an error occured
     # If the limit bounds are reached, controller is switched to a pure derivative controller
     """if(myController.error):
         print("Safety bounds reached. Switch to a safety controller")
@@ -225,20 +176,15 @@ print("END")
 
 # Display duration of MPC block and Inverse Dynamics block
 plt.figure()
-plt.plot(t_list_ft, 'k+')
-plt.title("Time ft")
-
-plt.figure()
-plt.plot(t_list_mpc, 'k+')
-plt.title("Time MPC")
-
-plt.figure()
 plt.plot(t_list_tsid, 'k+')
 plt.title("Time TSID")
 plt.show(block=True)
 
 quit()
 
+##########
+# GRAPHS #
+##########
 
 # Display graphs of the logger
 logger.plot_graphs(dt_mpc, N_SIMULATION, myController)
