@@ -65,10 +65,11 @@ class FootstepPlanner:
         self.create_walking_trot()
 
     def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.2027682):
-        """Returns the reference trajectory of the robot for each time step of the
-        predition horizon. The ouput is a matrix of size 12 by N with N the number
-        of time steps (around T_gait / dt) and 12 the position / orientation /
-        linear velocity / angular velocity vertically stacked.
+        """Compute the reference trajectory of the CoM for each time step of the
+        predition horizon. The ouput is a matrix of size 12 by (N+1) with N the number
+        of time steps in the gait cycle (T_gait/dt) and 12 the position, orientation,
+        linear velocity and angular velocity vertically stacked. The first column contains
+        the current state while the remaining N columns contains the desired future states.
 
         Args:
             k (int): the number of MPC iterations since the start of the simulation

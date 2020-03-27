@@ -23,7 +23,7 @@ dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 10000  # number of time steps simulated
+N_SIMULATION = 1000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
