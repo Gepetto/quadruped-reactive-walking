@@ -53,7 +53,7 @@ class MpcInterface:
 
         """
 
-        # Rotation matrix from the world frame to the base frame 
+        # Rotation matrix from the world frame to the base frame
         self.oRb = pin.Quaternion(qmes12[3:7]).matrix()
 
         # Linear and angular velocity in base frame
@@ -107,7 +107,8 @@ class MpcInterface:
 
             # getFrameAcceleration output is in the frame of the foot so a transform is required
             self.oa_feet[:, i:(i+1)] = solo.data.oMf[j].rotation @ pin.getFrameAcceleration(solo.model,
-                                                                                            solo.data, j).vector[0:3, 0:1]
+                                                                                            solo.data, j).vector[0:3,
+                                                                                                                 0:1]
             self.la_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.oa_feet[:, i:(i+1)]
 
         # Orientation of the base in local frame

@@ -24,8 +24,15 @@ pin.switchToNumpyMatrix()
 ########################################################################
 
 class controller:
+    """ Inverse Dynamics controller that take into account the dynamics of the quadruped to generate
+        actuator torques to apply on the ground the contact forces computed by the MPC (for feet in stance
+        phase) and to perform the desired footsteps (for feet in swing phase)
 
-    def __init__(self, q0, omega, t, N_simulation):
+        Args:
+            N_similation (int): maximum number of Inverse Dynamics iterations for the simulation
+    """
+
+    def __init__(self, N_simulation):
 
         self.q_ref = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.7071067811865475, 0.7071067811865475,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
@@ -102,11 +109,6 @@ class controller:
         self.dt = 0.001  #  [s], time step
         self.t1 = 0.16  # [s], duration of swing phase
 
-        # Rotation along the vertical axis
-        delta_yaw = (2 * np.pi / 10) * t
-        c, s = np.cos(delta_yaw), np.sin(delta_yaw)
-        self.R_yaw = np.array([[c, s], [-s, c]])
-
         # Rotation matrix
         self.R = np.eye(3)
 
@@ -149,6 +151,7 @@ class controller:
         self.invdyn = tsid.InverseDynamicsFormulationAccForce("tsid", self.robot, False)
 
         # Compute the problem data with a solver based on EiQuadProg
+        t = 0.0
         self.invdyn.computeProblemData(t, self.qtsid, self.vtsid)
 
         # Saving IDs for later
@@ -287,19 +290,18 @@ class controller:
         # Resize the solver to fit the number of variables, equality and inequality constraints
         self.solver.resize(self.invdyn.nVar, self.invdyn.nEq, self.invdyn.nIn)
 
-    ####################################################################
-    #           Method to updated desired foot position                #
-    ####################################################################
-
     def update_feet_tasks(self, k_loop, pair, looping, mpc_interface):
+        """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
+           to the desired position on the ground (computed by the footstep planner)
 
-        # Target (x, y) positions for both feet
-        # x1 = self.footsteps[0, :]
-        # y1 = self.footsteps[1, :]
+        Args:
+            k_loop (int): number of time steps since the start of the current gait cycle
+            pair (int): the current pair of feet in swing phase, for a walking trot gait
+            looping (int): total number of time steps in one gait cycle
+            mpc_interface (MpcInterface object): interface between the simulator and the MPC/InvDyn
+        """
 
-        if k_loop == 19:
-            deb = 1
-
+        # The function only affects the current pair of feet in swing phase
         if pair == -1:
             return 0
         elif pair == 0:
@@ -308,6 +310,8 @@ class controller:
         else:
             t0 = ((k_loop-(looping*0.5+1)) / (looping*0.5-1)) * self.t1  # ((k_loop-320) / 280) * t1
             feet = [0, 3]
+
+        # self.footsteps contains the target (x, y) positions for both feet in swing phase
 
         for i_foot in feet:
 
@@ -338,6 +342,24 @@ class controller:
     ####################################################################
 
     def control(self, qmes12, vmes12, t, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied, fsteps):
+        """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
+           to the desired position on the ground (computed by the footstep planner)
+
+        Args:
+            qmes12 (19x1 array): the position/orientation of the trunk and angular position of actuators
+            vmes12 (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators
+            t (float): time elapsed since the start of the simulation
+            k_simu (int): number of time steps since the start of the simulation
+            solo (object): Pinocchio wrapper for the quadruped
+            sequencer (object): ContactSequencer object that contains information about the current gait
+            mpc_interface (MpcInterface object): interface between the simulator and the MPC/InvDyn
+            v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
+            f_applied (12 array): desired contact forces for all feet (0s for feet in swing phase)
+            fsteps (Xx13 array): contains the remaining number of steps of each phase of the gait (first column) and
+                                 the [x, y, z]^T desired position of each foot for each phase of the gait (12 other
+                                 columns). For feet currently touching the ground the desired position is where they
+                                 currently are.
+        """
 
         self.v_ref = v_ref
         self.f_applied = f_applied
@@ -382,16 +404,11 @@ class controller:
         # FOOTSTEPS PLANNER #
         #####################
 
-        looping = int(self.T_gait/dt)
-        k_loop = (k_simu - 0) % looping  # 120  # 600
+        looping = int(self.T_gait/dt)  # Number of TSID iterations in one gait cycle
+        k_loop = (k_simu - 0) % looping  # Current number of iterations since the start of the current gait cycle
 
+        # Update the desired position of footholds thanks to the footstep planner
         self.update_footsteps(k_simu, k_loop, looping, sequencer, mpc_interface, fsteps)
-
-        #############################
-        # UPDATE ROTATION ON ITSELF #
-        #############################
-
-        # self.footsteps = np.dot(self.R_yaw, self.footsteps)
 
         #######################
         # UPDATE CoM POSITION #
@@ -449,56 +466,40 @@ class controller:
 
         # TODO: Angular acceleration?
 
-        #####################################
-        # UPDATE REFERENC OF CONTACT FORCES #
-        #####################################
+        ######################################
+        # UPDATE REFERENCE OF CONTACT FORCES #
+        ######################################
 
         # TODO: Remove "w_reg_f *" in setForceReference once the tsid bug is fixed
 
-        """if k_loop >= 61:  # 320:
-            for j, i_foot in enumerate([1, 2]):
-                self.contacts[i_foot].setForceReference(self.w_reg_f * np.matrix(mpc.f_applied[3*j:3*(j+1)]).T)
-                self.contacts[i_foot].setRegularizationTaskWeightVector(
-                    np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
-        elif k_loop >= 60:  # 300:
-            for j, i_foot in enumerate([0, 1, 2, 3]):
-                self.contacts[i_foot].setForceReference(self.w_reg_f * np.matrix(mpc.f_applied[3*j:3*(j+1)]).T)
-                self.contacts[i_foot].setRegularizationTaskWeightVector(
-                    np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
-        elif k_loop >= 1:  # 20:
-            for j, i_foot in enumerate([0, 3]):
-                self.contacts[i_foot].setForceReference(self.w_reg_f * np.matrix(mpc.f_applied[3*j:3*(j+1)]).T)
-                self.contacts[i_foot].setRegularizationTaskWeightVector(
-                    np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
-        else:
-            for j, i_foot in enumerate([0, 1, 2, 3]):
-                self.contacts[i_foot].setForceReference(self.w_reg_f * np.matrix(mpc.f_applied[3*j:3*(j+1)]).T)
-                self.contacts[i_foot].setRegularizationTaskWeightVector(
-                    np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
-
+        # Update the contact force tracking tasks to follow the forces computed by the MPC
         self.update_ref_forces(mpc_interface)
-
-        """in_stance_phase = np.where(sequencer.S[0, :] == 1)
-        for j, i_foot in enumerate(in_stance_phase[1]):
-            self.contacts[i_foot].setForceReference(self.w_reg_f * np.matrix(mpc.f_applied[3*j:3*(j+1)]).T)
-            self.contacts[i_foot].setRegularizationTaskWeightVector(
-                np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
 
         ################
         # UPDATE TASKS #
         ################
 
+        # Enable/disable contact and 3D tracking tasks depending on the state of the feet (swing or stance phase)
         self.update_tasks(k_simu, k_loop, looping, mpc_interface)
 
         ###############
         # HQP PROBLEM #
         ###############
 
+        # Solve the inverse dynamics problem with TSID
         self.solve_HQP_problem(t)
 
         return self.tau
 
     def update_state(self, qmes12, vmes12):
+        """Update TSID's internal state.
+
+        Currently we directly use the state of the simulator to perform the inverse dynamics
+
+        Args:
+            qmes12 (19x1 array): the position/orientation of the trunk and angular position of actuators
+            vmes12 (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators
+        """
 
         self.qtsid = qmes12.copy()
         # self.qtsid[2] -= 0.015  # 0.01205385
@@ -885,7 +886,3 @@ class controller:
 
 
 dt = 0.001			# controller time step
-
-q0 = np.zeros((19, 1))  # initial configuration
-
-omega = 1  # Not used

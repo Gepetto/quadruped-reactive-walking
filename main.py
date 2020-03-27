@@ -7,7 +7,7 @@ import time
 
 import pybullet as pyb
 import pybullet_data
-from TSID_Debug_controller_four_legs_fb_vel import controller, dt, q0, omega
+from TSID_Debug_controller_four_legs_fb_vel import controller, dt
 import Safety_controller
 import EmergencyStop_controller
 import ForceMonitor
@@ -60,7 +60,7 @@ myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 ########################################################################
 
 # Define the default controller as well as emergency and safety controller
-myController = controller(q0, omega, t, int(N_SIMULATION))
+myController = controller(int(N_SIMULATION))
 mySafetyController = Safety_controller.controller_12dof()
 myEmergencyStop = EmergencyStop_controller.controller_12dof()
 
