@@ -13,6 +13,7 @@ import EmergencyStop_controller
 import ForceMonitor
 from IPython import embed
 import os
+import MPC_Wrapper
 
 ########################################################################
 #                        Parameters definition                         #
@@ -23,7 +24,7 @@ dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 1000  # number of time steps simulated
+N_SIMULATION = 10000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -37,6 +38,8 @@ enable_gepetto_viewer = False
 # Create Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator
 # and MpcSolver objects
 joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = utils.init_objects(dt_mpc, N_SIMULATION)
+
+mpc_wrapper = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], np.sum(sequencer.S, axis=1).astype(int), multiprocessing=False)
 
 ########################################################################
 #                            Gepetto viewer                            #
@@ -78,8 +81,9 @@ for k in range(int(N_SIMULATION)):
     # Update the mpc_interface that makes the interface between the simulation and the MPC/TSID
     mpc_interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
 
-    # Update the reference velocity coming from the gamepad
-    joystick.update_v_ref(k)
+    # Update the reference velocity coming from the gamepad once every 20 iterations of TSID
+    if (k % 20) == 0:
+        joystick.update_v_ref(k)
 
     # Update footsteps desired location once every 20 iterations of TSID
     if (k % 20) == 0:
@@ -99,13 +103,18 @@ for k in range(int(N_SIMULATION)):
 
         # Run the MPC to get the reference forces and the next predicted state
         # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
-        mpc.run((k/20), sequencer.T_gait, sequencer.t_stance,
+        """mpc.run((k/20), sequencer.T_gait, sequencer.t_stance,
                 mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
                 mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
                 fstep_planner.fsteps)
 
         # Output of the MPC
-        f_applied = mpc.f_applied
+        f_applied = mpc.f_applied"""
+
+        mpc_wrapper.run_MPC(k, sequencer.T_gait, sequencer.t_stance,
+                            joystick, fstep_planner, mpc_interface)
+
+        f_applied = mpc_wrapper.get_latest_result()
 
     ####################
     # Inverse Dynamics #
