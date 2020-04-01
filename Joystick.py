@@ -17,8 +17,8 @@ class Joystick:
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 0.1
-        self.VyScale = 0.1
+        self.VxScale = 0.3
+        self.VyScale = 1.0
         self.vYawScale = 0.4
 
     def update_v_ref(self, k_loop):

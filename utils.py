@@ -151,7 +151,7 @@ def init_objects(dt, k_max_loop):
     # mpc = MpcSolver.MpcSolver(dt, sequencer, k_max_loop)
 
     # Create the new version of the MPC solver object
-    mpc = None  # MPC.MPC(dt, sequencer.S.shape[0], np.sum(sequencer.S, axis=1).astype(int))
+    mpc =  MPC.MPC(dt, sequencer.S.shape[0])
     """mpc_v2.update_v_ref(joystick)
     mpc_v2.run(0, sequencer, fstep_planner, ftraj_gen)
     mpc_v2.update_matrices(sequencer)

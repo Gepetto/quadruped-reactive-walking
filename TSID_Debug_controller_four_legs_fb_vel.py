@@ -335,6 +335,13 @@ class controller:
             # Update footgoal for display purpose
             self.feetGoal[i_foot].translation = np.matrix([x0, y0, z0]).T
 
+            if k_loop == (7*20 + 19):
+                print("i_foot " + str(i_foot) + ": ", (mpc_interface.oMl.inverse() * np.array([[x0, y0, z0]]).transpose()).ravel())
+                #print([x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1])
+                print(mpc_interface.oMl.inverse() * np.array([[x0, y0, z0]]).transpose().ravel())
+                print(mpc_interface.oMl.inverse().rotation @ np.array([[dx0, dy0, dz0]]).transpose().ravel())
+                print(mpc_interface.oMl.inverse().rotation @ np.array([[ddx0, ddy0, ddz0]]).transpose().ravel())
+                print(mpc_interface.oMl.inverse() * np.array([[gx1, gy1, 0.0]]).transpose().ravel())
         return 0
 
     ####################################################################
@@ -407,8 +414,20 @@ class controller:
         looping = int(self.T_gait/dt)  # Number of TSID iterations in one gait cycle
         k_loop = (k_simu - 0) % looping  # Current number of iterations since the start of the current gait cycle
 
+        if k_loop == 10:
+            print(v_ref.ravel())
+
         # Update the desired position of footholds thanks to the footstep planner
         self.update_footsteps(k_simu, k_loop, looping, sequencer, mpc_interface, fsteps)
+
+        if (k_simu % (16*20)) == (7*20+19):
+            print("TSID:")
+            print(fsteps[0:2, 2::3])
+            print(mpc_interface.l_feet[1, :])
+            for i_disp in range(4):
+                print("Foot "+str(i_disp) + ": ", self.feetGoal[i_disp].translation.ravel())
+            if mpc_interface.l_feet[1, 2] < 0.12:
+                deb = 1
 
         #######################
         # UPDATE CoM POSITION #
@@ -533,6 +552,9 @@ class controller:
         # self.footsteps = np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
         self.test_tmp2(mpc_interface, fsteps)
 
+        """if (k_simu % (16*20)) == 60:
+            print(fsteps[0:2, 2::3])"""
+
         return 0
 
     def test_tmp1(self, k_loop, looping):
@@ -547,12 +569,20 @@ class controller:
 
     def test_tmp2(self, mpc_interface, fsteps):
 
-        self.footsteps = np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
+        self.footsteps = np.zeros((2, 4))#np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
+
+        """print("###")"""
 
         for i in range(4):
             index = next((idx for idx, val in np.ndenumerate(fsteps[:, 3*i+1]) if (not (val==0))), [-1])[0]
+            #print(str(i) + ": ", (np.array([fsteps[index, (1+1+i*3):(3+i*3)]]).ravel()))
             pos_tmp = np.array(mpc_interface.oMl * (np.array([fsteps[index, (1+i*3):(4+i*3)]]).transpose()))
             self.footsteps[:, i] = pos_tmp[0:2, 0]
+
+        """if (k_simu % 20) == 10:
+            for i_disp in range(4):
+                print("Foot "+str(i_disp) + ": ", self.feetGoal[i_disp].translation.ravel())"""
+        #print(self.footsteps)
 
         return 0
 
@@ -698,7 +728,7 @@ class controller:
                     self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
                     self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
                     self.contacts[i_foot].setReference(self.pos_foot)
-        
+
         return 0
 
     def solve_HQP_problem(self, t):

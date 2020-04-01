@@ -29,7 +29,7 @@ class FootstepPlanner:
         self.g = 9.81
 
         # Value of the maximum allowed deviation due to leg length
-        self.L = 0.06
+        self.L = 0.12
 
         # The desired (x,y) position of footsteps
         # If a foot is in swing phase it is where it should land
@@ -207,6 +207,11 @@ class FootstepPlanner:
                 # Get future desired position of footsteps
                 self.compute_next_footstep(v_ref, v_ref, h)
 
+                """if (i == 1):
+                    print("###")
+                    print(self.next_footstep)"""
+
+
                 # Get future yaw angle compared to current position
                 angle = v_ref[5, 0] * dt_cum
                 c, s = np.cos(angle), np.sin(angle)
@@ -222,13 +227,19 @@ class FootstepPlanner:
                     dx = v_cur[0, 0] * dt_cum
                     dy = v_cur[1, 0] * dt_cum
 
+
                 # Get desired position of footstep compared to current position
                 next_ft = (np.dot(R, self.next_footstep) + np.array([[dx], [dy], [0.0]])).ravel(order='F')
-
+                #next_ft = (self.next_footstep).ravel(order='F')
+                """print("rotated: ", np.dot(R, self.next_footstep)[0:3, 2])
+                print("dx, dy: ", dx, dy)
+                print("next_ft: ", next_ft[6:9])"""
                 # Assignement only to feet that have been in swing phase
                 (self.fsteps[i, 1:])[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]] = next_ft[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]]
 
             i += 1
+
+        #print(self.fsteps[0:2, 2::3])
 
         return 0
 
@@ -245,7 +256,7 @@ class FootstepPlanner:
         """
 
         # TODO: Automatic detection of t_stance to handle arbitrary gaits
-        t_stance = 0.3
+        t_stance = 0.32
 
         # Order of feet: FL, FR, HL, HR
 
@@ -265,6 +276,10 @@ class FootstepPlanner:
         (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) > self.L] = self.L
         (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) < (-self.L)] = -self.L
 
+        """print(" V_ref: ", v_ref[0:2, 0].ravel(), v_ref[5, 0])
+        print(" V_cur: ", v_cur[0:2, 0].ravel(), v_cur[5, 0])
+        print("Offset: ", self.next_footstep[0:2, 0].ravel())"""
+
         # Add shoulders
         self.next_footstep[0:2, :] += self.shoulders
 
@@ -280,7 +295,7 @@ class FootstepPlanner:
         # Index of the first empty line
         index = next((idx for idx, val in np.ndenumerate(self.gait[:, 0]) if val==0.0), 0.0)[0]
 
-        # Create a new phase is needed or increase the last one by 1 step
+        # Create a new phase if needed or increase the last one by 1 step
         if np.array_equal(self.gait[0, 1:], self.gait[index-1, 1:]):
             self.gait[index-1, 0] += 1.0
         else:

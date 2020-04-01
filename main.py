@@ -24,7 +24,7 @@ dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 10000  # number of time steps simulated
+N_SIMULATION = 100000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -39,7 +39,8 @@ enable_gepetto_viewer = False
 # and MpcSolver objects
 joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = utils.init_objects(dt_mpc, N_SIMULATION)
 
-mpc_wrapper = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], np.sum(sequencer.S, axis=1).astype(int), multiprocessing=False)
+enable_multiprocessing = False
+mpc_wrapper = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], multiprocessing=enable_multiprocessing)
 
 ########################################################################
 #                            Gepetto viewer                            #
@@ -85,9 +86,14 @@ for k in range(int(N_SIMULATION)):
     if (k % 20) == 0:
         joystick.update_v_ref(k)
 
+    if (k == 0):
+        fstep_planner.update_fsteps(k, mpc_interface.l_feet, pyb_sim.vmes12[0:6, 0:1], joystick.v_ref,
+                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids)
+
     # Update footsteps desired location once every 20 iterations of TSID
     if (k % 20) == 0:
-        fstep_planner.update_fsteps(k, mpc_interface.l_feet, pyb_sim.vmes12[0:6, 0:1], joystick.v_ref,
+        fsteps_invdyn = fstep_planner.fsteps.copy()
+        fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, pyb_sim.vmes12[0:6, 0:1], joystick.v_ref,
                                     mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids)
 
     #######
@@ -96,6 +102,10 @@ for k in range(int(N_SIMULATION)):
 
     # Run MPC once every 20 iterations of TSID
     if (k % 20) == 0:
+
+        """for ij in range(4):
+            print("###")
+            print(str(ij) + ": ", fstep_planner.fsteps[0:2, 2+3*ij])"""
 
         # Get the reference trajectory over the prediction horizon
         fstep_planner.getRefStates((k/20), sequencer.T_gait, mpc_interface.lC, mpc_interface.abg,
@@ -111,10 +121,22 @@ for k in range(int(N_SIMULATION)):
         # Output of the MPC
         f_applied = mpc.f_applied"""
 
-        mpc_wrapper.run_MPC(k, sequencer.T_gait, sequencer.t_stance,
-                            joystick, fstep_planner, mpc_interface)
+        """if enable_multiprocessing:
+            if k > 0:
+                f_applied = mpc_wrapper.get_latest_result()
+                # print(f_applied[2::3])
+                # f_applied = np.zeros((12,))
+            else:
+                f_applied = np.array([0.0, 0.0, 8.0] * 4)
+        else:
+            f_applied = mpc_wrapper.mpc.f_applied"""
 
-        f_applied = mpc_wrapper.get_latest_result()
+        f_applied = mpc_wrapper.get_latest_result(k)
+
+        mpc_wrapper.run_MPC(dt_mpc, sequencer.S.shape[0], k, sequencer.T_gait,
+                            sequencer.t_stance, joystick, fstep_planner, mpc_interface)
+
+
 
     ####################
     # Inverse Dynamics #
@@ -138,10 +160,13 @@ for k in range(int(N_SIMULATION)):
     # Get torques with inverse dynamics #
     #####################################
 
+    if (k % (16*20)) == (7*20+19):
+        print(fsteps_invdyn[0:2, 2::3])
+
     # Retrieve the joint torques from the current active controller
     jointTorques = myController.control(pyb_sim.qmes12, pyb_sim.vmes12, t, k, solo,
                                         sequencer, mpc_interface, joystick.v_ref, f_applied,
-                                        fstep_planner.fsteps).reshape((12, 1))
+                                        fsteps_invdyn).reshape((12, 1))
 
     # Time incrementation
     t += dt

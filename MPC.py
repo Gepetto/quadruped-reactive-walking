@@ -19,7 +19,7 @@ class MPC:
 
     """
 
-    def __init__(self, dt, n_steps, n_contacts):
+    def __init__(self, dt, n_steps):
 
         # Time step of the MPC solver
         self.dt = dt
@@ -57,9 +57,6 @@ class MPC:
 
         # Reference height that the robot will try to maintain
         self.h_ref = self.q[2, 0]
-
-        # Get number of feet in contact with the ground for each step of the gait sequence
-        self.n_contacts = n_contacts
 
         # Initial position of footholds in the "straight standing" default configuration
         self.footholds = np.array(
@@ -268,8 +265,8 @@ class MPC:
         P_data[0::12] = 10  # position along x
         P_data[1::12] = 10  # position along y
         P_data[2::12] = 2000  # position along z
-        P_data[3::12] = 50  # roll
-        P_data[4::12] = 50  # pitch
+        P_data[3::12] = 250  # roll
+        P_data[4::12] = 250  # pitch
         P_data[5::12] = 10  # yaw
         P_data[6::12] = 200  # linear velocity along x
         P_data[7::12] = 200  # linear velocity along y
@@ -486,10 +483,6 @@ class MPC:
             self.q[3:6, 0:1] = abg
             self.v[0:3, 0:1] = lV
             self.v[3:6, 0:1] = lW
-
-        # Get number of feet in contact with the ground for each step of the gait sequence
-        if k > 0:
-            self.n_contacts = np.roll(self.n_contacts, -1, axis=0)
 
         # Retrieve data required for the MPC
         self.T_gait = T_gait
