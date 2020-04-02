@@ -361,7 +361,7 @@ class pybullet_simulator:
         pyb.setTimeStep(dt)
 
         # Change camera position
-        pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=50, cameraPitch=-35,
+        pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=-50, cameraPitch=-35,
                                        cameraTargetPosition=[0.0, 0.6, 0.0])
 
     def check_pyb_env(self, qmes12):
@@ -383,7 +383,7 @@ class pybullet_simulator:
             self.flag_sphere2 = False
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
-        pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=50, cameraPitch=-35,
+        pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
                                        cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])
 
         return 0

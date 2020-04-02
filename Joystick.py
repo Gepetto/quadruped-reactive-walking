@@ -13,12 +13,14 @@ class Joystick:
         # Reference velocity in local frame
         self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
+        self.reduced = False
+
         # Joystick variables (linear and angular velocity and their scaling for the joystick)
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 0.3
-        self.VyScale = 1.0
+        self.VxScale = 0.2
+        self.VyScale = 0.6
         self.vYawScale = 0.4
 
     def update_v_ref(self, k_loop):
@@ -37,6 +39,9 @@ class Joystick:
         self.vYaw = self.gp.rightJoystickX.value * self.vYawScale
 
         self.v_ref = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
+
+        if self.gp.startButton.value == True:
+            self.reduced = not self.reduced
 
         return 0
 

@@ -73,7 +73,7 @@ class MPC_Wrapper:
 
         self.compress_dataIn(dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface)
 
-        print("Sending")
+        #print("Sending")
         """print(dt, n_steps, k, T_gait, t_stance)
         print(mpc_interface.lC.ravel())
         print(mpc_interface.abg.ravel())
@@ -99,7 +99,7 @@ class MPC_Wrapper:
                 newData.value = False
                 # print("New data detected")
 
-                print("Receiving")
+                #print("Receiving")
                 dt, nsteps, k, T_gait, t_stance, lC, abg, lV, lW, l_feet, xref, x0, v_ref, fsteps  = self.decompress_dataIn(dataIn)
                 dt = dt[0]
                 nsteps = np.int(nsteps[0])

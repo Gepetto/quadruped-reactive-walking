@@ -164,7 +164,7 @@ class FootstepPlanner:
 
         return 0
 
-    def compute_footsteps(self, l_feet, v_cur, v_ref, h):
+    def compute_footsteps(self, l_feet, v_cur, v_ref, h, reduced):
         """Compute the desired location of footsteps over the prediction horizon
 
         Compute a X by 13 matrix containing the remaining number of steps of each phase of the gait (first column)
@@ -206,6 +206,13 @@ class FootstepPlanner:
 
                 # Get future desired position of footsteps
                 self.compute_next_footstep(v_ref, v_ref, h)
+
+                if reduced:
+                    self.next_footstep[0:2, :] -= np.array([[0.0, 0.0, -0.0, -0.0],
+                                                            [0.06, -0.06, 0.06, -0.06]])
+
+                """self.next_footstep[0:2, :] -= np.array([[0.14, 0.14, -0.14, -0.14],
+                                                        [0.10005, -0.10005, 0.10005, -0.10005]])"""
 
                 """if (i == 1):
                     print("###")
@@ -311,7 +318,7 @@ class FootstepPlanner:
 
         return 0
 
-    def update_fsteps(self, k, l_feet, v_cur, v_ref, h, oMl, ftps_Ids):
+    def update_fsteps(self, k, l_feet, v_cur, v_ref, h, oMl, ftps_Ids, reduced):
         """Update the gait cycle and compute the desired location of footsteps for a given pair of current/reference velocities
 
         Args:
@@ -329,7 +336,7 @@ class FootstepPlanner:
             self.roll()
 
         # Compute the desired location of footsteps over the prediction horizon
-        self.compute_footsteps(l_feet, v_cur, v_ref, h)
+        self.compute_footsteps(l_feet, v_cur, v_ref, h, reduced)
 
         # Display spheres for footsteps visualization
         i = 0

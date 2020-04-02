@@ -7,6 +7,7 @@
 #                                                                      #
 ########################################################################
 
+from matplotlib import pyplot as plt
 import pinocchio as pin
 import numpy as np
 import numpy.matlib as matlib
@@ -98,7 +99,7 @@ class controller:
         self.memory_contacts = R @ self.shoulders.copy()
 
         # Foot trajectory generator
-        max_height_feet = 0.05
+        max_height_feet = 0.08
         t_lock_before_touchdown = 0.05
         self.ftgs = [ftg.Foot_trajectory_generator(max_height_feet, t_lock_before_touchdown) for i in range(4)]
 
@@ -313,12 +314,50 @@ class controller:
 
         # self.footsteps contains the target (x, y) positions for both feet in swing phase
 
+        """t0 = 0.0
+        t1 = 0.16
+        dt = 0.001
+        x0 = 0.0
+        dx0 = 0.0
+        ddx0 = 0.0
+        y0 = 0.0
+        dy0 = 0.0
+        ddy0 = 0.0
+        z0 = 0.0
+        dz0 = 0.0
+        ddz0 = 0.0
+        gx1 = 0.01
+        gy1 = 0.01
+
+        log = np.zeros((int(t1/dt), 11))
+        i_log = 0
+
+        while t0 <= t1:
+
+            [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[0]).get_next_foot(
+                    x0, dx0, ddx0, y0, dy0, ddy0, gx1, gy1, t0, t1, dt)
+
+            log[i_log, :] = np.array([x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1])
+            i_log += 1
+
+            t0 += dt
+
+        l_str = ["x0", "dx0", "ddx0",  "y0", "dy0", "ddy0",  "z0", "dz0", "ddz0", "gx1", "gy1"]
+        index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8]
+        plt.figure()
+        for i in range(11):
+            plt.subplot(3, 4, index[i])
+            plt.plot(log[:, i], linewidth=2, marker='x')
+            plt.legend([l_str[i]])
+
+        plt.show(block=True)"""
+
         for i_foot in feet:
 
             # Get desired 3D position, velocity and acceleration
             [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
                 mpc_interface.o_feet[0, i_foot], mpc_interface.ov_feet[0, i_foot], mpc_interface.oa_feet[0, i_foot],
-                mpc_interface.o_feet[1, i_foot], mpc_interface.ov_feet[1, i_foot], mpc_interface.oa_feet[0, i_foot],
+                mpc_interface.o_feet[1, i_foot], mpc_interface.ov_feet[1, i_foot], mpc_interface.oa_feet[1, i_foot],
                 self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0,  self.t1, self.dt)
 
             # Take into account vertical offset of Pybullet
@@ -335,13 +374,13 @@ class controller:
             # Update footgoal for display purpose
             self.feetGoal[i_foot].translation = np.matrix([x0, y0, z0]).T
 
-            if k_loop == (7*20 + 19):
+            """if k_loop == (7*20 + 19):
                 print("i_foot " + str(i_foot) + ": ", (mpc_interface.oMl.inverse() * np.array([[x0, y0, z0]]).transpose()).ravel())
                 #print([x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1])
                 print(mpc_interface.oMl.inverse() * np.array([[x0, y0, z0]]).transpose().ravel())
                 print(mpc_interface.oMl.inverse().rotation @ np.array([[dx0, dy0, dz0]]).transpose().ravel())
                 print(mpc_interface.oMl.inverse().rotation @ np.array([[ddx0, ddy0, ddz0]]).transpose().ravel())
-                print(mpc_interface.oMl.inverse() * np.array([[gx1, gy1, 0.0]]).transpose().ravel())
+                print(mpc_interface.oMl.inverse() * np.array([[gx1, gy1, 0.0]]).transpose().ravel())"""
         return 0
 
     ####################################################################
@@ -415,19 +454,20 @@ class controller:
         k_loop = (k_simu - 0) % looping  # Current number of iterations since the start of the current gait cycle
 
         if k_loop == 10:
-            print(v_ref.ravel())
+            #print(v_ref.ravel())
+            print(mpc_interface.lV[0:2, 0].ravel())
 
         # Update the desired position of footholds thanks to the footstep planner
         self.update_footsteps(k_simu, k_loop, looping, sequencer, mpc_interface, fsteps)
 
-        if (k_simu % (16*20)) == (7*20+19):
+        """if (k_simu % (16*20)) == (7*20+19):
             print("TSID:")
             print(fsteps[0:2, 2::3])
             print(mpc_interface.l_feet[1, :])
             for i_disp in range(4):
                 print("Foot "+str(i_disp) + ": ", self.feetGoal[i_disp].translation.ravel())
             if mpc_interface.l_feet[1, 2] < 0.12:
-                deb = 1
+                deb = 1"""
 
         #######################
         # UPDATE CoM POSITION #

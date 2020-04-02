@@ -88,13 +88,13 @@ for k in range(int(N_SIMULATION)):
 
     if (k == 0):
         fstep_planner.update_fsteps(k, mpc_interface.l_feet, pyb_sim.vmes12[0:6, 0:1], joystick.v_ref,
-                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids)
+                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, False)
 
     # Update footsteps desired location once every 20 iterations of TSID
     if (k % 20) == 0:
         fsteps_invdyn = fstep_planner.fsteps.copy()
         fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, pyb_sim.vmes12[0:6, 0:1], joystick.v_ref,
-                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids)
+                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, joystick.reduced)
 
     #######
     # MPC #
@@ -160,8 +160,8 @@ for k in range(int(N_SIMULATION)):
     # Get torques with inverse dynamics #
     #####################################
 
-    if (k % (16*20)) == (7*20+19):
-        print(fsteps_invdyn[0:2, 2::3])
+    """if (k % (16*20)) == (7*20+19):
+        print(fsteps_invdyn[0:2, 2::3])"""
 
     # Retrieve the joint torques from the current active controller
     jointTorques = myController.control(pyb_sim.qmes12, pyb_sim.vmes12, t, k, solo,
@@ -193,14 +193,19 @@ for k in range(int(N_SIMULATION)):
     # myForceMonitor.display_contact_forces()
 
     # Save PyBullet camera frame
-    """if (k % 40) == 0:
+    """if (k % 20) == 0:
         print(k)
         img = pyb.getCameraImage(width=1920, height=1080, renderer=pyb.ER_BULLET_HARDWARE_OPENGL)
         if k == 0:
             newpath = r'/tmp/recording'
             if not os.path.exists(newpath):
                 os.makedirs(newpath)
-        plt.imsave('/tmp/recording/frame_'+str(int(k/20))+'.png', img[2])"""
+        if (int(k/20) < 10):
+            plt.imsave('/tmp/recording/frame_00'+str(int(k/20))+'.png', img[2])
+        elif int(k/20) < 100:
+            plt.imsave('/tmp/recording/frame_0'+str(int(k/20))+'.png', img[2])
+        else:
+            plt.imsave('/tmp/recording/frame_'+str(int(k/20))+'.png', img[2])"""
 
 ####################
 # END OF MAIN LOOP #
