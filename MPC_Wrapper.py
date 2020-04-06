@@ -31,30 +31,75 @@ class MPC_Wrapper:
             self.mpc = MPC.MPC(dt, n_steps)
 
     def run_MPC(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface):
+        """Call either the asynchronous MPC or the synchronous MPC depending on the value of multiprocessing during
+        the creation of the wrapper
+
+        Args:
+            dt (float): Time step of the MPC
+            n_steps (int): Number of time steps in one gait cycle
+            k (int): Number of inv dynamics iterations since the start of the simulation
+            T_gait (float): duration of one period of gait
+            t_stance (float): duration of one stance phase
+            joystick (object): interface with the gamepad
+            fstep_planner (object): FootstepPlanner object of the control loop
+            mpc_interface (object): MpcInterface object of the control loop
+        """
 
         if self.multiprocessing:
             self.run_MPC_asynchronous(dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface)
         else:
             self.run_MPC_synchronous(dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface)
 
+        return 0
+
     def get_latest_result(self, k):
+        """Return the desired contact forces that have been computed by the last iteration of the MPC
+
+        Args:
+            k (int): Number of inv dynamics iterations since the start of the simulation
+        """
 
         if (k != 0):
             if self.multiprocessing:
                 if self.newResult.value:
                     self.newResult.value = False
+                    # Retrieve desired contact forces with through the memory shared with the asynchronous
                     return self.convert_dataOut()
                 else:
                     raise ValueError("Error: something went wrong with the MPC, result not available.")
             else:
+                # Directly retrieve desired contact force of the synchronous MPC object
                 return self.mpc.f_applied
         else:
+            # Default forces for the first iteration
             return np.array([0.0, 0.0, 8.0] * 4)
 
     def run_MPC_synchronous(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface):
+        """Run the MPC (synchronous version) to get the desired contact forces for the feet currently in stance phase
+
+        Args:
+            dt (float): Time step of the MPC
+            n_steps (int): Number of time steps in one gait cycle
+            k (int): Number of inv dynamics iterations since the start of the simulation
+            T_gait (float): duration of one period of gait
+            t_stance (float): duration of one stance phase
+            joystick (object): interface with the gamepad
+            fstep_planner (object): FootstepPlanner object of the control loop
+            mpc_interface (object): MpcInterface object of the control loop
+        """
 
         # Run the MPC to get the reference forces and the next predicted state
         # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
+
+        """print(dt, n_steps, k, T_gait, t_stance)
+        print(np.round(mpc_interface.lC.ravel(), decimals=2))
+        print(np.round(mpc_interface.abg.ravel(), decimals=2))
+        print(np.round(mpc_interface.lV.ravel(), decimals=2))
+        print(np.round(mpc_interface.lW.ravel(), decimals=2))
+        print(mpc_interface.l_feet.ravel())
+        print(joystick.v_ref.ravel())
+        print(fstep_planner.fsteps)"""
+
         self.mpc.run((k/20), T_gait, t_stance,
                      mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
                      mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
@@ -64,17 +109,29 @@ class MPC_Wrapper:
         self.f_applied = self.mpc.f_applied
 
     def run_MPC_asynchronous(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface):
+        """Run the MPC (asynchronous version) to get the desired contact forces for the feet currently in stance phase
 
+        Args:
+            dt (float): Time step of the MPC
+            n_steps (int): Number of time steps in one gait cycle
+            k (int): Number of inv dynamics iterations since the start of the simulation
+            T_gait (float): duration of one period of gait
+            t_stance (float): duration of one stance phase
+            joystick (object): interface with the gamepad
+            fstep_planner (object): FootstepPlanner object of the control loop
+            mpc_interface (object): MpcInterface object of the control loop
+        """
+
+        # If this is the first iteration, creation of the parallel process
         if (k == 0):
             p = Process(target=self.create_MPC_asynchronous, args=(self.newData, self.newResult, self.dataIn, self.dataOut))
             p.start()
 
         # print("Setting Data")
-
         self.compress_dataIn(dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface)
 
-        #print("Sending")
-        """print(dt, n_steps, k, T_gait, t_stance)
+        """print("Sending")
+        print(dt, n_steps, k, T_gait, t_stance)
         print(mpc_interface.lC.ravel())
         print(mpc_interface.abg.ravel())
         print(mpc_interface.lV.ravel())
@@ -82,25 +139,34 @@ class MPC_Wrapper:
         print(mpc_interface.l_feet.ravel())
         print(joystick.v_ref.ravel())
         print(fstep_planner.fsteps)"""
-        #print(fstep_planner.xref)
+
         self.newData.value = True
 
         return 0
 
     def create_MPC_asynchronous(self, newData, newResult, dataIn, dataOut):
+        """Parallel process with an infinite loop that run the asynchronous MPC
 
-        # dt, n_steps = self.decompress_dataIn()
+        Args:
+            newData (Value): shared variable that is true if new data is available, false otherwise
+            newResult (Value): shared variable that is true if a new result is available, false otherwise
+            dataIn (Array): shared array that contains the data the asynchronous MPC will use as inputs
+            dataOut (Array): shared array that contains the result of the asynchronous MPC
+        """
 
-        # Create the new version of the MPC solver object
-        # mpc = MPC.MPC(dt, n_steps)
         # print("Entering infinite loop")
         while True:
+            # Checking if new data is available to trigger the asynchronous MPC
             if newData.value:
+
+                # Set the shared variable to false to avoid re-trigering the asynchronous MPC
                 newData.value = False
                 # print("New data detected")
 
-                #print("Receiving")
+                # Retrieve data thanks to the decompression function and reshape it
                 dt, nsteps, k, T_gait, t_stance, lC, abg, lV, lW, l_feet, xref, x0, v_ref, fsteps  = self.decompress_dataIn(dataIn)
+    
+                #print("Receiving")
                 dt = dt[0]
                 nsteps = np.int(nsteps[0])
                 k = k[0]
@@ -124,54 +190,70 @@ class MPC_Wrapper:
                 print(l_feet.ravel())
                 print(v_ref.ravel())
                 print(fsteps)"""
-                #print(xref)
 
-                #print("Roll")
-                #print(fsteps)
-                #print("into")
-                #self.roll_asynchronous(fsteps)
-                #print(self.fsteps_future)
-                #print(xref[0:6,0:3])
-
+                # Create the MPC object of the parallel process during the first iteration
                 if k == 0:
                     loop_mpc = MPC.MPC(dt, nsteps)
 
+                # Run the asynchronous MPC with the data that as been retrieved
                 loop_mpc.run((k/20), T_gait, t_stance, lC, abg, lV, lW,
                              l_feet, xref, x0, v_ref, fsteps)
 
+                # Store the result (desired forces) in the shared memory
                 self.dataOut[:] = loop_mpc.f_applied.tolist()
 
+                # Set shared variable to true to signal that a new result is available
                 newResult.value = True
 
         return 0
 
     def compress_dataIn(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface):
+        """Compress data in a single C-type array that belongs to the shared memory to send data from the main control
+        loop to the asynchronous MPC
+
+        Args:
+            dt (float): Time step of the MPC
+            n_steps (int): Number of time steps in one gait cycle
+            k (int): Number of inv dynamics iterations since the start of the simulation
+            T_gait (float): duration of one period of gait
+            t_stance (float): duration of one stance phase
+            joystick (object): interface with the gamepad
+            fstep_planner (object): FootstepPlanner object of the control loop
+            mpc_interface (object): MpcInterface object of the control loop
+        """
 
         # print("Compressing dataIn")
 
+        # Replace NaN values by 0.0 to be stored in C-type arrays
         fstep_planner.fsteps[np.isnan(fstep_planner.fsteps)] = 0.0
 
+        # Compress data in the shared input array
         self.dataIn[:] = np.concatenate([[dt, n_steps, k, T_gait, t_stance], np.array(mpc_interface.lC).ravel(), np.array(mpc_interface.abg).ravel(),
                          np.array(mpc_interface.lV).ravel(), np.array(mpc_interface.lW).ravel(), np.array(mpc_interface.l_feet).ravel(), fstep_planner.xref.ravel(), fstep_planner.x0.ravel(), joystick.v_ref.ravel(),
                          fstep_planner.fsteps.ravel()], axis=0)
 
         return 0.0
-        # guess = 5 + 3 + 3 + 3 + 3 + 12 + (n_steps+1) * 12 + 12 + 6 + 13 * 6
-        # np.concatenate([A, A], )
-        #test[np.isnan(test)] = 0.0
-        #return test.tolist()
 
     def decompress_dataIn(self, dataIn):
+        """Decompress data from a single C-type array that belongs to the shared memory to retrieve data from the main control
+        loop in the asynchronous MPC
+
+        Args:
+            dataIn (Array): shared array that contains the data the asynchronous MPC will use as inputs
+        """
 
         # print("Decompressing dataIn")
 
+        # Sizes of the different variables that are stored in the C-type array
         sizes = [0, 1, 1, 1, 1, 1, 3, 3, 3, 3, 12, (np.int(dataIn[1])+1) * 12, 12, 6, 13*6]
         csizes = np.cumsum(sizes)
+
+        # Return decompressed variables in a list
         return [dataIn[csizes[i]:csizes[i+1]] for i in range(len(sizes)-1)]
 
-        # return dataIn[0], dataIn[1], dataIn[2], dataIn[3]
-
     def convert_dataOut(self):
+        """Return the result of the asynchronous MPC (desired contact forces) that is stored in the shared memory
+        """
 
         return np.array(self.dataOut[:])
 

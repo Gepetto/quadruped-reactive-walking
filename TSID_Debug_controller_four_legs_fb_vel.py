@@ -35,7 +35,7 @@ class controller:
 
     def __init__(self, N_simulation):
 
-        self.q_ref = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.7071067811865475, 0.7071067811865475,
+        self.q_ref = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.0, 1.0,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
                                 0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()
 
@@ -65,7 +65,7 @@ class controller:
         self. w_reg_f = 100.0
 
         # Coefficients of the foot tracking task
-        kp_foot = 100.0               # proportionnal gain for the tracking task
+        kp_foot = 10000.0               # proportionnal gain for the tracking task
         self.w_foot = 10000.0       # weight of the tracking task
 
         # Coefficients of the trunk task
@@ -91,15 +91,18 @@ class controller:
         self.com_pos_ref = np.zeros((k_max_loop, 3))
         self.c_forces = np.zeros((4, k_max_loop, 3))
         self.h_ref_feet = np.zeros((k_max_loop, ))
+        self.goals = np.zeros((2, 4))
+        self.vgoals = np.zeros((2, 4))
+        self.agoals = np.zeros((2, 4))
+        self.mgoals = np.zeros((6, 4))
 
         # Position of the shoulders in local frame
         self.shoulders = np.array([[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
-        R = np.array([[0.0, -1.0], [1.0, 0.0]])
-        self.footsteps = R @ self.shoulders.copy()
-        self.memory_contacts = R @ self.shoulders.copy()
+        self.footsteps = self.shoulders.copy()
+        self.memory_contacts = self.shoulders.copy()
 
         # Foot trajectory generator
-        max_height_feet = 0.08
+        max_height_feet = 0.04
         t_lock_before_touchdown = 0.05
         self.ftgs = [ftg.Foot_trajectory_generator(max_height_feet, t_lock_before_touchdown) for i in range(4)]
 
@@ -108,7 +111,7 @@ class controller:
 
         # For update_feet_tasks function
         self.dt = 0.001  #  [s], time step
-        self.t1 = 0.16  # [s], duration of swing phase
+        self.t1 = 0.14  # [s], duration of swing phase
 
         # Rotation matrix
         self.R = np.eye(3)
@@ -291,7 +294,7 @@ class controller:
         # Resize the solver to fit the number of variables, equality and inequality constraints
         self.solver.resize(self.invdyn.nVar, self.invdyn.nEq, self.invdyn.nIn)
 
-    def update_feet_tasks(self, k_loop, pair, looping, mpc_interface):
+    def update_feet_tasks(self, k_loop, pair, looping, mpc_interface, ftps_Ids_deb):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
 
@@ -306,10 +309,10 @@ class controller:
         if pair == -1:
             return 0
         elif pair == 0:
-            t0 = ((k_loop-1) / (looping*0.5-1)) * self.t1  #  ((k_loop-20) / 280) * t1
+            t0 = np.round((k_loop-20) * self.dt, decimals=3)
             feet = [1, 2]
         else:
-            t0 = ((k_loop-(looping*0.5+1)) / (looping*0.5-1)) * self.t1  # ((k_loop-320) / 280) * t1
+            t0 = np.round((k_loop - int(looping*0.5) - 20) * self.dt, decimals=3)
             feet = [0, 3]
 
         # self.footsteps contains the target (x, y) positions for both feet in swing phase
@@ -329,7 +332,7 @@ class controller:
         gx1 = 0.01
         gy1 = 0.01
 
-        log = np.zeros((int(t1/dt), 11))
+        log = np.zeros((int(t1/dt)+1, 11))
         i_log = 0
 
         while t0 <= t1:
@@ -340,7 +343,11 @@ class controller:
             log[i_log, :] = np.array([x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1])
             i_log += 1
 
+            if t0 == t1:
+                deb = 1
+            print(t0)
             t0 += dt
+            t0 = np.round(t0, decimals=3)
 
         l_str = ["x0", "dx0", "ddx0",  "y0", "dy0", "ddy0",  "z0", "dz0", "ddz0", "gx1", "gy1"]
         index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8]
@@ -355,10 +362,23 @@ class controller:
         for i_foot in feet:
 
             # Get desired 3D position, velocity and acceleration
-            [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
-                mpc_interface.o_feet[0, i_foot], mpc_interface.ov_feet[0, i_foot], mpc_interface.oa_feet[0, i_foot],
-                mpc_interface.o_feet[1, i_foot], mpc_interface.ov_feet[1, i_foot], mpc_interface.oa_feet[1, i_foot],
-                self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0,  self.t1, self.dt)
+            if t0 == 0.001:
+                [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
+                    mpc_interface.o_feet[0, i_foot], mpc_interface.ov_feet[0, i_foot], mpc_interface.oa_feet[0, i_foot],
+                    mpc_interface.o_feet[1, i_foot], mpc_interface.ov_feet[1, i_foot], mpc_interface.oa_feet[1, i_foot],
+                    self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0,  self.t1, self.dt)
+                self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
+            else:
+                [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
+                    self.mgoals[0, i_foot], self.mgoals[1, i_foot], self.mgoals[2, i_foot],
+                    self.mgoals[3, i_foot], self.mgoals[4, i_foot], self.mgoals[5, i_foot],
+                    self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0,  self.t1, self.dt)
+                self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
+
+            # Store desired position, velocity and acceleration for later call to this function
+            self.goals[:, i_foot] = np.array([gx1, gy1])
+            self.vgoals[:, i_foot] = np.array([dx0, dy0])
+            self.agoals[:, i_foot] = np.array([ddx0, ddy0])
 
             # Take into account vertical offset of Pybullet
             z0 += mpc_interface.mean_feet_z
@@ -374,6 +394,11 @@ class controller:
             # Update footgoal for display purpose
             self.feetGoal[i_foot].translation = np.matrix([x0, y0, z0]).T
 
+            # Display the goal position of the feet as green sphere
+            pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
+                                                posObj=np.array([gx1, gy1, 0.0]),
+                                                ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
+
             """if k_loop == (7*20 + 19):
                 print("i_foot " + str(i_foot) + ": ", (mpc_interface.oMl.inverse() * np.array([[x0, y0, z0]]).transpose()).ravel())
                 #print([x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1])
@@ -387,7 +412,7 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qmes12, vmes12, t, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied, fsteps):
+    def control(self, qmes12, vmes12, t, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied, fsteps, ftps_Ids_deb):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
 
@@ -452,10 +477,6 @@ class controller:
 
         looping = int(self.T_gait/dt)  # Number of TSID iterations in one gait cycle
         k_loop = (k_simu - 0) % looping  # Current number of iterations since the start of the current gait cycle
-
-        if k_loop == 10:
-            #print(v_ref.ravel())
-            print(mpc_interface.lV[0:2, 0].ravel())
 
         # Update the desired position of footholds thanks to the footstep planner
         self.update_footsteps(k_simu, k_loop, looping, sequencer, mpc_interface, fsteps)
@@ -539,7 +560,7 @@ class controller:
         ################
 
         # Enable/disable contact and 3D tracking tasks depending on the state of the feet (swing or stance phase)
-        self.update_tasks(k_simu, k_loop, looping, mpc_interface)
+        self.update_tasks(k_simu, k_loop, looping, mpc_interface, ftps_Ids_deb)
 
         ###############
         # HQP PROBLEM #
@@ -614,7 +635,7 @@ class controller:
         """print("###")"""
 
         for i in range(4):
-            index = next((idx for idx, val in np.ndenumerate(fsteps[:, 3*i+1]) if (not (val==0))), [-1])[0]
+            index = next((idx for idx, val in np.ndenumerate(fsteps[:, 3*i+1]) if ((not (val==0)) and (not np.isnan(val)))), [-1])[0]
             #print(str(i) + ": ", (np.array([fsteps[index, (1+1+i*3):(3+i*3)]]).ravel()))
             pos_tmp = np.array(mpc_interface.oMl * (np.array([fsteps[index, (1+i*3):(4+i*3)]]).transpose()))
             self.footsteps[:, i] = pos_tmp[0:2, 0]
@@ -636,12 +657,13 @@ class controller:
         for j, i_foot in enumerate([0, 1, 2, 3]):
             self.contacts[i_foot].setForceReference(
                 self.w_reg_f * (mpc_interface.oMl.rotation @ self.f_applied[3*j:3*(j+1)]).T)
+
             """self.contacts[i_foot].setRegularizationTaskWeightVector(
                 np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
 
         return 0
 
-    def update_tasks(self, k_simu, k_loop, looping, mpc_interface):
+    def update_tasks(self, k_simu, k_loop, looping, mpc_interface, ftps_Ids_deb):
 
         if k_simu >= 0:
             if k_loop == 0:  # Start swing phase
@@ -650,7 +672,7 @@ class controller:
                 self.pair = -1
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
 
                 if k_simu >= looping:  # 600:
                     for i_foot in [0, 3]:
@@ -666,14 +688,18 @@ class controller:
 
                         # Disable both foot tracking tasks
                         self.invdyn.removeTask("foot_track_" + str(i_foot), 0.0)
+            elif k_loop < 20:
 
-            elif k_loop == 1:
+                # 4 Feet in stance phase, nothing to do
+                return 0
+
+            elif k_loop == 20:
 
                 # Update active feet pair
                 self.pair = 0
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
 
                 for i_foot in [1, 2]:
                     # Disable the contacts for both feet (1 and 2)
@@ -692,10 +718,10 @@ class controller:
                     self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
                     self.contacts[i_foot].setReference(self.pos_foot)
 
-            elif k_loop > 1 and k_loop < (looping*0.5):  # 300:
+            elif k_loop > 20 and k_loop < (looping*0.5):  # 300:
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
 
                 for i_foot in [0, 3]:
                     # Update position of contacts
@@ -713,7 +739,7 @@ class controller:
                 self.pair = -1
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
 
                 for i_foot in [1, 2]:
                     # Update the position of the contacts and enable them
@@ -729,13 +755,18 @@ class controller:
                     # Disable both foot tracking tasks
                     self.invdyn.removeTask("foot_track_" + str(i_foot), 0.0)
 
-            elif k_loop == (looping*0.5+1):  # 320:
+            elif k_loop < (looping*0.5+20):
+
+                # 4 Feet in stance phase, nothing to do
+                return 0
+
+            elif k_loop == (looping*0.5+20):  # 320:
 
                 # Update active feet pair
                 self.pair = 1
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
 
                 for i_foot in [0, 3]:
                     # Disable the contacts for both feet (0 and 3)
@@ -757,7 +788,7 @@ class controller:
             else:
 
                 # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface)
+                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
 
                 for i_foot in [1, 2]:
                     # Update position of contacts
@@ -799,10 +830,9 @@ class controller:
             self.tau = np.zeros((12, ))
         else:
             # Torque PD controller
-            P = 3.0  # 10.0  # 5  # 50
-            D = 0.3  # 0.05  # 0.05  #  0.2
-            # torques12 = P * (self.qtsid[7:] - qmes12[7:]) + D * (self.vtsid[6:] - vmes12[6:]) + self.tau_ff
-            torques12 = self.tau_ff
+            P = 3.0
+            D = 0.3
+            torques12 = self.tau_ff  # + P * (self.qtsid[7:] - qmes12[7:]) + D * (self.vtsid[6:] - vmes12[6:])
 
             # Saturation to limit the maximal torque
             t_max = 2.5

@@ -3,6 +3,7 @@
 import numpy as np
 import pybullet as pyb
 
+
 class FootstepPlanner:
     """A footstep planner that handles the choice of future
     footsteps location depending on the current and reference
@@ -34,8 +35,7 @@ class FootstepPlanner:
         # The desired (x,y) position of footsteps
         # If a foot is in swing phase it is where it should land
         # If a foot is in stance phase is is where it should land at the end of its next swing phase
-        R = np.array([[0.0, -1.0], [1.0, 0.0]])
-        self.footsteps = R @ self.shoulders.copy()
+        self.footsteps = self.shoulders.copy()
 
         # Previous variable but in world frame for visualisation purpose
         self.footsteps_world = self.footsteps.copy()
@@ -211,15 +211,7 @@ class FootstepPlanner:
                     self.next_footstep[0:2, :] -= np.array([[0.0, 0.0, -0.0, -0.0],
                                                             [0.06, -0.06, 0.06, -0.06]])
 
-                """self.next_footstep[0:2, :] -= np.array([[0.14, 0.14, -0.14, -0.14],
-                                                        [0.10005, -0.10005, 0.10005, -0.10005]])"""
-
-                """if (i == 1):
-                    print("###")
-                    print(self.next_footstep)"""
-
-
-                # Get future yaw angle compared to current position
+                """# Get future yaw angle compared to current position
                 angle = v_ref[5, 0] * dt_cum
                 c, s = np.cos(angle), np.sin(angle)
                 R = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
@@ -236,11 +228,9 @@ class FootstepPlanner:
 
 
                 # Get desired position of footstep compared to current position
-                next_ft = (np.dot(R, self.next_footstep) + np.array([[dx], [dy], [0.0]])).ravel(order='F')
-                #next_ft = (self.next_footstep).ravel(order='F')
-                """print("rotated: ", np.dot(R, self.next_footstep)[0:3, 2])
-                print("dx, dy: ", dx, dy)
-                print("next_ft: ", next_ft[6:9])"""
+                next_ft = (np.dot(R, self.next_footstep) + np.array([[dx], [dy], [0.0]])).ravel(order='F')"""
+                next_ft = (self.next_footstep).ravel(order='F')
+
                 # Assignement only to feet that have been in swing phase
                 (self.fsteps[i, 1:])[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]] = next_ft[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]]
 
@@ -263,7 +253,7 @@ class FootstepPlanner:
         """
 
         # TODO: Automatic detection of t_stance to handle arbitrary gaits
-        t_stance = 0.32
+        t_stance = 0.16
 
         # Order of feet: FL, FR, HL, HR
 
@@ -282,10 +272,6 @@ class FootstepPlanner:
         # Legs have a limited length so the deviation has to be limited
         (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) > self.L] = self.L
         (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) < (-self.L)] = -self.L
-
-        """print(" V_ref: ", v_ref[0:2, 0].ravel(), v_ref[5, 0])
-        print(" V_cur: ", v_cur[0:2, 0].ravel(), v_cur[5, 0])
-        print("Offset: ", self.next_footstep[0:2, 0].ravel())"""
 
         # Add shoulders
         self.next_footstep[0:2, :] += self.shoulders
@@ -339,7 +325,7 @@ class FootstepPlanner:
         self.compute_footsteps(l_feet, v_cur, v_ref, h, reduced)
 
         # Display spheres for footsteps visualization
-        i = 0
+        """i = 0
         up = np.isnan(self.gait[:, 1:])
         while (self.gait[i, 0] != 0):
             for j in range(4):
@@ -349,5 +335,5 @@ class FootstepPlanner:
                                                         posObj=pos_tmp,
                                                         ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
             i += 1
-
+        """
         return 0

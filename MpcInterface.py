@@ -3,7 +3,6 @@
 import numpy as np
 import pinocchio as pin
 
-
 class MpcInterface:
     """Interface between the simulation and the FootstepPlanner/MPC/TSID. Retrieve information from the simulator
        (positions, orientations, velocities) and compute different useful quantities (transforms, roll-pitch-yaw)
@@ -60,6 +59,10 @@ class MpcInterface:
         self.vmes12_base = vmes12.copy()
         self.vmes12_base[0:3, 0:1] = self.oRb.transpose() @ self.vmes12_base[0:3, 0:1]
         self.vmes12_base[3:6, 0:1] = self.oRb.transpose() @ self.vmes12_base[3:6, 0:1]
+
+        # Update Kinematics (required or automatically done by other functions?)
+        pin.forwardKinematics(solo.model, solo.data, qmes12, self.vmes12_base)
+        pin.framesForwardKinematics(solo.model, solo.data, qmes12)
 
         # Get center of mass from Pinocchio
         pin.centerOfMass(solo.model, solo.data, qmes12, self.vmes12_base)

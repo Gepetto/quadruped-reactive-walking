@@ -64,9 +64,6 @@ class MPC:
              [0.15005, -0.15005, 0.15005, -0.15005],
              [0.0, 0.0, 0.0, 0.0]])
 
-        R = np.array([[0.0, -1.0], [1.0, 0.0]])
-        self.footholds[0:2, :] = R @ self.footholds[0:2, :]
-
         # Create the QP solver object
         self.prob = osqp.OSQP()
 
@@ -456,6 +453,7 @@ class MPC:
         Args:
             k (int): the number of MPC iterations since the start of the simulation
             T_gait (float): duration of one period of gait
+            t_stance (float): duration of one stance phase
             lC (3x0 array): position of the center of mass in local frame
             abg (3x0 array): orientation of the trunk in local frame
             lV (3x0 array): linear velocity of the CoM in local frame

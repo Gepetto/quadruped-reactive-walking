@@ -14,7 +14,7 @@ import MpcInterface
 
 import pybullet as pyb  # Pybullet server
 import pybullet_data
-
+import pinocchio as pin
 
 ##########################
 # ROTATION MATRIX TO RPY #
@@ -124,11 +124,11 @@ def init_viewer():
     if ('viewer' in solo.viz.__dict__):
         solo.viewer.gui.addFloor('world/floor')
         solo.viewer.gui.setRefreshIsSynchronous(False)
-    offset = np.zeros((19, 1))
+    """offset = np.zeros((19, 1))
     offset[5, 0] = 0.7071067811865475
     offset[6, 0] = 0.7071067811865475 - 1.0
-    temp = solo.q0 + offset
-    solo.display(temp)
+    temp = solo.q0 + offset"""
+    solo.display(solo.q0)
 
     return solo
 
@@ -210,9 +210,9 @@ class pybullet_simulator:
         # Load horizontal plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
         self.planeId = pyb.loadURDF("plane.urdf")
-        """self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")#, 
+        #self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")#,
                                      #basePosition=[-1.25, 3.5, -0.1],
-                                     #baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))"""
+                                     #baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))
 
         mesh_scale = [1.0, 0.1, 0.02]
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
@@ -321,7 +321,20 @@ class pybullet_simulator:
                                                           basePosition=[0.0, 0.0, -0.1],
                                                           useMaximalCoordinates=True)
 
-
+        visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                              fileName="sphere_smooth.obj",
+                                              halfExtents=[0.5, 0.5, 0.1],
+                                              rgbaColor=[0.0, 1.0, 0.0, 1.0],
+                                              specularColor=[0.4, .4, 0],
+                                              visualFramePosition=[0.0, 0.0, 0.0],
+                                              meshScale=mesh_scale)
+        self.ftps_Ids_deb = [0] * 4
+        for i in range(4):
+            self.ftps_Ids_deb[i] = pyb.createMultiBody(baseMass=0.0,
+                                                          baseInertialFramePosition=[0, 0, 0],
+                                                          baseVisualShapeIndex=visualShapeId,
+                                                          basePosition=[0.0, 0.0, -0.1],
+                                                          useMaximalCoordinates=True)
 
         """cubeStartPos = [0.0, 0.45, 0.0]
         cubeStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0])
@@ -335,7 +348,7 @@ class pybullet_simulator:
 
         # Load Quadruped robot
         robotStartPos = [0, 0, 0.235+0.0045]
-        robotStartOrientation = pyb.getQuaternionFromEuler([0, 0, np.pi*0.5])
+        robotStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0.0])
         pyb.setAdditionalSearchPath("/opt/openrobots/share/example-robot-data/robots/solo_description/robots")
         self.robotId = pyb.loadURDF("solo12.urdf", robotStartPos, robotStartOrientation)
 
@@ -383,7 +396,14 @@ class pybullet_simulator:
             self.flag_sphere2 = False
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
-        pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
+        """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
+                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])"""
+
+        oMb_tmp = pin.SE3(pin.Quaternion(qmes12[3:7]), np.array([0.0, 0.0, 0.0]))
+        RPY = pin.rpy.matrixToRpy(oMb_tmp.rotation)
+
+        # Update the PyBullet camera on the robot position to do as if it was attached to the robot
+        pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=(RPY[2, 0]*(180/3.1415)+45), cameraPitch=-39.9,
                                        cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])
 
         return 0
@@ -402,5 +422,8 @@ class pybullet_simulator:
                                  np.array([[self.jointStates[i_joint][0] for i_joint in range(len(self.jointStates))]]).T))
         self.vmes12 = np.vstack((np.array([self.baseVel[0]]).T, np.array([self.baseVel[1]]).T,
                                  np.array([[self.jointStates[i_joint][1] for i_joint in range(len(self.jointStates))]]).T))
+
+        """robotVirtualOrientation = pyb.getQuaternionFromEuler([0, 0, np.pi / 4])
+        self.qmes12[3:7, 0] = robotVirtualOrientation"""
 
         return 0

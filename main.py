@@ -31,6 +31,13 @@ time_error = False
 
 # Lists to log the duration of 1 iteration of the MPC/TSID
 t_list_tsid = [0] * int(N_SIMULATION)
+log_feet = np.zeros((3, 4, int(N_SIMULATION)))
+log_vfeet = np.zeros((3, 4, int(N_SIMULATION)))
+log_afeet = np.zeros((3, 4, int(N_SIMULATION)))
+log_target = np.zeros((3, 4, int(N_SIMULATION)))
+log_vtarget = np.zeros((3, 4, int(N_SIMULATION)))
+log_atarget = np.zeros((3, 4, int(N_SIMULATION)))
+ID_deb_lines = []
 
 # Enable/Disable Gepetto viewer
 enable_gepetto_viewer = False
@@ -39,7 +46,7 @@ enable_gepetto_viewer = False
 # and MpcSolver objects
 joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = utils.init_objects(dt_mpc, N_SIMULATION)
 
-enable_multiprocessing = False
+enable_multiprocessing = True
 mpc_wrapper = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], multiprocessing=enable_multiprocessing)
 
 ########################################################################
@@ -87,13 +94,13 @@ for k in range(int(N_SIMULATION)):
         joystick.update_v_ref(k)
 
     if (k == 0):
-        fstep_planner.update_fsteps(k, mpc_interface.l_feet, pyb_sim.vmes12[0:6, 0:1], joystick.v_ref,
+        fstep_planner.update_fsteps(k, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
                                     mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, False)
 
     # Update footsteps desired location once every 20 iterations of TSID
     if (k % 20) == 0:
         fsteps_invdyn = fstep_planner.fsteps.copy()
-        fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, pyb_sim.vmes12[0:6, 0:1], joystick.v_ref,
+        fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
                                     mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, joystick.reduced)
 
     #######
@@ -103,40 +110,31 @@ for k in range(int(N_SIMULATION)):
     # Run MPC once every 20 iterations of TSID
     if (k % 20) == 0:
 
-        """for ij in range(4):
-            print("###")
-            print(str(ij) + ": ", fstep_planner.fsteps[0:2, 2+3*ij])"""
+        # Debug lines
+        if len(ID_deb_lines) == 0:
+            for i_line in range(4):
+                start = mpc_interface.oMl * np.array([[mpc_interface.l_shoulders[0, i_line], mpc_interface.l_shoulders[1, i_line], 0.01]]).transpose()
+                end = mpc_interface.oMl * np.array([[mpc_interface.l_shoulders[0, i_line] + 0.4, mpc_interface.l_shoulders[1, i_line], 0.01]]).transpose()
+                lineID = pyb.addUserDebugLine(np.array(start).ravel().tolist(), np.array(end).ravel().tolist(), lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8)
+                ID_deb_lines.append(lineID)
+        else:
+            for i_line in range(4):
+                start = mpc_interface.oMl * np.array([[mpc_interface.l_shoulders[0, i_line], mpc_interface.l_shoulders[1, i_line], 0.01]]).transpose()
+                end = mpc_interface.oMl * np.array([[mpc_interface.l_shoulders[0, i_line] + 0.4, mpc_interface.l_shoulders[1, i_line], 0.01]]).transpose()
+                lineID = pyb.addUserDebugLine(np.array(start).ravel().tolist(), np.array(end).ravel().tolist(), lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8,
+                                              replaceItemUniqueId=ID_deb_lines[i_line])
 
         # Get the reference trajectory over the prediction horizon
         fstep_planner.getRefStates((k/20), sequencer.T_gait, mpc_interface.lC, mpc_interface.abg,
                                    mpc_interface.lV, mpc_interface.lW, joystick.v_ref, h_ref=0.2027682)
 
-        # Run the MPC to get the reference forces and the next predicted state
-        # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
-        """mpc.run((k/20), sequencer.T_gait, sequencer.t_stance,
-                mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
-                mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
-                fstep_planner.fsteps)
-
         # Output of the MPC
-        f_applied = mpc.f_applied"""
-
-        """if enable_multiprocessing:
-            if k > 0:
-                f_applied = mpc_wrapper.get_latest_result()
-                # print(f_applied[2::3])
-                # f_applied = np.zeros((12,))
-            else:
-                f_applied = np.array([0.0, 0.0, 8.0] * 4)
-        else:
-            f_applied = mpc_wrapper.mpc.f_applied"""
-
         f_applied = mpc_wrapper.get_latest_result(k)
 
+        # Run the MPC to get the reference forces and the next predicted state
+        # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
         mpc_wrapper.run_MPC(dt_mpc, sequencer.S.shape[0], k, sequencer.T_gait,
                             sequencer.t_stance, joystick, fstep_planner, mpc_interface)
-
-
 
     ####################
     # Inverse Dynamics #
@@ -160,13 +158,18 @@ for k in range(int(N_SIMULATION)):
     # Get torques with inverse dynamics #
     #####################################
 
-    """if (k % (16*20)) == (7*20+19):
-        print(fsteps_invdyn[0:2, 2::3])"""
-
     # Retrieve the joint torques from the current active controller
     jointTorques = myController.control(pyb_sim.qmes12, pyb_sim.vmes12, t, k, solo,
                                         sequencer, mpc_interface, joystick.v_ref, f_applied,
-                                        fsteps_invdyn).reshape((12, 1))
+                                        fsteps_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
+    #print(np.round(jointTorques.ravel(), decimals=2))
+
+    log_feet[:, :, k] = mpc_interface.o_feet
+    log_vfeet[:, :, k] = mpc_interface.ov_feet
+    log_afeet[:, :, k] = mpc_interface.oa_feet
+    log_target[0:2, :, k] = myController.goals.copy()
+    log_vtarget[0:2, :, k] = myController.vgoals.copy()
+    log_atarget[0:2, :, k] = myController.agoals.copy()
 
     # Time incrementation
     t += dt
@@ -217,8 +220,35 @@ print("END")
 plt.figure()
 plt.plot(t_list_tsid, 'k+')
 plt.title("Time TSID")
-plt.show(block=True)
+plt.show(block=False)
 
+plt.figure()
+index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+index = [1, 3, 5, 2, 4, 6]
+for i in range(6):
+    plt.subplot(3, 2, index[i])
+    plt.plot(log_feet[i%3, np.int(i/3), :], linewidth=2, marker='x')
+    plt.plot(log_target[i%3, np.int(i/3), :], linewidth=2, marker='x')
+    plt.legend(["Position", "Goal"])
+
+plt.figure()
+index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+index = [1, 3, 5, 2, 4, 6]
+for i in range(6):
+    plt.subplot(3, 2, index[i])
+    plt.plot(log_vfeet[i%3, np.int(i/3), :], linewidth=2, marker='x')
+    plt.plot(log_vtarget[i%3, np.int(i/3), :], linewidth=2, marker='x')
+    plt.legend(["Velocity", "Goal"])
+
+plt.figure()
+index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+index = [1, 3, 5, 2, 4, 6]
+for i in range(6):
+    plt.subplot(3, 2, index[i])
+    plt.plot(log_afeet[i%3, np.int(i/3), :], linewidth=2, marker='x')
+    plt.plot(log_atarget[i%3, np.int(i/3), :], linewidth=2, marker='x')
+    plt.legend(["Acc", "Goal"])
+plt.show(block=True)
 quit()
 
 ##########
