@@ -60,8 +60,15 @@ f_applied = mpc_wrapper.get_latest_result(1)
 #  Display results  #
 #####################
 
+# enable_multiprocessing has to be "False" or else the mpc is in another process and we cannot retrieve the result easily
+
 # Desired contact forces for the next time step
 print("Desired forces: ", f_applied.ravel())
+
+# Retrieve the "contact forces" part of the solution of the QP problem
+f_predicted = mpc_wrapper.mpc.x[mpc_wrapper.mpc.xref.shape[0]*(mpc_wrapper.mpc.xref.shape[1]-1):].reshape((mpc_wrapper.mpc.xref.shape[0],
+                                                                                                           mpc_wrapper.mpc.xref.shape[1]-1),
+                                                                                                           order='F')
 
 # Predicted evolution of state variables
 l_t = np.linspace(dt_mpc, T_mpc, np.int(T_mpc/dt_mpc))
@@ -71,5 +78,15 @@ plt.figure()
 for i in range(12):
     plt.subplot(3, 4, index[i])
     plt.plot(l_t, mpc_wrapper.mpc.x_robot[i, :], linewidth=2, marker='x')
+    plt.legend([l_str[i]])
+
+# Desired evolution of contact forces
+l_t = np.linspace(dt_mpc, T_mpc, np.int(T_mpc/dt_mpc))
+l_str = ["FL_X", "FL_Y", "FL_Z", "FR_X", "FR_Y", "FR_Z", "HL_X", "HL_Y", "HL_Z", "HR_X", "HR_Y", "HR_Z"]
+index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+plt.figure()
+for i in range(12):
+    plt.subplot(3, 4, index[i])
+    plt.plot(l_t, f_predicted[i, :], linewidth=2, marker='x')
     plt.legend([l_str[i]])
 plt.show(block=True)
