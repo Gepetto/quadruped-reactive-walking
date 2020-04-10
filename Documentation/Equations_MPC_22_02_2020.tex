@@ -29,6 +29,8 @@
 \newcommand{\PRLsep}{\noindent\makebox[\linewidth]{\resizebox{0.3333\linewidth}{1pt}{$\bullet$}}}%\bigskip}
 %\renewcommand{\thesection}{\Roman{section}}
 
+\newcommand{\fM}[2]{{}^{#1}\!M_{#2}}
+
 % End of title area
 
 \setlength{\parskip}{0.9em} % Space between paragraphs
@@ -51,12 +53,182 @@
 
 %\maketitle
 
-\section*{Récapitulatif de la méthode MPC 22/02/2020}
+\section*{Récapitulatif de la méthode MPC 09/04/2020}
 
 \vspace{0.8cm}
 \PRLsep
 \vspace{0.5cm}
 
+See \url{https://arxiv.org/pdf/1909.06586.pdf} for the original MIT article ``Highly Dynamic Quadruped Locomotion via Whole-Body Impulse Control and Model Predictive Control''
+
+\section*{State Estimator}
+
+The role of the state estimator is to provide an estimation of the position, orientation, linear velocity and angular velocity of the base of the quadruped as well as the angular position of the actuators. In the case of a simulation with PyBullet this information is perfectly known and can be retrieved with the API.
+
+The position/orientation state vector of the quadruped in world frame is:
+\begin{equation}
+{}^o\!q = \begin{bmatrix} {}^o\!x & {}^o\!y & {}^o\!z & {}^o\!a & {}^o\!b & {}^o\!c & {}^o\!d & \theta_0 & \dots & \theta_{11} \end{bmatrix}^T
+\end{equation}
+
+With $({}^o\!a,{}^o\!b,{}^o\!c,{}^o\!d)$ the quaternion associated with the orientation of the base in world frame.
+
+The velocity state vector of the quadruped in world frame is:
+\begin{equation}
+{}^o\!\dot q = \begin{bmatrix} {}^o\!\dot x & {}^o\!\dot y & {}^o\!\dot z & {}^o\!\omega_x & {}^o\!\omega_y & {}^o\!\omega_z & \dot \theta_0 & \dots & \dot \theta_{11} \end{bmatrix}^T
+\end{equation}
+
+With $({}^o\!\omega_x, {}^o\!\omega_y, {}^o\!\omega_z)$ the angular velocities along the $x$, $y$ and $z$ axes of the world frame.
+
+%With $({}^o\!\phi, {}^o\!\theta, {}^o\!\psi)$ the roll, pitch and yaw angles (Tait-Bryan Euler angles) associated with the quaternion $({}^o\!a,{}^o\!b,{}^o\!c,{}^o\!d)$.
+
+\section*{MpcInterface}
+
+The role of the MpcInterface object is to transform data coming from PyBullet (simulation) or the state estimator of the robot (real world) into useful information for the rest of the control loop. 
+
+Data coming from PyBullet is retrieved in the world frame $o$. The position of the base of the quadruped in this frame can be noted $[{}^o\!x ~ {}^o\!y ~ {}^o\!z]^T$ and its orientation $[{}^o\!\phi ~ {}^o\!\theta ~ {}^o\!\psi]^T$ with $(\phi, \theta, \psi)$ the roll, pitch and yaw angles.
+
+Position, orientation, linear velocity and angular velocity of the base of the quadruped in world frame can be transformed either into the base frame $b$ or into the local frame $l$, as defined in Figure X. The transform between two frames $1$ and $2$ can be stored in an object $\fM{1}{2}$ that contains the translation part $^1\!T_2$ and the rotation part $^1\!R_2$ of the transform. The relation between position $[^2\!x ~ ^2\!y ~ ^2\!z]^T$ in frame $2$ and the same position in frame $1$ is:
+\begin{equation}
+\begin{bmatrix}^1\!x \\ ^1\!y \\ ^1\!z \end{bmatrix} = {}^1\!R_2 \cdot \begin{bmatrix}^2\!x \\ ^2\!y \\ ^2\!z\end{bmatrix} + {}^1\!T_2 = \fM{1}{2} \cdot \begin{bmatrix}^2\!x \\ ^2\!y \\ ^2\!z\end{bmatrix}
+\end{equation}  
+
+Based on Figure X the transforms are defined as follows: 
+\begin{align}
+{}^o\!T_b &= \begin{bmatrix} {}^o\!x & {}^o\!y & {}^o\!z \end{bmatrix}^T \\
+{}^o\!R_b &= R_3({}^o\phi) \cdot R_3({}^o\theta) \cdot R_3({}^o\psi) \\
+{}^o\!T_l &= \begin{bmatrix} {}^o\!x & {}^o\!y & {}^o\!z_{min} \end{bmatrix}^T \\
+{}^o\!R_l &= R_3({}^o\psi)
+\end{align}
+
+%\begin{equation}
+%{}^o\!R_l = R_3({}^o\psi) =  \begin{bmatrix} \cos({}^o\psi) & -\sin({}^o\psi) & 0 \\ \sin({}^o\psi) & \cos({}^o\psi) & 0 \\ 0 & 0 & 1\end{bmatrix} \text{ and } {}^o\!T_l = \begin{bmatrix} {}^o\!x \\ {}^o\!y \\ {}^o\!z_{min} \end{bmatrix}
+%\end{equation} 
+
+${}^o\!z_{min}$ is the altitude of the lowest feet in world frame with the altitude of a foot being the $z$ coordinate of its center. Position of feet in world frame are retrieved from PyBullet.
+
+ 
+To get the position and velocity of the center of mass (CoM) of the quadruped, Pinocchio requires the position and orientation of the base in world frame, the angular positions of the actuators and the linear and angular velocities of the base in base frame. All of them are directly retrieved from PyBullet except the linear and angular velocities ${}^b\!V$ and ${}^b\!W$ in base frame: % /!\ Assumptions? Wrong? /!\
+\begin{align}
+{}^bV &= ({}^o\!R_b)^{-1} \cdot {}^oV \\
+{}^bW &= ({}^o\!R_b)^{-1} \cdot {}^oW
+\end{align}  
+
+The resulting position and linear velocity of the CoM in world frame are noted ${}^o\!C$ and ${}^o\!V$. The angular velocity in world frame ${}^oW$ is directly retrieved from PyBullet, just like the orientation ${}^o\!RPY = [{}^o\!\phi ~ {}^o\!\theta ~ {}^o\!\psi]^T$.
+
+The position, orientation, linear velocity and angular velocity of the base of the quadruped in local frame can be retrieved using the transform $\fM{o}{l}$ :
+\begin{align}
+{}^l\!C &= (\fM{o}{l})^{-1} \cdot {}^o\!C \\
+{}^l\!RPY &= [{}^o\phi~~{}^o\theta~~0]^T \\
+{}^l\!V &= ({}^o\!R_l)^{-1} \cdot {}^o\!V \\
+{}^l\!W &= ({}^o\!R_l)^{-1} \cdot {}^o\!W
+\end{align}
+
+The projections on the ground of the shoulders of the quadruped are supposed constant even if in practice there is a dependence to roll and pitch. Order of shoulders is Front-Left, Front-Right, Hind-Left, Hind-Right:
+\begin{align}
+{}^l\!shoulders &= \begin{bmatrix} 0.19 & 0.19 & -0.19 & -0.19 \\ 0.15005 & -0.15005 & 0.15005 & -0.15005 \\ 0.0 & 0.0 & 0.0 & 0.0 \end{bmatrix} \\
+{}^o\!shoulders &= \fM{o}{l} \cdot {}^l\!shoulders
+\end{align}  
+
+Positions of feet in world frame ${}^o\!feet$ are directly retrieved from PyBullet and transformed in local frame for the MPC:
+\begin{equation}
+{}^l\!feet = (\fM{o}{l})^{-1} \cdot {}^o\!feet
+\end{equation} 
+
+\newpage
+\section*{Footstep Planner}
+
+The desired gait for the quadruped is defined in a gait matrix of size 6 by 5. Each row contains information about one phase of the gait. The first column contains the number of remaining time steps of the MPC for each phase and the four remaining columns contains the desired contact status for each foot and for each phase (0 if the foot is in swing phase or 1 if it is in stance phase).
+
+With a time step of 0.02 s for the MPC and a gait period of 0.32 s, the matrix of a walking trot gait is defined as follows:
+\begin{equation}
+gait(0) = \begin{bmatrix} 
+1 & 1 & 1 & 1 & 1 \\
+7 & 1 & 0 & 0 & 1 \\
+1 & 1 & 1 & 1 & 1 \\
+7 & 0 & 1 & 1 & 0 \\
+0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 \end{bmatrix} \label{eq:gait0}
+\end{equation}
+
+The first phase is a 4-feet stance phase that lasts 1 iteration of the MPC, followed by a phase with 2 feet in stance phase and the other two in swing phase during 7 iterations, then again a 4-feet stance phase and finally 2 feet in stance phase and 2 feet in swing phase. As the quadruped moves forward in the gait, the gait matrix undergoes a rolling process. For instance after 3 iterations of the MPC this matrix becomes:
+\begin{equation}
+gait(1) = \begin{bmatrix} 
+7 & 1 & 0 & 0 & 1 \\
+1 & 1 & 1 & 1 & 1 \\
+7 & 0 & 1 & 1 & 0 \\
+1 & 1 & 1 & 1 & 1 \\
+0 & 0 & 0 & 0 & 0 \end{bmatrix} 
+\text{ }
+gait(2) = \begin{bmatrix} 
+6 & 1 & 0 & 0 & 1 \\
+1 & 1 & 1 & 1 & 1 \\
+7 & 0 & 1 & 1 & 0 \\
+1 & 1 & 1 & 1 & 1 \\
+1 & 1 & 0 & 0 & 1 \end{bmatrix} 
+\text{ }
+gait(3) = \begin{bmatrix} 
+5 & 1 & 0 & 0 & 1 \\
+1 & 1 & 1 & 1 & 1 \\
+7 & 0 & 1 & 1 & 0 \\
+1 & 1 & 1 & 1 & 1 \\
+2 & 1 & 0 & 0 & 1 \end{bmatrix} 
+\end{equation}
+
+Additional rows could be added to be able to handle more complex gaits.
+
+The gait being defined, let's describe the way the location of future footsteps is computed.
+
+The default position of footsteps in local frame is on the ground under the shoulder:
+\begin{equation}
+{ftp}_{sh} = {}^l\!shoulders = \begin{bmatrix} 0.19 & 0.19 & -0.19 & -0.19 \\ 0.15005 & -0.15005 & 0.15005 & -0.15005 \end{bmatrix}
+\end{equation}
+
+A symmetry term is then added to this position to make the gait more symmetric compared to the shoulders when moving. If the base moves forwards at speed $v$ then if a foot lands under its associated shoulder it will spend the whole stance phase ``behind'' the shoulder as the base keeps moving forwards but the foot in contact does not move in world frame. During the duration of the stance phase, the displacement of the base is equal to $t_{stance} v$, that is why the symmetry term tries to land $\frac{t_{stance}}{2} v$ in front of the shoulder. That way, feet in contact spend half the stance phase in front of the shoulder and the other half behind it.
+\begin{equation}
+{ftp}_{sym} = \frac{t_{stance}}{2} ~ {}^l\!v = \frac{t_{stance}}{2} \begin{bmatrix} {}^l\!\dot x \\ {}^l\!\dot y \end{bmatrix}
+\end{equation}
+
+A feedback term is added to the footstep planner to make it easier for the robot to reach the reference velocity. The only way the quadruped can interact with its environment is by pushing on the ground with its feet (cannot pull). As per Newton's second law, if the quadruped wants to move in a given direction it has to apply a force in the inverse direction. so the feedback term makes it easier to do that by shifting the desired location of footsteps in the inverse direction of the velocity error $(v^\star-v)$. For instance if the robot is not moving fast enough forwards the feedback term will slightly shift the footsteps backwards so that it's easier to push on the ground backwards and as a result to increase its velocity.
+\begin{equation}
+{ftp}_{fb} = k ~ ({}^l\!v - {}^l\!v^\star) = k \begin{bmatrix} {}^l\!\dot x - {}^l\!\dot x^\star \\ {}^l\!\dot y - {}^l\!\dot y^\star \end{bmatrix}
+\end{equation}
+
+The feedback gain $k$ is equal to 0.03.
+
+A centrifugal term is added to the footstep planner to make it easier to compensate the centrifugal effect when the robot is turning along the vertical axis by adjusting the location of footsteps accordingly. As the formula involves the desired angular speed rather than the current one, it could also be seen as a way to help the quadruped reach the reference angular velocity in a way similar than what the feedback term does for the linear velocity.
+\begin{equation}
+{ftp}_{c} = \frac{1}{2} \sqrt{\frac{h}{g}} ~ {}^l\!v \times {}^l\!\omega^\star = \frac{1}{2} \sqrt{\frac{h}{g}} \begin{bmatrix} {}^l\!\dot y ~ {}^l\!\dot \psi^\star \\ - {}^l\!\dot x ~ {}^l\!\dot \psi^\star \end{bmatrix}
+%k ~ ({}^l\!v - {}^l\!v^\star) = k \begin{bmatrix} {}^l\!\dot x - {}^l\!\dot x^\star \\ {}^l\!\dot y - {}^l\!\dot y^\star \end{bmatrix}
+\end{equation}
+
+Finally, another term is added to the footstep planning to take into account a temporal aspect. With all previous terms, there is none: whether a foot is just at the start of its swing phase or almost at the end, the desired target location returned by the footstep planner is the same. If the quadruped is moving forwards at the reference velocity then during the whole duration of a swing phase the target position will be $\Delta x$ meters in front of the shoulder in local frame. Except since the base is moving in world frame then the target position in world frame is moving as well. At the start of each swing phase the associated foot will target a position $x_0 + \Delta x$ in world frame but by the end of the swing phase this position becomes $x_0 + \Delta x + t_{swing} ~ \dot x$ due to the movement of the base. With the assumption that the current and reference velocities do not change much over one period of gait then feet can directly aim for their final target location by taking into account the movement of the base during their swing phase.
+
+With the assumption that the quadruped moves with constant linear and angular velocities during the remaining duration of the swing phase then the predicted movement is, if ${}^l\!\dot \psi \neq 0$:
+\begin{align}
+{}^l\!x_{pred} &= \int_{0}^{t_r} \left( {}^l\!\dot x \cos({}^l\!\dot \psi ~ t) - {}^l\!\dot y \sin({}^l\!\dot \psi ~ t) \right) ~dt \\
+{}^l\!y_{pred} &= \int_{0}^{t_r} \left( {}^l\!\dot x \sin({}^l\!\dot \psi ~ t) + {}^l\!\dot y \cos({}^l\!\dot \psi ~ t) \right) ~dt \\
+{}^l\!x_{pred} &= \frac{{}^l\!\dot x \sin({}^l\!\dot \psi ~ t_r) + {}^l\!\dot y \left( \cos({}^l\!\dot \psi ~ t_r) - 1 \right)}{{}^l\!\dot \psi} \\
+{}^l\!y_{pred} &= \frac{- {}^l\!\dot x \left( \cos({}^l\!\dot \psi ~ t_r) - 1 \right) + {}^l\!\dot y \sin({}^l\!\dot \psi ~ t_r)}{{}^l\!\dot \psi}
+\end{align}
+
+If ${}^l\!\dot \psi = 0$:
+\begin{align}
+{}^l\!x_{pred} &= {}^l\!\dot x ~ t_r \\
+{}^l\!y_{pred} &= {}^l\!\dot y ~ t_r
+\end{align}
+
+The remaining duration $t_r$ for the swing phase of a foot can be directly retrieved using information contained in the gait matrix: the contact status (0 for a swing phase) and the remaining number of time steps (first column).
+
+The desired location of footsteps is the sum of all described terms. Symmetry, feedback and centrifugal terms are the same for all feet contrary to the shoulder and prediction terms.
+
+The desired location of footsteps for each gait phase in the prediction horizon are stored in a 6 by 13 matrix (same number of rows than the gait matrix). The first column is the same and contains the remaining number of footsteps for each phase. The twelve other columns contains the desired location of the footstep (if in stance phase) or Not-A-Number (if in swing phase) for the 4 feet. For instance the second row of the $gait(0)$ matrix of equation \ref{eq:gait0} would be:
+\begin{equation}
+[ ~ 7 ~~ f_{x,0} ~~ f_{y,0} ~~ 0 ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ f_{x,3} ~~ f_{y,3} ~~ 0 ~ ]
+\end{equation}
+
+
+
+\newpage
 \section*{State vector}
 
 

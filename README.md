@@ -18,4 +18,6 @@
 
 * Install OSQP solver: `pip3 install --user osqp`
 
+* Install package that handles the gamepad: `pip3 install --user inputs`
+
 * Install TSID: https://github.com/stack-of-tasks/tsid#installation You can put the repo in another folder if you want, like `cd ~/install/` instead of `cd $DEVEL/openrobots/src/` for the first line.
