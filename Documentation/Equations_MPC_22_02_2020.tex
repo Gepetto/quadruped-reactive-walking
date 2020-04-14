@@ -61,7 +61,7 @@
 
 See \url{https://arxiv.org/pdf/1909.06586.pdf} for the original MIT article ``Highly Dynamic Quadruped Locomotion via Whole-Body Impulse Control and Model Predictive Control''
 
-\section*{State Estimator}
+\section{State Estimator}
 
 The role of the state estimator is to provide an estimation of the position, orientation, linear velocity and angular velocity of the base of the quadruped as well as the angular position of the actuators. In the case of a simulation with PyBullet this information is perfectly known and can be retrieved with the API.
 
@@ -77,15 +77,18 @@ The velocity state vector of the quadruped in world frame is:
 {}^o\!\dot q = \begin{bmatrix} {}^o\!\dot x & {}^o\!\dot y & {}^o\!\dot z & {}^o\!\omega_x & {}^o\!\omega_y & {}^o\!\omega_z & \dot \theta_0 & \dots & \dot \theta_{11} \end{bmatrix}^T
 \end{equation}
 
-With $({}^o\!\omega_x, {}^o\!\omega_y, {}^o\!\omega_z)$ the angular velocities along the $x$, $y$ and $z$ axes of the world frame.
+With $({}^o\!\omega_x, {}^o\!\omega_y, {}^o\!\omega_z)$ the angular velocities about the $x$, $y$ and $z$ axes of the world frame.
 
 %With $({}^o\!\phi, {}^o\!\theta, {}^o\!\psi)$ the roll, pitch and yaw angles (Tait-Bryan Euler angles) associated with the quaternion $({}^o\!a,{}^o\!b,{}^o\!c,{}^o\!d)$.
 
-\section*{MpcInterface}
+\section{MpcInterface}
 
 The role of the MpcInterface object is to transform data coming from PyBullet (simulation) or the state estimator of the robot (real world) into useful information for the rest of the control loop. 
 
-Data coming from PyBullet is retrieved in the world frame $o$. The position of the base of the quadruped in this frame can be noted $[{}^o\!x ~ {}^o\!y ~ {}^o\!z]^T$ and its orientation $[{}^o\!\phi ~ {}^o\!\theta ~ {}^o\!\psi]^T$ with $(\phi, \theta, \psi)$ the roll, pitch and yaw angles.
+Data coming from PyBullet is retrieved in the world frame $o$. The position of the base of the quadruped in this frame can be noted $[{}^o\!x ~ {}^o\!y ~ {}^o\!z]^T$ and its orientation $[{}^o\!\phi ~ {}^o\!\theta ~ {}^o\!\psi]^T$ with $(\phi, \theta, \psi)$ the roll, pitch and yaw angles. These angles corresponds to a sequence of rotations about the $z$, then $y$ and then $x$ axis such that the transform from body to world coordinates can be expressed as:
+\begin{equation}
+	R = R_z(\psi) R_y(\theta) R_x(\phi)
+\end{equation}
 
 Position, orientation, linear velocity and angular velocity of the base of the quadruped in world frame can be transformed either into the base frame $b$ or into the local frame $l$, as defined in Figure X. The transform between two frames $1$ and $2$ can be stored in an object $\fM{1}{2}$ that contains the translation part $^1\!T_2$ and the rotation part $^1\!R_2$ of the transform. The relation between position $[^2\!x ~ ^2\!y ~ ^2\!z]^T$ in frame $2$ and the same position in frame $1$ is:
 \begin{equation}
@@ -135,7 +138,7 @@ Positions of feet in world frame ${}^o\!feet$ are directly retrieved from PyBull
 \end{equation} 
 
 \newpage
-\section*{Footstep Planner}
+\section{Footstep Planner}
 
 The desired gait for the quadruped is defined in a gait matrix of size 6 by 5. Each row contains information about one phase of the gait. The first column contains the number of remaining time steps of the MPC for each phase and the four remaining columns contains the desired contact status for each foot and for each phase (0 if the foot is in swing phase or 1 if it is in stance phase).
 
@@ -195,7 +198,7 @@ A feedback term is added to the footstep planner to make it easier for the robot
 
 The feedback gain $k$ is equal to 0.03.
 
-A centrifugal term is added to the footstep planner to make it easier to compensate the centrifugal effect when the robot is turning along the vertical axis by adjusting the location of footsteps accordingly. As the formula involves the desired angular speed rather than the current one, it could also be seen as a way to help the quadruped reach the reference angular velocity in a way similar than what the feedback term does for the linear velocity.
+A centrifugal term is added to the footstep planner to make it easier to compensate the centrifugal effect when the robot is turning about the vertical axis by adjusting the location of footsteps accordingly. As the formula involves the desired angular speed rather than the current one, it could also be seen as a way to help the quadruped reach the reference angular velocity in a way similar than what the feedback term does for the linear velocity.
 \begin{equation}
 {ftp}_{c} = \frac{1}{2} \sqrt{\frac{h}{g}} ~ {}^l\!v \times {}^l\!\omega^\star = \frac{1}{2} \sqrt{\frac{h}{g}} \begin{bmatrix} {}^l\!\dot y ~ {}^l\!\dot \psi^\star \\ - {}^l\!\dot x ~ {}^l\!\dot \psi^\star \end{bmatrix}
 %k ~ ({}^l\!v - {}^l\!v^\star) = k \begin{bmatrix} {}^l\!\dot x - {}^l\!\dot x^\star \\ {}^l\!\dot y - {}^l\!\dot y^\star \end{bmatrix}
@@ -205,16 +208,16 @@ Finally, another term is added to the footstep planning to take into account a t
 
 With the assumption that the quadruped moves with constant linear and angular velocities during the remaining duration of the swing phase then the predicted movement is, if ${}^l\!\dot \psi \neq 0$:
 \begin{align}
-{}^l\!x_{pred} &= \int_{0}^{t_r} \left( {}^l\!\dot x \cos({}^l\!\dot \psi ~ t) - {}^l\!\dot y \sin({}^l\!\dot \psi ~ t) \right) ~dt \\
-{}^l\!y_{pred} &= \int_{0}^{t_r} \left( {}^l\!\dot x \sin({}^l\!\dot \psi ~ t) + {}^l\!\dot y \cos({}^l\!\dot \psi ~ t) \right) ~dt \\
-{}^l\!x_{pred} &= \frac{{}^l\!\dot x \sin({}^l\!\dot \psi ~ t_r) + {}^l\!\dot y \left( \cos({}^l\!\dot \psi ~ t_r) - 1 \right)}{{}^l\!\dot \psi} \\
-{}^l\!y_{pred} &= \frac{- {}^l\!\dot x \left( \cos({}^l\!\dot \psi ~ t_r) - 1 \right) + {}^l\!\dot y \sin({}^l\!\dot \psi ~ t_r)}{{}^l\!\dot \psi}
+{}^l\!x_{pred}(t_r) &= \int_{0}^{t_r} \left( {}^l\!\dot x \cos({}^l\!\dot \psi ~ t) - {}^l\!\dot y \sin({}^l\!\dot \psi ~ t) \right) ~dt \\
+{}^l\!y_{pred}(t_r) &= \int_{0}^{t_r} \left( {}^l\!\dot x \sin({}^l\!\dot \psi ~ t) + {}^l\!\dot y \cos({}^l\!\dot \psi ~ t) \right) ~dt \\
+{}^l\!x_{pred}(t_r) &= \frac{{}^l\!\dot x \sin({}^l\!\dot \psi ~ t_r) + {}^l\!\dot y \left( \cos({}^l\!\dot \psi ~ t_r) - 1 \right)}{{}^l\!\dot \psi} \\
+{}^l\!y_{pred}(t_r) &= \frac{- {}^l\!\dot x \left( \cos({}^l\!\dot \psi ~ t_r) - 1 \right) + {}^l\!\dot y \sin({}^l\!\dot \psi ~ t_r)}{{}^l\!\dot \psi}
 \end{align}
 
 If ${}^l\!\dot \psi = 0$:
 \begin{align}
-{}^l\!x_{pred} &= {}^l\!\dot x ~ t_r \\
-{}^l\!y_{pred} &= {}^l\!\dot y ~ t_r
+{}^l\!x_{pred}(t_r) &= {}^l\!\dot x ~ t_r \\
+{}^l\!y_{pred}(t_r) &= {}^l\!\dot y ~ t_r
 \end{align}
 
 The remaining duration $t_r$ for the swing phase of a foot can be directly retrieved using information contained in the gait matrix: the contact status (0 for a swing phase) and the remaining number of time steps (first column).
@@ -223,42 +226,44 @@ The desired location of footsteps is the sum of all described terms. Symmetry, f
 
 The desired location of footsteps for each gait phase in the prediction horizon are stored in a 6 by 13 matrix (same number of rows than the gait matrix). The first column is the same and contains the remaining number of footsteps for each phase. The twelve other columns contains the desired location of the footstep (if in stance phase) or Not-A-Number (if in swing phase) for the 4 feet. For instance the second row of the $gait(0)$ matrix of equation \ref{eq:gait0} would be:
 \begin{equation}
-[ ~ 7 ~~ f_{x,0} ~~ f_{y,0} ~~ 0 ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ f_{x,3} ~~ f_{y,3} ~~ 0 ~ ]
+[ ~ 7 ~~ r_{x,0} ~~ r_{y,0} ~~ 0 ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ r_{x,3} ~~ r_{y,3} ~~ 0 ~ ]
 \end{equation}
 
 
 
 \newpage
-\section*{State vector}
+\section{State vector}
 
 
 The reference velocity $\dot q^\star$ that is sent to the robot is expressed in its local frame. It has 6 dimensions: 3 for the linear velocity and 3 for the angular one.
 \begin{equation}
-\dot q_l^\star = [\dot x_l^\star ~~ \dot y_l^\star ~~ \dot z_l^\star ~~ \dot \phi^\star ~~ \dot \theta^\star ~~ \dot \psi^\star ]^T
+{}^l\! \dot q^\star = [{}^l\! \dot x^\star ~~ {}^l\! \dot y^\star ~~ {}^l\! \dot z^\star ~~ {}^l\! \dot \phi^\star ~~ {}^l\! \dot \theta^\star ~~ {}^l\! \dot \psi^\star ]^T
 \end{equation}
 
 The velocity vector of the robot is:
 \begin{equation}
-\dot q_l = [\dot x_l ~~ \dot y_l ~~ \dot z_l ~~ \dot \phi ~~ \dot \theta ~~ \dot \psi ]^T
+{}^l\! \dot q = [{}^l\! \dot x ~~ {}^l\! \dot y ~~ {}^l\! \dot z ~~ {}^l\! \dot \phi ~~ {}^l\! \dot \theta ~~ {}^l\! \dot \psi ]^T
 \end{equation}
 
-At the start each iteration of the MPC, the current position and orientation of the robot defines a new frame in which the solver will work. This frame is at ground level with the $x$ axis pointing forwards ($x$ axis of the local frame), the $y$ axis pointing to the left ($y$ axis of the local frame) and the $z$ axis point upwards. Instead of working in pitch, roll and yaw, the solver will work in terms of rotation around the $x$, $y$ and $z$ axes of this new frame. As this solver frame and the local frame are initially superposed, we have for the initial conditions of the solving process:
+At the start each iteration of the MPC, the current position and orientation of the robot defines a new frame in which the solver will work. This frame is at ground level with the $x$ axis pointing forwards ($x$ axis of the local frame), the $y$ axis pointing to the left ($y$ axis of the local frame) and the $z$ axis point upwards. Instead of working in terms of rotation around the $x$, $y$ and $z$ axes of the world frame, the solver will work with the pitch, roll and yaw angles defined in this new frame. As the frame the solver is working in is the local frame, initial conditions of the solving process are as follows:
 \begin{align}
-q_0 &= [x ~~ y ~~ z ~~ \theta_x ~~ \theta_y ~~ \theta_z ] = [0 ~~ 0 ~~ z ~~ \theta_x ~~ \theta_y ~~ 0] \\
-\dot q_0 &= [\dot x ~~ \dot y ~~ \dot z ~~ \dot \theta_x ~~ \dot \theta_y ~~ \dot \theta_z ] = [\dot x_l ~~ \dot y_l ~~ \dot z_l ~~ \dot \phi ~~ \dot \theta ~~ \dot \psi ]
+q_0 &= [{}^l\!x ~~ {}^l\!y ~~ {}^l\!z ~~ {}^l\! \phi ~~ {}^l\! \theta ~~ {}^l\! \psi ]^T = [ {}^l\!C_x ~~ {}^l\!C_y ~~ {}^l\!C_z ~~ {}^l\! \phi ~~ {}^l\! \theta ~~ 0]^T \\
+\dot q_0 &= [{}^l\! \dot x ~~ {}^l\! \dot y ~~ {}^l\! \dot z ~~ {}^l\! \dot \phi ~~ {}^l\! \dot \theta ~~ {}^l\! \dot \psi ]^T
 \end{align}
+
+With $[{}^l\! C_x ~~ {}^l\! C_y ~~ {}^l\! C_z ]$ the position of the center of mass in local frame.
 
 The state vector of the robot and the reference state vector are then: 
 \begin{equation}X = \begin{bmatrix} q \\ \dot q \end{bmatrix} \text{~~~~}X^\star = \begin{bmatrix} q^{\star} \\ \dot q^{\star} \end{bmatrix}\end{equation}
 
-The reference velocity is supposed constant over the prediction horizon in the local frame of the robot which means we need to rotate it accordingly to get the reference velocity in solver frame.
+The reference velocity is supposed constant over the prediction horizon in the local frame of the robot so it has to be properly rotated to be consistent with its future orientation.
 
 For time step $k$ of the prediction horizon, the reference velocity vector is defined as follows:
 \begin{align}
-\dot q_k^\star = \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \phi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \phi^\star) \end{bmatrix}  \cdot  \dot q_0^\star = \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \phi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \phi^\star) \end{bmatrix} \cdot \dot q_l^\star 
+\forall k \in [1, N], ~ \dot q_k^\star = \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \psi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \psi^\star) \end{bmatrix} \cdot {}^l\! \dot q^\star
 \end{align}
 
-with $R_z(\phi)$ the 3 by 3 rotation matrix by an angle $\phi$ along the vertical axis. There is no rotation along $x$ and $y$ axes due to the assumption that the trunk is almost horizontal.
+with $R_z(\psi)$ the 3 by 3 rotation matrix by an angle $\psi$ about the vertical axis. There is no rotation about the roll and pitch axes due to the assumption that the trunk is almost horizontal.
 
 %with $\forall k, \dot q_k^\star = \dot q^\star$ since the reference velocity is supposed constant over the prediction horizon. $q_k^\star$ is obtained by integrating the $\dot q^\star$ starting from the current position vector $q_0$.
 %\begin{align}
@@ -266,15 +271,124 @@ with $R_z(\phi)$ the 3 by 3 rotation matrix by an angle $\phi$ along the vertica
 %q_{k+1} &= q_k + R(\psi_k) \cdot \dot q^\star
 %\end{align}
 
-To get the reference position vector, the following iterative equation can be use:
-\begin{equation} q_{k+1}^\star = q_k^\star + \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \phi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \phi^\star) \end{bmatrix} \cdot \dot q_0^\star \end{equation}
+To get the reference position vector for all time steps of the prediction horizon an integration similar to the one that has been done for the prediction term of the footstep planner is performed. If ${}^l\!\dot \psi = 0$:
+\begin{equation}
+\forall k \in [1, N], ~ q_{k}^\star = q_0 + k ~ \Delta t ~  {}^l\! \dot q^\star
+\end{equation}
+
+If ${}^l\!\dot \psi \neq 0$:
+\begin{align}
+x_k^\star &= {}^l\! C_x + \frac{{}^l\!\dot x^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t) + {}^l\!\dot y^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right)}{{}^l\!\dot \psi^\star} \\
+y_k^\star &= {}^l\! C_y + \frac{- {}^l\!\dot x^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right) + {}^l\!\dot y^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t)}{{}^l\!\dot \psi^\star} \\
+z_k^\star &= {}^l\! C_z + k ~ \Delta t ~  {}^l\! \dot z^\star \\
+\phi_k^\star &= {}^l\! \phi + \frac{{}^l\!\dot \phi^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t) + {}^l\!\dot \theta^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right)}{{}^l\!\dot \psi^\star} \\
+\theta_k^\star &= {}^l\! \theta + \frac{- {}^l\!\dot \phi^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right) + {}^l\!\dot \theta^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t)}{{}^l\!\dot \psi^\star} \\
+\psi_k^\star &= 0 + k ~ \Delta t ~  {}^l\! \dot \psi^\star \\
+\end{align}
+
+%\begin{equation} q_{k+1}^\star = q_k^\star + \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \phi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \phi^\star) \end{bmatrix} \cdot \dot q_0^\star \end{equation}
+
+Previous equations can be used a general case in which there is a velocity control for all linear and angular components. However, in our case, since we want the quadruped to move around while keeping the trunk horizontal and at constant height, we want a velocity control in $x$, $y$ and $\psi$ and a position control in $z$, $\phi$ and $\theta$ to keep $\forall t, ~z(t) = h$ and $\phi(t) = \theta(t) = 0~rad$. To avoid having too many feedback loop (reference velocity for $z$, $\phi$ and $\theta$ depending on the position error) we set $\forall k \in [1, N]$:
+\begin{align}
+\dot z_k^\star = 0 \text{ and } z_k^\star = h \\
+\dot \phi_k^\star = 0 \text{ and }  \phi_k^\star = 0 \\
+\dot \theta_k^\star = 0 \text{ and }  \theta_k^\star = 0
+\end{align}
+
+To sum things up:
+\begin{equation}
+	\forall k \in [1, N], ~ X_k^\star = \begin{bmatrix}
+	{}^l\! C_x + \frac{{}^l\!\dot x^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t) + {}^l\!\dot y^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right)}{{}^l\!\dot \psi^\star} \\
+	{}^l\! C_y + \frac{- {}^l\!\dot x^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right) + {}^l\!\dot y^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t)}{{}^l\!\dot \psi^\star} \\
+	h \\ 0 \\ 0 \\ k ~ \Delta t ~  {}^l\! \dot \psi^\star \\
+	{}^l\! \dot x^\star \cos(k ~ \Delta t ~  {}^l\! \dot \psi^\star) - {}^l\! \dot y^\star \sin(k ~ \Delta t ~  {}^l\! \dot \psi^\star) \\
+	{}^l\! \dot x^\star \sin(k ~ \Delta t ~  {}^l\! \dot \psi^\star) + {}^l\! \dot y^\star \cos(k ~ \Delta t ~  {}^l\! \dot \psi^\star) \\ 0 \\ 0 \\ 0 \\ {}^l\! \dot \psi^\star
+	\end{bmatrix}
+\end{equation}
+
+
 
 The solver will work around the reference trajectory so we define the optimization state vector as follows:
 \begin{equation}\mathcal{X}_k = X_k - X_k^\star \end{equation}
 
 \newpage
+\section{Dynamics equations and constraints}
 
-\section*{Solver matrices}
+The MPC works with a simple lumped mass model (centroidal dynamics). It can be written in world frame as follows:
+\begin{align}
+	m ~ {}^o\!  \ddot C &= \sum_{i=0}^{n_c - 1} {}^o\!f_i - \begin{bmatrix} 0 \\ 0 \\ mg \end{bmatrix} \label{eq:c_linear}\\
+	%m \begin{bmatrix} {}^o\! \ddot x \\ {}^o\! \ddot y \\ {}^o\! \ddot z \end{bmatrix} &= \sum_{i=0}^{n_c - 1} {}^o\!f_i - \begin{bmatrix} 0 \\ 0 \\ mg \end{bmatrix} \\
+	\frac{d}{dt}({}^o\!I {}^o\!\omega) &= \sum_{i=0}^{n_c - 1} ({}^o\!r_i - {}^o\!C) \times {}^o\!f_i \label{eq:c_angular}
+	%\frac{d}{dt}({}^o\!I \cdot \begin{bmatrix} {}^o\! \dot \phi \\ {}^o\! \dot \theta \\ {}^o\! \dot \psi \end{bmatrix} ) &= \sum_{i=0}^{n_c - 1} ({}^o\!r_i - {}^o\!C) \times {}^o\!f_i
+\end{align}
+
+With $n_c$ the number of footholds, ${}^o\!f_i$ the reaction forces, ${}^o\!r_i$ the location of contact points, ${}^o\!C$ the position of the center of mass, ${}^o\!I$ the rotational inertia tensor and ${}^o\!w$ the angular velocity of the body.
+
+The first assumption is that roll and pitch angles are small, it follows that:
+\begin{align}
+\begin{bmatrix} {}^o\! \dot \phi \\ {}^o\! \dot \theta \\ {}^o\! \dot \psi \end{bmatrix} &\approx R_z(\psi)^{-1} \cdot {}^o\!\omega \label{eq:assumption1} \\ 
+{}^o\! I &\approx R_z(\psi) \cdot {}^b\! I \cdot R_z(\psi)^{-1} 
+\end{align}
+
+The second assumption is that states are close to the desired trajectory so in equation \ref{eq:c_angular} we can replace the actual position of the center of mass ${}^o\!C$ by the desired trajectory for the center of mass.
+
+The last assumption is that pitch and roll velocities are small so:
+\begin{equation}
+	\frac{d}{dt}({}^o\!I {}^o\!\omega) = {}^o\!I {}^o\! \dot \omega + {}^o\! \omega \times ({}^o\!I {}^o\! \omega) \approx {}^o\!I {}^o\! \dot \omega
+\end{equation}
+
+With these assumptions, equation \ref{eq:c_angular} is simplified into:
+\begin{equation}
+{}^o\!I ~ {}^o\! \dot \omega = \sum_{i=0}^{n_c - 1} ({}^o\!r_i - {}^o\!C^\star) \times {}^o\!f_i \label{eq:c_angular_bis}
+\end{equation}
+
+The local frame that the solver is working in is actually the world frame rotated by $\psi$ about the vertical axis $z$ so equation \ref{eq:assumption1} becomes:
+\begin{equation}
+\begin{bmatrix} {}^o\! \dot \phi \\ {}^o\! \dot \theta \\ {}^o\! \dot \psi \end{bmatrix} \approx {}^l\!\omega 
+\end{equation}
+
+Equations \ref{eq:c_linear} and \ref{eq:c_angular_bis} can be written in local frame:
+\begin{align}
+m ~ R_z(\psi)^{-1} {}^l\!  \ddot C &= \sum_{i=0}^{n_c - 1} R_z(\psi)^{-1} {}^l\!f_i - R_z(\psi)^{-1} \begin{bmatrix} 0 \\ 0 \\ mg \end{bmatrix} \\
+R_z(\psi)^{-1} {}^l\!I R_z(\psi) ~ R_z(\psi)^{-1} {}^l\! \dot \omega &= \sum_{i=0}^{n_c - 1} R_z(\psi)^{-1} ({}^l\!r_i - {}^l\!C^\star) \times R_z(\psi)^{-1} {}^l\!f_i
+\end{align}
+
+As cross product is invariant by rotation these equations result in:
+\begin{align}
+m ~ {}^l\!  \ddot C &= \sum_{i=0}^{n_c - 1} {}^l\!f_i - \begin{bmatrix} 0 \\ 0 \\ mg \end{bmatrix} \\
+{}^l\!I ~ {}^l\! \dot \omega &= \sum_{i=0}^{n_c - 1} ({}^l\!r_i - {}^l\!C^\star) \times {}^l\!f_i
+\end{align}
+
+Once discretized, evolution of state variables becomes, $\forall k \in [0, N-1]$:
+\begin{align}
+\begin{bmatrix} {}^l\! x_{k+1} \\ {}^l\! y_{k+1} \\ {}^l\! z_{k+1} \end{bmatrix} &= \begin{bmatrix} {}^l\! x_{k} \\ {}^l\! y_{k} \\ {}^l\! z_{k} \end{bmatrix} + \Delta t \begin{bmatrix} {}^l\! \dot x_{k} \\ {}^l\! \dot y_{k} \\ {}^l\! \dot z_{k} \end{bmatrix} \\
+\begin{bmatrix} {}^l\! \phi_{k+1} \\ {}^l\! \theta_{k+1} \\ {}^l\! \psi_{k+1} \end{bmatrix} &= \begin{bmatrix} {}^l\! \phi_{k} \\ {}^l\! \theta_{k} \\ {}^l\! \psi_{k} \end{bmatrix} + \Delta t \begin{bmatrix}  \omega_{{}^l\!x,k} \\  \omega_{{}^l\!y,k} \\ \omega_{{}^l\! z,k} \end{bmatrix} \\
+\begin{bmatrix} {}^l\! \dot x_{k+1} \\ {}^l\! \dot y_{k+1} \\ {}^l\! \dot z_{k+1} \end{bmatrix} &= \begin{bmatrix} {}^l\! \dot x_{k} \\ {}^l\! \dot y_{k} \\ {}^l\! \dot z_{k} \end{bmatrix} + \Delta t \left( \sum_{i=0}^{n_{c,k} - 1} \frac{{}^l\!f_{i,k}}{m} - \begin{bmatrix} 0 \\ 0 \\ g \end{bmatrix}  \right) \\
+\begin{bmatrix} \omega_{{}^l\!x,k+1} \\  \omega_{{}^l\!y,k+1} \\ \omega_{{}^l\! z,k+1} \end{bmatrix} &= \begin{bmatrix}  \omega_{{}^l\!x,k} \\  \omega_{{}^l\!y,k} \\ \omega_{{}^l\! z,k} \end{bmatrix} + \Delta t \left( {}^l\!I^{-1}\sum_{i=0}^{n_{c,k} - 1} [{}^l\!r_{i,k} - {}^l\!C_{k}^\star]_\times \cdot {}^l\!f_{i,k}   \right)
+\end{align}
+
+In terms of constraints, friction cone conditions to avoid slipping are linearized to the first order:
+\begin{equation}
+\forall i \in [0, 3], \forall k \in [0, N-1],~|f_{i,k,x}| \leq \mu ~ f_{i,k,z} \text{ and } |f_{i,k,y}| \leq \mu ~ f_{i,k,z}
+\end{equation}
+ 
+An upper limit has to be set for contact forces to respect hardware limits (maximum torque of actuators). This limit is only applied to the $z$ component since it will also limit the force along $x$ and $y$ due to the friction cone contraints.
+\begin{equation}
+\forall i \in [0, 3], \forall k \in [0, N-1],~f_{i,k,z} \leq f_{max}
+\end{equation}
+
+The quadruped cannot pull on the ground, it can only push so the normal component of the contact forces has to be positive:
+\begin{equation}
+\forall i \in [0, 3], \forall k \in [0, N-1], f_{i,k,z} \geq 0~N
+\end{equation}
+ 
+To be sure that there is no slipping, we could impose a minimal non-zero vertical component of the contact forces because if it is close to 0 N the friction cone is small so on the real robot slipping could happen. In practise to due the way the MPC is currently programmed. To disable a foot when it is in swing phase we set a constraint that its contact force is equal to 0 so it is not directly compatible with $\forall i \in [0, 3], \forall k \in [0, N-1], f_{i,k,z} \geq f_{min}$. We would have to change more coefficients to temporarily disable this $f_{i,k,z} \geq f_{min}$ for feet in swing phase.
+
+This minimal non-zero vertical component of the contact forces is taken into account by the inverse dynamics block (TSID) so even if the output of the MPC contains a 0 N vertical component for a foot in contact it will be equal to $f_{min}$ after being processed by TSID. 
+
+
+\newpage
+\section{Solver matrices}
 
 \textbf{Goal:} create the matrices that are used by standard QP solvers. Those solvers tries to find the vector $\mathbb{X}$ that minimizes $\frac{1}{2}\mathbb{X}^T.P.\mathbb{X} + \mathbb{X}^T.Q$ under constraints $M.\mathbb{X} = N$ and $L.\mathbb{X} \leq K$.
 
@@ -291,7 +405,7 @@ f_k &= [f_{k,0}^T ~~ f_{k,1}^T ~~ f_{k,2}^T ~~ f_{k,3}^T]^T \\
 f_{k,i} &= \begin{bmatrix} f^x_{k,i} \\ f^y_{k,i} \\ f^z_{k,i} \end{bmatrix}
 \end{align}
 
-with $f^x_{k,i}$, $f^y_{k,i}$ and $f^z_{k,i}$ the components along the $x$, $y$ and $z$ axes of the solver frame for the $i$-th foothold at time step $k$.
+with $f^x_{k,i}$, $f^y_{k,i}$ and $f^z_{k,i}$ the components about the $x$, $y$ and $z$ axes of the solver frame for the $i$-th foothold at time step $k$.
 
 Let's consider a case with only 3 time steps in the prediction horizon.
 
@@ -328,7 +442,7 @@ I_3 & 0_3 & \Delta t \cdot I_3 & 0_3 \\
 \end{bmatrix}
 \end{equation}
 
-%with $R(\psi_k = \psi_0+k~dt~\dot \psi^\star)$ the 3 by 3 rotation matrix along the vertical axis. 
+%with $R(\psi_k = \psi_0+k~dt~\dot \psi^\star)$ the 3 by 3 rotation matrix about the vertical axis. 
 
 The inertia matrix of the robot in solver frame rotated according to the orientation of the robot at time step $k$ is:
 \begin{equation}
@@ -390,31 +504,31 @@ Matrix $P$ in the cost function $\frac{1}{2}\mathbb{X}^T.P.\mathbb{X} + \mathbb{
 
 Matrix $Q$ involved in $\mathbb{X}^T.Q$ only contains zeroes since there is no reason to push $X_k - X_k^\star$ or $f_k$ into being as negative/positive as possible. For instance if a coefficient of $Q$ is positive then the solver will try to have the associated variable as negative as possible to have a high negative product between the coefficient and the variable which minimizes the cost. In the 3 time steps example Q will be of size 72 by 1.
 
-\section*{Update of solver matrices}
+%\section*{Update of solver matrices}
+%
+%In the $M$ matrix:
+%\begin{itemize}
+%\item $A_k$ matrices are constant and all the same
+%\item $[r_{k,i}]$ need to be updated at each iteration since the robot moves between each iteration
+%\item $\mathcal{I}_k^{-1}$ need to be updated if the reference velocity vector is modified
+%\item $E_{k,i}$ in the lower part of M need to be set to $I_3$ if the $j$-th foot was previously touching the ground and is not touching it anymore. And to $0_3$ if it was not touching the ground and is now touching it.
+%\end{itemize}
+%
+%In the $N$ matrix:
+%\begin{itemize}
+%	\item $X_0$ need to be updated at each iteration since the robot moves between each iteration
+%	\item $- g$ never changes
+%	\item $X_k^\star$ need to be updated if the reference velocity vector is modified
+%\end{itemize}
+%
+%In the $L$ matrix:
+%\begin{itemize}
+%	\item Columns of $F_\mu$ matrices have to be set to zero or set back to non-zero values depending on the states of the contacts (just like the columns of $B_k$ matrices)
+%\end{itemize}
+%
+%The $K$ matrix never change and is always full of zeros.
 
-In the $M$ matrix:
-\begin{itemize}
-\item $A_k$ matrices are constant and all the same
-\item $[r_{k,i}]$ need to be updated at each iteration since the robot moves between each iteration
-\item $\mathcal{I}_k^{-1}$ need to be updated if the reference velocity vector is modified
-\item $E_{k,i}$ in the lower part of M need to be set to $I_3$ if the $j$-th foot was previously touching the ground and is not touching it anymore. And to $0_3$ if it was not touching the ground and is now touching it.
-\end{itemize}
-
-In the $N$ matrix:
-\begin{itemize}
-	\item $X_0$ need to be updated at each iteration since the robot moves between each iteration
-	\item $- g$ never changes
-	\item $X_k^\star$ need to be updated if the reference velocity vector is modified
-\end{itemize}
-
-In the $L$ matrix:
-\begin{itemize}
-	\item Columns of $F_\mu$ matrices have to be set to zero or set back to non-zero values depending on the states of the contacts (just like the columns of $B_k$ matrices)
-\end{itemize}
-
-The $K$ matrix never change and is always full of zeros.
-
-\section*{Output of the MPC}
+\section{Output of the MPC}
 
 The desired reaction forces that need to be applied (by TSID or the real robot) are stored in $f_0$. Since the solver frame and local frame are initially superposed then $f_0$ directly contains the desired reaction forces in the local frame of the robot. To be used in TSID, these forces need to be rotated to be brought back in TSID's world frame. 
 
