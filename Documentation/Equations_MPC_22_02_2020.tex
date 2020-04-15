@@ -260,7 +260,7 @@ The reference velocity is supposed constant over the prediction horizon in the l
 
 For time step $k$ of the prediction horizon, the reference velocity vector is defined as follows:
 \begin{align}
-\forall k \in [1, N], ~ \dot q_k^\star = \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \psi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \psi^\star) \end{bmatrix} \cdot {}^l\! \dot q^\star
+\forall k \in [1, n_{steps}], ~ \dot q_k^\star = \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \psi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \psi^\star) \end{bmatrix} \cdot {}^l\! \dot q^\star
 \end{align}
 
 with $R_z(\psi)$ the 3 by 3 rotation matrix by an angle $\psi$ about the vertical axis. There is no rotation about the roll and pitch axes due to the assumption that the trunk is almost horizontal.
@@ -273,7 +273,7 @@ with $R_z(\psi)$ the 3 by 3 rotation matrix by an angle $\psi$ about the vertica
 
 To get the reference position vector for all time steps of the prediction horizon an integration similar to the one that has been done for the prediction term of the footstep planner is performed. If ${}^l\!\dot \psi = 0$:
 \begin{equation}
-\forall k \in [1, N], ~ q_{k}^\star = q_0 + k ~ \Delta t ~  {}^l\! \dot q^\star
+\forall k \in [1, n_{steps}], ~ q_{k}^\star = q_0 + k ~ \Delta t ~  {}^l\! \dot q^\star
 \end{equation}
 
 If ${}^l\!\dot \psi \neq 0$:
@@ -288,7 +288,7 @@ z_k^\star &= {}^l\! C_z + k ~ \Delta t ~  {}^l\! \dot z^\star \\
 
 %\begin{equation} q_{k+1}^\star = q_k^\star + \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \phi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \phi^\star) \end{bmatrix} \cdot \dot q_0^\star \end{equation}
 
-Previous equations can be used a general case in which there is a velocity control for all linear and angular components. However, in our case, since we want the quadruped to move around while keeping the trunk horizontal and at constant height, we want a velocity control in $x$, $y$ and $\psi$ and a position control in $z$, $\phi$ and $\theta$ to keep $\forall t, ~z(t) = h$ and $\phi(t) = \theta(t) = 0~rad$. To avoid having too many feedback loop (reference velocity for $z$, $\phi$ and $\theta$ depending on the position error) we set $\forall k \in [1, N]$:
+Previous equations can be used a general case in which there is a velocity control for all linear and angular components. However, in our case, since we want the quadruped to move around while keeping the trunk horizontal and at constant height, we want a velocity control in $x$, $y$ and $\psi$ and a position control in $z$, $\phi$ and $\theta$ to keep $\forall t, ~z(t) = h$ and $\phi(t) = \theta(t) = 0~rad$. To avoid having too many feedback loop (reference velocity for $z$, $\phi$ and $\theta$ depending on the position error) we set $\forall k \in [1, n_{steps}]$:
 \begin{align}
 \dot z_k^\star = 0 \text{ and } z_k^\star = h \\
 \dot \phi_k^\star = 0 \text{ and }  \phi_k^\star = 0 \\
@@ -297,7 +297,7 @@ Previous equations can be used a general case in which there is a velocity contr
 
 To sum things up:
 \begin{equation}
-	\forall k \in [1, N], ~ X_k^\star = \begin{bmatrix}
+	\forall k \in [1, n_{steps}], ~ X_k^\star = \begin{bmatrix}
 	{}^l\! C_x + \frac{{}^l\!\dot x^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t) + {}^l\!\dot y^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right)}{{}^l\!\dot \psi^\star} \\
 	{}^l\! C_y + \frac{- {}^l\!\dot x^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right) + {}^l\!\dot y^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t)}{{}^l\!\dot \psi^\star} \\
 	h \\ 0 \\ 0 \\ k ~ \Delta t ~  {}^l\! \dot \psi^\star \\
@@ -318,28 +318,28 @@ The MPC works with a simple lumped mass model (centroidal dynamics). It can be w
 \begin{align}
 	m ~ {}^o\!  \ddot C &= \sum_{i=0}^{n_c - 1} {}^o\!f_i - \begin{bmatrix} 0 \\ 0 \\ mg \end{bmatrix} \label{eq:c_linear}\\
 	%m \begin{bmatrix} {}^o\! \ddot x \\ {}^o\! \ddot y \\ {}^o\! \ddot z \end{bmatrix} &= \sum_{i=0}^{n_c - 1} {}^o\!f_i - \begin{bmatrix} 0 \\ 0 \\ mg \end{bmatrix} \\
-	\frac{d}{dt}({}^o\!I {}^o\!\omega) &= \sum_{i=0}^{n_c - 1} ({}^o\!r_i - {}^o\!C) \times {}^o\!f_i \label{eq:c_angular}
-	%\frac{d}{dt}({}^o\!I \cdot \begin{bmatrix} {}^o\! \dot \phi \\ {}^o\! \dot \theta \\ {}^o\! \dot \psi \end{bmatrix} ) &= \sum_{i=0}^{n_c - 1} ({}^o\!r_i - {}^o\!C) \times {}^o\!f_i
+	\frac{d}{dt}({}^o\!\mathcal{I} {}^o\!\omega) &= \sum_{i=0}^{n_c - 1} ({}^o\!r_i - {}^o\!C) \times {}^o\!f_i \label{eq:c_angular}
+	%\frac{d}{dt}({}^o\!\mathcal{I} \cdot \begin{bmatrix} {}^o\! \dot \phi \\ {}^o\! \dot \theta \\ {}^o\! \dot \psi \end{bmatrix} ) &= \sum_{i=0}^{n_c - 1} ({}^o\!r_i - {}^o\!C) \times {}^o\!f_i
 \end{align}
 
-With $n_c$ the number of footholds, ${}^o\!f_i$ the reaction forces, ${}^o\!r_i$ the location of contact points, ${}^o\!C$ the position of the center of mass, ${}^o\!I$ the rotational inertia tensor and ${}^o\!w$ the angular velocity of the body.
+With $n_c$ the number of footholds, ${}^o\!f_i$ the reaction forces, ${}^o\!r_i$ the location of contact points, ${}^o\!C$ the position of the center of mass, ${}^o\!\mathcal{I}$ the rotational inertia tensor and ${}^o\!w$ the angular velocity of the body.
 
 The first assumption is that roll and pitch angles are small, it follows that:
 \begin{align}
 \begin{bmatrix} {}^o\! \dot \phi \\ {}^o\! \dot \theta \\ {}^o\! \dot \psi \end{bmatrix} &\approx R_z(\psi)^{-1} \cdot {}^o\!\omega \label{eq:assumption1} \\ 
-{}^o\! I &\approx R_z(\psi) \cdot {}^b\! I \cdot R_z(\psi)^{-1} 
+{}^o\! \mathcal{I} &\approx R_z(\psi) \cdot {}^b\! \mathcal{I} \cdot R_z(\psi)^{-1} 
 \end{align}
 
 The second assumption is that states are close to the desired trajectory so in equation \ref{eq:c_angular} we can replace the actual position of the center of mass ${}^o\!C$ by the desired trajectory for the center of mass.
 
 The last assumption is that pitch and roll velocities are small so:
 \begin{equation}
-	\frac{d}{dt}({}^o\!I {}^o\!\omega) = {}^o\!I {}^o\! \dot \omega + {}^o\! \omega \times ({}^o\!I {}^o\! \omega) \approx {}^o\!I {}^o\! \dot \omega
+	\frac{d}{dt}({}^o\!\mathcal{I} {}^o\!\omega) = {}^o\!\mathcal{I} {}^o\! \dot \omega + {}^o\! \omega \times ({}^o\!\mathcal{I} {}^o\! \omega) \approx {}^o\!\mathcal{I} {}^o\! \dot \omega
 \end{equation}
 
 With these assumptions, equation \ref{eq:c_angular} is simplified into:
 \begin{equation}
-{}^o\!I ~ {}^o\! \dot \omega = \sum_{i=0}^{n_c - 1} ({}^o\!r_i - {}^o\!C^\star) \times {}^o\!f_i \label{eq:c_angular_bis}
+{}^o\!\mathcal{I} ~ {}^o\! \dot \omega = \sum_{i=0}^{n_c - 1} ({}^o\!r_i - {}^o\!C^\star) \times {}^o\!f_i \label{eq:c_angular_bis}
 \end{equation}
 
 The local frame that the solver is working in is actually the world frame rotated by $\psi$ about the vertical axis $z$ so equation \ref{eq:assumption1} becomes:
@@ -350,47 +350,47 @@ The local frame that the solver is working in is actually the world frame rotate
 Equations \ref{eq:c_linear} and \ref{eq:c_angular_bis} can be written in local frame:
 \begin{align}
 m ~ R_z(\psi)^{-1} {}^l\!  \ddot C &= \sum_{i=0}^{n_c - 1} R_z(\psi)^{-1} {}^l\!f_i - R_z(\psi)^{-1} \begin{bmatrix} 0 \\ 0 \\ mg \end{bmatrix} \\
-R_z(\psi)^{-1} {}^l\!I R_z(\psi) ~ R_z(\psi)^{-1} {}^l\! \dot \omega &= \sum_{i=0}^{n_c - 1} R_z(\psi)^{-1} ({}^l\!r_i - {}^l\!C^\star) \times R_z(\psi)^{-1} {}^l\!f_i
+R_z(\psi)^{-1} {}^l\!\mathcal{I} R_z(\psi) ~ R_z(\psi)^{-1} {}^l\! \dot \omega &= \sum_{i=0}^{n_c - 1} R_z(\psi)^{-1} ({}^l\!r_i - {}^l\!C^\star) \times R_z(\psi)^{-1} {}^l\!f_i
 \end{align}
 
 As cross product is invariant by rotation these equations result in:
 \begin{align}
 m ~ {}^l\!  \ddot C &= \sum_{i=0}^{n_c - 1} {}^l\!f_i - \begin{bmatrix} 0 \\ 0 \\ mg \end{bmatrix} \\
-{}^l\!I ~ {}^l\! \dot \omega &= \sum_{i=0}^{n_c - 1} ({}^l\!r_i - {}^l\!C^\star) \times {}^l\!f_i
+{}^l\!\mathcal{I} ~ {}^l\! \dot \omega &= \sum_{i=0}^{n_c - 1} ({}^l\!r_i - {}^l\!C^\star) \times {}^l\!f_i
 \end{align}
 
-Once discretized, evolution of state variables becomes, $\forall k \in [0, N-1]$:
+Once discretized, evolution of state variables becomes, $\forall k \in [0, n_{steps}-1]$:
 \begin{align}
 \begin{bmatrix} {}^l\! x_{k+1} \\ {}^l\! y_{k+1} \\ {}^l\! z_{k+1} \end{bmatrix} &= \begin{bmatrix} {}^l\! x_{k} \\ {}^l\! y_{k} \\ {}^l\! z_{k} \end{bmatrix} + \Delta t \begin{bmatrix} {}^l\! \dot x_{k} \\ {}^l\! \dot y_{k} \\ {}^l\! \dot z_{k} \end{bmatrix} \\
 \begin{bmatrix} {}^l\! \phi_{k+1} \\ {}^l\! \theta_{k+1} \\ {}^l\! \psi_{k+1} \end{bmatrix} &= \begin{bmatrix} {}^l\! \phi_{k} \\ {}^l\! \theta_{k} \\ {}^l\! \psi_{k} \end{bmatrix} + \Delta t \begin{bmatrix}  \omega_{{}^l\!x,k} \\  \omega_{{}^l\!y,k} \\ \omega_{{}^l\! z,k} \end{bmatrix} \\
 \begin{bmatrix} {}^l\! \dot x_{k+1} \\ {}^l\! \dot y_{k+1} \\ {}^l\! \dot z_{k+1} \end{bmatrix} &= \begin{bmatrix} {}^l\! \dot x_{k} \\ {}^l\! \dot y_{k} \\ {}^l\! \dot z_{k} \end{bmatrix} + \Delta t \left( \sum_{i=0}^{n_{c,k} - 1} \frac{{}^l\!f_{i,k}}{m} - \begin{bmatrix} 0 \\ 0 \\ g \end{bmatrix}  \right) \\
-\begin{bmatrix} \omega_{{}^l\!x,k+1} \\  \omega_{{}^l\!y,k+1} \\ \omega_{{}^l\! z,k+1} \end{bmatrix} &= \begin{bmatrix}  \omega_{{}^l\!x,k} \\  \omega_{{}^l\!y,k} \\ \omega_{{}^l\! z,k} \end{bmatrix} + \Delta t \left( {}^l\!I^{-1}\sum_{i=0}^{n_{c,k} - 1} [{}^l\!r_{i,k} - {}^l\!C_{k}^\star]_\times \cdot {}^l\!f_{i,k}   \right)
+\begin{bmatrix} \omega_{{}^l\!x,k+1} \\  \omega_{{}^l\!y,k+1} \\ \omega_{{}^l\! z,k+1} \end{bmatrix} &= \begin{bmatrix}  \omega_{{}^l\!x,k} \\  \omega_{{}^l\!y,k} \\ \omega_{{}^l\! z,k} \end{bmatrix} + \Delta t \left( {}^l\!\mathcal{I}^{-1}\sum_{i=0}^{n_{c,k} - 1} [{}^l\!r_{i,k} - {}^l\!C_{k}^\star]_\times \cdot {}^l\!f_{i,k}   \right)
 \end{align}
 
 In terms of constraints, friction cone conditions to avoid slipping are linearized to the first order:
 \begin{equation}
-\forall i \in [0, 3], \forall k \in [0, N-1],~|f_{i,k,x}| \leq \mu ~ f_{i,k,z} \text{ and } |f_{i,k,y}| \leq \mu ~ f_{i,k,z}
+\forall i \in [0, 3], \forall k \in [0, n_{steps}-1],~|f_{i,k}^x| \leq \mu ~ f_{i,k}^z \text{ and } |f_{i,k}^y| \leq \mu ~ f_{i,k}^z
 \end{equation}
  
 An upper limit has to be set for contact forces to respect hardware limits (maximum torque of actuators). This limit is only applied to the $z$ component since it will also limit the force along $x$ and $y$ due to the friction cone contraints.
 \begin{equation}
-\forall i \in [0, 3], \forall k \in [0, N-1],~f_{i,k,z} \leq f_{max}
+\forall i \in [0, 3], \forall k \in [0, n_{steps}-1],~f_{i,k}^z \leq f_{max}
 \end{equation}
 
 The quadruped cannot pull on the ground, it can only push so the normal component of the contact forces has to be positive:
 \begin{equation}
-\forall i \in [0, 3], \forall k \in [0, N-1], f_{i,k,z} \geq 0~N
+\forall i \in [0, 3], \forall k \in [0, n_{steps}-1], f_{i,k}^z \geq 0~N
 \end{equation}
  
-To be sure that there is no slipping, we could impose a minimal non-zero vertical component of the contact forces because if it is close to 0 N the friction cone is small so on the real robot slipping could happen. In practise to due the way the MPC is currently programmed. To disable a foot when it is in swing phase we set a constraint that its contact force is equal to 0 so it is not directly compatible with $\forall i \in [0, 3], \forall k \in [0, N-1], f_{i,k,z} \geq f_{min}$. We would have to change more coefficients to temporarily disable this $f_{i,k,z} \geq f_{min}$ for feet in swing phase.
+To be sure that there is no slipping, we could impose a minimal non-zero vertical component of the contact forces because if it is close to 0 N the friction cone is small so on the real robot slipping could happen. In practise to due the way the MPC is currently programmed. To disable a foot when it is in swing phase we set a constraint that its contact force is equal to 0 so it is not directly compatible with $\forall i \in [0, 3], \forall k \in [0, n_{steps}-1], f_{i,k}^z \geq f_{min}$. We would have to change more coefficients to temporarily disable this $f_{i,k}^z \geq f_{min}$ for feet in swing phase.
 
 This minimal non-zero vertical component of the contact forces is taken into account by the inverse dynamics block (TSID) so even if the output of the MPC contains a 0 N vertical component for a foot in contact it will be equal to $f_{min}$ after being processed by TSID. 
 
 
 \newpage
-\section{Solver matrices}
+\section{MPC matrices for dynamics and constraints}
 
-\textbf{Goal:} create the matrices that are used by standard QP solvers. Those solvers tries to find the vector $\mathbb{X}$ that minimizes $\frac{1}{2}\mathbb{X}^T.P.\mathbb{X} + \mathbb{X}^T.Q$ under constraints $M.\mathbb{X} = N$ and $L.\mathbb{X} \leq K$.
+\textbf{Goal:} create the matrices that are used by standard QP solvers. These solvers try to find a vector $\mathbb{X}$ that minimizes a cost function $\frac{1}{2}\mathbb{X}^T.P.\mathbb{X} + \mathbb{X}^T.Q$ under constraints $M.\mathbb{X} = N$ and $L.\mathbb{X} \leq K$. In this section the construction of matrices $M$, $N$, $L$ and $K$ is described.
 
 The evolution of the state vector of the robot over time can be described as follows:
 \begin{equation}
@@ -401,18 +401,19 @@ Matrices A et B depends on $k$ and $g = [0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ -9.81 \
 
 The contact forces vector $f(k) = f_k$ always include the forces applied on the four feet even if some of them are not touching the ground. In that case we will set the problem in such a way that forces for such feet are not considered at all in the solving process.
 \begin{align}
-f_k &= [f_{k,0}^T ~~ f_{k,1}^T ~~ f_{k,2}^T ~~ f_{k,3}^T]^T \\
-f_{k,i} &= \begin{bmatrix} f^x_{k,i} \\ f^y_{k,i} \\ f^z_{k,i} \end{bmatrix}
+f_k &= [f_{0,k}^T ~~ f_{1,k}^T ~~ f_{2,k}^T ~~ f_{3,k}^T]^T \\
+\forall i \in [0, 3],~k\in[0, n_{steps}-1], ~f_{i, k} &= \begin{bmatrix} f^x_{i,k} \\ f^y_{i,k} \\ f^z_{i,k} \end{bmatrix}
 \end{align}
 
-with $f^x_{k,i}$, $f^y_{k,i}$ and $f^z_{k,i}$ the components about the $x$, $y$ and $z$ axes of the solver frame for the $i$-th foothold at time step $k$.
+with $f^x_{i,k}$, $f^y_{i,k}$ and $f^z_{i,k}$ the components along the $x$, $y$ and $z$ axes of the solver frame for the $i$-th foothold at time step $k$.
 
 Let's consider a case with only 3 time steps in the prediction horizon.
 
-Since we are optimizing both the state vector $X$ of the robot to have it close to $X^\star$ and the contacts forces $f$ which are the output of the MPC, the solver vector $\mathbb{X}$ is then:
+The goal of the MPC is to find contacts forces $f$ that should be applied to have the state vector $X$ of the robot as close as possible to $X^\star$. The QP solver outputs at the end of the optimization process the optimization vector $\mathbb{X}$ that minimizes the cost function locally (globally in the best case). The QP problem can be written in a simple way by putting both $f$ (the output of the MPC) and $\mathcal{X}_k = X_k - X_k^\star$ (quantity that should be minimized) in the optimization vector:
 \begin{equation}
-\mathbb{X} = [\mathcal{X}_1 ~~ \mathcal{X}_2 ~~ \mathcal{X}_3 ~~ f_0 ~~ f_1 ~~ f_2 ]^T
+\mathbb{X} = [\mathcal{X}_1^T ~~ \mathcal{X}_2^T ~~ \mathcal{X}_3^T ~~ f_0^T ~~ f_1^T ~~ f_2^T ]^T
 \end{equation}
+
 
 Matrix $M$ is defined as follows:
 \begin{equation}
@@ -434,7 +435,7 @@ N = \begin{bmatrix} -g \\ -g \\ -g \\ 0_{12 \times 1} \\ 0_{12 \times 1} \\ 0
 
 Matrix $A_k$ for time step $k$ is defined as follows:
 \begin{equation}
-A = \begin{bmatrix} 
+A_k = \begin{bmatrix} 
 I_3 & 0_3 & \Delta t \cdot I_3 & 0_3 \\
 0_3 & I_3 & 0_3 & \Delta t \cdot I_3 \\
 0_3 & 0_3 & I_3 & 0_3 \\
@@ -444,34 +445,34 @@ I_3 & 0_3 & \Delta t \cdot I_3 & 0_3 \\
 
 %with $R(\psi_k = \psi_0+k~dt~\dot \psi^\star)$ the 3 by 3 rotation matrix about the vertical axis. 
 
-The inertia matrix of the robot in solver frame rotated according to the orientation of the robot at time step $k$ is:
+With the assumption that roll and pitch angles are small the inertia matrix of the robot in solver frame rotated according to the orientation of the robot at time step $k$ is:
 \begin{equation}
-\mathcal{I}_k = R_z(\Delta t \cdot k \cdot \dot \phi^\star) \cdot \mathcal{I}
+{}^l\! \mathcal{I}_k = R_z(\Delta t \cdot k \cdot \dot \psi^\star) \cdot {}^b\!\mathcal{I}
 \end{equation}
 
 Matrix $B_k$ for time step $k$ is defined as follows:
 \begin{equation}
-B = \begin{bmatrix} 
+B = \Delta t \cdot \begin{bmatrix} 
 0_3 & 0_3 & 0_3 & 0_3 \\
 0_3 & 0_3 & 0_3 & 0_3 \\
-\Delta t/m \cdot I_3 & \Delta t/m \cdot I_3 & \Delta t/m \cdot I_3 & \Delta t/m \cdot I_3 \\
-\Delta t \cdot \mathcal{I}_k^{-1} \cdot [r_{k,0}]_\times & \Delta t \cdot \mathcal{I}_k^{-1} \cdot [r_{k,1}]_\times & \Delta t \cdot \mathcal{I}_k^{-1} \cdot [r_{k,2}]_\times & \Delta t \cdot \mathcal{I}_k^{-1} \cdot [r_{k,3}]_\times
+I_3/m  & I_3/m & I_3/m & I_3/m \\
+{}^l\!\mathcal{I}_k^{-1} \cdot [{}^l\! r_{0,k} - {}^l\! C_k^\star]_\times & {}^l\!\mathcal{I}_k^{-1} \cdot [{}^l\! r_{1,k} - {}^l\! C_k^\star]_\times & {}^l\!\mathcal{I}_k^{-1} \cdot [{}^l\! r_{2,k} - {}^l\! C_k^\star]_\times & {}^l\!\mathcal{I}_k^{-1} \cdot [{}^l\! r_{3,k} - {}^l\! C_k^\star]_\times
 \end{bmatrix}
 \end{equation}
 
-with $r_{k,i}$ the vector expressed in solver frame going from the position of the robot at time step $k$ to the position of the $i$-th foothold and $[r_{k,i}]_\times$ the associated skew-symmetric matrix.
+with $({}^l\!r_{i,k} - {}^l\! C_k^\star)$ the vector in local frame going from the desired position of the center of mass at time step $k$ to the position of the $i$-th foothold. $[r_{k,i} - {}^l\! C_k^\star]_\times$ is the associated skew-symmetric matrix.
 
 Matrix $E_k$ for time step $k$ is defined as follows:
 \begin{equation}
 E_k = \begin{bmatrix} 
-e_{k,0} & 0_3 & 0_3 & 0_3 \\
-0_3 & e_{k,1} & 0_3 & 0_3 \\
-0_3 & 0_3 & e_{k,2} & 0_3 \\
-0_3 & 0_3 & 0_3 & e_{k,3}
+e_{0,k} & 0_3 & 0_3 & 0_3 \\
+0_3 & e_{1,k} & 0_3 & 0_3 \\
+0_3 & 0_3 & e_{2,k} & 0_3 \\
+0_3 & 0_3 & 0_3 & e_{3,k}
 \end{bmatrix}
 \end{equation}
 
-$e_{k,i} = 0_3$ if the $i$-th foot is touching the ground during time step $k$, $e_{k,i} = I_3$ otherwise. In fact, if $e_{k,i} = I_3$ then with $M.X = N$ we are setting the constraint that $f_{k,i} = [0 ~~ 0 ~~ 0]^T$ (no reaction force since the foot is not touching the ground).
+$e_{i,k} = 0_3$ if the $i$-th foot is touching the ground during time step $k$, $e_{i,k} = I_3$ otherwise. In fact, if $e_{i,k} = I_3$ then with $M.X = N$ we are setting the constraint that $f_{i,k} = [0 ~~ 0 ~~ 0]^T$ (no reaction force since the foot is not touching the ground).
 
 Matrix $L$ is defined as follows:
 \begin{equation}
@@ -484,11 +485,11 @@ L = \begin{bmatrix}
 With:
 \begin{equation}
 F_\mu = \begin{bmatrix} 
-	C  & 0_{5\times3} & 0_{5\times3} & 0_{5\times3} \\
-	0_{5\times3} & C & 0_{5\times3} & 0_{5\times3} \\
-	0_{5\times3}  & 0_{5\times3} & C & 0_{5\times3} \\
-	0_{5\times3}  & 0_{5\times3} & 0_{5\times3} & C
-\end{bmatrix} \text{ and } C = \begin{bmatrix} 
+	G  & 0_{5\times3} & 0_{5\times3} & 0_{5\times3} \\
+	0_{5\times3} & G & 0_{5\times3} & 0_{5\times3} \\
+	0_{5\times3}  & 0_{5\times3} & G & 0_{5\times3} \\
+	0_{5\times3}  & 0_{5\times3} & 0_{5\times3} & G
+\end{bmatrix} \text{ and } G = \begin{bmatrix} 
 1  & 0 & -\mu \\
 -1 & 0 & -\mu \\
 0  & 1 & -\mu \\
@@ -499,10 +500,61 @@ F_\mu = \begin{bmatrix}
 
 The $K$ matrix is defined as $K = 0_{60 \times 1}$.
 
-Matrix $P$ in the cost function $\frac{1}{2}\mathbb{X}^T.P.\mathbb{X} + \mathbb{X}^T.Q$ is diagonal. That way the first term of the cost function looks like $\sum_{k=1}^{3} c_{k,X} \cdot (X_1 - X_1^\star)^2 + \sum_{k=0}^{2} c_{k,f} \cdot f_k^2$ with $c_{k,X}$ and $c_{k,f}$ with size $(12, 1)$. With $c_{k,X} > 0$ it push the solver into minimizing the error $X_k - X_k^\star$ to the reference trajectory that we want to follow while $c_{k,f}$ are small positive coefficients that act as a regularization of the force to get a solution with a norm as low as possible for the reaction force. In the 3 time steps example $P$ has a size of 72 by 72. (12 x 3 lines/columns for $\mathcal{X}_{1,2,3}$ and 12 x 3 lines/columns for $f_{1,2,3}$).
+\section{MPC cost function}
+
+
+QP solvers try to find a vector $\mathbb{X}$ that minimizes a cost function $\frac{1}{2}\mathbb{X}^T.P.\mathbb{X} + \mathbb{X}^T.Q$ under constraints $M.\mathbb{X} = N$ and $L.\mathbb{X} \leq K$. Matrices $P$ and $Q$ define the shape of the cost function.
+
+The goal of the MPC is to find which contact forces should be applied at contact points so that the predicted trajectory of the center of mass is as close as possible to the reference trajectory. With previous notation, that means we want to minimize $|X - X^\star|$. Function $|\cdot|$ is not directly available with a matrix product $\frac{1}{2}\mathbb{X}^T.P.\mathbb{X} + \mathbb{X}^T.Q$ so we can try to minimize $(X - X^\star)^2$ instead. Since:
+\begin{equation}
+\mathbb{X} = \begin{bmatrix} \mathcal{X}_1 \\ \vdots \\ \mathcal{X}_{n_{steps}} \\ f_0 \\ \vdots \\ f_{n_{steps}-1} \end{bmatrix} = \begin{bmatrix} X_1 - X_1^\star \\ \vdots \\ X_{n_{steps}} - X_{n_{steps}}^\star\\ f_0 \\ \vdots \\ f_{n_{steps}-1} \end{bmatrix}
+\end{equation}
+
+then the upper left portion of $P$ can be diagonal:
+\begin{equation}
+P = \begin{bmatrix} 
+c_{X,1} & & 0 & * \\
+ & \ddots & & * \\
+0 & & c_{X,n_{steps}} & * \\
+* & * & * & *
+\end{bmatrix}
+\end{equation}
+
+With $\forall k \in [1, n_{steps}],~ c_{X,k}$ being 12 by 12 diagonal matrices with coefficients $\geq 0$ the deviation from the reference trajectory is penalized by the cost function as it push the solver into minimizing the error $(X_k - X_k^\star)^2$. For safety reason, for energy consumption and for the actuators, it is better to keep the contact forces low if possible. That is why a small regularization term is added to slightly penalize the norm of contact forces. Since the $\sqrt{\cdot}$ function is not directly available in the matrix product of the cost function, we regularize the square of the norm instead ($\Vert f_k \Vert^2$).
+
+\begin{equation}
+P = \begin{bmatrix} 
+c_{X,1} & & 0 & * & * & *\\
+& \ddots & & * & * & * \\
+0 & & c_{X,n_{steps}} & * & * & * \\
+* & * & * & c_{f,0} & & 0 \\
+* & * & * &  & \ddots &  \\
+* & * & * & 0 & & c_{f,n_{steps}-1}
+\end{bmatrix}
+\end{equation}
+
+With $\forall k \in [0, n_{steps}-1],~ c_{f,k}$ being 12 by 12 diagonal matrices with coefficients $\geq 0$. There is no cross-coupling between $\mathcal{X}$ and force components so the upper-right and lower-left parts of $P$ are zeros.
+
+As there is no focus on any part of the prediction horizon, all $c_{X,k}$ are equal, same of all $c_{f,k}$. Coefficient at position $[i,i]$ in $c_{X,k}$ weights the deviation of the $i$-th component of the state vector from the reference trajectory. Remember that components of the state vector are in this order: $[ {}^l\!x ~ {}^l\!y ~ {}^l\!z ~ {}^l\!\phi ~ {}^l\!\theta ~ {}^l\!\psi ~ {}^l\!\dot x ~ {}^l\!\dot y ~{}^l\! \dot z ~ \omega_{{}^l\!x} ~  \omega_{{}^l\!y} ~ \omega_{{}^l\! z} ]$. Coefficient at position $[i,i]$ in $c_{f,k}$ weights the $i$-th component of the force vector for regularization purpose. Remember that components of the force vector are in this order: $[ {}^l\!f_0^x ~ {}^l\!f_0^y ~ {}^l\!f_0^z ~ {}^l\!f_1^x ~ {}^l\!f_1^y ~ {}^l\!f_1^z ~ {}^l\!f_2^x ~ {}^l\!f_2^y ~ {}^l\!f_2^z ~ v {}^l\!f_3^x ~ {}^l\!f_3^y ~ {}^l\!f_3^z ]$. To regularize properly the norm of contact forces $\Vert f_{i,k} \Vert^2 = (f_{i,k}^{x})^2 + (f_{i,k}^{y})^2 + (f_{i,k}^{z})^2$ coefficients for the $x$, $y$ and $z$ components have to be equal:
+\begin{equation}
+	\forall k \in [0, n_{steps}-1],~\forall i \in [0, 3],~ c_{f,k}[3i,3i] = c_{f,k}[3i+1,3i+1] = c_{f,k}[3i+2,3i+2]
+\end{equation}
+
+If no leg is privileged (to mimic a wounded leg we would try to apply less force with it) then all coefficients on the diagonal of $c_{X,k}$ are equal and $\forall k \in [0, n_{steps}-1],~c_{X,k}=w_f I_{12}$ with $w_f \in \mathbb{R}^+$
+
+Matrix $Q$ in $\mathbb{X}^T \cdot Q$ only contains zeroes since there is no reason to push $X_k - X_k^\star$ or $f_k$ into being as negative/positive as possible. For instance if a coefficient of $Q$ is positive then the solver will try to have the associated variable as negative as possible to have a high negative product between the coefficient and the variable since that minimizes the cost.
+
+In the 3 time steps example of the previous section $P$ has a size of 72 by 72 (12 x 3 lines/columns for $\mathcal{X}_{1,2,3}$ and 12 x 3 lines/columns for $f_{1,2,3}$) and $Q$ has a size size 72 by 1.
+
+The cost function during the optimization process is then:
+\begin{equation}
+cost(X - X^\star, f) = \sum_{k=1}^{n_{steps}} \left( \sum_{i=0}^{11} \left[  w_{X}^i (X_k^i - X_k^{i,\star})^2  \right] + w_f \sum_{i=0}^{3} \left[ (f_{i,k}^x)^2 + (f_{i,k}^y)^2 + (f_{i,k}^z)^2 \right] \right)
+\end{equation}
+
+
+%Matrix $P$ in the cost function $\frac{1}{2}\mathbb{X}^T.P.\mathbb{X} + \mathbb{X}^T.Q$ is diagonal. That way the first term of the cost function looks like $\sum_{k=1}^{3} c_{k,X} \cdot (X_1 - X_1^\star)^2 + \sum_{k=0}^{2} c_{k,f} \cdot f_k^2$ with $c_{k,X}$ and $c_{k,f}$ with size $(12, 1)$. With $c_{k,X} > 0$ it push the solver into minimizing the error $X_k - X_k^\star$ to the reference trajectory that we want to follow while $c_{k,f}$ are small positive coefficients that act as a regularization of the force to get a solution with a norm as low as possible for the reaction force. 
  
 
-Matrix $Q$ involved in $\mathbb{X}^T.Q$ only contains zeroes since there is no reason to push $X_k - X_k^\star$ or $f_k$ into being as negative/positive as possible. For instance if a coefficient of $Q$ is positive then the solver will try to have the associated variable as negative as possible to have a high negative product between the coefficient and the variable which minimizes the cost. In the 3 time steps example Q will be of size 72 by 1.
 
 %\section*{Update of solver matrices}
 %
@@ -530,8 +582,11 @@ Matrix $Q$ involved in $\mathbb{X}^T.Q$ only contains zeroes since there is no r
 
 \section{Output of the MPC}
 
-The desired reaction forces that need to be applied (by TSID or the real robot) are stored in $f_0$. Since the solver frame and local frame are initially superposed then $f_0$ directly contains the desired reaction forces in the local frame of the robot. To be used in TSID, these forces need to be rotated to be brought back in TSID's world frame. 
+The desired reaction forces that need to be applied (by TSID or the real robot) are stored in $f_0$. It contains the desired reaction forces in local frame so they will have to be brought back to the world frame that TSID is working in.
 
-The same applies for the next desired position of the robot that is stored in $\mathcal{X}_1$ and can be retrieved by adding $X_1^\star$ to $\mathcal{X}_1$. As the next position/orientation is expressed in the solver/local frame, it needs to be rotated to be brought back in TSID's world frame.
+The same applies for the next desired position of the robot that is stored in $\mathcal{X}_1$ and can be retrieved by adding $X_1^\star$ to $\mathcal{X}_1$. As the next position/orientation is expressed in local frame we would have to rotate them to be able to use them for the inverse dynamics.
+
+\section{Inverse dynamics}
+
 
 \end{document}
