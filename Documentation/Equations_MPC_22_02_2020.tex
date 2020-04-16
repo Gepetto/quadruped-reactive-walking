@@ -99,8 +99,8 @@ Based on Figure X the transforms are defined as follows:
 \begin{align}
 {}^o\!T_b &= \begin{bmatrix} {}^o\!x & {}^o\!y & {}^o\!z \end{bmatrix}^T \\
 {}^o\!R_b &= R_3({}^o\phi) \cdot R_3({}^o\theta) \cdot R_3({}^o\psi) \\
-{}^o\!T_l &= \begin{bmatrix} {}^o\!x & {}^o\!y & {}^o\!z_{min} \end{bmatrix}^T \\
-{}^o\!R_l &= R_3({}^o\psi)
+{}^o\!T_l &= \begin{bmatrix} {}^o\!x & {}^o\!y & {}^o\!z_{min} \end{bmatrix}^T \label{eq:oMl_T}\\ 
+{}^o\!R_l &= R_3({}^o\psi) \label{eq:oMl_R}
 \end{align}
 
 %\begin{equation}
@@ -132,9 +132,9 @@ The projections on the ground of the shoulders of the quadruped are supposed con
 {}^o\!shoulders &= \fM{o}{l} \cdot {}^l\!shoulders
 \end{align}  
 
-Positions of feet in world frame ${}^o\!feet$ are directly retrieved from PyBullet and transformed in local frame for the MPC:
+Positions of feet in world frame ${}^o\!r$ are directly retrieved from PyBullet and transformed in local frame for the MPC:
 \begin{equation}
-{}^l\!feet = (\fM{o}{l})^{-1} \cdot {}^o\!feet
+{}^l\!r = (\fM{o}{l})^{-1} \cdot {}^o\!r
 \end{equation} 
 
 \newpage
@@ -224,12 +224,39 @@ The remaining duration $t_r$ for the swing phase of a foot can be directly retri
 
 The desired location of footsteps is the sum of all described terms. Symmetry, feedback and centrifugal terms are the same for all feet contrary to the shoulder and prediction terms.
 
-The desired location of footsteps for each gait phase in the prediction horizon are stored in a 6 by 13 matrix (same number of rows than the gait matrix). The first column is the same and contains the remaining number of footsteps for each phase. The twelve other columns contains the desired location of the footstep (if in stance phase) or Not-A-Number (if in swing phase) for the 4 feet. For instance the second row of the $gait(0)$ matrix of equation \ref{eq:gait0} would be:
-\begin{equation}
-[ ~ 7 ~~ r_{x,0} ~~ r_{y,0} ~~ 0 ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ \mathit{NaN} ~~ r_{x,3} ~~ r_{y,3} ~~ 0 ~ ]
-\end{equation}
+The desired location of footsteps for each gait phase in the prediction horizon are stored in a 6 by 13 matrix (same number of rows than the gait matrix). The first column is the same and contains the remaining number of footsteps for each phase. The twelve other columns contains the desired location of the footstep (if in stance phase) or Not-A-Number (if in swing phase) for the 4 feet. For instance the first rows for the $gait(1)$ matrix of equation \ref{eq:gait0} would be: \vspace{-0.6cm}
 
+\begin{center}
+\begin{tabular}{ccccccccccccccc}
+	[ & $7$ & ${}^l\!r_0^x$ & ${}^l\!r_0^y$ & ${}^l\!r_0^z$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & ${}^l\!r_3^x$ & ${}^l\!r_3^y$ & ${}^l\!r_3^z$ & \\
+	  & $1$ & ${}^l\!r_0^x$ & ${}^l\!r_0^y$ & ${}^l\!r_0^z$ & ${}^l\!r_1^{x,\star}$ & ${}^l\!r_1^{y,\star}$ & 0 & ${}^l\!r_2^{x,\star}$ & ${}^l\!r_2^{y,\star}$ & 0 & ${}^l\!r_3^x$ & ${}^l\!r_3^y$ & ${}^l\!r_3^z$ & \\
+	   & $7$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & ${}^l\!r_1^{x,\star}$ & ${}^l\!r_1^{y,\star}$ & 0 & ${}^l\!r_2^{x,\star}$ & ${}^l\!r_2^{y,\star}$ & 0 & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & \\
+	& $1$ & ${}^l\!r_0^{x,\star}$ & ${}^l\!r_0^{y,\star}$ & 0 & ${}^l\!r_1^{x,\star}$ & ${}^l\!r_1^{y,\star}$ & 0 & ${}^l\!r_2^{x,\star}$ & ${}^l\!r_2^{y,\star}$ & 0 & ${}^l\!r_3^{x,\star}$ & ${}^l\!r_3^{y,\star}$ & 0 & \\
+	& 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & ]      
+\end{tabular}
+\end{center}
 
+The first row is a phase with two feet in swing phase (feet 1 and 2) and two feet in stance phase (feet 0 and 3). Feet 1 and 2 in swing phase receive a $\mathit{NaN}$ value while feet 0 and 3 in stance phase receive their desired location. Since the first row is the current active phase the desired position of feet in stance phase is their current position in local frame. Due to how $\fM{o}{l}$ has been defined in equation \ref{eq:oMl_T} and \ref{eq:oMl_R} and the fact that ${}^l\!r = (\fM{o}{l})^{-1} \cdot {}^o\!r$ that means ${}^l\!r_0^z = {}^o\!r_0^z - {}^o\!z_{min}$. For a ground that is completely flat ${}^o\!r_0^z = {}^o\!r_3^z = {}^o\!z_{min}$ so ${}^l\!r_0^z  = {}^l\!r_3^z  = 0$. However if foot 0 is on a small step then ${}^o\!r_3^z = {}^o\!z_{min}$ and ${}^o\!r_0^z = {}^o\!z_{min} + h_{step}$ so ${}^l\!r_3^z  = 0$ and ${}^l\!r_0^z = h_{step}$. That way the fact that foot 0 is not strictly on the ground but on a small step is taken into account.
+
+For the second row (the next phase), feet 0 and 3 are still in stance phase so their desired position is still their current position. For feet 1 and 2 that will be in stance phase (they are currently in swing phase) their desired position is one one outputted by the footstep planner. It only provides desired position for the $x$ and $y$ components so for $z$ the assumption is made that the ground is flat (${}^l\!r_1^{z,\star} = {}^l\!r_2^{z,\star} = 0$) since there is no \textit{a priori} knowledge about the environment.
+
+For the third phase, feet 0 and 3 are now in swing phase so they have a $\mathit{NaN}$ value while feet 1 and 2 are still in stance phase compared to the previous phase so their desired positions do not change. For the fourth phase feet 0 and 3 are back in stance phase. Their current position is not use since this stance phase happens in the future after a swing phase so their desired position is the one outputted by the footstep planner.
+
+\section{Foot trajectory generator}
+
+During swing phases feet have to be guided from their current position to the target position on the ground outputted by the footstep planner. To generate their trajectory in the air, foot trajectory generators are used, one for each foot. Each generator uses as input the current state of its associated foot $[x_{ft} ~ \dot x_{ft} ~ \ddot x_{ft} ~ y_{ft} ~ \dot y_{ft} ~ \ddot y_{ft}]$, the desired position on the ground $[x_{goal} ~ y_{goal}]$, the control time step $dt$, the time $t_0$ elapsed since the start of the swing phase and the expected duration $t_1$ of the swing phase. This information is processed to output a command $[x^\star ~ \dot x^\star ~ \ddot x^\star ~ y^\star ~ \dot y^\star ~ \ddot y^\star ~ z^\star ~ \dot z^\star ~ \ddot z^\star]$ for the foot. Generators work in the world frame and use data provided by the MpcInterface.
+
+For the $x$ component, what the generator does is to tune a 5-th polynomial to go have $x(t_0) = x_{ft}$, $\dot x(t_0) = \dot x_{ft}$ and $\ddot x(t_0) = \ddot x_{ft}$ while having $x(t_1) = x_{goal}$, $\dot x(t_0) = \ddot x(t_0) = 0$. The generator can then output $[x^\star ~ \dot x^\star ~ \ddot x^\star]$ by computing $x(t_0 + dt)$, $\dot x(t_0 + dt)$ and $\ddot x(t_0 + dt)$. The same happens for the $y$ component to output $[y^\star ~ \dot y^\star ~ \ddot y^\star]$.
+
+Command for the $z$ component is deterministic and there is no feedback like for the $x$ and $y$ components for which the current position, velocity and acceleration of the foot are taken into account. Trajectory for $z$ is a 6-th order polynomial that does not change so that $z(0) = \dot z(0) = \ddot z(0) = 0$ and $z(t_1) = \dot z(t_1) = \ddot z(t_1) = 0$ with $z(\frac{t_1}{2}) = h$. $h$ is a constant value defined when the foot trajectory generator is created to set the desired apex height of the foot during its swing phase.
+
+Due to these characteristics, the trajectory generated can be described as a bell-like trajectory that goes from the initial position of the foot to its target trajectory while respecting non-slipping constraints during take-off and landing (no horizontal speed) and trying to land softly (0 final velocity and acceleration for $z$).
+
+To keep this slipping-avoidance property, the target position on the ground $[x_{goal} ~ y_{goal}]$ is locked $t_{lock}$ seconds before landing. Basically $[x_{goal} ~ y_{goal}]$ is not updated if $t_0 > (t_1-t_{lock})$. Changing the desired position on the ground just before landing would create a non-negligible horizontal speed to correct the position of the foot in order to land at the new position. It is required since actually the target position is always changing because it is linked to the current velocity of the robot through the symmetry term of the footstep planner and this velocity is never exactly the same from one time step to another. 
+
+Since a 3D tracking task is in charge of applying the adequate torques to follow the command of the trajectory generator depending on the current state of the foot (more details in the Inverse Dynamics section), there is already a feedback for the position, velocity and acceleration of the foot. To avoid having two feedback loops that try to do the same thing, the feedback of the foot trajectory generator is not used. What that means is that at the start of the swing phase the trajectory generator receives $[x_{ft} ~ 0 ~ 0 ~ y_{ft} ~ 0 ~ 0]$ to update the position of the foot and then the command of the generator is supposed to be perfectly followed so at the next iteration the generator will receive the command $[x^\star ~ \dot x^\star ~ \ddot x^\star ~ y^\star ~ \dot y^\star ~ \ddot y^\star]$ as the state of the foot. That way the feedback capabilities of the generator are not used.
+
+As explained earlier, the trajectory for the $z$ component is deterministic: it always starts at $z(0)=0$ m and ends at $z(t_1)=0$ m. That is why a small offset is added to the command $z^\star$ that is sent to the 3D tracking task to take into account the altitude of the ground the robot is walking on. This $z_{offset}$ is determined by taking the minimum altitude of all feet in contact with the ground which uses the assumption that there is at least one feet in contact when the other feet are in swing phase. With this offset the command received by the tracking task will start and end at the correct altitude.
 
 \newpage
 \section{State vector}
@@ -587,6 +614,26 @@ The desired reaction forces that need to be applied (by TSID or the real robot) 
 The same applies for the next desired position of the robot that is stored in $\mathcal{X}_1$ and can be retrieved by adding $X_1^\star$ to $\mathcal{X}_1$. As the next position/orientation is expressed in local frame we would have to rotate them to be able to use them for the inverse dynamics.
 
 \section{Inverse dynamics}
+
+The goal of the inverse dynamics is to make the link between the high level control (MPC contact forces and desired position of footsteps) and the low level control (desired torques sent to the drivers of the actuators). To do that, we use Efficient Task Space Inverse Dynamics (TSID, \url{https://github.com/stack-of-tasks/tsid}). This library allows to perform task-orientated optimization-based inverse-dynamics control based on the rigid multi-body dynamics library Pinocchio. Unlike the MPC it does not consider a prediction horizon but only the current state of the robot and the current defined tasks.
+
+Currently four kind of tasks are being used:
+\begin{itemize}
+	\item[$\bullet$] Contact tasks for feet in contact with the ground to inform the solver that these feet should not move and that they can be used to apply forces on the ground.
+	\item[$\bullet$] Force tasks to have the contact forces close to the desired contact forces outputted by the MPC. These tasks are associated with the contact tasks.
+	\item[$\bullet$] Tracking tasks for feet in swing phase to follow the 3D trajectory generated by the foot trajectory generator to land at the position desired by the footstep planner.
+	\item[$\bullet$] Posture task for all legs to get back to a default position if some degrees of freedom are not used.	
+\end{itemize}
+
+One instance of the first three task is initially created and assigned to each foot. Then during the gait these tasks are enabled or disabled depending on the state of the foot. In swing phase only the tracking task is active while in enabled phase only contact and force tasks are enabled. There exists a single posture task which is always active and affect the whole body.
+
+A weight is assigned to each task to make it more or less important compared to the other ones. ``Contact + Force'' and 3D tracking are never active at the same time so they do not compete with each other. As the posture task is just intended to be use as a form of regularization, it should not interfere with the other tasks. Its weight is kept at least $10^{-2}$ times less than the others to mimic a hierarchical solver: the relative weight is so small that it does not impact the other tasks even if in practice all tasks are considered together during the solving process.
+
+If the $i$-th foot is in stance phase then the force reference of its force task is updated with the desired contact force $[f^x_{i,0} ~ f^y_{i,0} ~ f^z_{i,0}]$ outputted by the MPC. If the $i$-th foot is in swing phase then its tracking task is updated with the desired position $[x^\star ~ y^\star ~ z^\star]$, velocity $[\dot x^\star ~ \dot y^\star ~ \dot z^\star]$ and acceleration $[\ddot x^\star ~\ddot y^\star ~ \ddot z^\star]$ outputted by the foot trajectory generator associated with this foot.
+
+The inverse dynamics solver is first updated with the current state of the quadruped (position/orientation/velocity of the base and angular position/velocity of the joints). It then tries to find the accelerations (base+joints) and the contact forces that minimize the cost function (weighted sum of task errors) while respecting the constraints (contacts, dynamics equations, torque limits). Joint torques can be retrieved at the end of the optimization thanks to the accelerations and the contact forces. 
+
+Retrieved torques are sent to the PyBullet simulator that makes the assumption that torques are perfectly followed by the actuators. On the real robot they would be sent to the drivers that would have to modulate the current sent to the actuators to get the desired torques.
 
 
 \end{document}
