@@ -70,7 +70,7 @@ The position/orientation state vector of the quadruped in world frame is:
 {}^o\!q = \begin{bmatrix} {}^o\!x & {}^o\!y & {}^o\!z & {}^o\!a & {}^o\!b & {}^o\!c & {}^o\!d & \theta_0 & \dots & \theta_{11} \end{bmatrix}^T
 \end{equation}
 
-With $({}^o\!a,{}^o\!b,{}^o\!c,{}^o\!d)$ the quaternion associated with the orientation of the base in world frame.
+With $({}^o\!a,{}^o\!b,{}^o\!c,{}^o\!d)$ the quaternion associated with the orientation of the base in world frame (usually written $(x,y,z,w)$ but $x$, $y$ and $z$ are already used for the position). $\theta_{0}$ to $\theta_{11}$ are the angular positions of the 12 actuators of the quadruped.
 
 The velocity state vector of the quadruped in world frame is:
 \begin{equation}
@@ -85,7 +85,7 @@ With $({}^o\!\omega_x, {}^o\!\omega_y, {}^o\!\omega_z)$ the angular velocities a
 
 The role of the MpcInterface object is to transform data coming from PyBullet (simulation) or the state estimator of the robot (real world) into useful information for the rest of the control loop. 
 
-Data coming from PyBullet is retrieved in the world frame $o$. The position of the base of the quadruped in this frame can be noted $[{}^o\!x ~ {}^o\!y ~ {}^o\!z]^T$ and its orientation $[{}^o\!\phi ~ {}^o\!\theta ~ {}^o\!\psi]^T$ with $(\phi, \theta, \psi)$ the roll, pitch and yaw angles. These angles corresponds to a sequence of rotations about the $z$, then $y$ and then $x$ axis such that the transform from body to world coordinates can be expressed as:
+Data coming from PyBullet is retrieved in the world frame $o$. The position of the base of the quadruped in this frame can be noted $[{}^o\!x ~ {}^o\!y ~ {}^o\!z]^T$ and its orientation $[{}^o\!\phi ~ {}^o\!\theta ~ {}^o\!\psi]^T$ with $(\phi, \theta, \psi)$ the roll, pitch and yaw angles (Tait-Bryan Euler angles). These angles corresponds to a sequence of rotations about the $z$, then $y$ and then $x$ axis such that the transform from body to world coordinates can be expressed as:
 \begin{equation}
 	R = R_z(\psi) R_y(\theta) R_x(\phi)
 \end{equation}
@@ -107,16 +107,16 @@ Based on Figure X the transforms are defined as follows:
 %{}^o\!R_l = R_3({}^o\psi) =  \begin{bmatrix} \cos({}^o\psi) & -\sin({}^o\psi) & 0 \\ \sin({}^o\psi) & \cos({}^o\psi) & 0 \\ 0 & 0 & 1\end{bmatrix} \text{ and } {}^o\!T_l = \begin{bmatrix} {}^o\!x \\ {}^o\!y \\ {}^o\!z_{min} \end{bmatrix}
 %\end{equation} 
 
-${}^o\!z_{min}$ is the altitude of the lowest feet in world frame with the altitude of a foot being the $z$ coordinate of its center. Position of feet in world frame are retrieved from PyBullet.
+${}^o\!z_{min}$ is the altitude of the lowest feet in world frame i.e. the $z$ coordinate of its center in this frame. Position of feet in world frame are retrieved from PyBullet.
 
  
-To get the position and velocity of the center of mass (CoM) of the quadruped, Pinocchio requires the position and orientation of the base in world frame, the angular positions of the actuators and the linear and angular velocities of the base in base frame. All of them are directly retrieved from PyBullet except the linear and angular velocities ${}^b\!V$ and ${}^b\!W$ in base frame: % /!\ Assumptions? Wrong? /!\
+To get the position and velocity of the center of mass (CoM) of the quadruped, Pinocchio requires the position and orientation of the base in world frame, the angular positions of the actuators and the linear and angular velocities of the base in base frame. All of them are directly retrieved from PyBullet except the linear and angular velocities ${}^b\!V_{base}$ and ${}^b\!W_{base}$ in base frame: % /!\ Assumptions? Wrong? /!\
 \begin{align}
-{}^bV &= ({}^o\!R_b)^{-1} \cdot {}^oV \\
-{}^bW &= ({}^o\!R_b)^{-1} \cdot {}^oW
+{}^bV_{base} &= ({}^o\!R_b)^{-1} \cdot {}^oV_{base} \\
+{}^bW_{base} &= ({}^o\!R_b)^{-1} \cdot {}^oW_{base}
 \end{align}  
 
-The resulting position and linear velocity of the CoM in world frame are noted ${}^o\!C$ and ${}^o\!V$. The angular velocity in world frame ${}^oW$ is directly retrieved from PyBullet, just like the orientation ${}^o\!RPY = [{}^o\!\phi ~ {}^o\!\theta ~ {}^o\!\psi]^T$.
+The resulting position and linear velocity of the CoM in world frame are noted ${}^o\!C$ and ${}^o\!V$. The angular velocity in world frame ${}^oW$ is directly retrieved from PyBullet (assumption that ${}^oW = {}^oW_{base}$), just like the orientation ${}^o\!RPY = [{}^o\!\phi ~ {}^o\!\theta ~ {}^o\!\psi]^T$.
 
 The position, orientation, linear velocity and angular velocity of the base of the quadruped in local frame can be retrieved using the transform $\fM{o}{l}$ :
 \begin{align}
@@ -153,13 +153,14 @@ gait(0) = \begin{bmatrix}
 0 & 0 & 0 & 0 & 0 \end{bmatrix} \label{eq:gait0}
 \end{equation}
 
-The first phase is a 4-feet stance phase that lasts 1 iteration of the MPC, followed by a phase with 2 feet in stance phase and the other two in swing phase during 7 iterations, then again a 4-feet stance phase and finally 2 feet in stance phase and 2 feet in swing phase. As the quadruped moves forward in the gait, the gait matrix undergoes a rolling process. For instance after 3 iterations of the MPC this matrix becomes:
+The first phase is a 4-feet stance phase that lasts 1 iteration of the MPC, followed by a phase with 2 feet in stance phase and the other 2 in swing phase during 7 iterations, then again a 4-feet stance phase and finally 2 feet in stance phase and 2 feet in swing phase. As the quadruped moves forward in the gait, the gait matrix undergoes a rolling process. For instance after 3 iterations of the MPC this matrix becomes:
 \begin{equation}
 gait(1) = \begin{bmatrix} 
 7 & 1 & 0 & 0 & 1 \\
 1 & 1 & 1 & 1 & 1 \\
 7 & 0 & 1 & 1 & 0 \\
 1 & 1 & 1 & 1 & 1 \\
+0 & 0 & 0 & 0 & 0 \\
 0 & 0 & 0 & 0 & 0 \end{bmatrix} 
 \text{ }
 gait(2) = \begin{bmatrix} 
@@ -167,64 +168,66 @@ gait(2) = \begin{bmatrix}
 1 & 1 & 1 & 1 & 1 \\
 7 & 0 & 1 & 1 & 0 \\
 1 & 1 & 1 & 1 & 1 \\
-1 & 1 & 0 & 0 & 1 \end{bmatrix} 
+1 & 1 & 0 & 0 & 1 \\
+0 & 0 & 0 & 0 & 0 \end{bmatrix} 
 \text{ }
 gait(3) = \begin{bmatrix} 
 5 & 1 & 0 & 0 & 1 \\
 1 & 1 & 1 & 1 & 1 \\
 7 & 0 & 1 & 1 & 0 \\
 1 & 1 & 1 & 1 & 1 \\
-2 & 1 & 0 & 0 & 1 \end{bmatrix} 
+2 & 1 & 0 & 0 & 1 \\
+0 & 0 & 0 & 0 & 0 \\\end{bmatrix} \label{eq:gait123}
 \end{equation}
 
 Additional rows could be added to be able to handle more complex gaits.
 
-The gait being defined, let's describe the way the location of future footsteps is computed.
+The gait being defined, let's describe the way the location of future footsteps is computed. The footstep planner only works in 2 dimensions as it outputs the desired position $(r^{x, \star}, r^{y,\star})$ of each foot on the ground which is assumed flat. It only considers as input an horizontal linear reference velocity with an angular reference velocity about the vertical axis: $(\dot x^\star, \dot y^\star, \omega_{z}^\star)$.
 
-The default position of footsteps in local frame is on the ground under the shoulder:
+The default position of footsteps in local frame is on the ground under the shoulders:
 \begin{equation}
-{ftp}_{sh} = {}^l\!shoulders = \begin{bmatrix} 0.19 & 0.19 & -0.19 & -0.19 \\ 0.15005 & -0.15005 & 0.15005 & -0.15005 \end{bmatrix}
+{r}_{sh} = {}^l\!shoulders = \begin{bmatrix} 0.19 & 0.19 & -0.19 & -0.19 \\ 0.15005 & -0.15005 & 0.15005 & -0.15005 \end{bmatrix}
 \end{equation}
 
-A symmetry term is then added to this position to make the gait more symmetric compared to the shoulders when moving. If the base moves forwards at speed $v$ then if a foot lands under its associated shoulder it will spend the whole stance phase ``behind'' the shoulder as the base keeps moving forwards but the foot in contact does not move in world frame. During the duration of the stance phase, the displacement of the base is equal to $t_{stance} v$, that is why the symmetry term tries to land $\frac{t_{stance}}{2} v$ in front of the shoulder. That way, feet in contact spend half the stance phase in front of the shoulder and the other half behind it.
+A symmetry term is added to this position to make the gait more symmetric compared to the shoulders when moving. If the base moves forwards at speed $v$ then if a foot lands under its associated shoulder it will spend the whole stance phase ``behind'' the shoulder as the base keeps moving forwards while the foot in contact does not move (in world frame). During the duration of the stance phase, the displacement of the base is equal to $t_{stance} v$. That is why with the symmetry term trying to land $\frac{t_{stance}}{2} v$ in front of the shoulder feet in contact spend half the stance phase in front of the shoulder and the other half behind it.
 \begin{equation}
-{ftp}_{sym} = \frac{t_{stance}}{2} ~ {}^l\!v = \frac{t_{stance}}{2} \begin{bmatrix} {}^l\!\dot x \\ {}^l\!\dot y \end{bmatrix}
+{r}_{sym} = \frac{t_{stance}}{2} ~ {}^l\!v = \frac{t_{stance}}{2} \begin{bmatrix} {}^l\!\dot x \\ {}^l\!\dot y \end{bmatrix}
 \end{equation}
 
-A feedback term is added to the footstep planner to make it easier for the robot to reach the reference velocity. The only way the quadruped can interact with its environment is by pushing on the ground with its feet (cannot pull). As per Newton's second law, if the quadruped wants to move in a given direction it has to apply a force in the inverse direction. so the feedback term makes it easier to do that by shifting the desired location of footsteps in the inverse direction of the velocity error $(v^\star-v)$. For instance if the robot is not moving fast enough forwards the feedback term will slightly shift the footsteps backwards so that it's easier to push on the ground backwards and as a result to increase its velocity.
+A feedback term is added to the footstep planner to make it easier for the robot to reach the reference velocity. The only way the quadruped can interact with its environment is by pushing on the ground with its feet (cannot pull). As per Newton's second law, if the quadruped wants to move in a given direction it has to apply a force in the inverse direction. So the feedback term makes it easier to do that by shifting the desired location of footsteps in the inverse direction of the velocity error $(v^\star-v)$. For instance if the robot is not moving fast enough forwards then the feedback term will slightly shift the footsteps backwards so that it's easier to push on the ground backwards and as a result to increase its forward velocity.
 \begin{equation}
-{ftp}_{fb} = k ~ ({}^l\!v - {}^l\!v^\star) = k \begin{bmatrix} {}^l\!\dot x - {}^l\!\dot x^\star \\ {}^l\!\dot y - {}^l\!\dot y^\star \end{bmatrix}
+{r}_{fb} = k ~ ({}^l\!v - {}^l\!v^\star) = k \begin{bmatrix} {}^l\!\dot x - {}^l\!\dot x^\star \\ {}^l\!\dot y - {}^l\!\dot y^\star \end{bmatrix}
 \end{equation}
 
-The feedback gain $k$ is equal to 0.03.
+The feedback gain $k$ is equal to 0.03 (MIT's value).
 
-A centrifugal term is added to the footstep planner to make it easier to compensate the centrifugal effect when the robot is turning about the vertical axis by adjusting the location of footsteps accordingly. As the formula involves the desired angular speed rather than the current one, it could also be seen as a way to help the quadruped reach the reference angular velocity in a way similar than what the feedback term does for the linear velocity.
+A centrifugal term is added to the footstep planner to make it easier to compensate the centrifugal effect when the robot is turning about the vertical axis by adjusting the location of footsteps accordingly. As the formula involves the desired angular speed rather than the current one, it could also be seen as a way to help the quadruped reach the reference angular velocity in a way similar to what the feedback term does for the linear velocity.
 \begin{equation}
-{ftp}_{c} = \frac{1}{2} \sqrt{\frac{h}{g}} ~ {}^l\!v \times {}^l\!\omega^\star = \frac{1}{2} \sqrt{\frac{h}{g}} \begin{bmatrix} {}^l\!\dot y ~ {}^l\!\dot \psi^\star \\ - {}^l\!\dot x ~ {}^l\!\dot \psi^\star \end{bmatrix}
+{r}_{c} = \frac{1}{2} \sqrt{\frac{h}{g}} ~ {}^l\!v \times {}^l\!\omega^\star = \frac{1}{2} \sqrt{\frac{h}{g}} \begin{bmatrix} {}^l\!\dot y ~ \omega_{{}^l\!z}^\star \\ - {}^l\!\dot x ~ \omega_{{}^l\!z}^\star \end{bmatrix}
 %k ~ ({}^l\!v - {}^l\!v^\star) = k \begin{bmatrix} {}^l\!\dot x - {}^l\!\dot x^\star \\ {}^l\!\dot y - {}^l\!\dot y^\star \end{bmatrix}
 \end{equation}
 
-Finally, another term is added to the footstep planning to take into account a temporal aspect. With all previous terms, there is none: whether a foot is just at the start of its swing phase or almost at the end, the desired target location returned by the footstep planner is the same. If the quadruped is moving forwards at the reference velocity then during the whole duration of a swing phase the target position will be $\Delta x$ meters in front of the shoulder in local frame. Except since the base is moving in world frame then the target position in world frame is moving as well. At the start of each swing phase the associated foot will target a position $x_0 + \Delta x$ in world frame but by the end of the swing phase this position becomes $x_0 + \Delta x + t_{swing} ~ \dot x$ due to the movement of the base. With the assumption that the current and reference velocities do not change much over one period of gait then feet can directly aim for their final target location by taking into account the movement of the base during their swing phase.
+Finally, another term is added to the footstep planning to take into account a temporal aspect. With all previous terms, there is none: whether a foot is just at the start of its swing phase or almost at the end, the desired target location returned by the footstep planner is the same. If the quadruped is moving forwards at the reference velocity then during the whole duration of a swing phase the target position will be $\Delta x$ meters in front of the shoulder in local frame. Except since the base is moving in world frame then the target position in world frame is moving as well. At the start of each swing phase the associated foot will target a position $x_0 + \Delta x$ in world frame but by the end of the swing phase this position becomes $x_0 + \Delta x + t_{swing} ~ \dot x^\star$ due to the movement of the base. With the assumption that current and reference velocities do not change much over one period of gait feet could directly aim for their final target location by taking into account the movement of the base during their swing phase.
 
-With the assumption that the quadruped moves with constant linear and angular velocities during the remaining duration of the swing phase then the predicted movement is, if ${}^l\!\dot \psi \neq 0$:
+With the assumption that the quadruped moves with constant linear and angular velocities during the remaining duration of the swing phase then the predicted movement is, if $\omega_{{}^l\!z} \neq 0$:
 \begin{align}
-{}^l\!x_{pred}(t_r) &= \int_{0}^{t_r} \left( {}^l\!\dot x \cos({}^l\!\dot \psi ~ t) - {}^l\!\dot y \sin({}^l\!\dot \psi ~ t) \right) ~dt \\
-{}^l\!y_{pred}(t_r) &= \int_{0}^{t_r} \left( {}^l\!\dot x \sin({}^l\!\dot \psi ~ t) + {}^l\!\dot y \cos({}^l\!\dot \psi ~ t) \right) ~dt \\
-{}^l\!x_{pred}(t_r) &= \frac{{}^l\!\dot x \sin({}^l\!\dot \psi ~ t_r) + {}^l\!\dot y \left( \cos({}^l\!\dot \psi ~ t_r) - 1 \right)}{{}^l\!\dot \psi} \\
-{}^l\!y_{pred}(t_r) &= \frac{- {}^l\!\dot x \left( \cos({}^l\!\dot \psi ~ t_r) - 1 \right) + {}^l\!\dot y \sin({}^l\!\dot \psi ~ t_r)}{{}^l\!\dot \psi}
+{}^l\!x_{pred}(t_r) &= \int_{0}^{t_r} \left( {}^l\!\dot x \cos(\omega_{{}^l\!z} ~ t) - {}^l\!\dot y \sin(\omega_{{}^l\!z} ~ t) \right) ~dt \\
+{}^l\!y_{pred}(t_r) &= \int_{0}^{t_r} \left( {}^l\!\dot x \sin(\omega_{{}^l\!z} ~ t) + {}^l\!\dot y \cos(\omega_{{}^l\!z} ~ t) \right) ~dt \\
+{}^l\!x_{pred}(t_r) &= \frac{{}^l\!\dot x \sin(\omega_{{}^l\!z} ~ t_r) + {}^l\!\dot y \left( \cos(\omega_{{}^l\!z} ~ t_r) - 1 \right)}{\omega_{{}^l\!z}} \\
+{}^l\!y_{pred}(t_r) &= \frac{- {}^l\!\dot x \left( \cos(\omega_{{}^l\!z} ~ t_r) - 1 \right) + {}^l\!\dot y \sin(\omega_{{}^l\!z} ~ t_r)}{\omega_{{}^l\!z}}
 \end{align}
 
-If ${}^l\!\dot \psi = 0$:
+If $\omega_{{}^l\!z} = 0$:
 \begin{align}
 {}^l\!x_{pred}(t_r) &= {}^l\!\dot x ~ t_r \\
 {}^l\!y_{pred}(t_r) &= {}^l\!\dot y ~ t_r
 \end{align}
 
-The remaining duration $t_r$ for the swing phase of a foot can be directly retrieved using information contained in the gait matrix: the contact status (0 for a swing phase) and the remaining number of time steps (first column).
+The remaining duration $t_r$ for the swing phase of a foot can be directly retrieved using information contained in the gait matrix like the contact status (0 for a swing phase) and the remaining number of time steps (first column).
 
 The desired location of footsteps is the sum of all described terms. Symmetry, feedback and centrifugal terms are the same for all feet contrary to the shoulder and prediction terms.
 
-The desired location of footsteps for each gait phase in the prediction horizon are stored in a 6 by 13 matrix (same number of rows than the gait matrix). The first column is the same and contains the remaining number of footsteps for each phase. The twelve other columns contains the desired location of the footstep (if in stance phase) or Not-A-Number (if in swing phase) for the 4 feet. For instance the first rows for the $gait(1)$ matrix of equation \ref{eq:gait0} would be: \vspace{-0.6cm}
+The desired location of footsteps for each gait phase in the prediction horizon are stored in a 6 by 13 matrix (same number of rows than the gait matrix). The first column is the same and contains the remaining number of footsteps for each phase. The twelve other columns contains the desired location of the footstep (if in stance phase) or Not-A-Number (if in swing phase) for the 4 feet. For instance for the $gait(1)$ matrix of equation \ref{eq:gait123} this matrix would be: \vspace{-0.6cm}
 
 \begin{center}
 \begin{tabular}{ccccccccccccccc}
@@ -232,31 +235,34 @@ The desired location of footsteps for each gait phase in the prediction horizon 
 	  & $1$ & ${}^l\!r_0^x$ & ${}^l\!r_0^y$ & ${}^l\!r_0^z$ & ${}^l\!r_1^{x,\star}$ & ${}^l\!r_1^{y,\star}$ & 0 & ${}^l\!r_2^{x,\star}$ & ${}^l\!r_2^{y,\star}$ & 0 & ${}^l\!r_3^x$ & ${}^l\!r_3^y$ & ${}^l\!r_3^z$ & \\
 	   & $7$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & ${}^l\!r_1^{x,\star}$ & ${}^l\!r_1^{y,\star}$ & 0 & ${}^l\!r_2^{x,\star}$ & ${}^l\!r_2^{y,\star}$ & 0 & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & \\
 	& $1$ & ${}^l\!r_0^{x,\star}$ & ${}^l\!r_0^{y,\star}$ & 0 & ${}^l\!r_1^{x,\star}$ & ${}^l\!r_1^{y,\star}$ & 0 & ${}^l\!r_2^{x,\star}$ & ${}^l\!r_2^{y,\star}$ & 0 & ${}^l\!r_3^{x,\star}$ & ${}^l\!r_3^{y,\star}$ & 0 & \\
-	& 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & ]      
+	& 0 & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & \\
+	& 0 & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & $\mathit{NaN}$ & ]    
 \end{tabular}
 \end{center}
 
 The first row is a phase with two feet in swing phase (feet 1 and 2) and two feet in stance phase (feet 0 and 3). Feet 1 and 2 in swing phase receive a $\mathit{NaN}$ value while feet 0 and 3 in stance phase receive their desired location. Since the first row is the current active phase the desired position of feet in stance phase is their current position in local frame. Due to how $\fM{o}{l}$ has been defined in equation \ref{eq:oMl_T} and \ref{eq:oMl_R} and the fact that ${}^l\!r = (\fM{o}{l})^{-1} \cdot {}^o\!r$ that means ${}^l\!r_0^z = {}^o\!r_0^z - {}^o\!z_{min}$. For a ground that is completely flat ${}^o\!r_0^z = {}^o\!r_3^z = {}^o\!z_{min}$ so ${}^l\!r_0^z  = {}^l\!r_3^z  = 0$. However if foot 0 is on a small step then ${}^o\!r_3^z = {}^o\!z_{min}$ and ${}^o\!r_0^z = {}^o\!z_{min} + h_{step}$ so ${}^l\!r_3^z  = 0$ and ${}^l\!r_0^z = h_{step}$. That way the fact that foot 0 is not strictly on the ground but on a small step is taken into account.
 
-For the second row (the next phase), feet 0 and 3 are still in stance phase so their desired position is still their current position. For feet 1 and 2 that will be in stance phase (they are currently in swing phase) their desired position is one one outputted by the footstep planner. It only provides desired position for the $x$ and $y$ components so for $z$ the assumption is made that the ground is flat (${}^l\!r_1^{z,\star} = {}^l\!r_2^{z,\star} = 0$) since there is no \textit{a priori} knowledge about the environment.
+For the second row (the next phase), feet 0 and 3 are still in stance phase so their desired position is still their current position. For feet 1 and 2 that will be in stance phase (they are currently in swing phase) their desired position is the one outputted by the footstep planner. It only provides desired position for the $x$ and $y$ components so for $z$ the assumption is made that the ground is flat (${}^l\!r_1^{z,\star} = {}^l\!r_2^{z,\star} = 0$) since there is no \textit{a priori} knowledge about the environment.
 
-For the third phase, feet 0 and 3 are now in swing phase so they have a $\mathit{NaN}$ value while feet 1 and 2 are still in stance phase compared to the previous phase so their desired positions do not change. For the fourth phase feet 0 and 3 are back in stance phase. Their current position is not use since this stance phase happens in the future after a swing phase so their desired position is the one outputted by the footstep planner.
+For the third phase, feet 0 and 3 are now in swing phase so they have a $\mathit{NaN}$ value while feet 1 and 2 are still in stance phase compared to the previous phase so their desired positions do not change. For the fourth phase feet 0 and 3 are back in stance phase. Their current position is not used since this stance phase happens in the future after a swing phase so instead their desired position is the one outputted by the footstep planner.
 
 \section{Foot trajectory generator}
 
-During swing phases feet have to be guided from their current position to the target position on the ground outputted by the footstep planner. To generate their trajectory in the air, foot trajectory generators are used, one for each foot. Each generator uses as input the current state of its associated foot $[x_{ft} ~ \dot x_{ft} ~ \ddot x_{ft} ~ y_{ft} ~ \dot y_{ft} ~ \ddot y_{ft}]$, the desired position on the ground $[x_{goal} ~ y_{goal}]$, the control time step $dt$, the time $t_0$ elapsed since the start of the swing phase and the expected duration $t_1$ of the swing phase. This information is processed to output a command $[x^\star ~ \dot x^\star ~ \ddot x^\star ~ y^\star ~ \dot y^\star ~ \ddot y^\star ~ z^\star ~ \dot z^\star ~ \ddot z^\star]$ for the foot. Generators work in the world frame and use data provided by the MpcInterface.
+$x$, $y$ and $z$ in this section replace ${}^o\!r^x$, ${}^o\!r^y$ and ${}^o\!r^z$ for clarity purpose.
 
-For the $x$ component, what the generator does is to tune a 5-th polynomial to go have $x(t_0) = x_{ft}$, $\dot x(t_0) = \dot x_{ft}$ and $\ddot x(t_0) = \ddot x_{ft}$ while having $x(t_1) = x_{goal}$, $\dot x(t_0) = \ddot x(t_0) = 0$. The generator can then output $[x^\star ~ \dot x^\star ~ \ddot x^\star]$ by computing $x(t_0 + dt)$, $\dot x(t_0 + dt)$ and $\ddot x(t_0 + dt)$. The same happens for the $y$ component to output $[y^\star ~ \dot y^\star ~ \ddot y^\star]$.
+During swing phases feet have to be guided from their current position to their target position on the ground outputted by the footstep planner. To generate their trajectory in the air, foot trajectory generators are used, one for each foot. Each generator takes as input the current state of its associated foot $[x_{ft} ~ \dot x_{ft} ~ \ddot x_{ft} ~ y_{ft} ~ \dot y_{ft} ~ \ddot y_{ft}]$, the desired position on the ground $[x_{goal} ~ y_{goal}]$, the control time step $dt$, the time $t_0$ elapsed since the start of the swing phase and the expected duration $t_1$ of the swing phase. This information is processed to output a command $[x^\star ~ \dot x^\star ~ \ddot x^\star ~ y^\star ~ \dot y^\star ~ \ddot y^\star ~ z^\star ~ \dot z^\star ~ \ddot z^\star]$ for the foot. Generators work in the world frame and use data provided by the MpcInterface.
 
-Command for the $z$ component is deterministic and there is no feedback like for the $x$ and $y$ components for which the current position, velocity and acceleration of the foot are taken into account. Trajectory for $z$ is a 6-th order polynomial that does not change so that $z(0) = \dot z(0) = \ddot z(0) = 0$ and $z(t_1) = \dot z(t_1) = \ddot z(t_1) = 0$ with $z(\frac{t_1}{2}) = h$. $h$ is a constant value defined when the foot trajectory generator is created to set the desired apex height of the foot during its swing phase.
+For the $x$ component, what the generator does is to tune a 5-th polynomial to have $x(t_0) = x_{ft}$, $\dot x(t_0) = \dot x_{ft}$ and $\ddot x(t_0) = \ddot x_{ft}$ while having $x(t_1) = x_{goal}$, $\dot x(t_1) = \ddot x(t_1) = 0$. The generator can then output $[x^\star ~ \dot x^\star ~ \ddot x^\star]$ by computing $x(t_0 + dt)$, $\dot x(t_0 + dt)$ and $\ddot x(t_0 + dt)$. The same happens for the $y$ component to output $[y^\star ~ \dot y^\star ~ \ddot y^\star]$.
+
+Command for the $z$ component is deterministic and there is no feedback like for the $x$ and $y$ components for which the current position, velocity and acceleration of the foot are taken into account. Trajectory for $z$ is a 6-th order polynomial that does not change and defined in such a way that $z(0) = \dot z(0) = \ddot z(0) = 0$ and $z(t_1) = \dot z(t_1) = \ddot z(t_1) = 0$ with $z(\frac{t_1}{2}) = h$. $h$ is a constant value defined when the foot trajectory generator is created to set the desired apex height of the foot during its swing phase.
 
 Due to these characteristics, the trajectory generated can be described as a bell-like trajectory that goes from the initial position of the foot to its target trajectory while respecting non-slipping constraints during take-off and landing (no horizontal speed) and trying to land softly (0 final velocity and acceleration for $z$).
 
-To keep this slipping-avoidance property, the target position on the ground $[x_{goal} ~ y_{goal}]$ is locked $t_{lock}$ seconds before landing. Basically $[x_{goal} ~ y_{goal}]$ is not updated if $t_0 > (t_1-t_{lock})$. Changing the desired position on the ground just before landing would create a non-negligible horizontal speed to correct the position of the foot in order to land at the new position. It is required since actually the target position is always changing because it is linked to the current velocity of the robot through the symmetry term of the footstep planner and this velocity is never exactly the same from one time step to another. 
+To keep this slipping-avoidance property, the target position on the ground $[x_{goal} ~ y_{goal}]$ is locked $t_{lock}$ seconds before landing. Basically $[x_{goal} ~ y_{goal}]$ is not updated if $t_0 > (t_1-t_{lock})$. Changing the desired position on the ground just before landing would create a non-negligible horizontal speed to correct the position of the foot in order to land at the new position. It is required because the target position is always changing since it is linked to the current velocity of the robot through the symmetry term of the footstep planner and this velocity is never exactly the same from one time step to another. 
 
-Since a 3D tracking task is in charge of applying the adequate torques to follow the command of the trajectory generator depending on the current state of the foot (more details in the Inverse Dynamics section), there is already a feedback for the position, velocity and acceleration of the foot. To avoid having two feedback loops that try to do the same thing, the feedback of the foot trajectory generator is not used. What that means is that at the start of the swing phase the trajectory generator receives $[x_{ft} ~ 0 ~ 0 ~ y_{ft} ~ 0 ~ 0]$ to update the position of the foot and then the command of the generator is supposed to be perfectly followed so at the next iteration the generator will receive the command $[x^\star ~ \dot x^\star ~ \ddot x^\star ~ y^\star ~ \dot y^\star ~ \ddot y^\star]$ as the state of the foot. That way the feedback capabilities of the generator are not used.
+Since a 3D tracking task is in charge of applying the adequate torques to follow the command of the trajectory generator depending on the current state of the foot (more details in the Inverse Dynamics section), there is already a feedback for the position, velocity and acceleration of the foot. To avoid having two feedback loops that try to do the same thing, the feedback of the foot trajectory generator is not used. What that means is that at the start of the swing phase the trajectory generator receives $[x_{ft} ~ 0 ~ 0 ~ y_{ft} ~ 0 ~ 0]$ to update the position of the foot and then the command of the generator is supposed to be perfectly followed. Therefore at the next iteration the generator is given the command $[x^\star ~ \dot x^\star ~ \ddot x^\star ~ y^\star ~ \dot y^\star ~ \ddot y^\star]$ as the state of the foot. That way the feedback capabilities of the generator are not used.
 
-As explained earlier, the trajectory for the $z$ component is deterministic: it always starts at $z(0)=0$ m and ends at $z(t_1)=0$ m. That is why a small offset is added to the command $z^\star$ that is sent to the 3D tracking task to take into account the altitude of the ground the robot is walking on. This $z_{offset}$ is determined by taking the minimum altitude of all feet in contact with the ground which uses the assumption that there is at least one feet in contact when the other feet are in swing phase. With this offset the command received by the tracking task will start and end at the correct altitude.
+As explained earlier, the trajectory for the $z$ component is deterministic: it always starts at $z(0)=0$ m and ends at $z(t_1)=0$ m. That is why a small offset is added to the command $z^\star$ that is sent to the 3D tracking task to take into account the altitude of the ground the robot is walking on. This $z_{offset}$ is determined by taking the minimum altitude of all feet in contact with the ground which uses the assumption that there is at least one feet in contact when the other feet are in swing phase (equal to ${}^o\!z_{min}$ introduced in the MpcInterface section). With this offset the command received by the tracking task will start and end at the correct altitude.
 
 \newpage
 \section{State vector}
@@ -264,18 +270,18 @@ As explained earlier, the trajectory for the $z$ component is deterministic: it 
 
 The reference velocity $\dot q^\star$ that is sent to the robot is expressed in its local frame. It has 6 dimensions: 3 for the linear velocity and 3 for the angular one.
 \begin{equation}
-{}^l\! \dot q^\star = [{}^l\! \dot x^\star ~~ {}^l\! \dot y^\star ~~ {}^l\! \dot z^\star ~~ {}^l\! \dot \phi^\star ~~ {}^l\! \dot \theta^\star ~~ {}^l\! \dot \psi^\star ]^T
+{}^l\! \dot q^\star = [{}^l\! \dot x^\star ~~ {}^l\! \dot y^\star ~~ {}^l\! \dot z^\star ~~ \omega_{{}^l\!x}^\star ~~ \omega_{{}^l\!y}^\star ~~ \omega_{{}^l\!z}^\star ]^T
 \end{equation}
 
 The velocity vector of the robot is:
 \begin{equation}
-{}^l\! \dot q = [{}^l\! \dot x ~~ {}^l\! \dot y ~~ {}^l\! \dot z ~~ {}^l\! \dot \phi ~~ {}^l\! \dot \theta ~~ {}^l\! \dot \psi ]^T
+{}^l\! \dot q = [{}^l\! \dot x ~~ {}^l\! \dot y ~~ {}^l\! \dot z ~~ \omega_{{}^l\!x} ~~ \omega_{{}^l\!y} ~~ \omega_{{}^l\!z} ]^T
 \end{equation}
 
-At the start each iteration of the MPC, the current position and orientation of the robot defines a new frame in which the solver will work. This frame is at ground level with the $x$ axis pointing forwards ($x$ axis of the local frame), the $y$ axis pointing to the left ($y$ axis of the local frame) and the $z$ axis point upwards. Instead of working in terms of rotation around the $x$, $y$ and $z$ axes of the world frame, the solver will work with the pitch, roll and yaw angles defined in this new frame. As the frame the solver is working in is the local frame, initial conditions of the solving process are as follows:
+At the start each iteration of the MPC, the current position and orientation of the robot defines a new frame in which the solver will work. This frame is a copy of the local frame so it is at ground level with the $x$ axis pointing forwards ($x$ axis of the local frame), the $y$ axis pointing to the left ($y$ axis of the local frame) and the $z$ axis point upwards. Instead of working in terms of rotation around the $x$, $y$ and $z$ axes of the world frame, the solver will work with the pitch, roll and yaw angles defined in this new frame. The solver is working in a copy of the local frame, initial conditions of the solving process are as follows:
 \begin{align}
 q_0 &= [{}^l\!x ~~ {}^l\!y ~~ {}^l\!z ~~ {}^l\! \phi ~~ {}^l\! \theta ~~ {}^l\! \psi ]^T = [ {}^l\!C_x ~~ {}^l\!C_y ~~ {}^l\!C_z ~~ {}^l\! \phi ~~ {}^l\! \theta ~~ 0]^T \\
-\dot q_0 &= [{}^l\! \dot x ~~ {}^l\! \dot y ~~ {}^l\! \dot z ~~ {}^l\! \dot \phi ~~ {}^l\! \dot \theta ~~ {}^l\! \dot \psi ]^T
+\dot q_0 &= [{}^l\! \dot x ~~ {}^l\! \dot y ~~ {}^l\! \dot z ~~  \omega_{{}^l\!x} ~~ \omega_{{}^l\!y} ~~ \omega_{{}^l\!z} ]^T
 \end{align}
 
 With $[{}^l\! C_x ~~ {}^l\! C_y ~~ {}^l\! C_z ]$ the position of the center of mass in local frame.
@@ -287,7 +293,7 @@ The reference velocity is supposed constant over the prediction horizon in the l
 
 For time step $k$ of the prediction horizon, the reference velocity vector is defined as follows:
 \begin{align}
-\forall k \in [1, n_{steps}], ~ \dot q_k^\star = \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \psi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \psi^\star) \end{bmatrix} \cdot {}^l\! \dot q^\star
+\forall k \in [1, n_{steps}], ~ \dot q_k^\star = \begin{bmatrix} R_z(\Delta t \cdot k \cdot \omega_{{}^l\!z}^\star) \\ R_z(\Delta t \cdot k \cdot \omega_{{}^l\!z}^\star) \end{bmatrix} \cdot {}^l\! \dot q^\star
 \end{align}
 
 with $R_z(\psi)$ the 3 by 3 rotation matrix by an angle $\psi$ about the vertical axis. There is no rotation about the roll and pitch axes due to the assumption that the trunk is almost horizontal.
@@ -298,38 +304,38 @@ with $R_z(\psi)$ the 3 by 3 rotation matrix by an angle $\psi$ about the vertica
 %q_{k+1} &= q_k + R(\psi_k) \cdot \dot q^\star
 %\end{align}
 
-To get the reference position vector for all time steps of the prediction horizon an integration similar to the one that has been done for the prediction term of the footstep planner is performed. If ${}^l\!\dot \psi = 0$:
+To get the reference position vector for all time steps of the prediction horizon an integration similar to the one that has been done for the prediction term of the footstep planner is performed. If $\omega_{{}^l\!z}^\star = 0$:
 \begin{equation}
 \forall k \in [1, n_{steps}], ~ q_{k}^\star = q_0 + k ~ \Delta t ~  {}^l\! \dot q^\star
 \end{equation}
 
-If ${}^l\!\dot \psi \neq 0$:
+If $\omega_{{}^l\!z^\star} \neq 0$:
 \begin{align}
-x_k^\star &= {}^l\! C_x + \frac{{}^l\!\dot x^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t) + {}^l\!\dot y^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right)}{{}^l\!\dot \psi^\star} \\
-y_k^\star &= {}^l\! C_y + \frac{- {}^l\!\dot x^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right) + {}^l\!\dot y^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t)}{{}^l\!\dot \psi^\star} \\
+x_k^\star &= {}^l\! C_x + \frac{{}^l\!\dot x^\star \sin(\omega_{{}^l\!z}^\star ~ k ~ \Delta t) + {}^l\!\dot y^\star \left( \cos(\omega_{{}^l\!z}^\star ~ k ~ \Delta t) - 1 \right)}{\omega_{{}^l\!z}^\star} \\
+y_k^\star &= {}^l\! C_y + \frac{- {}^l\!\dot x^\star \left( \cos(\omega_{{}^l\!z}^\star ~ k ~ \Delta t) - 1 \right) + {}^l\!\dot y^\star \sin(\omega_{{}^l\!z}^\star ~ k ~ \Delta t)}{\omega_{{}^l\!z}^\star} \\
 z_k^\star &= {}^l\! C_z + k ~ \Delta t ~  {}^l\! \dot z^\star \\
-\phi_k^\star &= {}^l\! \phi + \frac{{}^l\!\dot \phi^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t) + {}^l\!\dot \theta^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right)}{{}^l\!\dot \psi^\star} \\
-\theta_k^\star &= {}^l\! \theta + \frac{- {}^l\!\dot \phi^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right) + {}^l\!\dot \theta^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t)}{{}^l\!\dot \psi^\star} \\
-\psi_k^\star &= 0 + k ~ \Delta t ~  {}^l\! \dot \psi^\star \\
+\phi_k^\star &= {}^l\! \phi + \frac{\omega_{{}^l\!x}^\star \sin(\omega_{{}^l\!z}^\star ~ k ~ \Delta t) + \omega_{{}^l\!y}^\star \left( \cos(\omega_{{}^l\!z}^\star ~ k ~ \Delta t) - 1 \right)}{\omega_{{}^l\!z}^\star} \\
+\theta_k^\star &= {}^l\! \theta + \frac{- \omega_{{}^l\!x}^\star \left( \cos(\omega_{{}^l\!z}^\star ~ k ~ \Delta t) - 1 \right) + \omega_{{}^l\!y}^\star \sin(\omega_{{}^l\!z}^\star ~ k ~ \Delta t)}{\omega_{{}^l\!z}^\star} \\
+\psi_k^\star &= 0 + k ~ \Delta t ~  \omega_{{}^l\!z}^\star \\
 \end{align}
 
 %\begin{equation} q_{k+1}^\star = q_k^\star + \begin{bmatrix} R_z(\Delta t \cdot k \cdot \dot \phi^\star) \\ R_z(\Delta t \cdot k \cdot \dot \phi^\star) \end{bmatrix} \cdot \dot q_0^\star \end{equation}
 
-Previous equations can be used a general case in which there is a velocity control for all linear and angular components. However, in our case, since we want the quadruped to move around while keeping the trunk horizontal and at constant height, we want a velocity control in $x$, $y$ and $\psi$ and a position control in $z$, $\phi$ and $\theta$ to keep $\forall t, ~z(t) = h$ and $\phi(t) = \theta(t) = 0~rad$. To avoid having too many feedback loop (reference velocity for $z$, $\phi$ and $\theta$ depending on the position error) we set $\forall k \in [1, n_{steps}]$:
+Previous equations could be used in a general case for which there is a velocity control for all linear and angular components. However, in our case, since we want the quadruped to move around while keeping the trunk horizontal and at constant height, we want a velocity control in $x$, $y$ and $\psi$ and a position control in $z$, $\phi$ and $\theta$ to keep $\forall t, ~z(t) = h$ and $\phi(t) = \theta(t) = 0~rad$. To avoid having too many feedback loop (reference velocity for $z$, $\phi$ and $\theta$ depending on the position error) we set $\forall k \in [1, n_{steps}]$:
 \begin{align}
 \dot z_k^\star = 0 \text{ and } z_k^\star = h \\
-\dot \phi_k^\star = 0 \text{ and }  \phi_k^\star = 0 \\
-\dot \theta_k^\star = 0 \text{ and }  \theta_k^\star = 0
+\omega_{{}^l\!x}^\star = 0 \text{ and }  \phi_k^\star = 0 \\
+\omega_{{}^l\!y}^\star = 0 \text{ and }  \theta_k^\star = 0
 \end{align}
 
 To sum things up:
 \begin{equation}
 	\forall k \in [1, n_{steps}], ~ X_k^\star = \begin{bmatrix}
-	{}^l\! C_x + \frac{{}^l\!\dot x^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t) + {}^l\!\dot y^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right)}{{}^l\!\dot \psi^\star} \\
-	{}^l\! C_y + \frac{- {}^l\!\dot x^\star \left( \cos({}^l\!\dot \psi^\star ~ k ~ \Delta t) - 1 \right) + {}^l\!\dot y^\star \sin({}^l\!\dot \psi^\star ~ k ~ \Delta t)}{{}^l\!\dot \psi^\star} \\
-	h \\ 0 \\ 0 \\ k ~ \Delta t ~  {}^l\! \dot \psi^\star \\
-	{}^l\! \dot x^\star \cos(k ~ \Delta t ~  {}^l\! \dot \psi^\star) - {}^l\! \dot y^\star \sin(k ~ \Delta t ~  {}^l\! \dot \psi^\star) \\
-	{}^l\! \dot x^\star \sin(k ~ \Delta t ~  {}^l\! \dot \psi^\star) + {}^l\! \dot y^\star \cos(k ~ \Delta t ~  {}^l\! \dot \psi^\star) \\ 0 \\ 0 \\ 0 \\ {}^l\! \dot \psi^\star
+	{}^l\! C_x + \frac{{}^l\!\dot x^\star \sin(\omega_{{}^l\!z}^\star ~ k ~ \Delta t) + {}^l\!\dot y^\star \left( \cos(\omega_{{}^l\!z}^\star ~ k ~ \Delta t) - 1 \right)}{\omega_{{}^l\!z}^\star} \\
+	{}^l\! C_y + \frac{- {}^l\!\dot x^\star \left( \cos(\omega_{{}^l\!z}^\star ~ k ~ \Delta t) - 1 \right) + {}^l\!\dot y^\star \sin(\omega_{{}^l\!z}^\star ~ k ~ \Delta t)}{\omega_{{}^l\!z}^\star} \\
+	h \\ 0 \\ 0 \\ k ~ \Delta t ~  \omega_{{}^l\!z}^\star \\
+	{}^l\! \dot x^\star \cos(k ~ \Delta t ~  \omega_{{}^l\!z}^\star) - {}^l\! \dot y^\star \sin(k ~ \Delta t ~  \omega_{{}^l\!z}^\star) \\
+	{}^l\! \dot x^\star \sin(k ~ \Delta t ~  \omega_{{}^l\!z}^\star) + {}^l\! \dot y^\star \cos(k ~ \Delta t ~  \omega_{{}^l\!z}^\star) \\ 0 \\ 0 \\ 0 \\ \omega_{{}^l\!z}^\star
 	\end{bmatrix}
 \end{equation}
 
@@ -357,7 +363,7 @@ The first assumption is that roll and pitch angles are small, it follows that:
 {}^o\! \mathcal{I} &\approx R_z(\psi) \cdot {}^b\! \mathcal{I} \cdot R_z(\psi)^{-1} 
 \end{align}
 
-The second assumption is that states are close to the desired trajectory so in equation \ref{eq:c_angular} we can replace the actual position of the center of mass ${}^o\!C$ by the desired trajectory for the center of mass.
+The second assumption is that states are close to the desired trajectory so in equation \ref{eq:c_angular} we can replace the position of the center of mass ${}^o\!C$ by the desired position for the center of mass.
 
 The last assumption is that pitch and roll velocities are small so:
 \begin{equation}
@@ -371,7 +377,7 @@ With these assumptions, equation \ref{eq:c_angular} is simplified into:
 
 The local frame that the solver is working in is actually the world frame rotated by $\psi$ about the vertical axis $z$ so equation \ref{eq:assumption1} becomes:
 \begin{equation}
-\begin{bmatrix} {}^o\! \dot \phi \\ {}^o\! \dot \theta \\ {}^o\! \dot \psi \end{bmatrix} \approx {}^l\!\omega 
+\begin{bmatrix} {}^o\! \dot \phi \\ {}^o\! \dot \theta \\ {}^o\! \dot \psi \end{bmatrix} \approx {}^l\!\omega \label{eq:approx_angular_velocity}
 \end{equation}
 
 Equations \ref{eq:c_linear} and \ref{eq:c_angular_bis} can be written in local frame:
@@ -386,7 +392,7 @@ m ~ {}^l\!  \ddot C &= \sum_{i=0}^{n_c - 1} {}^l\!f_i - \begin{bmatrix} 0 \\ 0 \
 {}^l\!\mathcal{I} ~ {}^l\! \dot \omega &= \sum_{i=0}^{n_c - 1} ({}^l\!r_i - {}^l\!C^\star) \times {}^l\!f_i
 \end{align}
 
-Once discretized, evolution of state variables becomes, $\forall k \in [0, n_{steps}-1]$:
+Once discretized and considering equation \ref{eq:approx_angular_velocity}, evolution of state variables becomes $\forall k \in [0, n_{steps}-1]$:
 \begin{align}
 \begin{bmatrix} {}^l\! x_{k+1} \\ {}^l\! y_{k+1} \\ {}^l\! z_{k+1} \end{bmatrix} &= \begin{bmatrix} {}^l\! x_{k} \\ {}^l\! y_{k} \\ {}^l\! z_{k} \end{bmatrix} + \Delta t \begin{bmatrix} {}^l\! \dot x_{k} \\ {}^l\! \dot y_{k} \\ {}^l\! \dot z_{k} \end{bmatrix} \\
 \begin{bmatrix} {}^l\! \phi_{k+1} \\ {}^l\! \theta_{k+1} \\ {}^l\! \psi_{k+1} \end{bmatrix} &= \begin{bmatrix} {}^l\! \phi_{k} \\ {}^l\! \theta_{k} \\ {}^l\! \psi_{k} \end{bmatrix} + \Delta t \begin{bmatrix}  \omega_{{}^l\!x,k} \\  \omega_{{}^l\!y,k} \\ \omega_{{}^l\! z,k} \end{bmatrix} \\
@@ -409,7 +415,7 @@ The quadruped cannot pull on the ground, it can only push so the normal componen
 \forall i \in [0, 3], \forall k \in [0, n_{steps}-1], f_{i,k}^z \geq 0~N
 \end{equation}
  
-To be sure that there is no slipping, we could impose a minimal non-zero vertical component of the contact forces because if it is close to 0 N the friction cone is small so on the real robot slipping could happen. In practise to due the way the MPC is currently programmed. To disable a foot when it is in swing phase we set a constraint that its contact force is equal to 0 so it is not directly compatible with $\forall i \in [0, 3], \forall k \in [0, n_{steps}-1], f_{i,k}^z \geq f_{min}$. We would have to change more coefficients to temporarily disable this $f_{i,k}^z \geq f_{min}$ for feet in swing phase.
+To be sure that there is no slipping, we could impose a minimal non-zero vertical component of the contact forces because if it is close to 0 N the friction cone is small so on the real robot slipping could happen. In practise to due the way the MPC is currently programmed to disable a foot when it is in swing phase we set a constraint that its contact force is equal to 0 so it is not directly compatible with $\forall i \in [0, 3], \forall k \in [0, n_{steps}-1], f_{i,k}^z \geq f_{min}$. We would have to change more coefficients to temporarily disable this $f_{i,k}^z \geq f_{min}$ for feet in swing phase.
 
 This minimal non-zero vertical component of the contact forces is taken into account by the inverse dynamics block (TSID) so even if the output of the MPC contains a 0 N vertical component for a foot in contact it will be equal to $f_{min}$ after being processed by TSID. 
 
@@ -424,9 +430,9 @@ The evolution of the state vector of the robot over time can be described as fol
 x(k+1) = A(k) x(k) + B(k) f(k) + g
 \end{equation}
 
-Matrices A et B depends on $k$ and $g = [0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ -9.81 \cdot dt~ 0 ~ 0 ~ 0]^T$
+Matrices A et B depends on $k$ and $g = [0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ 0 ~ -9.81 \cdot \Delta t~ 0 ~ 0 ~ 0]^T$
 
-The contact forces vector $f(k) = f_k$ always include the forces applied on the four feet even if some of them are not touching the ground. In that case we will set the problem in such a way that forces for such feet are not considered at all in the solving process.
+The contact forces vector $f(k) = f_k$ always include the forces applied on the four feet even if some of them are not touching the ground. In that case we will set the problem in such a way that forces for such feet are not considered in the solving process.
 \begin{align}
 f_k &= [f_{0,k}^T ~~ f_{1,k}^T ~~ f_{2,k}^T ~~ f_{3,k}^T]^T \\
 \forall i \in [0, 3],~k\in[0, n_{steps}-1], ~f_{i, k} &= \begin{bmatrix} f^x_{i,k} \\ f^y_{i,k} \\ f^z_{i,k} \end{bmatrix}
@@ -434,7 +440,7 @@ f_k &= [f_{0,k}^T ~~ f_{1,k}^T ~~ f_{2,k}^T ~~ f_{3,k}^T]^T \\
 
 with $f^x_{i,k}$, $f^y_{i,k}$ and $f^z_{i,k}$ the components along the $x$, $y$ and $z$ axes of the solver frame for the $i$-th foothold at time step $k$.
 
-Let's consider a case with only 3 time steps in the prediction horizon.
+\textbf{Let's consider a case with only 3 time steps in the prediction horizon.}
 
 The goal of the MPC is to find contacts forces $f$ that should be applied to have the state vector $X$ of the robot as close as possible to $X^\star$. The QP solver outputs at the end of the optimization process the optimization vector $\mathbb{X}$ that minimizes the cost function locally (globally in the best case). The QP problem can be written in a simple way by putting both $f$ (the output of the MPC) and $\mathcal{X}_k = X_k - X_k^\star$ (quantity that should be minimized) in the optimization vector:
 \begin{equation}
@@ -474,7 +480,7 @@ I_3 & 0_3 & \Delta t \cdot I_3 & 0_3 \\
 
 With the assumption that roll and pitch angles are small the inertia matrix of the robot in solver frame rotated according to the orientation of the robot at time step $k$ is:
 \begin{equation}
-{}^l\! \mathcal{I}_k = R_z(\Delta t \cdot k \cdot \dot \psi^\star) \cdot {}^b\!\mathcal{I}
+{}^l\! \mathcal{I}_k = R_z(\Delta t \cdot k \cdot \omega_{{}^l\!z}^\star) \cdot {}^b\!\mathcal{I}
 \end{equation}
 
 Matrix $B_k$ for time step $k$ is defined as follows:
@@ -625,7 +631,7 @@ Currently four kind of tasks are being used:
 	\item[$\bullet$] Posture task for all legs to get back to a default position if some degrees of freedom are not used.	
 \end{itemize}
 
-One instance of the first three task is initially created and assigned to each foot. Then during the gait these tasks are enabled or disabled depending on the state of the foot. In swing phase only the tracking task is active while in enabled phase only contact and force tasks are enabled. There exists a single posture task which is always active and affect the whole body.
+One instance of the first three task is initially created and assigned to each foot. Then during the gait these tasks are enabled or disabled depending on the state of the foot. In swing phase only the tracking task is active while in stance phase only contact and force tasks are enabled. There exists a single posture task which is always active and affect the whole body.
 
 A weight is assigned to each task to make it more or less important compared to the other ones. ``Contact + Force'' and 3D tracking are never active at the same time so they do not compete with each other. As the posture task is just intended to be use as a form of regularization, it should not interfere with the other tasks. Its weight is kept at least $10^{-2}$ times less than the others to mimic a hierarchical solver: the relative weight is so small that it does not impact the other tasks even if in practice all tasks are considered together during the solving process.
 
