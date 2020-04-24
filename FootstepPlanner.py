@@ -325,7 +325,7 @@ class FootstepPlanner:
         self.compute_footsteps(l_feet, v_cur, v_ref, h, reduced)
 
         # Display spheres for footsteps visualization
-        """i = 0
+        i = 0
         up = np.isnan(self.gait[:, 1:])
         while (self.gait[i, 0] != 0):
             for j in range(4):
@@ -335,5 +335,5 @@ class FootstepPlanner:
                                                         posObj=pos_tmp,
                                                         ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
             i += 1
-        """
+        
         return 0

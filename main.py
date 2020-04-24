@@ -24,19 +24,15 @@ dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 100000  # number of time steps simulated
+N_SIMULATION = 2000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
 
 # Lists to log the duration of 1 iteration of the MPC/TSID
 t_list_tsid = [0] * int(N_SIMULATION)
-log_feet = np.zeros((3, 4, int(N_SIMULATION)))
-log_vfeet = np.zeros((3, 4, int(N_SIMULATION)))
-log_afeet = np.zeros((3, 4, int(N_SIMULATION)))
-log_target = np.zeros((3, 4, int(N_SIMULATION)))
-log_vtarget = np.zeros((3, 4, int(N_SIMULATION)))
-log_atarget = np.zeros((3, 4, int(N_SIMULATION)))
+
+# List to store the IDs of debug lines
 ID_deb_lines = []
 
 # Enable/Disable Gepetto viewer
@@ -46,7 +42,7 @@ enable_gepetto_viewer = False
 # and MpcSolver objects
 joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = utils.init_objects(dt_mpc, N_SIMULATION)
 
-enable_multiprocessing = True
+enable_multiprocessing = False
 mpc_wrapper = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], multiprocessing=enable_multiprocessing)
 
 ########################################################################
@@ -54,7 +50,7 @@ mpc_wrapper = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], multiprocess
 ########################################################################
 
 # Initialisation of the Gepetto viewer
-solo = utils.init_viewer()
+solo = utils.init_viewer(False)
 
 ########################################################################
 #                              PyBullet                                #
@@ -164,13 +160,6 @@ for k in range(int(N_SIMULATION)):
                                         fsteps_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
     #print(np.round(jointTorques.ravel(), decimals=2))
 
-    log_feet[:, :, k] = mpc_interface.o_feet
-    log_vfeet[:, :, k] = mpc_interface.ov_feet
-    log_afeet[:, :, k] = mpc_interface.oa_feet
-    log_target[0:2, :, k] = myController.goals.copy()
-    log_vtarget[0:2, :, k] = myController.vgoals.copy()
-    log_atarget[0:2, :, k] = myController.agoals.copy()
-
     # Time incrementation
     t += dt
 
@@ -191,6 +180,11 @@ for k in range(int(N_SIMULATION)):
 
     # Compute one step of simulation
     pyb.stepSimulation()
+
+    # Call logger object to log various parameters
+    logger.call_log_functions(k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, myController,
+                              enable_multiprocessing, pyb_sim.robotId, pyb_sim.planeId)
+
 
     # Refresh force monitoring for PyBullet
     # myForceMonitor.display_contact_forces()
@@ -216,13 +210,15 @@ for k in range(int(N_SIMULATION)):
 
 print("END")
 
+logger.plot_graphs(enable_multiprocessing)
+
 # Display duration of MPC block and Inverse Dynamics block
 plt.figure()
 plt.plot(t_list_tsid, 'k+')
 plt.title("Time TSID")
 plt.show(block=False)
 
-plt.figure()
+"""plt.figure()
 index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
 index = [1, 3, 5, 2, 4, 6]
 for i in range(6):
@@ -248,7 +244,7 @@ for i in range(6):
     plt.plot(log_afeet[i%3, np.int(i/3), :], linewidth=2, marker='x')
     plt.plot(log_atarget[i%3, np.int(i/3), :], linewidth=2, marker='x')
     plt.legend(["Acc", "Goal"])
-plt.show(block=True)
+plt.show(block=True)"""
 quit()
 
 ##########

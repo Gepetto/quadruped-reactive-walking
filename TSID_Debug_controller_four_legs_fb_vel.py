@@ -66,7 +66,7 @@ class controller:
 
         # Coefficients of the foot tracking task
         kp_foot = 10000.0               # proportionnal gain for the tracking task
-        self.w_foot = 10000.0       # weight of the tracking task
+        self.w_foot = 500.0       # weight of the tracking task
 
         # Coefficients of the trunk task
         kp_trunk = np.matrix([0.0, 0.0, 0.0, 1.0, 1.0, 1.0]).T
@@ -102,7 +102,7 @@ class controller:
         self.memory_contacts = self.shoulders.copy()
 
         # Foot trajectory generator
-        max_height_feet = 0.04
+        max_height_feet = 0.05
         t_lock_before_touchdown = 0.05
         self.ftgs = [ftg.Foot_trajectory_generator(max_height_feet, t_lock_before_touchdown) for i in range(4)]
 
@@ -134,6 +134,8 @@ class controller:
         self.T_gait = 0.32
         self.t_remaining = np.zeros((1, 4))
         self.h_ref = 0.235 - 0.01205385
+
+        self.contacts_order = [0, 1, 2, 3]
 
         ########################################################################
         #             Definition of the Model and TSID problem                 #
@@ -330,7 +332,7 @@ class controller:
         dz0 = 0.0
         ddz0 = 0.0
         gx1 = 0.01
-        gy1 = 0.01
+        gy1 = 0.05
 
         log = np.zeros((int(t1/dt)+1, 11))
         i_log = 0
@@ -351,9 +353,10 @@ class controller:
 
         l_str = ["x0", "dx0", "ddx0",  "y0", "dy0", "ddy0",  "z0", "dz0", "ddz0", "gx1", "gy1"]
         index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8]
+        index = [1, 4, 7, 2, 5, 8, 3, 6, 9, 4, 8]
         plt.figure()
-        for i in range(11):
-            plt.subplot(3, 4, index[i])
+        for i in range(9):
+            plt.subplot(3, 3, index[i])
             plt.plot(log[:, i], linewidth=2, marker='x')
             plt.legend([l_str[i]])
 
@@ -685,6 +688,7 @@ class controller:
                         self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
                         self.contacts[i_foot].setReference(self.pos_foot)
                         self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
+                        self.contacts_order.append(i_foot)
 
                         # Disable both foot tracking tasks
                         self.invdyn.removeTask("foot_track_" + str(i_foot), 0.0)
@@ -704,6 +708,7 @@ class controller:
                 for i_foot in [1, 2]:
                     # Disable the contacts for both feet (1 and 2)
                     self.invdyn.removeRigidContact(self.foot_frames[i_foot], 0.0)
+                    self.contacts_order.remove(i_foot)
 
                     # Enable the foot tracking task for both feet (1 and 2)
                     self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
@@ -751,6 +756,7 @@ class controller:
                     self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
                     self.contacts[i_foot].setReference(self.pos_foot)
                     self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
+                    self.contacts_order.append(i_foot)
 
                     # Disable both foot tracking tasks
                     self.invdyn.removeTask("foot_track_" + str(i_foot), 0.0)
@@ -771,6 +777,7 @@ class controller:
                 for i_foot in [0, 3]:
                     # Disable the contacts for both feet (0 and 3)
                     self.invdyn.removeRigidContact(self.foot_frames[i_foot], 0.0)
+                    self.contacts_order.remove(i_foot)
 
                     # Enable the foot tracking task for both feet (0 and 3)
                     self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)

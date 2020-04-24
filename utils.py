@@ -118,17 +118,19 @@ def quaternionToRPY(quat):
 ##################
 
 
-def init_viewer():
+def init_viewer(enable_viewer):
     solo = robots_loader.loadSolo(False)
-    solo.initDisplay(loadModel=True)
-    if ('viewer' in solo.viz.__dict__):
-        solo.viewer.gui.addFloor('world/floor')
-        solo.viewer.gui.setRefreshIsSynchronous(False)
-    """offset = np.zeros((19, 1))
-    offset[5, 0] = 0.7071067811865475
-    offset[6, 0] = 0.7071067811865475 - 1.0
-    temp = solo.q0 + offset"""
-    solo.display(solo.q0)
+
+    if enable_viewer:
+        solo.initDisplay(loadModel=True)
+        if ('viewer' in solo.viz.__dict__):
+            solo.viewer.gui.addFloor('world/floor')
+            solo.viewer.gui.setRefreshIsSynchronous(False)
+        """offset = np.zeros((19, 1))
+        offset[5, 0] = 0.7071067811865475
+        offset[6, 0] = 0.7071067811865475 - 1.0
+        temp = solo.q0 + offset"""
+        solo.display(solo.q0)
 
     return solo
 
@@ -158,7 +160,7 @@ def init_objects(dt, k_max_loop):
     """
 
     # Create logger object
-    logger = Logger.Logger(k_max_loop)
+    logger = Logger.Logger(k_max_loop, 0.001)
 
     # Create MpcInterface object
     mpc_interface = MpcInterface.MpcInterface()
@@ -210,9 +212,9 @@ class pybullet_simulator:
         # Load horizontal plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
         self.planeId = pyb.loadURDF("plane.urdf")
-        #self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")#,
-                                     #basePosition=[-1.25, 3.5, -0.1],
-                                     #baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))
+        # self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")#,
+                                #basePosition=[-1.25, 3.5, -0.1],
+                                #baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))
 
         mesh_scale = [1.0, 0.1, 0.02]
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
