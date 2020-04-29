@@ -13,6 +13,9 @@ class Logger:
         # Max number of iterations of the main loop
         self.k_max_loop = k_max_loop
 
+        # Time stamp
+        self.dt = dt
+
         """# Log state vector and reference state vector
         self.log_state = np.zeros((12, k_max_loop))
         self.log_state_ref = np.zeros((12, k_max_loop))
@@ -32,7 +35,7 @@ class Logger:
         ###
 
         # Store time range
-        self.t_range = [k*dt for k in range(self.k_max_loop)]
+        self.t_range = np.array([k*dt for k in range(self.k_max_loop)])
 
         # Store current and desired position, velocity and acceleration of feet over time
         # Used in log_footsteps function
@@ -63,6 +66,14 @@ class Logger:
         # Store information about torques
         self.torques_ff = np.zeros((12, k_max_loop))
         self.torques_sent = np.zeros((12, k_max_loop))
+
+        # Store information about the cost function of the MPC
+        self.cost_components = np.zeros((13, k_max_loop))
+
+        # Store information about the predicted evolution of the optimization vector components
+        T = 0.32
+        dt_mpc = 0.02
+        self.pred_trajectories = np.zeros((12, int(T/dt_mpc), int(k_max_loop/20)))
 
     def log_state_vectors(self, mpc, k_loop):
         """ Log current and reference state vectors (position + velocity)
@@ -268,8 +279,9 @@ class Logger:
                 plt.plot(self.t_range, self.state_ref[6+i-3, :], "r", linewidth=2)
             plt.xlabel("Time [s]")
             plt.ylabel(ylabels[i])
+            plt.legend(["Performed", "Desired"])
+
         plt.suptitle("Performed trajectory VS Desired trajectory (local frame)")
-        plt.legend(["Robot", "Reference"])
 
         return 0
 
@@ -412,7 +424,78 @@ class Logger:
             h1, = plt.plot(self.t_range, self.torques_ff[i, :], linewidth=2)
             h2, = plt.plot(self.t_range, self.torques_sent[i, :], linewidth=2)
             plt.legend([h1, h2], [lgd[i] + " FF", lgd[i]+" Sent"])
+            plt.xlabel("Time [s]")
+            plt.ylabel("Torque [Nm]")
         plt.suptitle("Feedforward torques and sent torques (output of PD + saturation)")
+
+        return 0
+
+    def log_cost_function(self, k, mpc_wrapper):
+        """ Store information about the cost function of the mpc
+        """
+
+        # Cost of each component of the cost function over the prediction horizon (state vector and contact forces)
+        cost = (np.diag(mpc_wrapper.mpc.x) @ np.diag(mpc_wrapper.mpc.P.data)) @ np.array([mpc_wrapper.mpc.x]).transpose()
+
+        # Sum components of the state vector
+        for i in range(12):
+            self.cost_components[i, k:(k+1)] = np.sum(cost[i:(12*mpc_wrapper.mpc.n_steps):12])
+
+        # Sum components of the contact forces
+        self.cost_components[12, k:(k+1)] = np.sum(cost[(12*mpc_wrapper.mpc.n_steps):])
+
+        return 0
+
+    def plot_cost_function(self):
+        """ Plot information about the cost function of the mpc
+        """
+
+        lgd = ["$X$", "$Y$", "$Z$", "$\phi$", "$\\theta$", "$\psi$", "$\dot X$", "$\dot Y$", "$\dot Z$",
+               "$\dot \phi$", "$\dot \\theta$", "$\dot \psi$", "$f$", "Total"]
+        plt.figure()
+        hs = []
+        for i in range(14):
+            if i < 10:
+                h, = plt.plot(self.t_range, self.cost_components[i, :], linewidth=2)
+            elif i<=12:
+                h, = plt.plot(self.t_range, self.cost_components[i, :], linewidth=2, linestyle="--")
+            else:
+                h, = plt.plot(self.t_range, np.sum(self.cost_components, axis=0), linewidth=2, linestyle="--")
+            hs.append(h)
+            plt.xlabel("Time [s]")
+            plt.ylabel("Cost")
+        plt.legend(hs, lgd)
+        plt.title("Contribution of each component in the cost function")
+
+        return 0
+
+    def log_predicted_trajectories(self, k, mpc_wrapper):
+        """ Store information about the predicted evolution of the optimization vector components
+        """
+
+        self.pred_trajectories[:, :, int(k/20)] = mpc_wrapper.mpc.x_robot
+
+        return 0
+
+    def plot_predicted_trajectories(self):
+        """ Plot information about the predicted evolution of the optimization vector components
+        """
+
+        dt_mpc = 0.02
+        t_pred = np.array([(k+1)*dt_mpc for k in range(16)])
+
+        #index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+        index = [1, 3, 5, 2, 4, 6]
+
+        lgd = ["X", "Y", "Z", "Roll", "Pitch", "Yaw"]
+        plt.figure()
+        for i in range(6):
+            plt.subplot(3, 2, index[i])
+            for j in range(self.pred_trajectories.shape[2]):
+                if (j % 6) == 0:
+                    h, = plt.plot(t_pred + j*dt_mpc*20, self.pred_trajectories[i, :, j], linewidth=2, marker='x')
+            plt.ylabel(lgd[i])
+        plt.suptitle("Predicted trajectories (local frame)")
 
         return 0
 
@@ -445,6 +528,14 @@ class Logger:
         # Store information about torques
         self.log_torques(k, tsid_controller)
 
+        # Store information about the cost function
+        if not enable_multiprocessing:
+            self.log_cost_function(k, mpc_wrapper)
+
+        # Store information about the predicted evolution of the optimization vector components
+        if not enable_multiprocessing and ((k % 20) == 0):
+            self.log_predicted_trajectories(k, mpc_wrapper)
+
         return 0
 
     def plot_graphs(self, enable_multiprocessing):
@@ -461,6 +552,14 @@ class Logger:
 
         # Plot information about the torques
         self.plot_torques()
+
+        # Plot information about the state of the robot
+        if not enable_multiprocessing:
+            self.plot_cost_function()
+
+        # Plot information about the predicted evolution of the optimization vector components
+        if not enable_multiprocessing:
+            self.plot_predicted_trajectories()
 
         # Display graphs
         plt.show(block=True)
