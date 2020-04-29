@@ -212,9 +212,10 @@ class pybullet_simulator:
         # Load horizontal plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
         self.planeId = pyb.loadURDF("plane.urdf")
-        # self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")#,
+        self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")#,
                                 #basePosition=[-1.25, 3.5, -0.1],
                                 #baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))
+        pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)
 
         mesh_scale = [1.0, 0.1, 0.02]
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
@@ -230,26 +231,29 @@ class pybullet_simulator:
                                                     collisionFramePosition=[0.0, 0.0, 0.0],
                                                     meshScale=mesh_scale)
         for i in range(4):
-            pyb.createMultiBody(baseMass=0.0,
+            tmpId = pyb.createMultiBody(baseMass=0.0,
                                 baseInertialFramePosition=[0, 0, 0],
                                 baseCollisionShapeIndex=collisionShapeId,
                                 baseVisualShapeIndex=visualShapeId,
                                 basePosition=[0.0, 0.5+0.2*i, 0.01],
                                 useMaximalCoordinates=True)
+            pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
-        pyb.createMultiBody(baseMass=0.0,
+        tmpId = pyb.createMultiBody(baseMass=0.0,
                             baseInertialFramePosition=[0, 0, 0],
                             baseCollisionShapeIndex=collisionShapeId,
                             baseVisualShapeIndex=visualShapeId,
                             basePosition=[0.5, 0.5+0.2*4, 0.01],
                             useMaximalCoordinates=True)
+        pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
-        pyb.createMultiBody(baseMass=0.0,
+        tmpId = pyb.createMultiBody(baseMass=0.0,
                             baseInertialFramePosition=[0, 0, 0],
                             baseCollisionShapeIndex=collisionShapeId,
                             baseVisualShapeIndex=visualShapeId,
                             basePosition=[0.5, 0.5+0.2*5, 0.01],
                             useMaximalCoordinates=True)
+        pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
         mesh_scale = [0.2, 0.1, 0.01]
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
@@ -266,12 +270,13 @@ class pybullet_simulator:
                                                     meshScale=mesh_scale)
 
         for i in range(3):
-            pyb.createMultiBody(baseMass=0.0,
+            tmpId = pyb.createMultiBody(baseMass=0.0,
                                 baseInertialFramePosition=[0, 0, 0],
                                 baseCollisionShapeIndex=collisionShapeId,
                                 baseVisualShapeIndex=visualShapeId,
                                 basePosition=[0.15 * (-1)**i, 0.9+0.2*i, 0.025],
                                 useMaximalCoordinates=True)
+            pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
         mesh_scale = [0.05, 0.05, 0.05]
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
