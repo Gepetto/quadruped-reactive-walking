@@ -63,6 +63,7 @@ class FootstepPlanner:
 
         # Create gait matrix
         self.create_walking_trot()
+        # self.create_lateral()
 
     def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.2027682):
         """Compute the reference trajectory of the CoM for each time step of the
@@ -164,6 +165,30 @@ class FootstepPlanner:
 
         return 0
 
+    def create_lateral(self):
+        """Create the matrices used to handle the gait and initialize them to perform a walking trot
+
+        self.gait and self.fsteps matrices contains information about the walking trot
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Starting status of the gait
+        # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
+        self.gait[0:4, 0] = np.array([1, N-1, 1, N-1])
+        self.fsteps[0:4, 0] = self.gait[0:4, 0]
+
+        # Set stance and swing phases
+        # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        self.gait[0, 1:] = np.ones((4,))
+        self.gait[1, [1, 3]] = np.ones((2,))
+        self.gait[2, 1:] = np.ones((4,))
+        self.gait[3, [2, 4]] = np.ones((2,))
+
+        return 0
+
     def compute_footsteps(self, l_feet, v_cur, v_ref, h, reduced):
         """Compute the desired location of footsteps over the prediction horizon
 
@@ -207,9 +232,12 @@ class FootstepPlanner:
                 # Get future desired position of footsteps
                 self.compute_next_footstep(v_ref, v_ref, h)
 
-                if reduced:
+                """if reduced:
                     self.next_footstep[0:2, :] -= np.array([[0.0, 0.0, -0.0, -0.0],
-                                                            [0.06, -0.06, 0.06, -0.06]])
+                                                            [0.06, -0.06, 0.06, -0.06]])"""
+                if reduced:
+                    self.next_footstep[0:2, :] -= np.array([[0.14, 0.14, -0.14, -0.14],
+                                                            [0.12, -0.12, 0.12, -0.12]])
 
                 """# Get future yaw angle compared to current position
                 angle = v_ref[5, 0] * dt_cum
