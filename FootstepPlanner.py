@@ -63,7 +63,7 @@ class FootstepPlanner:
 
         # Create gait matrix
         self.create_walking_trot()
-        # self.create_lateral()
+        # self.create_bounding()
 
     def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.2027682):
         """Compute the reference trajectory of the CoM for each time step of the
@@ -165,10 +165,10 @@ class FootstepPlanner:
 
         return 0
 
-    def create_lateral(self):
-        """Create the matrices used to handle the gait and initialize them to perform a walking trot
+    def create_bounding(self):
+        """Create the matrices used to handle the gait and initialize them to perform a bounding gait
 
-        self.gait and self.fsteps matrices contains information about the walking trot
+        self.gait and self.fsteps matrices contains information about the gait
         """
 
         # Number of timesteps in a half period of gait
@@ -183,9 +183,9 @@ class FootstepPlanner:
         # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
         # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
         self.gait[0, 1:] = np.ones((4,))
-        self.gait[1, [1, 3]] = np.ones((2,))
+        self.gait[1, [1, 2]] = np.ones((2,))
         self.gait[2, 1:] = np.ones((4,))
-        self.gait[3, [2, 4]] = np.ones((2,))
+        self.gait[3, [3, 4]] = np.ones((2,))
 
         return 0
 

@@ -296,7 +296,7 @@ class controller:
         # Resize the solver to fit the number of variables, equality and inequality constraints
         self.solver.resize(self.invdyn.nVar, self.invdyn.nEq, self.invdyn.nIn)
 
-    def update_feet_tasks(self, k_loop, pair, looping, mpc_interface, ftps_Ids_deb):
+    def update_feet_tasks(self, k_loop, gait, looping, mpc_interface, ftps_Ids_deb):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
 
@@ -307,15 +307,27 @@ class controller:
             mpc_interface (MpcInterface object): interface between the simulator and the MPC/InvDyn
         """
 
+        # Indexes of feet in swing phase
+        feet = np.where(gait[0, 1:] == 0)[0]
+        if len(feet) == 0:  # If no foot in swing phase
+            return 0
+
+        t0s = []
+        for i in feet:  # For each foot in swing phase get remaining duration of the swing phase
+            # Index of the line containing the next stance phase
+            index = next((idx for idx, val in np.ndenumerate(gait[:, 1+i]) if (((val==1)))), [-1])[0]
+            remaining_iterations = np.cumsum(gait[:index, 0])[-1] * 20 - (k_loop % 20)
+            t0s.append(np.round(0.14 - remaining_iterations * self.dt, decimals=3))
+
         # The function only affects the current pair of feet in swing phase
-        if pair == -1:
+        """if pair == -1:
             return 0
         elif pair == 0:
             t0 = np.round((k_loop-20) * self.dt, decimals=3)
             feet = [1, 2]
         else:
             t0 = np.round((k_loop - int(looping*0.5) - 20) * self.dt, decimals=3)
-            feet = [0, 3]
+            feet = [0, 3]"""
 
         # self.footsteps contains the target (x, y) positions for both feet in swing phase
 
@@ -362,7 +374,9 @@ class controller:
 
         plt.show(block=True)"""
 
-        for i_foot in feet:
+        for i in range(len(feet)):
+            i_foot = feet[i]
+            t0 = t0s[i]
 
             # Get desired 3D position, velocity and acceleration
             if t0 == 0.001:
@@ -415,7 +429,7 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qmes12, vmes12, t, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied, fsteps, ftps_Ids_deb):
+    def control(self, qmes12, vmes12, t, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied, fsteps, gait, ftps_Ids_deb):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
 
@@ -563,7 +577,7 @@ class controller:
         ################
 
         # Enable/disable contact and 3D tracking tasks depending on the state of the feet (swing or stance phase)
-        self.update_tasks(k_simu, k_loop, looping, mpc_interface, ftps_Ids_deb)
+        self.update_tasks(k_simu, k_loop, looping, mpc_interface, gait, ftps_Ids_deb)
 
         ###############
         # HQP PROBLEM #
@@ -666,9 +680,47 @@ class controller:
 
         return 0
 
-    def update_tasks(self, k_simu, k_loop, looping, mpc_interface, ftps_Ids_deb):
+    def update_tasks(self, k_simu, k_loop, looping, mpc_interface, gait, ftps_Ids_deb):
 
-        if k_simu >= 0:
+        # Update the foot tracking tasks
+        self.update_feet_tasks(k_loop, gait, looping, mpc_interface, ftps_Ids_deb)
+
+        # Index of the first blank line in the gait matrix
+        index = next((idx for idx, val in np.ndenumerate(gait[:, 0]) if (((val==0)))), [-1])[0]
+
+        # Check status of each foot
+        for i_foot in range(4):
+
+            # If foot entered swing phase
+            if (k_loop % 20 == 0) and (gait[0, i_foot+1] == 0) and (gait[index-1, i_foot+1] == 1):
+                # Disable contact
+                self.invdyn.removeRigidContact(self.foot_frames[i_foot], 0.0)
+                self.contacts_order.remove(i_foot)
+
+                # Enable foot tracking task
+                self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
+
+            # If foot in stance phasce
+            if (gait[0, i_foot+1] == 1):
+                # Update the position of contacts
+                self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
+                self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
+                self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
+                self.contacts[i_foot].setReference(self.pos_foot)
+
+            # If foot entered stance phase
+            if (k_loop % 20 == 0) and (gait[0, i_foot+1] == 1) and (gait[index-1, i_foot+1] == 0):
+
+                if not ((k_loop == 0) and (k_simu < looping)):
+                    # Enable contact
+                    self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
+                    self.contacts_order.append(i_foot)
+
+                    # Disable foot tracking task
+                    self.invdyn.removeTask("foot_track_" + str(i_foot), 0.0)
+
+        if False:  # k_simu >= 0:
             if k_loop == 0:  # Start swing phase
 
                 # Update active feet pair

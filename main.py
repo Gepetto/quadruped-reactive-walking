@@ -96,6 +96,7 @@ for k in range(int(N_SIMULATION)):
     # Update footsteps desired location once every 20 iterations of TSID
     if (k % 20) == 0:
         fsteps_invdyn = fstep_planner.fsteps.copy()
+        gait_invdyn = fstep_planner.gait.copy()
         fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
                                     mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, joystick.reduced)
 
@@ -157,7 +158,7 @@ for k in range(int(N_SIMULATION)):
     # Retrieve the joint torques from the current active controller
     jointTorques = myController.control(pyb_sim.qmes12, pyb_sim.vmes12, t, k, solo,
                                         sequencer, mpc_interface, joystick.v_ref, f_applied,
-                                        fsteps_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
+                                        fsteps_invdyn, gait_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
     #print(np.round(jointTorques.ravel(), decimals=2))
 
     # Time incrementation
