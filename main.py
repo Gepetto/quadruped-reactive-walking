@@ -24,7 +24,7 @@ dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 2000  # number of time steps simulated
+N_SIMULATION = 30000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -92,6 +92,11 @@ for k in range(int(N_SIMULATION)):
     if (k == 0):
         fstep_planner.update_fsteps(k, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
                                     mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, False)
+    elif (k > 0) and (k % 320 == 20):
+        if joystick.gp.R1Button.value:
+            fstep_planner.create_static()
+        elif joystick.gp.L1Button.value:
+            fstep_planner.create_walking_trot()
 
     # Update footsteps desired location once every 20 iterations of TSID
     if (k % 20) == 0:
@@ -183,8 +188,8 @@ for k in range(int(N_SIMULATION)):
     pyb.stepSimulation()
 
     # Call logger object to log various parameters
-    logger.call_log_functions(k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, myController,
-                              enable_multiprocessing, pyb_sim.robotId, pyb_sim.planeId)
+    #logger.call_log_functions(k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, myController,
+    #                          enable_multiprocessing, pyb_sim.robotId, pyb_sim.planeId)
 
 
     # Refresh force monitoring for PyBullet
@@ -211,7 +216,7 @@ for k in range(int(N_SIMULATION)):
 
 print("END")
 
-logger.plot_graphs(enable_multiprocessing)
+#logger.plot_graphs(enable_multiprocessing)
 
 # Display duration of MPC block and Inverse Dynamics block
 plt.figure()

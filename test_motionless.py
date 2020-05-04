@@ -27,7 +27,7 @@ joystick.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 mpc_interface = types.SimpleNamespace()  # Empty object
 mpc_interface.lC = np.array([[0.0, 0.0, 0.2]]).T  # CoM centered and at 20 cm above the ground
 mpc_interface.abg = np.array([[0.0, 0.0, 0.0]]).T  # horizontal base (roll, pitch, 0.0)
-mpc_interface.lV = np.array([[0.0, 0.0, 0.0]]).T  # motionless base (linear velocity)
+mpc_interface.lV = np.array([[0.0, 0.0, 0.1]]).T  # motionless base (linear velocity)
 mpc_interface.lW = np.array([[0.0, 0.0, 0.0]]).T  # motionless base (angular velocity)
 mpc_interface.l_feet = np.array([[0.19, 0.19, -0.19, -0.19],
                                  [0.15005, -0.15005, 0.15005, -0.15005],
@@ -38,10 +38,22 @@ fstep_planner = types.SimpleNamespace()  # Empty object
 fstep_planner.x0 = np.vstack((mpc_interface.lC, mpc_interface.abg,
                               mpc_interface.lV, mpc_interface.lW))  # Current state vector
 fstep_planner.xref = np.repeat(fstep_planner.x0, np.int(T_mpc/dt_mpc)+1, axis=1)  # Desired future state vectors
+fstep_planner.xref[8, 1:] = 0.0
 fstep_planner.fsteps = np.full((6, 13), np.nan)  # Array that contains information about the gait
+
+# All feet in stance phase during the whole period
 fstep_planner.fsteps[:, 0] = np.zeros((6,))
 fstep_planner.fsteps[0, 0] = np.int(T_mpc/dt_mpc)
 fstep_planner.fsteps[0, 1:] = mpc_interface.l_feet.ravel(order="F")
+
+# FL+HR in stance during a half period then FR+HL in stance
+"""fstep_planner.fsteps[:, 0] = np.zeros((6,))
+fstep_planner.fsteps[0:2, 0] = np.int(0.5*T_mpc/dt_mpc)
+fstep_planner.fsteps[0, 1:] = mpc_interface.l_feet.ravel(order="F")
+fstep_planner.fsteps[1, 1:] = mpc_interface.l_feet.ravel(order="F")
+fstep_planner.fsteps[0, 4:10] = np.nan
+fstep_planner.fsteps[1, 1:4] = np.nan
+fstep_planner.fsteps[1, 10:14] = np.nan"""
 
 #############
 #  Run MPC  #
