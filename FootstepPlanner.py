@@ -141,6 +141,27 @@ class FootstepPlanner:
 
         return 0
 
+    def create_static(self):
+        """Create the matrices used to handle the gait and initialize them to keep the 4 feet in contact
+
+        self.gait and self.fsteps matrices contains information about the gait
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Starting status of the gait
+        # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
+        self.gait[0:4, 0] = np.array([2*N, 0, 0, 0])
+        self.fsteps[0:4, 0] = self.gait[0:4, 0]
+
+        # Set stance and swing phases
+        # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        self.gait[0, 1:] = np.ones((4,))
+
+        return 0
+
     def create_walking_trot(self):
         """Create the matrices used to handle the gait and initialize them to perform a walking trot
 

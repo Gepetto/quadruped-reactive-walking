@@ -21,20 +21,24 @@ class GamepadClient():
         self.leftJoystickY = Value(c_double, lock=True)
         self.rightJoystickX = Value(c_double, lock=True)
         self.rightJoystickY = Value(c_double, lock=True)
+        self.R1Button = Value(c_bool, lock=True)
+        self.L1Button = Value(c_bool, lock=True)
 
         self.startButton.value = False
         self.leftJoystickX.value = 0.0
         self.leftJoystickY.value = 0.0
         self.rightJoystickX.value = 0.0
         self.rightJoystickY.value = 0.0
+        self.R1Button.value = False
+        self.L1Button.value = False
 
         args = (self.running, self.startButton, self.leftJoystickX,
-                self.leftJoystickY, self.rightJoystickX, self.rightJoystickY)
+                self.leftJoystickY, self.rightJoystickX, self.rightJoystickY, self.R1Button, self.L1Button)
         self.process = Process(target=self.run, args=args)
         self.process.start()
         time.sleep(0.2)
 
-    def run(self, running, startButton, leftJoystickX, leftJoystickY, rightJoystickX, rightJoystickY):
+    def run(self, running, startButton, leftJoystickX, leftJoystickY, rightJoystickX, rightJoystickY, R1Button, L1Button):
         running.value = True
         while(running.value):
             events = inputs.get_gamepad()
@@ -53,6 +57,12 @@ class GamepadClient():
                     if event.code == 'BTN_START':
                         startButton.value = event.state
                         print (event.state)
+                    elif event.code == 'BTN_TR':
+                        R1Button.value = event.state
+                        print (event.state)
+                    elif event.code == 'BTN_TL':
+                        L1Button.value = event.state
+                        print (event.state)
     def stop(self):
         self.running.value = False
         self.process.terminate()
@@ -67,6 +77,8 @@ if __name__ == "__main__":
         print("RX = ", gp.rightJoystickX.value, end=" ; ")
         print("RY = ", gp.rightJoystickY.value, end=" ; ")
         print("start = ",gp.startButton.value)
+        print("R1 = ",gp.R1Button.value)
+        print("L1 = ",gp.L1Button.value)
         time.sleep(0.1)
 
     gp.stop()

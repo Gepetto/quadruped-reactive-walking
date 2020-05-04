@@ -134,9 +134,9 @@ class Logger:
         self.feet_pos[:, :, k] = mpc_interface.o_feet
         self.feet_vel[:, :, k] = mpc_interface.ov_feet
         self.feet_acc[:, :, k] = mpc_interface.oa_feet
-        self.feet_pos_target[0:2, :, k] = tsid_controller.goals.copy()
-        self.feet_vel_target[0:2, :, k] = tsid_controller.vgoals.copy()
-        self.feet_acc_target[0:2, :, k] = tsid_controller.agoals.copy()
+        self.feet_pos_target[:, :, k] = tsid_controller.goals.copy()
+        self.feet_vel_target[:, :, k] = tsid_controller.vgoals.copy()
+        self.feet_acc_target[:, :, k] = tsid_controller.agoals.copy()
 
         return 0
 

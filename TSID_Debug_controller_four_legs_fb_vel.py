@@ -91,9 +91,9 @@ class controller:
         self.com_pos_ref = np.zeros((k_max_loop, 3))
         self.c_forces = np.zeros((4, k_max_loop, 3))
         self.h_ref_feet = np.zeros((k_max_loop, ))
-        self.goals = np.zeros((2, 4))
-        self.vgoals = np.zeros((2, 4))
-        self.agoals = np.zeros((2, 4))
+        self.goals = np.zeros((3, 4))
+        self.vgoals = np.zeros((3, 4))
+        self.agoals = np.zeros((3, 4))
         self.mgoals = np.zeros((6, 4))
 
         # Position of the shoulders in local frame
@@ -379,7 +379,7 @@ class controller:
             t0 = t0s[i]
 
             # Get desired 3D position, velocity and acceleration
-            if t0 == 0.001:
+            if t0 == 0.000:
                 [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
                     mpc_interface.o_feet[0, i_foot], mpc_interface.ov_feet[0, i_foot], mpc_interface.oa_feet[0, i_foot],
                     mpc_interface.o_feet[1, i_foot], mpc_interface.ov_feet[1, i_foot], mpc_interface.oa_feet[1, i_foot],
@@ -392,13 +392,13 @@ class controller:
                     self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0,  self.t1, self.dt)
                 self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
 
-            # Store desired position, velocity and acceleration for later call to this function
-            self.goals[:, i_foot] = np.array([gx1, gy1])
-            self.vgoals[:, i_foot] = np.array([dx0, dy0])
-            self.agoals[:, i_foot] = np.array([ddx0, ddy0])
-
             # Take into account vertical offset of Pybullet
             z0 += mpc_interface.mean_feet_z
+
+            # Store desired position, velocity and acceleration for later call to this function
+            self.goals[:, i_foot] = np.array([x0, y0, z0])
+            self.vgoals[:, i_foot] = np.array([dx0, dy0, dz0])
+            self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])
 
             # Update desired pos, vel, acc
             self.sampleFeet[i_foot].pos(np.matrix([x0, y0, z0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)
@@ -708,6 +708,7 @@ class controller:
                 self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
                 self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
                 self.contacts[i_foot].setReference(self.pos_foot)
+                self.goals[:, i_foot] = mpc_interface.o_feet[:, i_foot].transpose()
 
             # If foot entered stance phase
             if (k_loop % 20 == 0) and (gait[0, i_foot+1] == 1) and (gait[index-1, i_foot+1] == 0):
