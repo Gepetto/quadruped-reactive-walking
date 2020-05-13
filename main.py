@@ -24,7 +24,7 @@ dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 30000  # number of time steps simulated
+N_SIMULATION = 5000 # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -87,16 +87,16 @@ for k in range(int(N_SIMULATION)):
 
     # Update the reference velocity coming from the gamepad once every 20 iterations of TSID
     if (k % 20) == 0:
-        joystick.update_v_ref(k)
+        joystick.update_v_ref_predefined(k)
 
     if (k == 0):
         fstep_planner.update_fsteps(k, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
                                     mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, False)
-    elif (k > 0) and (k % 320 == 20):
+    """elif (k > 0) and (k % 320 == 20):
         if joystick.gp.R1Button.value:
             fstep_planner.create_static()
         elif joystick.gp.L1Button.value:
-            fstep_planner.create_walking_trot()
+            fstep_planner.create_walking_trot()"""
 
     # Update footsteps desired location once every 20 iterations of TSID
     if (k % 20) == 0:
@@ -160,11 +160,14 @@ for k in range(int(N_SIMULATION)):
     # Get torques with inverse dynamics #
     #####################################
 
+    # TSID needs the velocity of the robot in base frame
+    pyb_sim.vmes12[0:3, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
+    pyb_sim.vmes12[3:6, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]
+
     # Retrieve the joint torques from the current active controller
     jointTorques = myController.control(pyb_sim.qmes12, pyb_sim.vmes12, t, k, solo,
                                         sequencer, mpc_interface, joystick.v_ref, f_applied,
                                         fsteps_invdyn, gait_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
-    #print(np.round(jointTorques.ravel(), decimals=2))
 
     # Time incrementation
     t += dt
@@ -188,9 +191,8 @@ for k in range(int(N_SIMULATION)):
     pyb.stepSimulation()
 
     # Call logger object to log various parameters
-    #logger.call_log_functions(k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, myController,
-    #                          enable_multiprocessing, pyb_sim.robotId, pyb_sim.planeId)
-
+    logger.call_log_functions(k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, myController,
+                              enable_multiprocessing, pyb_sim.robotId, pyb_sim.planeId, solo)
 
     # Refresh force monitoring for PyBullet
     # myForceMonitor.display_contact_forces()
@@ -216,7 +218,9 @@ for k in range(int(N_SIMULATION)):
 
 print("END")
 
-#logger.plot_graphs(enable_multiprocessing)
+logger.plot_graphs(enable_multiprocessing)
+
+quit()
 
 # Display duration of MPC block and Inverse Dynamics block
 plt.figure()
