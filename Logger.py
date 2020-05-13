@@ -75,6 +75,14 @@ class Logger:
         dt_mpc = 0.02
         self.pred_trajectories = np.zeros((12, int(T/dt_mpc), int(k_max_loop/20)))
 
+        # Store information about one of the tracking task
+        self.pos = np.zeros((12, k_max_loop))
+        self.pos_ref = np.zeros((12, k_max_loop))
+        self.pos_err = np.zeros((3, k_max_loop))
+        self.vel = np.zeros((6, k_max_loop))
+        self.vel_ref = np.zeros((6, k_max_loop))
+        self.vel_err = np.zeros((3, k_max_loop))
+
     def log_state_vectors(self, mpc, k_loop):
         """ Log current and reference state vectors (position + velocity)
         """
@@ -336,10 +344,10 @@ class Logger:
             self.forces_tsid[(3*j):(3*(j+1)), k:(k+1)] = tsid_controller.fc[(3*i):(3*(i+1))]
 
         # Contact forces applied in PyBullet
-        contactPoints_FL = pyb.getContactPoints(robotId, planeId, linkIndexA=3)  # Front left  foot
-        contactPoints_FR = pyb.getContactPoints(robotId, planeId, linkIndexA=7)  # Front right foot
-        contactPoints_HL = pyb.getContactPoints(robotId, planeId, linkIndexA=11)  # Hind left  foot
-        contactPoints_HR = pyb.getContactPoints(robotId, planeId, linkIndexA=15)  # Hind right foot
+        contactPoints_FL = pyb.getContactPoints(planeId, robotId, linkIndexA=3)  # Front left  foot
+        contactPoints_FR = pyb.getContactPoints(planeId, robotId, linkIndexA=7)  # Front right foot
+        contactPoints_HL = pyb.getContactPoints(planeId, robotId, linkIndexA=11)  # Hind left  foot
+        contactPoints_HR = pyb.getContactPoints(planeId, robotId, linkIndexA=15)  # Hind right foot
 
         # Sort contacts points to get only one contact per foot
         contactPoints = []
@@ -499,7 +507,43 @@ class Logger:
 
         return 0
 
-    def call_log_functions(self, k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, tsid_controller, enable_multiprocessing, robotId, planeId):
+    def log_tracking_foot(self, k, tsid_controller, solo):
+        """ Store information about one of the foot tracking task
+        """
+
+        self.pos[:, k:(k+1)] = tsid_controller.feetTask[1].position
+        self.pos_ref[:, k:(k+1)] = tsid_controller.feetTask[1].position_ref
+        self.pos_err[:, k:(k+1)] = tsid_controller.feetTask[1].position_error
+        self.vel[0:3, k:(k+1)] = (solo.data.oMi[solo.model.frames[18].parent].act(solo.model.frames[18].placement)).rotation @ tsid_controller.feetTask[1].velocity[0:3, 0:1]
+        self.vel[3:6, k:(k+1)] = (solo.data.oMi[solo.model.frames[18].parent].act(solo.model.frames[18].placement)).rotation @ tsid_controller.feetTask[1].velocity[3:6, 0:1]
+        self.vel_ref[:, k:(k+1)] = tsid_controller.feetTask[1].velocity_ref
+        self.vel_err[:, k:(k+1)] = tsid_controller.feetTask[1].velocity_error
+
+        return 0
+
+    def plot_tracking_foot(self):
+        """ Plot information about one of the foot tracking task
+        """
+
+        index = [1, 3, 5, 2, 4, 6]
+        lgd = ["X", "Y", "Z", "$\dot X$", "$\dot Y$", "$\dot Z$"]
+        plt.figure()
+        for i in range(6):
+            plt.subplot(3, 2, index[i])
+            if i < 3:
+                plt.plot(self.pos[i, :], color='r', linewidth=2, marker='x')
+                plt.plot(self.pos_ref[i, :], color='g', linewidth=2, marker='x')
+                #plt.plot(self.pos_err[i, :], color='b', linewidth=2, marker='x')
+            else:
+                plt.plot(self.vel[i-3, :], color='r', linewidth=2, marker='x')
+                plt.plot(self.vel_ref[i-3, :], color='g', linewidth=2, marker='x')
+                #plt.plot(self.vel_err[i-3, :], color='b', linewidth=2, marker='x')
+            plt.ylabel(lgd[i])
+        plt.suptitle("Tracking FR foot")
+
+        return 0
+
+    def call_log_functions(self, k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, tsid_controller, enable_multiprocessing, robotId, planeId, solo):
         """ Call logging functions of the Logger class
         """
 
@@ -536,6 +580,9 @@ class Logger:
         if not enable_multiprocessing and ((k % 20) == 0):
             self.log_predicted_trajectories(k, mpc_wrapper)
 
+        # Store information about one of the foot tracking task
+        self.log_tracking_foot(k, tsid_controller, solo)
+
         return 0
 
     def plot_graphs(self, enable_multiprocessing):
@@ -560,6 +607,9 @@ class Logger:
         # Plot information about the predicted evolution of the optimization vector components
         if not enable_multiprocessing:
             self.plot_predicted_trajectories()
+
+        # Plot information about one of the foot tracking task
+        self.plot_tracking_foot()
 
         # Display graphs
         plt.show(block=True)
