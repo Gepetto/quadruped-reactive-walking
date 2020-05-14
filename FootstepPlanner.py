@@ -260,7 +260,7 @@ class FootstepPlanner:
                     self.next_footstep[0:2, :] -= np.array([[0.14, 0.14, -0.14, -0.14],
                                                             [0.12, -0.12, 0.12, -0.12]])
 
-                """# Get future yaw angle compared to current position
+                # Get future yaw angle compared to current position
                 angle = v_ref[5, 0] * dt_cum
                 c, s = np.cos(angle), np.sin(angle)
                 R = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
@@ -277,8 +277,8 @@ class FootstepPlanner:
 
 
                 # Get desired position of footstep compared to current position
-                next_ft = (np.dot(R, self.next_footstep) + np.array([[dx], [dy], [0.0]])).ravel(order='F')"""
-                next_ft = (self.next_footstep).ravel(order='F')
+                next_ft = (np.dot(R, self.next_footstep) + np.array([[dx], [dy], [0.0]])).ravel(order='F')
+                #next_ft = (self.next_footstep).ravel(order='F')
 
                 # Assignement only to feet that have been in swing phase
                 (self.fsteps[i, 1:])[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]] = next_ft[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]]
