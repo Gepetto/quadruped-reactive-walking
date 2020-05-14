@@ -37,7 +37,7 @@ class controller:
 
         self.q_ref = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.0, 1.0,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
-                                0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()
+                                0, 0.8, -1.6, 0, 0.8, -1.6]]).transpose()
 
         self.qtsid = self.q_ref.copy()
         self.vtsid = np.zeros((18, 1))
@@ -50,7 +50,7 @@ class controller:
         self.foot_frames = ['FL_FOOT', 'FR_FOOT', 'HL_FOOT', 'HR_FOOT']
 
         # Constraining the contacts
-        mu = 1  				# friction coefficient
+        mu = 0.9 				# friction coefficient
         fMin = 1.0				# minimum normal force
         fMax = 25.0  			# maximum normal force
         contactNormal = np.matrix([0., 0., 1.]).T  # direction of the normal to the contact surface
@@ -61,12 +61,12 @@ class controller:
 
         # Coefficients of the contact tasks
         kp_contact = 0.0         # proportionnal gain for the contacts
-        self.w_forceRef = 100.0  # weight of the forces regularization
-        self. w_reg_f = 100.0
+        self.w_forceRef = 500.0  # weight of the forces regularization
+        self.w_reg_f = 500.0
 
         # Coefficients of the foot tracking task
-        kp_foot = 10000.0               # proportionnal gain for the tracking task
-        self.w_foot = 500.0       # weight of the tracking task
+        kp_foot = 1000.0               # proportionnal gain for the tracking task
+        self.w_foot = 100.0       # weight of the tracking task
 
         # Coefficients of the trunk task
         kp_trunk = np.matrix([0.0, 0.0, 0.0, 1.0, 1.0, 1.0]).T
@@ -700,7 +700,7 @@ class controller:
                 # Enable foot tracking task
                 self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
 
-            # If foot in stance phasce
+            # If foot in stance phase
             if (gait[0, i_foot+1] == 1):
                 # Update the position of contacts
                 self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]

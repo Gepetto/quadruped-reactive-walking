@@ -24,7 +24,7 @@ dt_mpc = 0.02
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 5000 # number of time steps simulated
+N_SIMULATION = 3000 # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -128,7 +128,7 @@ for k in range(int(N_SIMULATION)):
 
         # Get the reference trajectory over the prediction horizon
         fstep_planner.getRefStates((k/20), sequencer.T_gait, mpc_interface.lC, mpc_interface.abg,
-                                   mpc_interface.lV, mpc_interface.lW, joystick.v_ref, h_ref=0.2027682)
+                                   mpc_interface.lV, mpc_interface.lW, joystick.v_ref, h_ref=0.1827682)
 
         # Output of the MPC
         f_applied = mpc_wrapper.get_latest_result(k)
@@ -198,19 +198,23 @@ for k in range(int(N_SIMULATION)):
     # myForceMonitor.display_contact_forces()
 
     # Save PyBullet camera frame
-    """if (k % 20) == 0:
-        print(k)
+    """step = 10
+    if (k % step) == 0:
+        if (k % 1000):
+            print(k)
         img = pyb.getCameraImage(width=1920, height=1080, renderer=pyb.ER_BULLET_HARDWARE_OPENGL)
         if k == 0:
             newpath = r'/tmp/recording'
             if not os.path.exists(newpath):
                 os.makedirs(newpath)
-        if (int(k/20) < 10):
-            plt.imsave('/tmp/recording/frame_00'+str(int(k/20))+'.png', img[2])
-        elif int(k/20) < 100:
-            plt.imsave('/tmp/recording/frame_0'+str(int(k/20))+'.png', img[2])
+        if (int(k/step) < 10):
+            plt.imsave('/tmp/recording/frame_000'+str(int(k/step))+'.png', img[2])
+        elif int(k/step) < 100:
+            plt.imsave('/tmp/recording/frame_00'+str(int(k/step))+'.png', img[2])
+        elif int(k/step) < 1000:
+            plt.imsave('/tmp/recording/frame_0'+str(int(k/step))+'.png', img[2])
         else:
-            plt.imsave('/tmp/recording/frame_'+str(int(k/20))+'.png', img[2])"""
+            plt.imsave('/tmp/recording/frame_'+str(int(k/step))+'.png', img[2])"""
 
 ####################
 # END OF MAIN LOOP #

@@ -31,7 +31,7 @@ class MPC:
         self.gI = np.diag([0.00578574, 0.01938108, 0.02476124])
 
         # Friction coefficient
-        self.mu = 1
+        self.mu = 0.9
 
         # Number of time steps in the prediction horizon
         self.n_steps = n_steps
@@ -44,7 +44,7 @@ class MPC:
         self.x = np.zeros((12 * self.n_steps * 2,))
 
         # Initial state vector of the robot (x, y, z, roll, pitch, yaw)
-        self.q = np.array([[0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0]]).transpose()
+        self.q = np.array([[0.0, 0.0, 0.1827682, 0.0, 0.0, 0.0]]).transpose()
 
         # State vector of the trunk in the world frame
         self.q_w = self.q.copy()
@@ -261,15 +261,15 @@ class MPC:
         # Hand-tuning of parameters if you want to give more weight to specific components
         P_data[0::12] = 10  # position along x
         P_data[1::12] = 10  # position along y
-        P_data[2::12] = 2000  # position along z
+        P_data[2::12] = 1000  # position along z
         P_data[3::12] = 250  # roll
-        P_data[4::12] = 250  # pitch
+        P_data[4::12] = 10000  # pitch
         P_data[5::12] = 10  # yaw
         P_data[6::12] = 200  # linear velocity along x
         P_data[7::12] = 200  # linear velocity along y
         P_data[8::12] = 100  # linear velocity along z
         P_data[9::12] = 10  # angular velocity along x
-        P_data[10::12] = 10  # angular velocity along y
+        P_data[10::12] = 200  # angular velocity along y
         P_data[11::12] = 10  # angular velocity along z
 
         # Define weights for the force components of the optimization vector

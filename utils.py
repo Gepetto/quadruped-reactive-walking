@@ -205,7 +205,7 @@ class pybullet_simulator:
     def __init__(self, dt=0.001):
 
         # Start the client for PyBullet
-        physicsClient = pyb.connect(pyb.GUI)
+        physicsClient = pyb.connect(pyb.DIRECT)
         # p.GUI for graphical version
         # p.DIRECT for non-graphical version
 
@@ -355,7 +355,7 @@ class pybullet_simulator:
 
         # Load Quadruped robot
         robotStartPos = [0, 0, 0.235+0.0045]
-        robotStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0.0])
+        robotStartOrientation = pyb.getQuaternionFromEuler([0.0, 0.0, 0.0]) # -np.pi/2
         pyb.setAdditionalSearchPath("/opt/openrobots/share/example-robot-data/robots/solo_description/robots")
         self.robotId = pyb.loadURDF("solo12.urdf", robotStartPos, robotStartOrientation)
 
@@ -366,7 +366,7 @@ class pybullet_simulator:
                                       forces=[0.0 for m in self.revoluteJointIndices])
 
         # Initialize the robot in a specific configuration
-        straight_standing = np.array([[0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()
+        straight_standing = np.array([[0, 0.8, -1.6, 0, 0.8, -1.6, 0, 0.8, -1.6, 0, 0.8, -1.6]]).transpose()
         pyb.resetJointStatesMultiDof(self.robotId, self.revoluteJointIndices, straight_standing)  # q0[7:])
 
         # Enable torque control for revolute joints
