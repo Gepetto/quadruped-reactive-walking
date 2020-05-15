@@ -135,32 +135,32 @@ def init_viewer(enable_viewer):
     return solo
 
 
-def init_objects(dt, k_max_loop):
+def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc):
 
     # Create Joystick object
-    joystick = Joystick.Joystick()
+    joystick = Joystick.Joystick(k_mpc)
 
     # Create contact sequencer object
-    sequencer = ContactSequencer.ContactSequencer(dt)
+    sequencer = ContactSequencer.ContactSequencer(dt_mpc)
 
     # Create footstep planner object
-    fstep_planner = FootstepPlanner.FootstepPlanner(dt, sequencer.S.shape[0])
+    fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, sequencer.S.shape[0])
 
     # Create trajectory generator object
-    ftraj_gen = FootTrajectoryGenerator.FootTrajectoryGenerator(dt)
+    ftraj_gen = None  # FootTrajectoryGenerator.FootTrajectoryGenerator(dt_mpc)
 
     # Create MPC solver object
-    # mpc = MpcSolver.MpcSolver(dt, sequencer, k_max_loop)
+    # mpc = MpcSolver.MpcSolver(dt_mpc, sequencer, k_max_loop)
 
     # Create the new version of the MPC solver object
-    mpc =  MPC.MPC(dt, sequencer.S.shape[0])
+    mpc = None  # MPC.MPC(dt_mpc, sequencer.S.shape[0])
     """mpc_v2.update_v_ref(joystick)
     mpc_v2.run(0, sequencer, fstep_planner, ftraj_gen)
     mpc_v2.update_matrices(sequencer)
     """
 
     # Create logger object
-    logger = Logger.Logger(k_max_loop, 0.001)
+    logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc)
 
     # Create MpcInterface object
     mpc_interface = MpcInterface.MpcInterface()

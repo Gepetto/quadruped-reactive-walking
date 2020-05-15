@@ -8,7 +8,10 @@ class Joystick:
     """Joystick-like controller that outputs the reference velocity in local frame
     """
 
-    def __init__(self):
+    def __init__(self, k_mpc):
+
+        # Number of TSID steps for 1 step of the MPC
+        self.k_mpc = k_mpc
 
         # Reference velocity in local frame
         self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
@@ -54,35 +57,35 @@ class Joystick:
         """
 
         # Moving forwards
-        if k_loop == 20*16:
+        if k_loop == self.k_mpc*16:
             self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         # Turning
-        """if k_loop == 20*16*13:
+        """if k_loop == self.k_mpc*16*13:
             self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
-        if k_loop == 20*16*5:
+        if k_loop == self.k_mpc*16*5:
             self.v_ref = np.array([[0.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        """if k_loop == 20*16*8:
+        """if k_loop == self.k_mpc*16*8:
             self.v_ref = np.array([[0.6, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        if k_loop == 20*16*11:
+        if k_loop == self.k_mpc*16*11:
             self.v_ref = np.array([[0.9, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        if k_loop == 20*16*12:
+        if k_loop == self.k_mpc*16*12:
             self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        if k_loop == 20*16*14:
+        if k_loop == self.k_mpc*16*14:
             self.v_ref = np.array([[1.2, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        if k_loop == 20*16*15:
+        if k_loop == self.k_mpc*16*15:
             self.v_ref = np.array([[1.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
-        """if k_loop == 20*16*16:
+        """if k_loop == self.k_mpc*16*16:
             self.v_ref = np.array([[1.4, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
-        """if k_loop == 20*16*17:
+        """if k_loop == self.k_mpc*16*17:
             self.v_ref = np.array([[1.5, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
         """# Turning

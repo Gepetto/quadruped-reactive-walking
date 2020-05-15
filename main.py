@@ -21,10 +21,11 @@ import MPC_Wrapper
 
 # Time step
 dt_mpc = 0.02
+k_mpc = int(dt_mpc / dt)  # dt is dt_tsid, defined in the TSID controller script
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 3000 # number of time steps simulated
+N_SIMULATION = 2000 # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -40,10 +41,10 @@ enable_gepetto_viewer = False
 
 # Create Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator
 # and MpcSolver objects
-joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = utils.init_objects(dt_mpc, N_SIMULATION)
+joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc)
 
 enable_multiprocessing = False
-mpc_wrapper = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], multiprocessing=enable_multiprocessing)
+mpc_wrapper = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], k_mpc, multiprocessing=enable_multiprocessing)
 
 ########################################################################
 #                            Gepetto viewer                            #
@@ -67,7 +68,7 @@ myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 ########################################################################
 
 # Define the default controller as well as emergency and safety controller
-myController = controller(int(N_SIMULATION))
+myController = controller(int(N_SIMULATION), k_mpc)
 mySafetyController = Safety_controller.controller_12dof()
 myEmergencyStop = EmergencyStop_controller.controller_12dof()
 
@@ -85,8 +86,8 @@ for k in range(int(N_SIMULATION)):
     # Update the mpc_interface that makes the interface between the simulation and the MPC/TSID
     mpc_interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
 
-    # Update the reference velocity coming from the gamepad once every 20 iterations of TSID
-    if (k % 20) == 0:
+    # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
+    if (k % k_mpc) == 0:
         joystick.update_v_ref_predefined(k)
 
     if (k == 0):
@@ -98,8 +99,8 @@ for k in range(int(N_SIMULATION)):
         elif joystick.gp.L1Button.value:
             fstep_planner.create_walking_trot()"""
 
-    # Update footsteps desired location once every 20 iterations of TSID
-    if (k % 20) == 0:
+    # Update footsteps desired location once every k_mpc iterations of TSID
+    if (k % k_mpc) == 0:
         fsteps_invdyn = fstep_planner.fsteps.copy()
         gait_invdyn = fstep_planner.gait.copy()
         fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
@@ -109,8 +110,8 @@ for k in range(int(N_SIMULATION)):
     # MPC #
     #######
 
-    # Run MPC once every 20 iterations of TSID
-    if (k % 20) == 0:
+    # Run MPC once every k_mpc iterations of TSID
+    if (k % k_mpc) == 0:
 
         # Debug lines
         if len(ID_deb_lines) == 0:
@@ -127,7 +128,7 @@ for k in range(int(N_SIMULATION)):
                                               replaceItemUniqueId=ID_deb_lines[i_line])
 
         # Get the reference trajectory over the prediction horizon
-        fstep_planner.getRefStates((k/20), sequencer.T_gait, mpc_interface.lC, mpc_interface.abg,
+        fstep_planner.getRefStates((k/k_mpc), sequencer.T_gait, mpc_interface.lC, mpc_interface.abg,
                                    mpc_interface.lV, mpc_interface.lW, joystick.v_ref, h_ref=0.1827682)
 
         # Output of the MPC

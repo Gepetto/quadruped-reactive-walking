@@ -8,14 +8,19 @@ class Logger:
     """Joystick-like controller that outputs the reference velocity in local frame
     """
 
-    def __init__(self, k_max_loop, dt):
+    def __init__(self, k_max_loop, dt, dt_mpc, k_mpc):
 
         # Max number of iterations of the main loop
         self.k_max_loop = k_max_loop
 
-        # Time stamp
+        # Time step of TSID
         self.dt = dt
 
+        # Time step of MPC
+        self.dt_mpc = dt_mpc
+
+        # Number of TSID steps for 1 step of the MPC
+        self.k_mpc = k_mpc
         """# Log state vector and reference state vector
         self.log_state = np.zeros((12, k_max_loop))
         self.log_state_ref = np.zeros((12, k_max_loop))
@@ -72,8 +77,8 @@ class Logger:
 
         # Store information about the predicted evolution of the optimization vector components
         T = 0.32
-        dt_mpc = 0.02
-        self.pred_trajectories = np.zeros((12, int(T/dt_mpc), int(k_max_loop/20)))
+        self.T = T
+        self.pred_trajectories = np.zeros((12, int(T/dt_mpc), int(k_max_loop/k_mpc)))
 
         # Store information about one of the tracking task
         self.pos = np.zeros((12, k_max_loop))
@@ -106,7 +111,7 @@ class Logger:
         """
 
         k_start = 5
-        k_gap = 20
+        k_gap = self.k_mpc
         if k_loop >= k_start:
             if ((k_loop - k_start) % k_gap) == 0:
                 x_log = mpc.x_robot.copy()
@@ -344,10 +349,10 @@ class Logger:
             self.forces_tsid[(3*j):(3*(j+1)), k:(k+1)] = tsid_controller.fc[(3*i):(3*(i+1))]
 
         # Contact forces applied in PyBullet
-        contactPoints_FL = pyb.getContactPoints(planeId, robotId, linkIndexA=3)  # Front left  foot
-        contactPoints_FR = pyb.getContactPoints(planeId, robotId, linkIndexA=7)  # Front right foot
-        contactPoints_HL = pyb.getContactPoints(planeId, robotId, linkIndexA=11)  # Hind left  foot
-        contactPoints_HR = pyb.getContactPoints(planeId, robotId, linkIndexA=15)  # Hind right foot
+        contactPoints_FL = pyb.getContactPoints(robotId, planeId, linkIndexA=3)  # Front left  foot
+        contactPoints_FR = pyb.getContactPoints(robotId, planeId, linkIndexA=7)  # Front right foot
+        contactPoints_HL = pyb.getContactPoints(robotId, planeId, linkIndexA=11)  # Hind left  foot
+        contactPoints_HR = pyb.getContactPoints(robotId, planeId, linkIndexA=15)  # Hind right foot
 
         # Sort contacts points to get only one contact per foot
         contactPoints = []
@@ -377,7 +382,7 @@ class Logger:
                 f_tmps[:, int(contact[3]/4)] += np.array(f_tmp)
 
         for i in range(4):
-            self.forces_pyb[(3*i):(3*(i+1)), k] = f_tmps[:, i]
+            self.forces_pyb[(3*i):(3*(i+1)), k] = - f_tmps[:, i]
 
         return 0
 
@@ -390,17 +395,24 @@ class Logger:
         ylabels = ["Contact forces X", "Contact forces Y", "Contact forces Z"]
         for i, j in enumerate([1, 2, 3]):
             plt.subplot(3, 1, j)
-            for f in range(4):
-                h1, = plt.plot(self.t_range, self.forces_mpc[3*f+i, :], "b", linewidth=2)
-                h2, = plt.plot(self.t_range, self.forces_tsid[3*f+i, :], "r", linewidth=2)
-                h3, = plt.plot(self.t_range, self.forces_pyb[3*f+i, :], "darkgreen", linewidth=2)
+            f_colors_mpc = ["b", "purple"]
+            f_colors_tsid = ["r", "orange"]
+            for g, f in enumerate([0, 3]):
+                h2, = plt.plot(self.t_range, self.forces_mpc[3*f+i, :], f_colors_mpc[g], linewidth=2)
+                #h2, = plt.plot(self.t_range, self.forces_tsid[3*f+i, :], f_colors_tsid[g], linewidth=2)
+                #h3, = plt.plot(self.t_range, self.forces_pyb[3*f+i, :], "darkgreen", linewidth=2)
+            h1 = h2
+            h3 = h2
+            h4 = h2
             if i == 2:
                 tmp = self.forces_pyb[2, :]
                 for f in range(1, 4):
                     tmp += self.forces_pyb[3*f+2, :]
-                h4, = plt.plot(self.t_range, tmp, "rebeccapurple", linewidth=2, linestyle="--")
+                #h4, = plt.plot(self.t_range, tmp, "rebeccapurple", linewidth=2, linestyle="--")
                 plt.legend([h1, h2, h3, h4], ["MPC", "TSID", "PyB", "Sum 4 feet"])
+                plt.ylim([-1.0, 17.5])
             else:
+                plt.ylim([-3.0, 5.0])
                 plt.legend([h1, h2, h3], ["MPC", "TSID", "PyB"])
             plt.xlabel("Time [s]")
             plt.ylabel(ylabels[i])
@@ -481,7 +493,7 @@ class Logger:
         """ Store information about the predicted evolution of the optimization vector components
         """
 
-        self.pred_trajectories[:, :, int(k/20)] = mpc_wrapper.mpc.x_robot
+        self.pred_trajectories[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.x_robot
 
         return 0
 
@@ -489,8 +501,7 @@ class Logger:
         """ Plot information about the predicted evolution of the optimization vector components
         """
 
-        dt_mpc = 0.02
-        t_pred = np.array([(k+1)*dt_mpc for k in range(16)])
+        t_pred = np.array([(k+1)*self.dt_mpc for k in range(np.int(self.T/self.dt_mpc))])
 
         #index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
         index = [1, 3, 5, 2, 4, 6]
@@ -501,7 +512,7 @@ class Logger:
             plt.subplot(3, 2, index[i])
             for j in range(self.pred_trajectories.shape[2]):
                 if (j % 6) == 0:
-                    h, = plt.plot(t_pred + j*dt_mpc*20, self.pred_trajectories[i, :, j], linewidth=2, marker='x')
+                    h, = plt.plot(t_pred + j*self.dt_mpc*self.k_mpc, self.pred_trajectories[i, :, j], linewidth=2, marker='x')
             plt.ylabel(lgd[i])
         plt.suptitle("Predicted trajectories (local frame)")
 
@@ -577,7 +588,7 @@ class Logger:
             self.log_cost_function(k, mpc_wrapper)
 
         # Store information about the predicted evolution of the optimization vector components
-        if not enable_multiprocessing and ((k % 20) == 0):
+        if not enable_multiprocessing and ((k % self.k_mpc) == 0):
             self.log_predicted_trajectories(k, mpc_wrapper)
 
         # Store information about one of the foot tracking task

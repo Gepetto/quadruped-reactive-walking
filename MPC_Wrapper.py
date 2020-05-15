@@ -15,9 +15,12 @@ class MPC_Wrapper:
         multiprocessing (bool): Enable/Disable running the MPC with another process
     """
 
-    def __init__(self, dt, n_steps, multiprocessing=False):
+    def __init__(self, dt, n_steps, k_mpc, multiprocessing=False):
 
         self.f_applied = np.zeros((12,))
+
+        # Number of TSID steps for 1 step of the MPC
+        self.k_mpc = k_mpc
 
         self.multiprocessing = multiprocessing
         if multiprocessing:
@@ -100,7 +103,7 @@ class MPC_Wrapper:
         print(joystick.v_ref.ravel())
         print(fstep_planner.fsteps)"""
 
-        self.mpc.run((k/20), T_gait, t_stance,
+        self.mpc.run((k/self.k_mpc), T_gait, t_stance,
                      mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
                      mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
                      fstep_planner.fsteps)
@@ -196,7 +199,7 @@ class MPC_Wrapper:
                     loop_mpc = MPC.MPC(dt, nsteps)
 
                 # Run the asynchronous MPC with the data that as been retrieved
-                loop_mpc.run((k/20), T_gait, t_stance, lC, abg, lV, lW,
+                loop_mpc.run((k/self.k_mpc), T_gait, t_stance, lC, abg, lV, lW,
                              l_feet, xref, x0, v_ref, fsteps)
 
                 # Store the result (desired forces) in the shared memory

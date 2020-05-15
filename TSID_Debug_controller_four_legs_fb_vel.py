@@ -33,7 +33,7 @@ class controller:
             N_similation (int): maximum number of Inverse Dynamics iterations for the simulation
     """
 
-    def __init__(self, N_simulation):
+    def __init__(self, N_simulation, k_mpc):
 
         self.q_ref = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.0, 1.0,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
@@ -109,6 +109,9 @@ class controller:
         # Which pair of feet is active (0 for [1, 2] and 1 for [0, 3])
         self.pair = -1
 
+        # Number of TSID steps for 1 step of the MPC
+        self.k_mpc = k_mpc
+
         # For update_feet_tasks function
         self.dt = 0.001  #  [s], time step
         self.t1 = 0.14  # [s], duration of swing phase
@@ -127,7 +130,7 @@ class controller:
         self.ID_feet = [None] * 4  # ID of feet links
 
         # Footstep planner object
-        self.fstep_planner = FootstepPlanner.FootstepPlanner(0.001, 16)
+        # self.fstep_planner = FootstepPlanner.FootstepPlanner(0.001, 32)
         self.v_ref = np.zeros((6, 1))
         self.vu_m = np.zeros((6, 1))
         self.t_stance = 0.16
@@ -316,7 +319,7 @@ class controller:
         for i in feet:  # For each foot in swing phase get remaining duration of the swing phase
             # Index of the line containing the next stance phase
             index = next((idx for idx, val in np.ndenumerate(gait[:, 1+i]) if (((val==1)))), [-1])[0]
-            remaining_iterations = np.cumsum(gait[:index, 0])[-1] * 20 - (k_loop % 20)
+            remaining_iterations = np.cumsum(gait[:index, 0])[-1] * self.k_mpc - (k_loop % self.k_mpc)
             t0s.append(np.round(0.14 - remaining_iterations * self.dt, decimals=3))
 
         # The function only affects the current pair of feet in swing phase
@@ -692,7 +695,7 @@ class controller:
         for i_foot in range(4):
 
             # If foot entered swing phase
-            if (k_loop % 20 == 0) and (gait[0, i_foot+1] == 0) and (gait[index-1, i_foot+1] == 1):
+            if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 0) and (gait[index-1, i_foot+1] == 1):
                 # Disable contact
                 self.invdyn.removeRigidContact(self.foot_frames[i_foot], 0.0)
                 self.contacts_order.remove(i_foot)
@@ -711,7 +714,7 @@ class controller:
                 self.goals[:, i_foot] = mpc_interface.o_feet[:, i_foot].transpose()
 
             # If foot entered stance phase
-            if (k_loop % 20 == 0) and (gait[0, i_foot+1] == 1) and (gait[index-1, i_foot+1] == 0):
+            if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 1) and (gait[index-1, i_foot+1] == 0):
 
                 if not ((k_loop == 0) and (k_simu < looping)):
                     # Enable contact
