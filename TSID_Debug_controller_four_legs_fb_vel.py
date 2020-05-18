@@ -137,6 +137,7 @@ class controller:
         self.T_gait = 0.32
         self.t_remaining = np.zeros((1, 4))
         self.h_ref = 0.235 - 0.01205385
+        self.t_swing = np.zeros((4, ))  # Total duration of current swing phase for each foot
 
         self.contacts_order = [0, 1, 2, 3]
 
@@ -320,7 +321,20 @@ class controller:
             # Index of the line containing the next stance phase
             index = next((idx for idx, val in np.ndenumerate(gait[:, 1+i]) if (((val==1)))), [-1])[0]
             remaining_iterations = np.cumsum(gait[:index, 0])[-1] * self.k_mpc - (k_loop % self.k_mpc)
-            t0s.append(np.round(0.14 - remaining_iterations * self.dt, decimals=3))
+
+            # Compute total duration of current swing phase
+            i_iter = 1
+            self.t_swing[i] = gait[0, 0]
+            while gait[i_iter, 1+i] == 0:
+                self.t_swing[i] += gait[i_iter, 0]
+                i_iter += 1
+            i_iter = -1
+            while gait[i_iter, 1+i] == 0:
+                self.t_swing[i] += gait[i_iter, 0]
+                i_iter -= 1
+            self.t_swing[i] *= self.dt * self.k_mpc
+
+            t0s.append(np.round(self.t_swing[i] - remaining_iterations * self.dt, decimals=3))
 
         # The function only affects the current pair of feet in swing phase
         """if pair == -1:
@@ -379,20 +393,19 @@ class controller:
 
         for i in range(len(feet)):
             i_foot = feet[i]
-            t0 = t0s[i]
 
             # Get desired 3D position, velocity and acceleration
-            if t0 == 0.000:
+            if t0s[i] == 0.000:
                 [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
                     mpc_interface.o_feet[0, i_foot], mpc_interface.ov_feet[0, i_foot], mpc_interface.oa_feet[0, i_foot],
                     mpc_interface.o_feet[1, i_foot], mpc_interface.ov_feet[1, i_foot], mpc_interface.oa_feet[1, i_foot],
-                    self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0,  self.t1, self.dt)
+                    self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0s[i],  self.t_swing[i_foot], self.dt)
                 self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
             else:
                 [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
                     self.mgoals[0, i_foot], self.mgoals[1, i_foot], self.mgoals[2, i_foot],
                     self.mgoals[3, i_foot], self.mgoals[4, i_foot], self.mgoals[5, i_foot],
-                    self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0,  self.t1, self.dt)
+                    self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0s[i],  self.t_swing[i_foot], self.dt)
                 self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
 
             # Take into account vertical offset of Pybullet
