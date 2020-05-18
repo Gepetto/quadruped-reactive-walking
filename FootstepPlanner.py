@@ -65,10 +65,10 @@ class FootstepPlanner:
         self.h_rotation_command = 0.20
 
         # Create gait matrix
-        # self.create_walking_trot()
+        self.create_walking_trot()
         # self.create_bounding()
         # self.create_side_walking()
-        self.create_static()
+        # self.create_static()
 
     def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.2027682):
         """Compute the reference trajectory of the CoM for each time step of the
@@ -134,19 +134,22 @@ class FootstepPlanner:
             self.h_rotation_command += v_ref[2, 0] * self.dt
             self.xref[2, 1:] = self.h_rotation_command
             self.xref[8, 1:] = v_ref[2, 0]
+
+            # Applying command to pitch and roll components
+            self.xref[3, 1:] = self.xref[3, 0].copy() + v_ref[3, 0].copy() * to
+            self.xref[4, 1:] = self.xref[4, 0].copy() + v_ref[4, 0].copy() * to
+            self.xref[9, 1:] = v_ref[3, 0].copy()
+            self.xref[10, 1:] = v_ref[4, 0].copy()
+
             self.flag_rotation_command = 1
         elif (np.abs(v_ref[2, 0]) < step) and (self.flag_rotation_command == 1):  # No command with joystick
             self.xref[8, 1:] = 0.0
+            self.xref[9, 1:] = 0.0
+            self.xref[10, 1:] = 0.0
             self.flag_rotation_command = 2
         elif self.flag_rotation_command == 0:  # Starting state of state machine
             self.xref[2, 1:] = h_ref
             self.xref[8, 1:] = 0.0
-
-        # Applying command to other components
-        self.xref[3, 1:] = self.xref[3, 0].copy() + v_ref[3, 0].copy() * to
-        self.xref[4, 1:] = self.xref[4, 0].copy() + v_ref[4, 0].copy() * to
-        self.xref[9, 1:] = v_ref[3, 0].copy()
-        self.xref[10, 1:] = v_ref[4, 0].copy()
 
         # Current state vector of the robot
         self.x0 = self.xref[:, 0:1]
