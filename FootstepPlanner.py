@@ -61,9 +61,14 @@ class FootstepPlanner:
         self.gait = np.zeros((6, 5))
         self.fsteps = np.full((6, 13), np.nan)
 
+        self.flag_rotation_command = int(0)
+        self.h_rotation_command = 0.20
+
         # Create gait matrix
-        self.create_walking_trot()
+        # self.create_walking_trot()
         # self.create_bounding()
+        # self.create_side_walking()
+        self.create_static()
 
     def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.2027682):
         """Compute the reference trajectory of the CoM for each time step of the
@@ -114,6 +119,35 @@ class FootstepPlanner:
         self.xref[6:9, 0:1] = lV
         self.xref[9:12, 0:1] = lW
 
+        # Time steps [0, dt, 2*dt, ...]
+        to = np.linspace(0, T_gait-self.dt, self.n_steps)
+
+        # Threshold for gamepad command (since even if you do not touch the joystick it's not 0.0)
+        step = 0.05
+
+        # Detect if command is above threshold
+        if (np.abs(v_ref[2, 0]) > step) and (self.flag_rotation_command != 1):
+            self.flag_rotation_command = 1
+
+        # State machine
+        if (np.abs(v_ref[2, 0]) > step) and (self.flag_rotation_command == 1):  # Command with joystick
+            self.h_rotation_command += v_ref[2, 0] * self.dt
+            self.xref[2, 1:] = self.h_rotation_command
+            self.xref[8, 1:] = v_ref[2, 0]
+            self.flag_rotation_command = 1
+        elif (np.abs(v_ref[2, 0]) < step) and (self.flag_rotation_command == 1):  # No command with joystick
+            self.xref[8, 1:] = 0.0
+            self.flag_rotation_command = 2
+        elif self.flag_rotation_command == 0:  # Starting state of state machine
+            self.xref[2, 1:] = h_ref
+            self.xref[8, 1:] = 0.0
+
+        # Applying command to other components
+        self.xref[3, 1:] = self.xref[3, 0].copy() + v_ref[3, 0].copy() * to
+        self.xref[4, 1:] = self.xref[4, 0].copy() + v_ref[4, 0].copy() * to
+        self.xref[9, 1:] = v_ref[3, 0].copy()
+        self.xref[10, 1:] = v_ref[4, 0].copy()
+
         # Current state vector of the robot
         self.x0 = self.xref[:, 0:1]
 
@@ -152,6 +186,7 @@ class FootstepPlanner:
 
         # Starting status of the gait
         # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
+        self.gait = np.zeros((6, 5))
         self.gait[0:4, 0] = np.array([2*N, 0, 0, 0])
         self.fsteps[0:4, 0] = self.gait[0:4, 0]
 
@@ -173,6 +208,7 @@ class FootstepPlanner:
 
         # Starting status of the gait
         # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
+        self.gait = np.zeros((6, 5))
         self.gait[0:4, 0] = np.array([1, N-1, 1, N-1])
         self.fsteps[0:4, 0] = self.gait[0:4, 0]
 
@@ -197,6 +233,7 @@ class FootstepPlanner:
 
         # Starting status of the gait
         # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
+        self.gait = np.zeros((6, 5))
         self.gait[0:4, 0] = np.array([1, N-1, 1, N-1])
         self.fsteps[0:4, 0] = self.gait[0:4, 0]
 
@@ -207,6 +244,32 @@ class FootstepPlanner:
         self.gait[1, [1, 2]] = np.ones((2,))
         self.gait[2, 1:] = np.ones((4,))
         self.gait[3, [3, 4]] = np.ones((2,))
+
+        return 0
+
+    def create_side_walking(self):
+        """Create the matrices used to handle the gait and initialize them to perform a walking gait
+        with feet on the same side in contact
+
+        self.gait and self.fsteps matrices contains information about the gait
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Starting status of the gait
+        # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
+        self.gait = np.zeros((6, 5))
+        self.gait[0:4, 0] = np.array([1, N-1, 1, N-1])
+        self.fsteps[0:4, 0] = self.gait[0:4, 0]
+
+        # Set stance and swing phases
+        # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        self.gait[0, 1:] = np.ones((4,))
+        self.gait[1, [1, 3]] = np.ones((2,))
+        self.gait[2, 1:] = np.ones((4,))
+        self.gait[3, [2, 4]] = np.ones((2,))
 
         return 0
 

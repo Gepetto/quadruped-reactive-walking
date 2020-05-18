@@ -41,7 +41,10 @@ class Joystick:
         self.vY = self.gp.leftJoystickY.value * self.VyScale
         self.vYaw = self.gp.rightJoystickX.value * self.vYawScale
 
-        self.v_ref = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
+        if self.gp.L1Button.value:
+            self.v_ref = np.array([[0.0, 0.0, - self.vYaw * 0.25, - self.vX * 5, - self.vY * 2, 0.0]]).T
+        else:
+            self.v_ref = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
 
         if self.gp.startButton.value == True:
             self.reduced = not self.reduced
@@ -67,10 +70,10 @@ class Joystick:
         if k_loop == self.k_mpc*16*5:
             self.v_ref = np.array([[0.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        """if k_loop == self.k_mpc*16*8:
+        if k_loop == self.k_mpc*16*8:
             self.v_ref = np.array([[0.6, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        if k_loop == self.k_mpc*16*11:
+        """if k_loop == self.k_mpc*16*11:
             self.v_ref = np.array([[0.9, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         if k_loop == self.k_mpc*16*12:
