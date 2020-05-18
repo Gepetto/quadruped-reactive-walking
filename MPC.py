@@ -269,7 +269,7 @@ class MPC:
         P_data[7::12] = 200  # linear velocity along y
         P_data[8::12] = 100  # linear velocity along z
         P_data[9::12] = 10  # angular velocity along x
-        P_data[10::12] = 200  # angular velocity along y
+        P_data[10::12] = 20  # angular velocity along y
         P_data[11::12] = 10  # angular velocity along z
 
         # Define weights for the force components of the optimization vector
@@ -444,6 +444,11 @@ class MPC:
         self.q_next = self.x_robot[0:6, 0:1]
         self.v_next = self.x_robot[6:12, 0:1]
 
+        """plt.figure()
+        plt.plot(self.x[self.xref.shape[0]*(self.xref.shape[1]-1)+2::12])
+        plt.plot(self.x[self.xref.shape[0]*(self.xref.shape[1]-1)+5::12])
+        plt.show(block=True)"""
+
         return 0
 
     def run(self, k, T_gait, t_stance, lC, abg, lV, lW, l_feet, xref, x0, v_ref, fsteps):
@@ -512,6 +517,8 @@ class MPC:
         # Variation of orientation in world frame using the angular speed in local frame
         self.q_w[3:5, 0] = self.q_next[3:5, 0]
         self.q_w[5, 0] += self.q_next[5, 0]
+
+        # self.check_result_mpc()
 
         return 0
 
@@ -650,5 +657,16 @@ class MPC:
         self.gait[:, 0] = fsteps[:, 0]
 
         self.gait[:index, 1:] = 1.0 - (np.isnan(fsteps[:index, 1::3]) | (fsteps[:index, 1::3] == 0.0))
+
+        return 0
+
+    def check_result_mpc(self):
+
+        self.x1_eq = self.A @ self.x0 + self.ML[0:12, (12*16+0):(12*16+12)] @ np.array([self.f_applied]).transpose() + self.g
+
+        self.x1_mpc = self.x_robot[0:12, 0:1]
+
+        #print(self.x1_eq.ravel())
+        #print(self.x1_mpc.ravel())
 
         return 0

@@ -95,9 +95,17 @@ for k in range(int(N_SIMULATION)):
                                     mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, False)
     """elif (k > 0) and (k % 320 == 20):
         if joystick.gp.R1Button.value:
-            fstep_planner.create_static()
-        elif joystick.gp.L1Button.value:
-            fstep_planner.create_walking_trot()"""
+            gait_ID += 1
+            if gait_ID == 1:
+                fstep_planner.create_bounding()
+            elif gait_ID == 2:
+                fstep_planner.create_side_walking()
+            else:
+                gait_ID == 0
+                fstep_planner.create_walking_trot()
+            fstep_planner.update_fsteps(k, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
+                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, False)
+    """
 
     # Update footsteps desired location once every k_mpc iterations of TSID
     if (k % k_mpc) == 0:
