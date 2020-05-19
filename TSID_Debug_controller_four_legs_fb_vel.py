@@ -74,7 +74,7 @@ class controller:
 
         # Coefficients of the CoM task
         self.kp_com = 300
-        self.w_com = 1000.0  #  1000.0
+        self.w_com = 10.0  #  1000.0
         offset_x_com = - 0.00  # offset along X for the reference position of the CoM
 
         # Arrays to store logs
@@ -140,6 +140,9 @@ class controller:
         self.t_swing = np.zeros((4, ))  # Total duration of current swing phase for each foot
 
         self.contacts_order = [0, 1, 2, 3]
+
+        # Parameter to enable/disable hybrid control
+        self.enable_hybrid_control = False
 
         ########################################################################
         #             Definition of the Model and TSID problem                 #
@@ -445,13 +448,14 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qmes12, vmes12, t, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied, fsteps, gait, ftps_Ids_deb):
+    def control(self, qtsid, vtsid, t, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied, fsteps, gait,
+                ftps_Ids_deb, enable_hybrid_control=False, qmes=None, vmes=None, qmpc=None, vmpc=None):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
 
         Args:
-            qmes12 (19x1 array): the position/orientation of the trunk and angular position of actuators
-            vmes12 (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators
+            qtsid (19x1 array): the position/orientation of the trunk and angular position of actuators
+            vtsid (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators
             t (float): time elapsed since the start of the simulation
             k_simu (int): number of time steps since the start of the simulation
             solo (object): Pinocchio wrapper for the quadruped
@@ -463,13 +467,38 @@ class controller:
                                  the [x, y, z]^T desired position of each foot for each phase of the gait (12 other
                                  columns). For feet currently touching the ground the desired position is where they
                                  currently are.
+            enable_hybrid_control (bool): whether hybrid control is enabled or not
+            qmes (19x1 array): the position/orientation of the trunk and angular position of actuators of the real
+                               robot (for hybrid control)
+            vmes (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators of the real
+                               robot (for hybrid control)
         """
 
         self.v_ref = v_ref
         self.f_applied = f_applied
 
+        # If hybrid control is turned on/off the CoM task needs to be turned on/off too
+        if self.enable_hybrid_control != enable_hybrid_control:
+            if enable_hybrid_control:
+                # Turn on CoM task
+                self.invdyn.addMotionTask(self.comTask, self.w_com, 1, 0.0)
+            else:
+                # Turn off CoM task
+                self.invdyn.removeTask(self.comTask, 0.0)
+
+        # Update hybrid control parameters
+        self.enable_hybrid_control = enable_hybrid_control
+        if self.enable_hybrid_control:
+            self.qmes = qmes
+            self.vmes = vmes
+            # self.sample_com.pos(qtsid[0:3, 0:1] + mpc_interface.oMl.rotation @ qmpc[0:3, 0:1])
+            self.sample_com.pos(qtsid[0:3, 0:1] + mpc_interface.oMl.rotation @ np.array([[v_ref[0, 0] * dt], [v_ref[1, 0] * dt], [0.1827682]]))
+            self.sample_com.vel(mpc_interface.oMl.rotation @ np.array([[v_ref[0, 0]], [v_ref[1, 0]], [0.0]]))  # vmpc[0:3, 0]
+            self.sample_com.acc(np.array([0.0, 0.0, 0.0]))
+            self.comTask.setReference(self.sample_com)
+
         if k_simu == 0:
-            self.qtsid = qmes12
+            self.qtsid = qtsid
             self.qtsid[:3] = np.zeros((3, 1))  # Discard x and y drift and height position
             self.qtsid[2, 0] = 0.235 - 0.01205385
 
@@ -485,24 +514,24 @@ class controller:
                 self.pos_contact[i_foot] = np.matrix([self.footsteps[0, i_foot], self.footsteps[1, i_foot], 0.0])
         else:
             """# Encoders (position of joints)
-            self.qtsid[7:] = qmes12[7:]
+            self.qtsid[7:] = qtsid[7:]
 
             # Gyroscopes (angular velocity of trunk)
-            self.vtsid[3:6] = vmes12[3:6]
+            self.vtsid[3:6] = vtsid[3:6]
 
             # IMU estimation of orientation of the trunk
-            self.qtsid[3:7] = qmes12[3:7]"""
+            self.qtsid[3:7] = qtsid[3:7]"""
 
-            """self.qtsid = qmes12.copy()
+            """self.qtsid = qtsid.copy()
             # self.qtsid[2] -= 0.015  # 0.01205385
-            self.vtsid = vmes12.copy()
+            self.vtsid = vtsid.copy()
 
             self.qtsid[2, 0] += mpc.q_noise[0]
             self.qtsid[3:7] = utils.getQuaternion(utils.quaternionToRPY(
-                qmes12[3:7, 0]) + np.vstack((np.array([mpc.q_noise[1:]]).transpose(), 0.0)))
+                qtsid[3:7, 0]) + np.vstack((np.array([mpc.q_noise[1:]]).transpose(), 0.0)))
             self.vtsid[:6, 0] += mpc.v_noise"""
 
-            self.update_state(qmes12, vmes12)
+            self.update_state(qtsid, vtsid)
 
         #####################
         # FOOTSTEPS PLANNER #
@@ -602,21 +631,27 @@ class controller:
         # Solve the inverse dynamics problem with TSID
         self.solve_HQP_problem(t)
 
+        ###########
+        # DISPLAY #
+        ###########
+
+        solo.display(self.qtsid)
+
         return self.tau
 
-    def update_state(self, qmes12, vmes12):
+    def update_state(self, qtsid, vtsid):
         """Update TSID's internal state.
 
         Currently we directly use the state of the simulator to perform the inverse dynamics
 
         Args:
-            qmes12 (19x1 array): the position/orientation of the trunk and angular position of actuators
-            vmes12 (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators
+            qtsid (19x1 array): the position/orientation of the trunk and angular position of actuators
+            vtsid (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators
         """
 
-        self.qtsid = qmes12.copy()
+        self.qtsid = qtsid.copy()
         # self.qtsid[2] -= 0.015  # 0.01205385
-        self.vtsid = vmes12.copy()
+        self.vtsid = vtsid.copy()
 
         return 0
 
@@ -890,8 +925,9 @@ class controller:
         # print(k_simu, " : ", self.fc.transpose())
         # print(self.fc.transpose())
         self.ades = self.invdyn.getAccelerations(self.sol)
-        # self.vtsid += self.ades * dt
-        # self.qtsid = pin.integrate(self.model, self.qtsid, self.vtsid * dt)
+        if self.enable_hybrid_control:
+            self.vtsid += self.ades * dt
+            self.qtsid = pin.integrate(self.model, self.qtsid, self.vtsid * dt)
 
         # Call display and log function
         # self.display(t, solo, k_simu, sequencer)
@@ -908,7 +944,10 @@ class controller:
             # Torque PD controller
             P = 3.0
             D = 0.3
-            torques12 = self.tau_ff  # + P * (self.qtsid[7:] - qmes12[7:]) + D * (self.vtsid[6:] - vmes12[6:])
+            if self.enable_hybrid_control:
+                torques12 = self.tau_ff + P * (self.qtsid[7:] - self.qmes[7:]) + D * (self.vtsid[6:] - self.vmes[6:])
+            else:
+                torques12 = self.tau_ff
 
             # Saturation to limit the maximal torque
             t_max = 2.5

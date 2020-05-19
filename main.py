@@ -43,15 +43,19 @@ enable_gepetto_viewer = False
 # and MpcSolver objects
 joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc)
 
+# Enable/Disable multiprocessing (MPC running in a parallel process)
 enable_multiprocessing = False
 mpc_wrapper = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], k_mpc, multiprocessing=enable_multiprocessing)
+
+# Enable/Disable hybrid control
+enable_hybrid_control = True
 
 ########################################################################
 #                            Gepetto viewer                            #
 ########################################################################
 
 # Initialisation of the Gepetto viewer
-solo = utils.init_viewer(False)
+solo = utils.init_viewer(True)
 
 ########################################################################
 #                              PyBullet                                #
@@ -173,11 +177,22 @@ for k in range(int(N_SIMULATION)):
     pyb_sim.vmes12[0:3, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
     pyb_sim.vmes12[3:6, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]
 
-    # Retrieve the joint torques from the current active controller
-    jointTorques = myController.control(pyb_sim.qmes12, pyb_sim.vmes12, t, k, solo,
-                                        sequencer, mpc_interface, joystick.v_ref, f_applied,
-                                        fsteps_invdyn, gait_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
+    # Initial conditions
+    if k == 0:
+        myController.qtsid = pyb_sim.qmes12.copy()
+        myController.vtsid = pyb_sim.vmes12.copy()
 
+    # Retrieve the joint torques from the current active controller
+    if enable_hybrid_control:
+        jointTorques = myController.control(myController.qtsid, myController.vtsid, t, k, solo,
+                                            sequencer, mpc_interface, joystick.v_ref, f_applied,
+                                            fsteps_invdyn, gait_invdyn, pyb_sim.ftps_Ids_deb,
+                                            enable_hybrid_control, pyb_sim.qmes12, pyb_sim.vmes12,
+                                            mpc_wrapper.mpc.q_next, mpc_wrapper.mpc.v_next).reshape((12, 1))
+    else:
+        jointTorques = myController.control(pyb_sim.qmes12, pyb_sim.vmes12, t, k, solo,
+                                            sequencer, mpc_interface, joystick.v_ref, f_applied,
+                                            fsteps_invdyn, gait_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
     # Time incrementation
     t += dt
 
@@ -196,8 +211,8 @@ for k in range(int(N_SIMULATION)):
     pyb.stepSimulation()
 
     # Call logger object to log various parameters
-    logger.call_log_functions(k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, myController,
-                              enable_multiprocessing, pyb_sim.robotId, pyb_sim.planeId, solo)
+    #logger.call_log_functions(k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, myController,
+    #                          enable_multiprocessing, pyb_sim.robotId, pyb_sim.planeId, solo)
 
     # Refresh force monitoring for PyBullet
     # myForceMonitor.display_contact_forces()
@@ -227,7 +242,7 @@ for k in range(int(N_SIMULATION)):
 
 print("END")
 
-logger.plot_graphs(enable_multiprocessing)
+#logger.plot_graphs(enable_multiprocessing)
 
 quit()
 

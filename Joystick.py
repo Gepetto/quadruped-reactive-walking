@@ -61,17 +61,17 @@ class Joystick:
 
         # Moving forwards
         if k_loop == self.k_mpc*16:
-            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         # Turning
         """if k_loop == self.k_mpc*16*13:
             self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
-        if k_loop == self.k_mpc*16*5:
+        """if k_loop == self.k_mpc*16*5:
             self.v_ref = np.array([[0.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         if k_loop == self.k_mpc*16*8:
-            self.v_ref = np.array([[0.6, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+            self.v_ref = np.array([[0.6, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
         """if k_loop == self.k_mpc*16*11:
             self.v_ref = np.array([[0.9, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
