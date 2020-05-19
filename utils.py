@@ -402,6 +402,9 @@ class pybullet_simulator:
             pyb.resetBaseVelocity(self.sphereId2, linearVelocity=[-3.0, 0.0, 2.0])
             self.flag_sphere2 = False
 
+        # Apply perturbation
+        # pyb.applyExternalForce(pyb_sim.robotId, -1, [1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)"""
+
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
                                        cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])"""

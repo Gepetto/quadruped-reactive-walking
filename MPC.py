@@ -271,6 +271,7 @@ class MPC:
         P_data[9::12] = 10  # angular velocity along x
         P_data[10::12] = 20  # angular velocity along y
         P_data[11::12] = 10  # angular velocity along z
+        P_data[11::12] = 20  # angular velocity along z
 
         # Define weights for the force components of the optimization vector
         P_row = np.hstack((P_row, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))

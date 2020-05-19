@@ -135,12 +135,6 @@ class FootstepPlanner:
             self.xref[2, 1:] = self.h_rotation_command
             self.xref[8, 1:] = v_ref[2, 0]
 
-            # Applying command to pitch and roll components
-            self.xref[3, 1:] = self.xref[3, 0].copy() + v_ref[3, 0].copy() * to
-            self.xref[4, 1:] = self.xref[4, 0].copy() + v_ref[4, 0].copy() * to
-            self.xref[9, 1:] = v_ref[3, 0].copy()
-            self.xref[10, 1:] = v_ref[4, 0].copy()
-
             self.flag_rotation_command = 1
         elif (np.abs(v_ref[2, 0]) < step) and (self.flag_rotation_command == 1):  # No command with joystick
             self.xref[8, 1:] = 0.0
@@ -150,6 +144,13 @@ class FootstepPlanner:
         elif self.flag_rotation_command == 0:  # Starting state of state machine
             self.xref[2, 1:] = h_ref
             self.xref[8, 1:] = 0.0
+
+        if self.flag_rotation_command != 0:
+            # Applying command to pitch and roll components
+            self.xref[3, 1:] = self.xref[3, 0].copy() + v_ref[3, 0].copy() * to
+            self.xref[4, 1:] = self.xref[4, 0].copy() + v_ref[4, 0].copy() * to
+            self.xref[9, 1:] = v_ref[3, 0].copy()
+            self.xref[10, 1:] = v_ref[4, 0].copy()
 
         # Current state vector of the robot
         self.x0 = self.xref[:, 0:1]

@@ -192,10 +192,6 @@ for k in range(int(N_SIMULATION)):
     pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,
                                   controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
 
-    # Apply perturbation
-    """if k >= 50 and k < 100:
-        pyb.applyExternalForce(pyb_sim.robotId, -1, [1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)"""
-
     # Compute one step of simulation
     pyb.stepSimulation()
 
