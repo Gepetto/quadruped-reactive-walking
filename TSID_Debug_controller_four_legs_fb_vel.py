@@ -60,13 +60,13 @@ class controller:
         w_posture = 1.0         # weight of the posture task
 
         # Coefficients of the contact tasks
-        kp_contact = 0.0         # proportionnal gain for the contacts
-        self.w_forceRef = 500.0  # weight of the forces regularization
-        self.w_reg_f = 500.0
+        kp_contact = 100.0         # proportionnal gain for the contacts
+        self.w_forceRef = 100.0  # weight of the forces regularization
+        self.w_reg_f = 100.0
 
         # Coefficients of the foot tracking task
         kp_foot = 1000.0               # proportionnal gain for the tracking task
-        self.w_foot = 100.0       # weight of the tracking task
+        self.w_foot = 500.0       # weight of the tracking task
 
         # Coefficients of the trunk task
         kp_trunk = np.matrix([0.0, 0.0, 0.0, 1.0, 1.0, 1.0]).T
@@ -74,7 +74,7 @@ class controller:
 
         # Coefficients of the CoM task
         self.kp_com = 300
-        self.w_com = 10.0  #  1000.0
+        self.w_com = 0.0  #  1000.0
         offset_x_com = - 0.00  # offset along X for the reference position of the CoM
 
         # Arrays to store logs
@@ -478,13 +478,13 @@ class controller:
         self.f_applied = f_applied
 
         # If hybrid control is turned on/off the CoM task needs to be turned on/off too
-        if self.enable_hybrid_control != enable_hybrid_control:
+        """if self.enable_hybrid_control != enable_hybrid_control:
             if enable_hybrid_control:
                 # Turn on CoM task
                 self.invdyn.addMotionTask(self.comTask, self.w_com, 1, 0.0)
             else:
                 # Turn off CoM task
-                self.invdyn.removeTask(self.comTask, 0.0)
+                self.invdyn.removeTask(self.comTask, 0.0)"""
 
         # Update hybrid control parameters
         self.enable_hybrid_control = enable_hybrid_control

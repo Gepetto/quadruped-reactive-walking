@@ -25,7 +25,7 @@ k_mpc = int(dt_mpc / dt)  # dt is dt_tsid, defined in the TSID controller script
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 2000 # number of time steps simulated
+N_SIMULATION = 3000 # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -82,10 +82,19 @@ for k in range(int(N_SIMULATION)):
         print("Iteration: ", k)
 
     # Retrieve data from the simulation (position/orientation/velocity of the robot)
-    pyb_sim.retrieve_pyb_data()
+    # pyb_sim.retrieve_pyb_data()
+
+    # Algorithm needs the velocity of the robot in world frame
+    if k == 0:
+        pyb_sim.retrieve_pyb_data()
+    else:
+        pyb_sim.qmes12 = myController.qtsid.copy()
+        pyb_sim.vmes12[0:3, 0:1] = mpc_interface.oMb.rotation @ myController.vtsid[0:3, 0:1]
+        pyb_sim.vmes12[3:6, 0:1] = mpc_interface.oMb.rotation @ myController.vtsid[3:6, 0:1]
+        pyb_sim.vmes12[7:, 0:1] = myController.vtsid[7:, 0:1].copy()
 
     # Check the state of the robot to trigger events and update the simulator camera
-    pyb_sim.check_pyb_env(pyb_sim.qmes12)
+    # pyb_sim.check_pyb_env(pyb_sim.qmes12)
 
     # Update the mpc_interface that makes the interface between the simulation and the MPC/TSID
     mpc_interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
@@ -204,15 +213,15 @@ for k in range(int(N_SIMULATION)):
     ######################
 
     # Set control torque for all joints
-    pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,
-                                  controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
+    # pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,
+    #                              controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
 
     # Compute one step of simulation
-    pyb.stepSimulation()
+    # pyb.stepSimulation()
 
     # Call logger object to log various parameters
-    #logger.call_log_functions(k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, myController,
-    #                          enable_multiprocessing, pyb_sim.robotId, pyb_sim.planeId, solo)
+    logger.call_log_functions(k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, myController,
+                              enable_multiprocessing, pyb_sim.robotId, pyb_sim.planeId, solo)
 
     # Refresh force monitoring for PyBullet
     # myForceMonitor.display_contact_forces()
@@ -242,7 +251,7 @@ for k in range(int(N_SIMULATION)):
 
 print("END")
 
-#logger.plot_graphs(enable_multiprocessing)
+logger.plot_graphs(enable_multiprocessing)
 
 quit()
 
