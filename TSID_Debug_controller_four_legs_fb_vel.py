@@ -62,15 +62,15 @@ class controller:
         # Coefficients of the contact tasks
         kp_contact = 100.0         # proportionnal gain for the contacts
         self.w_forceRef = 100.0  # weight of the forces regularization
-        self.w_reg_f = 100.0
+        self.w_reg_f = 1000.0
 
         # Coefficients of the foot tracking task
-        kp_foot = 1000.0               # proportionnal gain for the tracking task
+        kp_foot = 100.0               # proportionnal gain for the tracking task
         self.w_foot = 500.0       # weight of the tracking task
 
         # Coefficients of the trunk task
         kp_trunk = np.matrix([0.0, 0.0, 0.0, 1.0, 1.0, 1.0]).T
-        w_trunk = 30.0
+        w_trunk = 0.0
 
         # Coefficients of the CoM task
         self.kp_com = 300
@@ -752,14 +752,16 @@ class controller:
                 self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
 
             # If foot in stance phase
+            tmp = mpc_interface.o_feet.copy()
             if (gait[0, i_foot+1] == 1):
                 # Update the position of contacts
-                self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                tmp[2, i_foot] = 0.0
+                self.pos_foot.translation = tmp[:, i_foot]
                 self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
-                self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
-                self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
+                self.memory_contacts[:, i_foot] = tmp[0:2, i_foot]
+                self.feetGoal[i_foot].translation = tmp[:, i_foot].transpose()
                 self.contacts[i_foot].setReference(self.pos_foot)
-                self.goals[:, i_foot] = mpc_interface.o_feet[:, i_foot].transpose()
+                self.goals[:, i_foot] = tmp[:, i_foot].transpose()
 
             # If foot entered stance phase
             if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 1) and (gait[index-1, i_foot+1] == 0):

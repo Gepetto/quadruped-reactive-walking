@@ -60,20 +60,20 @@ class Joystick:
         """
 
         # Moving forwards
-        if k_loop == self.k_mpc*16:
-            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+        if k_loop == self.k_mpc*16*3:
+            self.v_ref = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         # Turning
         """if k_loop == self.k_mpc*16*13:
             self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
-        """if k_loop == self.k_mpc*16*5:
+        """if k_loop == self.k_mpc*16*6:
             self.v_ref = np.array([[0.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         if k_loop == self.k_mpc*16*8:
-            self.v_ref = np.array([[0.6, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
+            self.v_ref = np.array([[0.6, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        """if k_loop == self.k_mpc*16*11:
+        if k_loop == self.k_mpc*16*11+20*8:
             self.v_ref = np.array([[0.9, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         if k_loop == self.k_mpc*16*12:
@@ -83,13 +83,19 @@ class Joystick:
             self.v_ref = np.array([[1.2, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         if k_loop == self.k_mpc*16*15:
-            self.v_ref = np.array([[1.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
+            self.v_ref = np.array([[1.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        """if k_loop == self.k_mpc*16*16:
-            self.v_ref = np.array([[1.4, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
+        if k_loop == self.k_mpc*16*16:
+            self.v_ref = np.array([[1.4, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        """if k_loop == self.k_mpc*16*17:
-            self.v_ref = np.array([[1.5, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
+        if k_loop == self.k_mpc*16*17:
+            self.v_ref = np.array([[1.5, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+        if k_loop == self.k_mpc*16*18:
+            self.v_ref = np.array([[1.7, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+        if k_loop == self.k_mpc*16*19:
+            self.v_ref = np.array([[1.9, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
         """# Turning
         if k_loop == 4000:

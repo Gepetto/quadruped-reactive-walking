@@ -60,6 +60,14 @@ class MpcInterface:
         self.vmes12_base[0:3, 0:1] = self.oRb.transpose() @ self.vmes12_base[0:3, 0:1]
         self.vmes12_base[3:6, 0:1] = self.oRb.transpose() @ self.vmes12_base[3:6, 0:1]
 
+        """# Update Kinematics (required or automatically done by other functions?)
+        pin.forwardKinematics(solo.model, solo.data, qmes12, self.vmes12_base)
+
+        self.mean_feet_z = solo.data.oMf[self.indexes[0]].translation[2, 0]
+        for i in self.indexes[1:]:
+            self.mean_feet_z = np.min((self.mean_feet_z, solo.data.oMf[i].translation[2, 0]))
+        qmes12[2, 0] -= self.mean_feet_z"""
+
         # Update Kinematics (required or automatically done by other functions?)
         pin.forwardKinematics(solo.model, solo.data, qmes12, self.vmes12_base)
         pin.framesForwardKinematics(solo.model, solo.data, qmes12)
@@ -78,10 +86,11 @@ class MpcInterface:
         self.mean_feet_z *= 0.25"""
         for i in self.indexes[1:]:
             self.mean_feet_z = np.min((self.mean_feet_z, solo.data.oMf[i].translation[2, 0]))
+        self.mean_feet_z = 0.0
 
         # Store position, linear velocity and angular velocity in global frame
-        self.oC = solo.data.com[0]
-        self.oV = solo.data.vcom[0]
+        self.oC = np.matrix(qmes12[0:3, 0:1])  # solo.data.com[0]
+        self.oV = np.matrix(vmes12[0:3, 0:1])  # solo.data.vcom[0]
         self.oW = vmes12[3:6]
 
         # Get SE3 object from world frame to base frame

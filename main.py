@@ -14,7 +14,7 @@ import ForceMonitor
 from IPython import embed
 import os
 import MPC_Wrapper
-
+import pinocchio as pin
 ########################################################################
 #                        Parameters definition                         #
 ########################################################################
@@ -25,7 +25,7 @@ k_mpc = int(dt_mpc / dt)  # dt is dt_tsid, defined in the TSID controller script
 t = 0.0  # Time
 
 # Simulation parameters
-N_SIMULATION = 3000 # number of time steps simulated
+N_SIMULATION = 2000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -87,25 +87,60 @@ for k in range(int(N_SIMULATION)):
     # Algorithm needs the velocity of the robot in world frame
     if k == 0:
         pyb_sim.retrieve_pyb_data()
-    else:
-        pyb_sim.qmes12 = myController.qtsid.copy()
+    elif (k % k_mpc) == 0:
+        # Using TSID future state as the robot state
+        """pyb_sim.qmes12 = myController.qtsid.copy()
         pyb_sim.vmes12[0:3, 0:1] = mpc_interface.oMb.rotation @ myController.vtsid[0:3, 0:1]
         pyb_sim.vmes12[3:6, 0:1] = mpc_interface.oMb.rotation @ myController.vtsid[3:6, 0:1]
-        pyb_sim.vmes12[7:, 0:1] = myController.vtsid[7:, 0:1].copy()
+        pyb_sim.vmes12[7:, 0:1] = myController.vtsid[7:, 0:1].copy()"""
+
+        # Using MPC future state as the robot state
+        lMn = pin.SE3(pin.Quaternion(np.array([pyb.getQuaternionFromEuler(mpc_wrapper.mpc.q_next[3:6, 0])]).transpose()),
+                      mpc_wrapper.mpc.q_next[0:3, 0] - mpc_wrapper.mpc.x0[0:3, 0])
+        tmp = mpc_interface.oMl.rotation @ lMn.translation
+        pyb_sim.qmes12[0:3, 0:1] += tmp[0:3, 0:1]
+        #pyb_sim.qmes12[2, 0] = tmp[2, 0]
+        pyb_sim.qmes12[3:7, 0:1] = utils.getQuaternion(np.array([utils.rotationMatrixToEulerAngles(mpc_interface.oMl.rotation @ lMn.rotation)]).transpose())
+        pyb_sim.vmes12[0:3, 0] = mpc_interface.oMl.rotation @ mpc_wrapper.mpc.v_next[0:3, 0]
+        pyb_sim.vmes12[3:6, 0] = mpc_interface.oMl.rotation @ mpc_wrapper.mpc.v_next[3:6, 0]
+
+        if k > 0:
+            for i_foot in range(4):
+                if fstep_planner.gait[0, i_foot+1] == 1:
+                    footsteps_ideal[:, i_foot:(i_foot+1)] = mpc_interface.oMl.inverse() * ((mpc_interface.oMl * footsteps_ideal[:, i_foot:(i_foot+1)]) - tmp)
+
+        if pyb_sim.vmes12[0, 0] > 0:
+            deb = 1
 
     # Check the state of the robot to trigger events and update the simulator camera
     # pyb_sim.check_pyb_env(pyb_sim.qmes12)
 
     # Update the mpc_interface that makes the interface between the simulation and the MPC/TSID
-    mpc_interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
+    if (k % k_mpc) == 0:
+        mpc_interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
+
+    if (k % k_mpc) == 0:
+        if k == 0:
+            footsteps_ideal = mpc_interface.l_feet.copy()
+        else:
+            for i_foot in range(4):
+                if fstep_planner.gait[0, i_foot+1] == 0:
+                    # footsteps_ideal[:, i_foot] = np.array(mpc_interface.oMl.inverse() * myController.footsteps[:, i_foot])      
+                    """index = next((idx for idx, val in np.ndenumerate(fsteps_invdyn[:, 3*i_foot+1]) if ((not (val==0)) and (not np.isnan(val)))), [-1])[0]
+                    pos_tmp = np.array([fsteps_invdyn[index, (1+i_foot*3):(4+i_foot*3)]])
+                    footsteps_ideal[:, i_foot] = pos_tmp.copy()"""
+                    footsteps_ideal[:, i_foot] = (fstep_planner.fsteps[1, (1+3*i_foot):(1+3*i_foot+3)]).copy()
+    
+            mpc_interface.l_feet = footsteps_ideal.copy()
 
     # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
     if (k % k_mpc) == 0:
         joystick.update_v_ref_predefined(k)
 
     if (k == 0):
-        fstep_planner.update_fsteps(k, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
+        fstep_planner.update_fsteps(k, footsteps_ideal.copy(), np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
                                     mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, False)
+
     """elif (k > 0) and (k % 320 == 20):
         if joystick.gp.R1Button.value:
             gait_ID += 1
@@ -121,11 +156,26 @@ for k in range(int(N_SIMULATION)):
     """
 
     # Update footsteps desired location once every k_mpc iterations of TSID
+    """for i_foot in range(4):
+        if fstep_planner.fsteps
+    mpc_interface.l_feet"""
+
     if (k % k_mpc) == 0:
         fsteps_invdyn = fstep_planner.fsteps.copy()
         gait_invdyn = fstep_planner.gait.copy()
         fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
                                     mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, joystick.reduced)
+
+    if (k % k_mpc) == 0:
+        if k > 0:
+            for i_foot in range(4):
+                if fstep_planner.gait[0, i_foot+1] == 0:
+                    # footsteps_ideal[:, i_foot] = np.array(mpc_interface.oMl.inverse() * myController.footsteps[:, i_foot])      
+                    """index = next((idx for idx, val in np.ndenumerate(fsteps_invdyn[:, 3*i_foot+1]) if ((not (val==0)) and (not np.isnan(val)))), [-1])[0]
+                    pos_tmp = np.array([fsteps_invdyn[index, (1+i_foot*3):(4+i_foot*3)]])
+                    footsteps_ideal[:, i_foot] = pos_tmp.copy()"""
+                    footsteps_ideal[:, i_foot] = (fstep_planner.fsteps[1, (1+3*i_foot):(1+3*i_foot+3)]).copy()
+            mpc_interface.l_feet = footsteps_ideal.copy()
 
     #######
     # MPC #
@@ -150,11 +200,21 @@ for k in range(int(N_SIMULATION)):
 
         # Get the reference trajectory over the prediction horizon
         fstep_planner.getRefStates((k/k_mpc), sequencer.T_gait, mpc_interface.lC, mpc_interface.abg,
-                                   mpc_interface.lV, mpc_interface.lW, joystick.v_ref, h_ref=0.1827682)
+                                   mpc_interface.lV, mpc_interface.lW, joystick.v_ref, h_ref=0.2027682)
+
+
+        if k > 0:
+            if np.abs(mpc_wrapper.mpc.x_robot[7, 0] - mpc_interface.lV[1, 0]) > 0.00001:
+                debug = 1
+
 
         # Output of the MPC
         f_applied = mpc_wrapper.get_latest_result(k)
 
+        """if k > 0:
+            print(mpc_wrapper.mpc.x_robot[0:6, 0] - fstep_planner.x0[0:6].ravel())
+            print(mpc_wrapper.mpc.x_robot[6:12, 0] - fstep_planner.x0[6:12].ravel())
+            print("###")"""
         # Run the MPC to get the reference forces and the next predicted state
         # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
         mpc_wrapper.run_MPC(dt_mpc, sequencer.S.shape[0], k, sequencer.T_gait,

@@ -44,7 +44,7 @@ class MPC:
         self.x = np.zeros((12 * self.n_steps * 2,))
 
         # Initial state vector of the robot (x, y, z, roll, pitch, yaw)
-        self.q = np.array([[0.0, 0.0, 0.1827682, 0.0, 0.0, 0.0]]).transpose()
+        self.q = np.array([[0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0]]).transpose()
 
         # State vector of the trunk in the world frame
         self.q_w = self.q.copy()
@@ -259,28 +259,53 @@ class MPC:
         P_data = 0.0 * np.ones((n_x * self.n_steps,))
 
         # Hand-tuning of parameters if you want to give more weight to specific components
-        P_data[0::12] = 10  # position along x
-        P_data[1::12] = 10  # position along y
-        P_data[2::12] = 250  # position along z
-        P_data[3::12] = 250  # roll
-        P_data[4::12] = 1000  # pitch
-        P_data[5::12] = 10  # yaw
-        P_data[6::12] = 200  # linear velocity along x
-        P_data[7::12] = 200  # linear velocity along y
-        P_data[8::12] = 10  # linear velocity along z
+        """P_data[0::12] = 50**2/np.sqrt(2)  # position along x
+        P_data[1::12] = 2**2/np.sqrt(2)  # position along y
+        P_data[2::12] = 25  # position along z
+        P_data[3::12] = 75  # roll
+        P_data[4::12] = 75  # pitch
+        P_data[5::12] = 75**2/np.sqrt(2)  # yaw
+        P_data[6::12] = 50  # linear velocity along x
+        P_data[7::12] = 50  # linear velocity along y
+        P_data[8::12] = 2*np.sqrt(25)  # linear velocity along z
+        P_data[9::12] = 2*np.sqrt(75)  # angular velocity along x
+        P_data[10::12] = 2*np.sqrt(75)  # angular velocity along y
+        P_data[11::12] = 75  # angular velocity along z
+        """
+        """P_data[0::12] = P_data[6]**2/np.sqrt(2)  # position along x
+        P_data[1::12] = P_data[7]**2/np.sqrt(2)  # position along y
+        P_data[2::12] = P_data[8]**2/np.sqrt(2)  # position along z
+        P_data[3::12] = P_data[9]**2/np.sqrt(2)  # roll
+        P_data[4::12] = P_data[10]**2/np.sqrt(2)  # pitch
+        P_data[5::12] = P_data[11]**2/np.sqrt(2)  # yaw
+        P_data[6::12] = 100  # linear velocity along x
+        P_data[7::12] = 100  # linear velocity along y
+        P_data[8::12] = 100 # linear velocity along z
+        P_data[9::12] = 50  # angular velocity along x
+        P_data[10::12] = 50  # angular velocity along y
+        P_data[11::12] = 50 # angular velocity along z
+        """
+        P_data[0::12] = 2000  # position along x
+        P_data[1::12] = 2000  # position along y
+        P_data[2::12] = 2000  # position along z
+        P_data[3::12] = 200  # roll
+        P_data[4::12] = 200  # pitch
+        P_data[5::12] = 200  # yaw
+        P_data[6::12] = 50  # linear velocity along x
+        P_data[7::12] = 50  # linear velocity along y
+        P_data[8::12] = 0  # linear velocity along z
         P_data[9::12] = 10  # angular velocity along x
         P_data[10::12] = 10  # angular velocity along y
         P_data[11::12] = 10  # angular velocity along z
-        P_data[11::12] = 200  # angular velocity along z
 
         # Define weights for the force components of the optimization vector
         P_row = np.hstack((P_row, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
         P_col = np.hstack((P_col, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
         P_data = np.hstack((P_data, 0.0*np.ones((n_x * self.n_steps * 2 - n_x * self.n_steps,))))
 
-        P_data[(n_x * self.n_steps)::3] = 5e-3  # force along x
-        P_data[(n_x * self.n_steps + 1)::3] = 5e-3  # force along y
-        P_data[(n_x * self.n_steps + 2)::3] = 5e-3  # force along z
+        P_data[(n_x * self.n_steps)::3] = 0.0#e-7  # force along x
+        P_data[(n_x * self.n_steps + 1)::3] = 0.0#e-7  # force along y
+        P_data[(n_x * self.n_steps + 2)::3] = 0.0#e-7  # force along z
 
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(
@@ -408,6 +433,10 @@ class MPC:
 
         # Initial guess (current state + guess for forces) to warm start the solver
         initx = np.hstack((np.zeros((12 * self.n_steps,)), np.roll(f_temp, -12)))"""
+        warmx = np.roll(self.x[0:(self.xref.shape[0]*(self.xref.shape[1]-1))], -12).copy()
+        warmx[-12:] = 0
+        warmf = np.roll(self.x[(self.xref.shape[0]*(self.xref.shape[1]-1)):], -12).copy()
+        initx = np.hstack((warmx, warmf))
 
         # Copy the "equality" part of NK on the other side of the constaint
         # since NK_inf <= A X <= NK
@@ -419,9 +448,14 @@ class MPC:
             # self.prob.warm_start(x=initx)
         else:  # Code to update the QP problem without creating it again
             self.prob.update(Ax=self.ML.data, l=self.NK_inf, u=self.NK.ravel())
+            self.prob.warm_start(x=initx)
+
+        """if k == 0:
+            self.prob.update_settings(check_termination=200)"""
 
         # Run the solver to solve the QP problem
-        self.x = self.prob.solve().x
+        self.sol = self.prob.solve()
+        self.x = self.sol.x
 
         return 0
 
@@ -444,11 +478,12 @@ class MPC:
         # Predicted position and velocity of the robot during the next time step
         self.q_next = self.x_robot[0:6, 0:1]
         self.v_next = self.x_robot[6:12, 0:1]
-
-        """plt.figure()
-        plt.plot(self.x[self.xref.shape[0]*(self.xref.shape[1]-1)+2::12])
-        plt.plot(self.x[self.xref.shape[0]*(self.xref.shape[1]-1)+5::12])
-        plt.show(block=True)"""
+        
+        #plt.figure()
+        #plt.plot(self.x[6:self.xref.shape[0]*(self.xref.shape[1]-1)+6:12])
+        """plt.plot(self.x[self.xref.shape[0]*(self.xref.shape[1]-1)+2::12])
+        plt.plot(self.x[self.xref.shape[0]*(self.xref.shape[1]-1)+5::12])"""
+        #plt.show(block=True)
 
         return 0
 

@@ -345,8 +345,8 @@ class Logger:
             self.forces_mpc[3*f:(3*(f+1)), k:(k+1)] = (mpc_interface.oMl.rotation @ tsid_controller.f_applied[3*f:3*(f+1)]).T
 
         # Contact forces desired by TSID (world frame)
-        for i, j in enumerate(tsid_controller.contacts_order):
-            self.forces_tsid[(3*j):(3*(j+1)), k:(k+1)] = tsid_controller.fc[(3*i):(3*(i+1))]
+        #for i, j in enumerate(tsid_controller.contacts_order):
+        #    self.forces_tsid[(3*j):(3*(j+1)), k:(k+1)] = tsid_controller.fc[(3*i):(3*(i+1))]
 
         # Contact forces applied in PyBullet
         contactPoints_FL = pyb.getContactPoints(robotId, planeId, linkIndexA=3)  # Front left  foot
@@ -464,6 +464,16 @@ class Logger:
         # Sum components of the contact forces
         self.cost_components[12, k:(k+1)] = np.sum(cost[(12*mpc_wrapper.mpc.n_steps):])
 
+        """if k % 50 == 0:
+            print(np.sum(np.power(mpc_wrapper.mpc.x[6:(12*mpc_wrapper.mpc.n_steps):12], 2)))
+
+        absc = np.array([i for i in range(16)])
+        if k == 0:
+            plt.figure()
+        if k % 100 == 0:
+            plt.plot(absc+k, np.power(mpc_wrapper.mpc.x[6:(12*mpc_wrapper.mpc.n_steps):12], 2))
+        if k == 5999 == 0:
+            plt.show(block=True)"""
         return 0
 
     def plot_cost_function(self):
@@ -504,15 +514,27 @@ class Logger:
         t_pred = np.array([(k+1)*self.dt_mpc for k in range(np.int(self.T/self.dt_mpc))])
 
         #index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
-        index = [1, 3, 5, 2, 4, 6]
+        index = [1, 4, 7, 2, 5, 8, 3, 6, 9]
 
-        lgd = ["X", "Y", "Z", "Roll", "Pitch", "Yaw"]
+        lgd = ["Position Z", "Position Roll", "Position Pitch", "Linear vel X", "Linear vel Y", "Linear vel Z",
+                   "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
         plt.figure()
-        for i in range(6):
-            plt.subplot(3, 2, index[i])
+        for i, o in enumerate([2, 3, 4, 6, 7, 8, 9, 10, 11]):
+            plt.subplot(3, 3, index[i])
             for j in range(self.pred_trajectories.shape[2]):
-                if (j % 6) == 0:
-                    h, = plt.plot(t_pred + j*self.dt_mpc*self.k_mpc, self.pred_trajectories[i, :, j], linewidth=2, marker='x')
+                if (j*self.k_mpc > self.k_max_loop):
+                    break
+                #if (j % 1) == 0:
+                h, = plt.plot(t_pred[0:2] + j*self.dt_mpc, self.pred_trajectories[o, 0:2, j], linewidth=2, marker='x')
+            #h, = plt.plot(self.t_range[::20], self.state_ref[i, ::20], "r", linewidth=3, marker='*')
+            if i == 0:
+                plt.plot(self.t_range[::20], self.lC[2, ::20], "r", linewidth=2, marker='o', linestyle="--")
+            elif i <= 2:
+                plt.plot(self.t_range[::20], self.RPY[i-1, ::20], "r", linewidth=2, marker='o', linestyle="--")
+            elif i <= 5:
+                plt.plot(self.t_range[::20], self.lV[i-3, ::20], "r", linewidth=2, marker='o', linestyle="--")
+            else:
+                plt.plot(self.t_range[::20], self.lW[i-6, ::20], "r", linewidth=2, marker='o', linestyle="--")
             plt.ylabel(lgd[i])
         plt.suptitle("Predicted trajectories (local frame)")
 
@@ -581,7 +603,7 @@ class Logger:
         self.log_forces(k, mpc_interface, tsid_controller, robotId, planeId)
 
         # Store information about torques
-        self.log_torques(k, tsid_controller)
+        #self.log_torques(k, tsid_controller)
 
         # Store information about the cost function
         if not enable_multiprocessing:
@@ -592,7 +614,7 @@ class Logger:
             self.log_predicted_trajectories(k, mpc_wrapper)
 
         # Store information about one of the foot tracking task
-        self.log_tracking_foot(k, tsid_controller, solo)
+        #self.log_tracking_foot(k, tsid_controller, solo)
 
         return 0
 
