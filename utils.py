@@ -135,16 +135,16 @@ def init_viewer(enable_viewer):
     return solo
 
 
-def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc):
+def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods):
 
     # Create Joystick object
     joystick = Joystick.Joystick(k_mpc)
 
     # Create contact sequencer object
-    sequencer = ContactSequencer.ContactSequencer(dt_mpc)
+    sequencer = ContactSequencer.ContactSequencer(dt_mpc, n_periods)
 
     # Create footstep planner object
-    fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, sequencer.S.shape[0])
+    fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, sequencer.S.shape[0], n_periods)
 
     # Create trajectory generator object
     ftraj_gen = None  # FootTrajectoryGenerator.FootTrajectoryGenerator(dt_mpc)
@@ -160,7 +160,7 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc):
     """
 
     # Create logger object
-    logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc)
+    logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc, n_periods)
 
     # Create MpcInterface object
     mpc_interface = MpcInterface.MpcInterface()

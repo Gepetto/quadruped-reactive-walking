@@ -28,7 +28,7 @@ class MPC_Wrapper:
             self.newResult = Value('b', False)
             self.dataIn = Array('d', [0.0] * 329)
             self.dataOut = Array('d', [0] * 12)
-            self.fsteps_future = np.zeros((6, 13))
+            self.fsteps_future = np.zeros((20, 13))
         else:
             # Create the new version of the MPC solver object
             self.mpc = MPC.MPC(dt, n_steps)
@@ -103,6 +103,8 @@ class MPC_Wrapper:
         print(joystick.v_ref.ravel())
         print(fstep_planner.fsteps)"""
 
+        if joystick.v_ref[0, 0] > 0.05:
+            deb = 1
         self.mpc.run((k/self.k_mpc), T_gait, t_stance,
                      mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
                      mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
@@ -183,7 +185,7 @@ class MPC_Wrapper:
                 xref = np.reshape(xref, (12, nsteps+1))
                 x0 = np.reshape(x0, (12, 1))
                 v_ref = np.reshape(v_ref, (6, 1))
-                fsteps = np.reshape(fsteps, (6, 13))
+                fsteps = np.reshape(fsteps, (20, 13))
 
                 """print(dt, nsteps, k, T_gait, t_stance)
                 print(lC.ravel())
@@ -248,7 +250,7 @@ class MPC_Wrapper:
         # print("Decompressing dataIn")
 
         # Sizes of the different variables that are stored in the C-type array
-        sizes = [0, 1, 1, 1, 1, 1, 3, 3, 3, 3, 12, (np.int(dataIn[1])+1) * 12, 12, 6, 13*6]
+        sizes = [0, 1, 1, 1, 1, 1, 3, 3, 3, 3, 12, (np.int(dataIn[1])+1) * 12, 12, 6, 13*20]
         csizes = np.cumsum(sizes)
 
         # Return decompressed variables in a list

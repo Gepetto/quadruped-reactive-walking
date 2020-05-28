@@ -33,7 +33,7 @@ class controller:
             N_similation (int): maximum number of Inverse Dynamics iterations for the simulation
     """
 
-    def __init__(self, N_simulation, k_mpc):
+    def __init__(self, N_simulation, k_mpc, n_periods):
 
         self.q_ref = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.0, 1.0,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
@@ -135,6 +135,7 @@ class controller:
         self.vu_m = np.zeros((6, 1))
         self.t_stance = 0.16
         self.T_gait = 0.32
+        self.n_periods = n_periods
         self.t_remaining = np.zeros((1, 4))
         self.h_ref = 0.235 - 0.01205385
         self.t_swing = np.zeros((4, ))  # Total duration of current swing phase for each foot
@@ -537,7 +538,7 @@ class controller:
         # FOOTSTEPS PLANNER #
         #####################
 
-        looping = int(self.T_gait/dt)  # Number of TSID iterations in one gait cycle
+        looping = int(self.n_periods*self.T_gait/dt)  # Number of TSID iterations in one gait cycle
         k_loop = (k_simu - 0) % looping  # Current number of iterations since the start of the current gait cycle
 
         # Update the desired position of footholds thanks to the footstep planner

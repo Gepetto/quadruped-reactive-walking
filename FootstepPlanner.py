@@ -14,7 +14,7 @@ class FootstepPlanner:
         n_steps (int): Number of time steps in one gait cycle
     """
 
-    def __init__(self, dt, n_steps):
+    def __init__(self, dt, n_steps, n_periods):
 
         # Feedback gain for the feedback term of the planner
         self.k_feedback = 0.03
@@ -55,11 +55,12 @@ class FootstepPlanner:
         self.xref = np.zeros((12, 1 + self.n_steps))
 
         # Gait duration
+        self.n_periods = n_periods
         self.T_gait = 0.32
 
         # Gait matrix
-        self.gait = np.zeros((6, 5))
-        self.fsteps = np.full((6, 13), np.nan)
+        self.gait = np.zeros((20, 5))
+        self.fsteps = np.full((self.gait.shape[0], 13), np.nan)
 
         self.flag_rotation_command = int(0)
         self.h_rotation_command = 0.20
@@ -212,17 +213,18 @@ class FootstepPlanner:
 
         # Starting status of the gait
         # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
-        self.gait = np.zeros((6, 5))
-        self.gait[0:4, 0] = np.array([1, N-1, 1, N-1])
-        self.fsteps[0:4, 0] = self.gait[0:4, 0]
+        self.gait = np.zeros((self.fsteps.shape[0], 5))
+        for i in range(self.n_periods):
+            self.gait[(4*i):(4*(i+1)), 0] = np.array([1, N-1, 1, N-1])
+            self.fsteps[(4*i):(4*(i+1)), 0] = self.gait[(4*i):(4*(i+1)), 0]
 
-        # Set stance and swing phases
-        # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
-        # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
-        self.gait[0, 1:] = np.ones((4,))
-        self.gait[1, [1, 4]] = np.ones((2,))
-        self.gait[2, 1:] = np.ones((4,))
-        self.gait[3, [2, 3]] = np.ones((2,))
+            # Set stance and swing phases
+            # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+            # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+            self.gait[4*i+0, 1:] = np.ones((4,))
+            self.gait[4*i+1, [1, 4]] = np.ones((2,))
+            self.gait[4*i+2, 1:] = np.ones((4,))
+            self.gait[4*i+3, [2, 3]] = np.ones((2,))
 
         return 0
 
@@ -441,7 +443,7 @@ class FootstepPlanner:
         self.compute_footsteps(l_feet, v_cur, v_ref, h, reduced)
 
         # Display spheres for footsteps visualization
-        i = 0
+        """i = 0
         up = np.isnan(self.gait[:, 1:])
         while (self.gait[i, 0] != 0):
             for j in range(4):
@@ -450,6 +452,6 @@ class FootstepPlanner:
                     pyb.resetBasePositionAndOrientation(ftps_Ids[j, i],
                                                         posObj=pos_tmp,
                                                         ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
-            i += 1
+            i += 1"""
         
         return 0

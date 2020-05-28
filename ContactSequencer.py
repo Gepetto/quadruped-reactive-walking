@@ -7,7 +7,7 @@ class ContactSequencer:
     """Create and update the contact sequence
     """
 
-    def __init__(self, dt):
+    def __init__(self, dt, n_periods):
 
         # Time step
         self.dt = dt
@@ -16,13 +16,14 @@ class ContactSequencer:
         self.t_stance = 0.16
 
         # Gait duration
+        self.n_periods = n_periods
         self.T_gait = 0.32
 
         # Order of feet is FL, FR, HL, HR
         self.phases = np.array([[0, 0.5, 0.5, 0]])
 
         # Contact sequence
-        self.S = np.zeros((np.int(self.T_gait/self.dt), 4), dtype=np.int)
+        self.S = np.zeros((np.int(self.n_periods*self.T_gait/self.dt), 4), dtype=np.int)
 
         # Create contact sequence
         self.createSequence()
@@ -39,8 +40,8 @@ class ContactSequencer:
         phases -- phase offset for each foot compared to the default sequence
         """
 
-        t_seq = np.linspace(t, t+self.T_gait-self.dt, int(np.round(self.T_gait/self.dt))).reshape((-1, 1))
-        phases_seq = (np.hstack((t_seq, t_seq, t_seq, t_seq)) - self.phases * np.float(self.T_gait)) * 2 * np.pi / self.T_gait
+        t_seq = np.linspace(t, t+self.n_periods*self.T_gait-self.dt, int(np.round(self.n_periods*self.T_gait/self.dt))).reshape((-1, 1))
+        phases_seq = (np.hstack((t_seq, t_seq, t_seq, t_seq)) - self.phases * np.float(self.n_periods*self.T_gait)) * 2 * np.pi / (self.n_periods*self.T_gait)
         self.S = (np.sin(phases_seq) >= 0).astype(int)
 
         # To have a four feet stance phase at the start

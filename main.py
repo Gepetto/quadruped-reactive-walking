@@ -23,9 +23,10 @@ import pinocchio as pin
 dt_mpc = 0.02
 k_mpc = int(dt_mpc / dt)  # dt is dt_tsid, defined in the TSID controller script
 t = 0.0  # Time
+n_periods = 1  # Number of periods in the prediction horizon
 
 # Simulation parameters
-N_SIMULATION = 2000  # number of time steps simulated
+N_SIMULATION = 5000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -41,7 +42,7 @@ enable_gepetto_viewer = False
 
 # Create Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator
 # and MpcSolver objects
-joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc)
+joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc, n_periods)
 
 # Enable/Disable multiprocessing (MPC running in a parallel process)
 enable_multiprocessing = False
@@ -72,7 +73,7 @@ myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 ########################################################################
 
 # Define the default controller as well as emergency and safety controller
-myController = controller(int(N_SIMULATION), k_mpc)
+myController = controller(int(N_SIMULATION), k_mpc, n_periods)
 mySafetyController = Safety_controller.controller_12dof()
 myEmergencyStop = EmergencyStop_controller.controller_12dof()
 
@@ -87,6 +88,7 @@ for k in range(int(N_SIMULATION)):
     # Algorithm needs the velocity of the robot in world frame
     if k == 0:
         pyb_sim.retrieve_pyb_data()
+        pyb_sim.qmes12[2, 0] = 0.2027682
     elif (k % k_mpc) == 0:
         # Using TSID future state as the robot state
         """pyb_sim.qmes12 = myController.qtsid.copy()
@@ -98,13 +100,13 @@ for k in range(int(N_SIMULATION)):
         lMn = pin.SE3(pin.Quaternion(np.array([pyb.getQuaternionFromEuler(mpc_wrapper.mpc.q_next[3:6, 0])]).transpose()),
                       mpc_wrapper.mpc.q_next[0:3, 0] - mpc_wrapper.mpc.x0[0:3, 0])
         tmp = mpc_interface.oMl.rotation @ lMn.translation
-        pyb_sim.qmes12[0:3, 0:1] += tmp[0:3, 0:1]
+        pyb_sim.qmes12[0:3, 0:1] = mpc_interface.oMl * lMn.translation # tmp[0:3, 0:1]
         #pyb_sim.qmes12[2, 0] = tmp[2, 0]
         pyb_sim.qmes12[3:7, 0:1] = utils.getQuaternion(np.array([utils.rotationMatrixToEulerAngles(mpc_interface.oMl.rotation @ lMn.rotation)]).transpose())
         pyb_sim.vmes12[0:3, 0] = mpc_interface.oMl.rotation @ mpc_wrapper.mpc.v_next[0:3, 0]
         pyb_sim.vmes12[3:6, 0] = mpc_interface.oMl.rotation @ mpc_wrapper.mpc.v_next[3:6, 0]
 
-        if k > 0:
+        if False: #k > 0:
             for i_foot in range(4):
                 if fstep_planner.gait[0, i_foot+1] == 1:
                     footsteps_ideal[:, i_foot:(i_foot+1)] = mpc_interface.oMl.inverse() * ((mpc_interface.oMl * footsteps_ideal[:, i_foot:(i_foot+1)]) - tmp)
@@ -116,13 +118,26 @@ for k in range(int(N_SIMULATION)):
     # pyb_sim.check_pyb_env(pyb_sim.qmes12)
 
     # Update the mpc_interface that makes the interface between the simulation and the MPC/TSID
+    #pyb_sim.vmes12[0, 0] = 0.1
     if (k % k_mpc) == 0:
-        mpc_interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
+        if k == 0:
+            mpc_interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
+
+        if k > 0:
+            # Get position, linear velocity and angular velocity in local frame
+            mpc_interface.lC[:, 0] = np.array([[0.0, 0.0, mpc_wrapper.mpc.q_next[2, 0]]]).transpose()
+            tmp_RPY = pin.rpy.matrixToRpy(lMn.rotation)
+            tmp_lMn = pin.SE3(pin.utils.rotate('z', tmp_RPY[2, 0]),np.array([0.0, 0.0, 0.0]))
+            mpc_interface.abg[0:2] = tmp_RPY[0:2]
+            mpc_interface.abg[2] = 0.0
+            mpc_interface.lV[:, 0:1] = (tmp_lMn.rotation.transpose() @ mpc_wrapper.mpc.v_next[0:3, 0]).transpose()
+            mpc_interface.lW[:, 0:1] = (tmp_lMn.rotation.transpose() @ mpc_wrapper.mpc.v_next[3:6, 0]).transpose()
 
     if (k % k_mpc) == 0:
         if k == 0:
             footsteps_ideal = mpc_interface.l_feet.copy()
-        else:
+            footsteps_ideal[2, :] = 0.0
+        elif False:
             for i_foot in range(4):
                 if fstep_planner.gait[0, i_foot+1] == 0:
                     # footsteps_ideal[:, i_foot] = np.array(mpc_interface.oMl.inverse() * myController.footsteps[:, i_foot])      
@@ -132,6 +147,18 @@ for k in range(int(N_SIMULATION)):
                     footsteps_ideal[:, i_foot] = (fstep_planner.fsteps[1, (1+3*i_foot):(1+3*i_foot+3)]).copy()
     
             mpc_interface.l_feet = footsteps_ideal.copy()
+
+    if (k % k_mpc) == 0:
+        if k > 0:
+            for i_foot in range(4):
+                tmp_tr = mpc_wrapper.mpc.q_next[0:3, 0] - mpc_wrapper.mpc.x0[0:3, 0]
+                tmp_tr[2] = 0.0
+                tmp_lMn = pin.SE3(pin.utils.rotate('z', tmp_RPY[2, 0]), tmp_tr)
+                tmp = tmp_lMn.inverse() * footsteps_ideal[:, i_foot]
+                tmp[2, 0] = 0.0
+                footsteps_ideal[:, i_foot:(i_foot+1)] = tmp.copy()
+        footsteps_ideal[2, :] = 0.0
+        mpc_interface.l_feet = footsteps_ideal.copy()
 
     # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
     if (k % k_mpc) == 0:
@@ -176,6 +203,19 @@ for k in range(int(N_SIMULATION)):
                     footsteps_ideal[:, i_foot] = pos_tmp.copy()"""
                     footsteps_ideal[:, i_foot] = (fstep_planner.fsteps[1, (1+3*i_foot):(1+3*i_foot+3)]).copy()
             mpc_interface.l_feet = footsteps_ideal.copy()
+
+    if joystick.v_ref[0, 0] > 0.01:
+        deb = 1
+
+    """if (k % k_mpc) == 0:
+        mpc_interface.l_feet = footsteps_ideal.copy()
+        ftp_flattened = footsteps_ideal.ravel(order='F')
+        i_foot = 0
+        while (fstep_planner.fsteps[i_foot, 0] != 0):
+            fstep_planner.fsteps[i_foot, np.logical_not(np.isnan(fstep_planner.fsteps[i_foot, :]))] = np.hstack((np.array(fstep_planner.fsteps[i_foot, 0]),ftp_flattened[np.logical_not(np.isnan(fstep_planner.fsteps[i_foot, 1:]))]))
+            i_foot += 1"""
+    
+
 
     #######
     # MPC #
@@ -242,8 +282,9 @@ for k in range(int(N_SIMULATION)):
     # Get torques with inverse dynamics #
     #####################################
 
+    myController.f_applied = f_applied
     # TSID needs the velocity of the robot in base frame
-    pyb_sim.vmes12[0:3, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
+    """pyb_sim.vmes12[0:3, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
     pyb_sim.vmes12[3:6, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]
 
     # Initial conditions
@@ -261,7 +302,7 @@ for k in range(int(N_SIMULATION)):
     else:
         jointTorques = myController.control(pyb_sim.qmes12, pyb_sim.vmes12, t, k, solo,
                                             sequencer, mpc_interface, joystick.v_ref, f_applied,
-                                            fsteps_invdyn, gait_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
+                                            fsteps_invdyn, gait_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))"""
     # Time incrementation
     t += dt
 

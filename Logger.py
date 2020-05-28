@@ -8,7 +8,7 @@ class Logger:
     """Joystick-like controller that outputs the reference velocity in local frame
     """
 
-    def __init__(self, k_max_loop, dt, dt_mpc, k_mpc):
+    def __init__(self, k_max_loop, dt, dt_mpc, k_mpc, n_periods):
 
         # Max number of iterations of the main loop
         self.k_max_loop = k_max_loop
@@ -76,9 +76,10 @@ class Logger:
         self.cost_components = np.zeros((13, k_max_loop))
 
         # Store information about the predicted evolution of the optimization vector components
+        self.n_periods = n_periods
         T = 0.32
         self.T = T
-        self.pred_trajectories = np.zeros((12, int(T/dt_mpc), int(k_max_loop/k_mpc)))
+        self.pred_trajectories = np.zeros((12, int(self.n_periods*T/dt_mpc), int(k_max_loop/k_mpc)))
 
         # Store information about one of the tracking task
         self.pos = np.zeros((12, k_max_loop))
@@ -193,7 +194,7 @@ class Logger:
         """ Store information about the state of the robot
         """
 
-        self.RPY[:, k:(k+1)] = mpc_interface.RPY[:, 0]  # roll, pitch, yaw of the base in world frame
+        self.RPY[:, k:(k+1)] = mpc_interface.abg[:, 0:1]  # roll, pitch, yaw of the base in world frame
         self.oC[:, k:(k+1)] = mpc_interface.oC[:, 0]  #  position of the CoM in world frame
         self.oV[:, k:(k+1)] = mpc_interface.oV[:, 0]  #  linear velocity of the CoM in world frame
         self.oW[:, k] = mpc_interface.oW[:, 0]  # angular velocity of the CoM in world frame
@@ -342,7 +343,7 @@ class Logger:
 
         # Contact forces desired by MPC (transformed into world frame)
         for f in range(4):
-            self.forces_mpc[3*f:(3*(f+1)), k:(k+1)] = (mpc_interface.oMl.rotation @ tsid_controller.f_applied[3*f:3*(f+1)]).T
+            self.forces_mpc[3*f:(3*(f+1)), k] = tsid_controller.f_applied[3*f:3*(f+1)]
 
         # Contact forces desired by TSID (world frame)
         #for i, j in enumerate(tsid_controller.contacts_order):
@@ -398,26 +399,29 @@ class Logger:
             f_colors_mpc = ["b", "purple"]
             f_colors_tsid = ["r", "orange"]
             for g, f in enumerate([0, 3]):
-                h2, = plt.plot(self.t_range, self.forces_mpc[3*f+i, :], f_colors_mpc[g], linewidth=2)
+                if g == 0:
+                    h1, = plt.plot(self.t_range, self.forces_mpc[3*f+i, :], f_colors_mpc[g], linewidth=2)
+                else:
+                    h2, = plt.plot(self.t_range, self.forces_mpc[3*f+i, :], f_colors_mpc[g], linewidth=2)
                 #h2, = plt.plot(self.t_range, self.forces_tsid[3*f+i, :], f_colors_tsid[g], linewidth=2)
                 #h3, = plt.plot(self.t_range, self.forces_pyb[3*f+i, :], "darkgreen", linewidth=2)
-            h1 = h2
+            """h1 = h2
             h3 = h2
-            h4 = h2
+            h4 = h2"""
             if i == 2:
                 tmp = self.forces_pyb[2, :]
                 for f in range(1, 4):
                     tmp += self.forces_pyb[3*f+2, :]
                 #h4, = plt.plot(self.t_range, tmp, "rebeccapurple", linewidth=2, linestyle="--")
-                plt.legend([h1, h2, h3, h4], ["MPC", "TSID", "PyB", "Sum 4 feet"])
-                plt.ylim([-1.0, 17.5])
+                plt.legend([h1, h2], ["Font Left", "Hind Right"])
+                plt.ylim([-1.0, 18.5])
             else:
                 plt.ylim([-3.0, 5.0])
-                plt.legend([h1, h2, h3], ["MPC", "TSID", "PyB"])
+                plt.legend([h1, h2], ["Font Left", "Hind Right"])
             plt.xlabel("Time [s]")
             plt.ylabel(ylabels[i])
 
-        plt.suptitle("MPC, TSID and PyBullet contact forces (world frame)")     
+        plt.suptitle("MPC contact forces (local frame)")     
 
         return 0
 
@@ -511,7 +515,7 @@ class Logger:
         """ Plot information about the predicted evolution of the optimization vector components
         """
 
-        t_pred = np.array([(k+1)*self.dt_mpc for k in range(np.int(self.T/self.dt_mpc))])
+        t_pred = np.array([(k+1)*self.dt_mpc for k in range(np.int(self.n_periods*self.T/self.dt_mpc))])
 
         #index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
         index = [1, 4, 7, 2, 5, 8, 3, 6, 9]
@@ -521,20 +525,20 @@ class Logger:
         plt.figure()
         for i, o in enumerate([2, 3, 4, 6, 7, 8, 9, 10, 11]):
             plt.subplot(3, 3, index[i])
-            for j in range(self.pred_trajectories.shape[2]):
+            """for j in range(self.pred_trajectories.shape[2]):
                 if (j*self.k_mpc > self.k_max_loop):
                     break
                 #if (j % 1) == 0:
-                h, = plt.plot(t_pred[0:2] + j*self.dt_mpc, self.pred_trajectories[o, 0:2, j], linewidth=2, marker='x')
+                h, = plt.plot(t_pred[0:2] + j*self.dt_mpc, self.pred_trajectories[o, 0:2, j], linewidth=2, marker='x')"""
             #h, = plt.plot(self.t_range[::20], self.state_ref[i, ::20], "r", linewidth=3, marker='*')
             if i == 0:
-                plt.plot(self.t_range[::20], self.lC[2, ::20], "r", linewidth=2, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.lC[2, ::20], "r", linewidth=2, marker='', linestyle="-")
             elif i <= 2:
-                plt.plot(self.t_range[::20], self.RPY[i-1, ::20], "r", linewidth=2, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.RPY[i-1, ::20], "r", linewidth=2, marker='', linestyle="-")
             elif i <= 5:
-                plt.plot(self.t_range[::20], self.lV[i-3, ::20], "r", linewidth=2, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.lV[i-3, ::20], "r", linewidth=2, marker='', linestyle="-")
             else:
-                plt.plot(self.t_range[::20], self.lW[i-6, ::20], "r", linewidth=2, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.lW[i-6, ::20], "r", linewidth=2, marker='', linestyle="-")
             plt.ylabel(lgd[i])
         plt.suptitle("Predicted trajectories (local frame)")
 
