@@ -25,11 +25,16 @@ class MPC:
         self.dt = dt
 
         # Mass of the robot
-        self.mass = 2.97784899
+        self.mass = 2.50000279 # 2.97784899
 
         # Inertia matrix of the robot in body frame (found in urdf)
-        self.gI = np.diag([0.00578574, 0.01938108, 0.02476124])
-
+        self.gI = np.diag([0.00578574, 0.01938108, 0.02476124]) * 2.0
+        """self.gI = np.array([[2.97337e-2, 3.29866e-5, -2.49208e-3],
+                            [3.29866e-5, 6.63417e-2, 1.45447e-4],
+                            [-2.49208e-3, 1.45447e-4, 0.0826267]])"""
+        self.gI = np.array([[3.09249e-2, -8.00101e-7, 1.865287e-5],
+                            [-8.00101e-7, 5.106100e-2, 1.245813e-4],
+                            [1.865287e-5, 1.245813e-4, 6.939757e-2]])
         # Friction coefficient
         self.mu = 0.9
 
@@ -259,38 +264,12 @@ class MPC:
         P_data = 0.0 * np.ones((n_x * self.n_steps,))
 
         # Hand-tuning of parameters if you want to give more weight to specific components
-        """P_data[0::12] = 50**2/np.sqrt(2)  # position along x
-        P_data[1::12] = 2**2/np.sqrt(2)  # position along y
-        P_data[2::12] = 25  # position along z
-        P_data[3::12] = 75  # roll
-        P_data[4::12] = 75  # pitch
-        P_data[5::12] = 75**2/np.sqrt(2)  # yaw
-        P_data[6::12] = 50  # linear velocity along x
-        P_data[7::12] = 50  # linear velocity along y
-        P_data[8::12] = 2*np.sqrt(25)  # linear velocity along z
-        P_data[9::12] = 2*np.sqrt(75)  # angular velocity along x
-        P_data[10::12] = 2*np.sqrt(75)  # angular velocity along y
-        P_data[11::12] = 75  # angular velocity along z
-        """
-        """P_data[0::12] = P_data[6]**2/np.sqrt(2)  # position along x
-        P_data[1::12] = P_data[7]**2/np.sqrt(2)  # position along y
-        P_data[2::12] = P_data[8]**2/np.sqrt(2)  # position along z
-        P_data[3::12] = P_data[9]**2/np.sqrt(2)  # roll
-        P_data[4::12] = P_data[10]**2/np.sqrt(2)  # pitch
-        P_data[5::12] = P_data[11]**2/np.sqrt(2)  # yaw
-        P_data[6::12] = 100  # linear velocity along x
-        P_data[7::12] = 100  # linear velocity along y
-        P_data[8::12] = 100 # linear velocity along z
-        P_data[9::12] = 50  # angular velocity along x
-        P_data[10::12] = 50  # angular velocity along y
-        P_data[11::12] = 50 # angular velocity along z
-        """
         P_data[0::12] = 0.1  # position along x
         P_data[1::12] = 0.1  # position along y
         P_data[2::12] = 0.1  # position along z
-        P_data[3::12] = 0.11  # roll
-        P_data[4::12] = 0.11  # pitch
-        P_data[5::12] = 0.11  # yaw
+        P_data[3::12] = 1.1  # roll
+        P_data[4::12] = 1.1  # pitch
+        P_data[5::12] = 1.1  # yaw
         P_data[6::12] = 2*np.sqrt(P_data[0])  # linear velocity along x
         P_data[7::12] = 2*np.sqrt(P_data[1])  # linear velocity along y
         P_data[8::12] = 2*np.sqrt(P_data[2])  # linear velocity along z
@@ -303,9 +282,9 @@ class MPC:
         P_col = np.hstack((P_col, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
         P_data = np.hstack((P_data, 0.0*np.ones((n_x * self.n_steps * 2 - n_x * self.n_steps,))))
 
-        P_data[(n_x * self.n_steps)::3] = 0#e-4  # force along x
-        P_data[(n_x * self.n_steps + 1)::3] = 0#e-4  # force along y
-        P_data[(n_x * self.n_steps + 2)::3] = 0#e-4  # force along z
+        P_data[(n_x * self.n_steps)::3] = 0.0#e-4  # force along x
+        P_data[(n_x * self.n_steps + 1)::3] = 0.0#e-4  # force along y
+        P_data[(n_x * self.n_steps + 2)::3] = 0.0#e-4  # force along z
 
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(

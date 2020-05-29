@@ -194,7 +194,7 @@ class Logger:
         """ Store information about the state of the robot
         """
 
-        self.RPY[:, k:(k+1)] = mpc_interface.abg[:, 0:1]  # roll, pitch, yaw of the base in world frame
+        self.RPY[:, k:(k+1)] = mpc_interface.RPY[:, 0]  # roll, pitch, yaw of the base in world frame
         self.oC[:, k:(k+1)] = mpc_interface.oC[:, 0]  #  position of the CoM in world frame
         self.oV[:, k:(k+1)] = mpc_interface.oV[:, 0]  #  linear velocity of the CoM in world frame
         self.oW[:, k] = mpc_interface.oW[:, 0]  # angular velocity of the CoM in world frame
@@ -343,11 +343,11 @@ class Logger:
 
         # Contact forces desired by MPC (transformed into world frame)
         for f in range(4):
-            self.forces_mpc[3*f:(3*(f+1)), k] = tsid_controller.f_applied[3*f:3*(f+1)]
+            self.forces_mpc[3*f:(3*(f+1)), k:(k+1)] = (mpc_interface.oMl.rotation @ tsid_controller.f_applied[3*f:3*(f+1)]).T
 
         # Contact forces desired by TSID (world frame)
-        #for i, j in enumerate(tsid_controller.contacts_order):
-        #    self.forces_tsid[(3*j):(3*(j+1)), k:(k+1)] = tsid_controller.fc[(3*i):(3*(i+1))]
+        for i, j in enumerate(tsid_controller.contacts_order):
+            self.forces_tsid[(3*j):(3*(j+1)), k:(k+1)] = tsid_controller.fc[(3*i):(3*(i+1))]
 
         # Contact forces applied in PyBullet
         contactPoints_FL = pyb.getContactPoints(robotId, planeId, linkIndexA=3)  # Front left  foot
@@ -397,13 +397,14 @@ class Logger:
         for i, j in enumerate([1, 2, 3]):
             plt.subplot(3, 1, j)
             f_colors_mpc = ["b", "purple"]
-            f_colors_tsid = ["r", "orange"]
+            f_colors_tsid = ["r", "green"]
             for g, f in enumerate([0, 3]):
                 if g == 0:
-                    h1, = plt.plot(self.t_range, self.forces_mpc[3*f+i, :], f_colors_mpc[g], linewidth=2)
+                    h1, = plt.plot(self.t_range, self.forces_mpc[3*f+i, :], f_colors_mpc[g], linewidth=4)
+                    h3, = plt.plot(self.t_range, self.forces_tsid[3*f+i, :], f_colors_tsid[g], linewidth=2)
                 else:
-                    h2, = plt.plot(self.t_range, self.forces_mpc[3*f+i, :], f_colors_mpc[g], linewidth=2)
-                #h2, = plt.plot(self.t_range, self.forces_tsid[3*f+i, :], f_colors_tsid[g], linewidth=2)
+                    h2, = plt.plot(self.t_range, self.forces_mpc[3*f+i, :], f_colors_mpc[g], linewidth=4)
+                    h4, = plt.plot(self.t_range, self.forces_tsid[3*f+i, :], f_colors_tsid[g], linewidth=2)
                 #h3, = plt.plot(self.t_range, self.forces_pyb[3*f+i, :], "darkgreen", linewidth=2)
             """h1 = h2
             h3 = h2
@@ -413,15 +414,15 @@ class Logger:
                 for f in range(1, 4):
                     tmp += self.forces_pyb[3*f+2, :]
                 #h4, = plt.plot(self.t_range, tmp, "rebeccapurple", linewidth=2, linestyle="--")
-                plt.legend([h1, h2], ["Font Left", "Hind Right"])
+                plt.legend([h1, h2, h3, h4], ["FL MPC", "HR MPC", "FL TSID", "HR TSID"])
                 plt.ylim([-1.0, 18.5])
             else:
                 plt.ylim([-3.0, 5.0])
-                plt.legend([h1, h2], ["Font Left", "Hind Right"])
+                plt.legend([h1, h2, h3, h4], ["FL MPC", "HR MPC", "FL TSID", "HR TSID"])
             plt.xlabel("Time [s]")
             plt.ylabel(ylabels[i])
 
-        plt.suptitle("MPC contact forces (local frame)")     
+        plt.suptitle("MPC, TSID contact forces (world frame)")     
 
         return 0
 
@@ -525,20 +526,20 @@ class Logger:
         plt.figure()
         for i, o in enumerate([2, 3, 4, 6, 7, 8, 9, 10, 11]):
             plt.subplot(3, 3, index[i])
-            """for j in range(self.pred_trajectories.shape[2]):
+            for j in range(self.pred_trajectories.shape[2]):
                 if (j*self.k_mpc > self.k_max_loop):
                     break
                 #if (j % 1) == 0:
-                h, = plt.plot(t_pred[0:2] + j*self.dt_mpc, self.pred_trajectories[o, 0:2, j], linewidth=2, marker='x')"""
+                h, = plt.plot(t_pred[0:5] + j*self.dt_mpc, self.pred_trajectories[o, 0:5, j], linewidth=2, marker='x')
             #h, = plt.plot(self.t_range[::20], self.state_ref[i, ::20], "r", linewidth=3, marker='*')
             if i == 0:
-                plt.plot(self.t_range[::20], self.lC[2, ::20], "r", linewidth=2, marker='', linestyle="-")
+                plt.plot(self.t_range[::20], self.lC[2, ::20], "r", linewidth=2, marker='o', linestyle="--")
             elif i <= 2:
-                plt.plot(self.t_range[::20], self.RPY[i-1, ::20], "r", linewidth=2, marker='', linestyle="-")
+                plt.plot(self.t_range[::20], self.RPY[i-1, ::20], "r", linewidth=2, marker='o', linestyle="--")
             elif i <= 5:
-                plt.plot(self.t_range[::20], self.lV[i-3, ::20], "r", linewidth=2, marker='', linestyle="-")
+                plt.plot(self.t_range[::20], self.lV[i-3, ::20], "r", linewidth=2, marker='o', linestyle="--")
             else:
-                plt.plot(self.t_range[::20], self.lW[i-6, ::20], "r", linewidth=2, marker='', linestyle="-")
+                plt.plot(self.t_range[::20], self.lW[i-6, ::20], "r", linewidth=2, marker='o', linestyle="--")
             plt.ylabel(lgd[i])
         plt.suptitle("Predicted trajectories (local frame)")
 
@@ -607,7 +608,7 @@ class Logger:
         self.log_forces(k, mpc_interface, tsid_controller, robotId, planeId)
 
         # Store information about torques
-        #self.log_torques(k, tsid_controller)
+        self.log_torques(k, tsid_controller)
 
         # Store information about the cost function
         if not enable_multiprocessing:
@@ -618,7 +619,7 @@ class Logger:
             self.log_predicted_trajectories(k, mpc_wrapper)
 
         # Store information about one of the foot tracking task
-        #self.log_tracking_foot(k, tsid_controller, solo)
+        self.log_tracking_foot(k, tsid_controller, solo)
 
         return 0
 

@@ -35,9 +35,9 @@ class controller:
 
     def __init__(self, N_simulation, k_mpc, n_periods):
 
-        self.q_ref = np.array([[0.0, 0.0, 0.235 - 0.01205385, 0.0, 0.0, 0.0, 1.0,
+        self.q_ref = np.array([[0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0, 1.0,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
-                                0, 0.8, -1.6, 0, 0.8, -1.6]]).transpose()
+                                0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()
 
         self.qtsid = self.q_ref.copy()
         self.vtsid = np.zeros((18, 1))
@@ -61,7 +61,7 @@ class controller:
 
         # Coefficients of the contact tasks
         kp_contact = 100.0         # proportionnal gain for the contacts
-        self.w_forceRef = 100.0  # weight of the forces regularization
+        self.w_forceRef = 1000.0  # weight of the forces regularization
         self.w_reg_f = 1000.0
 
         # Coefficients of the foot tracking task
@@ -493,7 +493,7 @@ class controller:
             self.qmes = qmes
             self.vmes = vmes
             # self.sample_com.pos(qtsid[0:3, 0:1] + mpc_interface.oMl.rotation @ qmpc[0:3, 0:1])
-            self.sample_com.pos(qtsid[0:3, 0:1] + mpc_interface.oMl.rotation @ np.array([[v_ref[0, 0] * dt], [v_ref[1, 0] * dt], [0.1827682]]))
+            self.sample_com.pos(qtsid[0:3, 0:1] + mpc_interface.oMl.rotation @ np.array([[v_ref[0, 0] * dt], [v_ref[1, 0] * dt], [0.2027682]]))
             self.sample_com.vel(mpc_interface.oMl.rotation @ np.array([[v_ref[0, 0]], [v_ref[1, 0]], [0.0]]))  # vmpc[0:3, 0]
             self.sample_com.acc(np.array([0.0, 0.0, 0.0]))
             self.comTask.setReference(self.sample_com)
@@ -753,16 +753,15 @@ class controller:
                 self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
 
             # If foot in stance phase
-            tmp = mpc_interface.o_feet.copy()
-            if (gait[0, i_foot+1] == 1):
+            #if (gait[0, i_foot+1] == 1):
+            if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 1) and (gait[index-1, i_foot+1] == 0):
                 # Update the position of contacts
-                tmp[2, i_foot] = 0.0
-                self.pos_foot.translation = tmp[:, i_foot]
+                self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
                 self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
-                self.memory_contacts[:, i_foot] = tmp[0:2, i_foot]
-                self.feetGoal[i_foot].translation = tmp[:, i_foot].transpose()
+                self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
+                self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
                 self.contacts[i_foot].setReference(self.pos_foot)
-                self.goals[:, i_foot] = tmp[:, i_foot].transpose()
+                self.goals[:, i_foot] = mpc_interface.o_feet[:, i_foot].transpose()
 
             # If foot entered stance phase
             if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 1) and (gait[index-1, i_foot+1] == 0):
@@ -942,7 +941,7 @@ class controller:
         # Check for NaN value
         if np.any(np.isnan(self.tau_ff)):
             # self.error = True
-            self.tau = np.zeros((12, ))
+            self.tau = np.zeros((12, 1))
         else:
             # Torque PD controller
             P = 3.0

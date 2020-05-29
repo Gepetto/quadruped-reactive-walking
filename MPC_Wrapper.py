@@ -103,8 +103,9 @@ class MPC_Wrapper:
         print(joystick.v_ref.ravel())
         print(fstep_planner.fsteps)"""
 
-        if joystick.v_ref[0, 0] > 0.05:
-            deb = 1
+        if k > 1500:
+            deb=1
+
         self.mpc.run((k/self.k_mpc), T_gait, t_stance,
                      mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
                      mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,

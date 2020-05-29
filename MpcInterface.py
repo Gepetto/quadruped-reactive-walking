@@ -78,6 +78,8 @@ class MpcInterface:
         # Update position/orientation of frames
         pin.updateFramePlacements(solo.model, solo.data)
 
+        pin.ccrba(solo.model, solo.data, qmes12, self.vmes12_base)
+
         # Update minimum height of feet
         # TODO: Rename mean_feet_z into min_feet_z
         self.mean_feet_z = solo.data.oMf[self.indexes[0]].translation[2, 0]
@@ -89,9 +91,11 @@ class MpcInterface:
         self.mean_feet_z = 0.0
 
         # Store position, linear velocity and angular velocity in global frame
-        self.oC = np.matrix(qmes12[0:3, 0:1])  # solo.data.com[0]
-        self.oV = np.matrix(vmes12[0:3, 0:1])  # solo.data.vcom[0]
+        self.oC = solo.data.com[0]
+        self.oV = solo.data.vcom[0]
         self.oW = vmes12[3:6]
+
+        pin.crba(solo.model, solo.data, qmes12)
 
         # Get SE3 object from world frame to base frame
         self.oMb = pin.SE3(pin.Quaternion(qmes12[3:7]), self.oC)

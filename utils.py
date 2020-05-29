@@ -132,6 +132,10 @@ def init_viewer(enable_viewer):
         temp = solo.q0 + offset"""
         solo.display(solo.q0)
 
+        pin.centerOfMass(solo.model, solo.data, solo.q0, np.zeros((18, 1)))
+        pin.updateFramePlacements(solo.model, solo.data)
+        pin.crba(solo.model, solo.data, solo.q0)
+
     return solo
 
 
@@ -366,7 +370,7 @@ class pybullet_simulator:
                                       forces=[0.0 for m in self.revoluteJointIndices])
 
         # Initialize the robot in a specific configuration
-        straight_standing = np.array([[0, 0.8, -1.6, 0, 0.8, -1.6, 0, 0.8, -1.6, 0, 0.8, -1.6]]).transpose()
+        straight_standing = np.array([[0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()
         pyb.resetJointStatesMultiDof(self.robotId, self.revoluteJointIndices, straight_standing)  # q0[7:])
 
         # Enable torque control for revolute joints
