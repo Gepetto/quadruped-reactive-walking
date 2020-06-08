@@ -26,7 +26,7 @@ t = 0.0  # Time
 n_periods = 1  # Number of periods in the prediction horizon
 
 # Simulation parameters
-N_SIMULATION = 3000  # number of time steps simulated
+N_SIMULATION = 6500  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -167,7 +167,7 @@ for k in range(int(N_SIMULATION)):
 
     if (k == 0):
         fstep_planner.update_fsteps(k, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
-                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, False, None)
+                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, False)
 
     """elif (k > 0) and (k % 320 == 20):
         if joystick.gp.R1Button.value:
@@ -191,12 +191,8 @@ for k in range(int(N_SIMULATION)):
     if (k % k_mpc) == 0:
         fsteps_invdyn = fstep_planner.fsteps.copy()
         gait_invdyn = fstep_planner.gait.copy()
-        if k == 0:
-            fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
-                                        mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, joystick.reduced, None)
-        else:
-            fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
-                                        mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, joystick.reduced, myController.pos_contact)
+        fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
+                                        mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, joystick.reduced)
 
         fsteps_invdyn = fstep_planner.fsteps.copy()
         gait_invdyn = fstep_planner.gait.copy()
