@@ -63,8 +63,8 @@ class Joystick:
         """if k_loop == self.k_mpc*16*3:
             self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
-        alpha = np.max([np.min([(k_loop-self.k_mpc*16*3)/1000, 1.0]), 0.0])
-        self.v_ref = np.array([[0.4*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+        alpha = np.max([np.min([(k_loop-self.k_mpc*16*3)/3500, 1.0]), 0.0])
+        self.v_ref = np.array([[1.0*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         # Turning
         """if k_loop == self.k_mpc*16*13:

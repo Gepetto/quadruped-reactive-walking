@@ -103,13 +103,21 @@ class MPC_Wrapper:
         print(joystick.v_ref.ravel())
         print(fstep_planner.fsteps)"""
 
-        if k > 1500:
+        if k > 1900:
             deb=1
 
         self.mpc.run((k/self.k_mpc), T_gait, t_stance,
                      mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
                      mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
                      fstep_planner.fsteps)
+
+        """tmp_lC = mpc_interface.lC.copy()
+        tmp_lC[2, 0] += dt * mpc_interface.lV[2, 0]
+        tmp_abg = mpc_interface.abg + dt * mpc_interface.lW
+        tmp_abg[2, 0] = 0.0
+        tmp_lfeet = mpc_interface.l_feet - dt * mpc_interface.lV
+        tmp_xref = fstep_planner.xref.copy()
+        tmp_xref """
 
         # Output of the MPC
         self.f_applied = self.mpc.f_applied

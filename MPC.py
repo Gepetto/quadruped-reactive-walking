@@ -266,25 +266,25 @@ class MPC:
         # Hand-tuning of parameters if you want to give more weight to specific components
         P_data[0::12] = 0.1  # position along x
         P_data[1::12] = 0.1  # position along y
-        P_data[2::12] = 0.1  # position along z
-        P_data[3::12] = 1.1  # roll
-        P_data[4::12] = 1.1  # pitch
-        P_data[5::12] = 1.1  # yaw
+        P_data[2::12] = 1  # position along z
+        P_data[3::12] = 0.11  # roll
+        P_data[4::12] = 0.11  # pitch
+        P_data[5::12] = 0.11  # yaw
         P_data[6::12] = 2*np.sqrt(P_data[0])  # linear velocity along x
         P_data[7::12] = 2*np.sqrt(P_data[1])  # linear velocity along y
         P_data[8::12] = 2*np.sqrt(P_data[2])  # linear velocity along z
-        P_data[9::12] = 2*np.sqrt(P_data[3])  # angular velocity along x
-        P_data[10::12] = 2*np.sqrt(P_data[4])  # angular velocity along y
-        P_data[11::12] = 2*np.sqrt(P_data[5])  # angular velocity along z
+        P_data[9::12] = 0.05*np.sqrt(P_data[3])  # angular velocity along x
+        P_data[10::12] = 0.05*np.sqrt(P_data[4])  # angular velocity along y
+        P_data[11::12] = 0.05*np.sqrt(P_data[5])  # angular velocity along z
 
         # Define weights for the force components of the optimization vector
         P_row = np.hstack((P_row, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
         P_col = np.hstack((P_col, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
         P_data = np.hstack((P_data, 0.0*np.ones((n_x * self.n_steps * 2 - n_x * self.n_steps,))))
 
-        P_data[(n_x * self.n_steps)::3] = 0.0#e-4  # force along x
-        P_data[(n_x * self.n_steps + 1)::3] = 0.0#e-4  # force along y
-        P_data[(n_x * self.n_steps + 2)::3] = 0.0#e-4  # force along z
+        P_data[(n_x * self.n_steps)::3] = 1.0e-5  # force along x
+        P_data[(n_x * self.n_steps + 1)::3] = 1.0e-5  # force along y
+        P_data[(n_x * self.n_steps + 2)::3] = 1.0e-5  # force along z
 
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(
@@ -424,6 +424,8 @@ class MPC:
         # Setup the solver (first iteration) then just update it
         if k == 0:  # Setup the solver with the matrices
             self.prob.setup(P=self.P, q=self.Q, A=self.ML, l=self.NK_inf, u=self.NK.ravel(), verbose=False)
+            self.prob.update_settings(eps_abs=1e-7)
+            self.prob.update_settings(eps_rel=1e-7)
             # self.prob.warm_start(x=initx)
         else:  # Code to update the QP problem without creating it again
             self.prob.update(Ax=self.ML.data, l=self.NK_inf, u=self.NK.ravel())

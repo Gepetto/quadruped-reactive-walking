@@ -61,8 +61,8 @@ class controller:
 
         # Coefficients of the contact tasks
         kp_contact = 100.0         # proportionnal gain for the contacts
-        self.w_forceRef = 1000.0  # weight of the forces regularization
-        self.w_reg_f = 1000.0
+        self.w_forceRef = 50.0  # weight of the forces regularization
+        self.w_reg_f = 50.0
 
         # Coefficients of the foot tracking task
         kp_foot = 100.0               # proportionnal gain for the tracking task

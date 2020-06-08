@@ -26,7 +26,7 @@ t = 0.0  # Time
 n_periods = 1  # Number of periods in the prediction horizon
 
 # Simulation parameters
-N_SIMULATION = 1000  # number of time steps simulated
+N_SIMULATION = 3000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -79,7 +79,7 @@ myEmergencyStop = EmergencyStop_controller.controller_12dof()
 
 for k in range(int(N_SIMULATION)):
 
-    if (k % 10000) == 0:
+    if (k % 1000) == 0:
         print("Iteration: ", k)
 
     # Retrieve data from the simulation (position/orientation/velocity of the robot)
@@ -167,7 +167,7 @@ for k in range(int(N_SIMULATION)):
 
     if (k == 0):
         fstep_planner.update_fsteps(k, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
-                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, False)
+                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, False, None)
 
     """elif (k > 0) and (k % 320 == 20):
         if joystick.gp.R1Button.value:
@@ -191,8 +191,15 @@ for k in range(int(N_SIMULATION)):
     if (k % k_mpc) == 0:
         fsteps_invdyn = fstep_planner.fsteps.copy()
         gait_invdyn = fstep_planner.gait.copy()
-        fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
-                                    mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, joystick.reduced)
+        if k == 0:
+            fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
+                                        mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, joystick.reduced, None)
+        else:
+            fstep_planner.update_fsteps(k+1, mpc_interface.l_feet, np.vstack((mpc_interface.lV, mpc_interface.lW)), joystick.v_ref,
+                                        mpc_interface.lC[2, 0], mpc_interface.oMl, pyb_sim.ftps_Ids, joystick.reduced, myController.pos_contact)
+
+        fsteps_invdyn = fstep_planner.fsteps.copy()
+        gait_invdyn = fstep_planner.gait.copy()
 
     """if (k % k_mpc) == 0:
         if k > 0:
@@ -260,6 +267,7 @@ for k in range(int(N_SIMULATION)):
         # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
         mpc_wrapper.run_MPC(dt_mpc, sequencer.S.shape[0], k, sequencer.T_gait,
                             sequencer.t_stance, joystick, fstep_planner, mpc_interface)
+        f_applied = mpc_wrapper.mpc.f_applied
 
     ####################
     # Inverse Dynamics #
@@ -284,8 +292,10 @@ for k in range(int(N_SIMULATION)):
     #####################################
 
     # TSID needs the velocity of the robot in base frame
-    pyb_sim.vmes12[0:3, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
-    pyb_sim.vmes12[3:6, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]
+    """pyb_sim.vmes12[0:3, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
+    pyb_sim.vmes12[3:6, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]"""
+    pyb_sim.qmes12 = myController.qtsid.copy()
+    pyb_sim.vmes12 = myController.vtsid.copy()
 
     # Initial conditions
     if k == 0:

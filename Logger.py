@@ -530,16 +530,17 @@ class Logger:
                 if (j*self.k_mpc > self.k_max_loop):
                     break
                 #if (j % 1) == 0:
-                h, = plt.plot(t_pred[0:5] + j*self.dt_mpc, self.pred_trajectories[o, 0:5, j], linewidth=2, marker='x')
+                #h, = plt.plot(t_pred[0:15] + j*self.dt_mpc, self.pred_trajectories[o, 0:15, j], linewidth=2, marker='x')
+                h, = plt.plot(t_pred[0:16] + j*self.dt_mpc, np.hstack(([self.lW[1, j*self.k_mpc]], self.pred_trajectories[o, 0:15, j])), linewidth=2, marker='x')
             #h, = plt.plot(self.t_range[::20], self.state_ref[i, ::20], "r", linewidth=3, marker='*')
             if i == 0:
-                plt.plot(self.t_range[::20], self.lC[2, ::20], "r", linewidth=2, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.lC[2, ::20], "r", linewidth=2)#, marker='o', linestyle="--")
             elif i <= 2:
-                plt.plot(self.t_range[::20], self.RPY[i-1, ::20], "r", linewidth=2, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.RPY[i-1, ::20], "r", linewidth=2)#, marker='o', linestyle="--")
             elif i <= 5:
-                plt.plot(self.t_range[::20], self.lV[i-3, ::20], "r", linewidth=2, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.lV[i-3, ::20], "r", linewidth=2)#, marker='o', linestyle="--")
             else:
-                plt.plot(self.t_range[::20], self.lW[i-6, ::20], "r", linewidth=2, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.lW[i-6, ::20], "r", linewidth=2)#, marker='o', linestyle="--")
             plt.ylabel(lgd[i])
         plt.suptitle("Predicted trajectories (local frame)")
 
