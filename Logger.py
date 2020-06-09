@@ -516,7 +516,7 @@ class Logger:
         """ Plot information about the predicted evolution of the optimization vector components
         """
 
-        t_pred = np.array([(k+1)*self.dt_mpc for k in range(np.int(self.n_periods*self.T/self.dt_mpc))])
+        t_pred = np.array([(k)*self.dt_mpc for k in range(np.int(self.n_periods*self.T/self.dt_mpc))])
 
         #index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
         index = [1, 4, 7, 2, 5, 8, 3, 6, 9]

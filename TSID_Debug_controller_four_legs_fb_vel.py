@@ -68,15 +68,6 @@ class controller:
         kp_foot = 100.0               # proportionnal gain for the tracking task
         self.w_foot = 500.0       # weight of the tracking task
 
-        # Coefficients of the trunk task
-        kp_trunk = np.matrix([0.0, 0.0, 0.0, 1.0, 1.0, 1.0]).T
-        w_trunk = 0.0
-
-        # Coefficients of the CoM task
-        self.kp_com = 300
-        self.w_com = 0.0  #  1000.0
-        offset_x_com = - 0.00  # offset along X for the reference position of the CoM
-
         # Arrays to store logs
         k_max_loop = N_simulation
         self.f_pos = np.zeros((4, k_max_loop, 3))
@@ -136,7 +127,6 @@ class controller:
         self.t_stance = 0.16
         self.T_gait = 0.32
         self.n_periods = n_periods
-        self.t_remaining = np.zeros((1, 4))
         self.h_ref = 0.235 - 0.01205385
         self.t_swing = np.zeros((4, ))  # Total duration of current swing phase for each foot
 
@@ -217,12 +207,7 @@ class controller:
                  0.0]).T
             self.contacts[i].setReference(H_ref)
 
-            """w_reg_f = 100
-            if i in [0, 1]:
-                self.contacts[i].setForceReference(np.matrix([0.0, 0.0, w_reg_f * 14.0]).T)
-            else:
-                self.contacts[i].setForceReference(np.matrix([0.0, 0.0, w_reg_f * 17.0]).T)
-            self.contacts[i].setRegularizationTaskWeightVector(np.matrix([w_reg_f, w_reg_f, w_reg_f]).T)"""
+            # Regularization weight for the force tracking subtask
             self.contacts[i].setRegularizationTaskWeightVector(
                 np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
 
@@ -247,53 +232,6 @@ class controller:
 
         # The reference will be set later when the task is enabled
 
-        ######################
-        # TRUNK POSTURE TASK #
-        ######################
-
-        # Task definition (creating the task object)
-        self.trunkTask = tsid.TaskSE3Equality("task-trunk", self.robot, 'base_link')
-        mask = np.matrix([0.0, 0.0, 0.0, 1.0, 1.0, 1.0]).T
-        self.trunkTask.setKp(np.multiply(kp_trunk, mask))
-        self.trunkTask.setKd(2.0 * np.sqrt(np.multiply(kp_trunk, mask)))
-        self.trunkTask.useLocalFrame(False)
-        self.trunkTask.setMask(mask)
-
-        # Add the task to the HQP with weight = w_trunk, priority level = 1 (not real constraint)
-        # and a transition duration = 0.0
-        # if w_trunk > 0.0:
-        # self.invdyn.addMotionTask(self.trunkTask, w_trunk, 1, 0.0)
-
-        # TSID Trajectory (creating the trajectory object and linking it to the task)
-        self.trunk_ref = self.robot.framePosition(self.invdyn.data(), self.ID_base)
-        self.trajTrunk = tsid.TrajectorySE3Constant("traj_base_link", self.trunk_ref)
-        self.sampleTrunk = self.trajTrunk.computeNext()
-        self.sampleTrunk.pos(np.matrix([0.0, 0.0, 0.2027682, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)
-        self.sampleTrunk.vel(np.matrix([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T)
-        self.sampleTrunk.acc(np.matrix([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T)
-        self.trunkTask.setReference(self.sampleTrunk)
-
-        ############
-        # COM TASK #
-        ############
-
-        # Task definition
-        self.comTask = tsid.TaskComEquality("task-com", self.robot)
-        self.comTask.setKp(self.kp_com * matlib.ones(3).T)
-        self.comTask.setKd(2.0 * np.sqrt(self.kp_com) * matlib.ones(3).T)
-        # if self.w_com > 0.0:
-        #    self.invdyn.addMotionTask(self.comTask, self.w_com, 1, 0.0)
-
-        # Task reference
-        com_ref = self.robot.com(self.invdyn.data())
-        self.trajCom = tsid.TrajectoryEuclidianConstant("traj_com", com_ref)
-        self.sample_com = self.trajCom.computeNext()
-
-        tmp = self.sample_com.pos()  # Temp variable to store CoM position
-        tmp[0, 0] += offset_x_com
-        self.sample_com.pos(tmp)
-        self.comTask.setReference(self.sample_com)
-
         ##########
         # SOLVER #
         ##########
@@ -313,6 +251,7 @@ class controller:
             pair (int): the current pair of feet in swing phase, for a walking trot gait
             looping (int): total number of time steps in one gait cycle
             mpc_interface (MpcInterface object): interface between the simulator and the MPC/InvDyn
+            ftps_Ids_deb (list): IDs of debug spheres in PyBullet
         """
 
         # Indexes of feet in swing phase
@@ -340,60 +279,7 @@ class controller:
 
             t0s.append(np.round(self.t_swing[i] - remaining_iterations * self.dt, decimals=3))
 
-        # The function only affects the current pair of feet in swing phase
-        """if pair == -1:
-            return 0
-        elif pair == 0:
-            t0 = np.round((k_loop-20) * self.dt, decimals=3)
-            feet = [1, 2]
-        else:
-            t0 = np.round((k_loop - int(looping*0.5) - 20) * self.dt, decimals=3)
-            feet = [0, 3]"""
-
         # self.footsteps contains the target (x, y) positions for both feet in swing phase
-
-        """t0 = 0.0
-        t1 = 0.16
-        dt = 0.001
-        x0 = 0.0
-        dx0 = 0.0
-        ddx0 = 0.0
-        y0 = 0.0
-        dy0 = 0.0
-        ddy0 = 0.0
-        z0 = 0.0
-        dz0 = 0.0
-        ddz0 = 0.0
-        gx1 = 0.01
-        gy1 = 0.05
-
-        log = np.zeros((int(t1/dt)+1, 11))
-        i_log = 0
-
-        while t0 <= t1:
-
-            [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[0]).get_next_foot(
-                    x0, dx0, ddx0, y0, dy0, ddy0, gx1, gy1, t0, t1, dt)
-
-            log[i_log, :] = np.array([x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1])
-            i_log += 1
-
-            if t0 == t1:
-                deb = 1
-            print(t0)
-            t0 += dt
-            t0 = np.round(t0, decimals=3)
-
-        l_str = ["x0", "dx0", "ddx0",  "y0", "dy0", "ddy0",  "z0", "dz0", "ddz0", "gx1", "gy1"]
-        index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8]
-        index = [1, 4, 7, 2, 5, 8, 3, 6, 9, 4, 8]
-        plt.figure()
-        for i in range(9):
-            plt.subplot(3, 3, index[i])
-            plt.plot(log[:, i], linewidth=2, marker='x')
-            plt.legend([l_str[i]])
-
-        plt.show(block=True)"""
 
         for i in range(len(feet)):
             i_foot = feet[i]
@@ -431,18 +317,11 @@ class controller:
             # Update footgoal for display purpose
             self.feetGoal[i_foot].translation = np.matrix([x0, y0, z0]).T
 
-            # Display the goal position of the feet as green sphere
+            # Display the goal position of the feet as green sphere in PyBullet
             pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
                                                 posObj=np.array([gx1, gy1, 0.0]),
                                                 ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
 
-            """if k_loop == (7*20 + 19):
-                print("i_foot " + str(i_foot) + ": ", (mpc_interface.oMl.inverse() * np.array([[x0, y0, z0]]).transpose()).ravel())
-                #print([x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1])
-                print(mpc_interface.oMl.inverse() * np.array([[x0, y0, z0]]).transpose().ravel())
-                print(mpc_interface.oMl.inverse().rotation @ np.array([[dx0, dy0, dz0]]).transpose().ravel())
-                print(mpc_interface.oMl.inverse().rotation @ np.array([[ddx0, ddy0, ddz0]]).transpose().ravel())
-                print(mpc_interface.oMl.inverse() * np.array([[gx1, gy1, 0.0]]).transpose().ravel())"""
         return 0
 
     ####################################################################
@@ -492,13 +371,9 @@ class controller:
         if self.enable_hybrid_control:
             self.qmes = qmes
             self.vmes = vmes
-            # self.sample_com.pos(qtsid[0:3, 0:1] + mpc_interface.oMl.rotation @ qmpc[0:3, 0:1])
-            self.sample_com.pos(qtsid[0:3, 0:1] + mpc_interface.oMl.rotation @ np.array([[v_ref[0, 0] * dt], [v_ref[1, 0] * dt], [0.2027682]]))
-            self.sample_com.vel(mpc_interface.oMl.rotation @ np.array([[v_ref[0, 0]], [v_ref[1, 0]], [0.0]]))  # vmpc[0:3, 0]
-            self.sample_com.acc(np.array([0.0, 0.0, 0.0]))
-            self.comTask.setReference(self.sample_com)
 
-        if k_simu == 0:
+        # Update state of TSID
+        if k_simu == 0:  # Some initialization during the first iteration
             self.qtsid = qtsid
             self.qtsid[:3] = np.zeros((3, 1))  # Discard x and y drift and height position
             self.qtsid[2, 0] = 0.235 - 0.01205385
@@ -514,6 +389,7 @@ class controller:
 
                 self.pos_contact[i_foot] = np.matrix([self.footsteps[0, i_foot], self.footsteps[1, i_foot], 0.0])
         else:
+            # Here is where we will merge the data from the state estimator and the internal state of TSID
             """# Encoders (position of joints)
             self.qtsid[7:] = qtsid[7:]
 
@@ -532,6 +408,7 @@ class controller:
                 qtsid[3:7, 0]) + np.vstack((np.array([mpc.q_noise[1:]]).transpose(), 0.0)))
             self.vtsid[:6, 0] += mpc.v_noise"""
 
+            # Update internal state of TSID for the current interation
             self.update_state(qtsid, vtsid)
 
         #####################
@@ -542,78 +419,11 @@ class controller:
         k_loop = (k_simu - 0) % looping  # Current number of iterations since the start of the current gait cycle
 
         # Update the desired position of footholds thanks to the footstep planner
-        self.update_footsteps(k_simu, k_loop, looping, sequencer, mpc_interface, fsteps)
-
-        """if (k_simu % (16*20)) == (7*20+19):
-            print("TSID:")
-            print(fsteps[0:2, 2::3])
-            print(mpc_interface.l_feet[1, :])
-            for i_disp in range(4):
-                print("Foot "+str(i_disp) + ": ", self.feetGoal[i_disp].translation.ravel())
-            if mpc_interface.l_feet[1, 2] < 0.12:
-                deb = 1"""
-
-        #######################
-        # UPDATE CoM POSITION #
-        #######################
-
-        """tmp = self.sample_com.pos()  # Temp variable to store CoM position
-        tmp[0, 0] = np.mean(self.footsteps[0, :])
-        tmp[1, 0] = np.mean(self.footsteps[1, :])
-        self.sample_com.pos(tmp)"""
-        """if k_simu >= 1500 and k_simu < 2000:
-            tmp = self.sample_com.vel()
-            tmp[0, 0] = + 0.1 * np.min((1.0, 1.0 - (2000 - k_simu) / 500))
-            self.sample_com.vel(tmp)"""
-
-        """tmp = self.sample_com.pos()  # Temp variable to store CoM position
-        tmp[0, 0] = np.mean(self.footsteps[0, :])
-        tmp[1, 0] = np.mean(self.footsteps[1, :])
-        self.sample_com.pos(tmp)"""
-
-        """tmp[0:3, 0] = mpc.vu[0:3, 0:1]
-        self.sample_com.vel(tmp)
-        mass = 2.97784899
-        tmp[0, 0] = np.sum(mpc.f_applied[0::3]) / mass
-        tmp[1, 0] = np.sum(mpc.f_applied[2::3]) / mass
-        tmp[2, 0] = np.sum(mpc.f_applied[3::3]) / mass - 9.81
-        self.sample_com.acc(tmp)"""
-        # self.comTask.setReference(self.sample_com)
-
-        """self.sampleTrunk.pos(np.matrix([tmp[0, 0], tmp[1, 0], 0.235 - 0.01205385,
-                                        1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)
-        self.trunkTask.setReference(self.sampleTrunk)"""
-
-        # print("Desired position of CoM: ", tmp.transpose())
-
-        #####################
-        # UPDATE TRUNK TASK #
-        #####################
-
-        """RPY = mpc.qu[3:6]
-        RPY[1, 0] *= -1  #  Pitch is inversed compared to MPC
-        c, s = np.cos(RPY[1, 0]), np.sin(RPY[1, 0])
-        R1 = np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
-        c, s = np.cos(RPY[0, 0]), np.sin(RPY[0, 0])
-        R2 = np.array([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
-        c, s = np.cos(RPY[2, 0]), np.sin(RPY[2, 0])
-        R3 = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
-        R = np.dot(R3, np.dot(R2, R1))
-        self.sampleTrunk.pos(np.matrix([0.0, 0.0, 0.0, R[0, 0], R[0, 1], R[0, 2],
-                                        R[1, 0], R[1, 1], R[1, 2], R[2, 0], R[2, 1], R[2, 2]]).T,)
-
-        tmp = self.sampleTrunk.vel()
-        tmp[3:6, 0] = mpc.vu[3:6, 0:1]
-        tmp[4, 0] *= -1  #  Pitch is inversed compared to MPC
-        self.sampleTrunk.vel(tmp)"""
-
-        # TODO: Angular acceleration?
+        self.update_footsteps(mpc_interface, fsteps)
 
         ######################################
         # UPDATE REFERENCE OF CONTACT FORCES #
         ######################################
-
-        # TODO: Remove "w_reg_f *" in setForceReference once the tsid bug is fixed
 
         # Update the contact force tracking tasks to follow the forces computed by the MPC
         self.update_ref_forces(mpc_interface)
@@ -636,6 +446,7 @@ class controller:
         # DISPLAY #
         ###########
 
+        # Refresh Gepetto Viewer
         solo.display(self.qtsid)
 
         return self.tau
@@ -651,88 +462,52 @@ class controller:
         """
 
         self.qtsid = qtsid.copy()
-        # self.qtsid[2] -= 0.015  # 0.01205385
         self.vtsid = vtsid.copy()
 
         return 0
 
-    def update_footsteps(self, k_simu, k_loop, looping, sequencer, mpc_interface, fsteps):
+    def update_footsteps(self, mpc_interface, fsteps):
+        """ Update desired location of footsteps using information coming from the footsteps planner
 
-        """# self.t_remaining[0, [1, 2]] = np.max((0.0, 0.16 * (looping*0.5 - k_loop) * 0.001))
-        self.t_remaining[0, [1, 2]] = 0.16 * (looping*0.5 - k_loop) * 0.001
-        (self.t_remaining[0, [1, 2]])[self.t_remaining[0, [1, 2]] < 0.0] = 0.0
-        if k_loop < int(looping*0.5):
-            self.t_remaining[0, [0, 3]] = 0.0
-        else:
-            self.t_remaining[0, [0, 3]] = 0.16 * (looping - k_loop) * 0.001"""
-        self.test_tmp1(k_loop, looping)
+        Args:
+            mpc_interface (object): MpcInterface object of the control loop
+            fsteps (20x13): duration of each phase of the gait sequence (first column)
+                            and desired location of footsteps for these phases (other columns)
+        """
 
-        # Get PyBullet velocity in local frame
-        """self.vu_m[0:2, 0:1] = mpc_interface.lV[0:2, 0:1]
-        self.vu_m[5, 0] = mpc_interface.lW[2, 0]"""
-
-        # Update desired location of footsteps using the footsteps planner
-        #self.fstep_planner.update_footsteps_tsid(sequencer, self.v_ref, mpc_interface.lV[0:2, 0:1], self.t_stance,
-        #                                         self.T_gait, self.qtsid[2, 0])
-
-        # self.footsteps = self.memory_contacts + self.fstep_planner.footsteps_tsid
-        """for i in range(4):
-            self.footsteps[:, i:(i+1)] = mpc_interface.o_shoulders[0:2, i:(i+1)] + \
-                (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid[:, i]).T[0:2, :]"""
-        # self.footsteps = np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
-        self.test_tmp2(mpc_interface, fsteps)
-
-        """if (k_simu % (16*20)) == 60:
-            print(fsteps[0:2, 2::3])"""
-
-        return 0
-
-    def test_tmp1(self, k_loop, looping):
-        # self.t_remaining[0, [1, 2]] = np.max((0.0, 0.16 * (looping*0.5 - k_loop) * 0.001))
-        self.t_remaining[0, [1, 2]] = 0.16 * (looping*0.5 - k_loop) * 0.001
-        (self.t_remaining[0, [1, 2]])[self.t_remaining[0, [1, 2]] < 0.0] = 0.0
-        if k_loop < int(looping*0.5):
-            self.t_remaining[0, [0, 3]] = 0.0
-        else:
-            self.t_remaining[0, [0, 3]] = 0.16 * (looping - k_loop) * 0.001
-        return 0
-
-    def test_tmp2(self, mpc_interface, fsteps):
-
-        self.footsteps = np.zeros((2, 4))#np.array(mpc_interface.o_shoulders + (mpc_interface.oMl.rotation @ self.fstep_planner.footsteps_tsid))[0:2, :]
-
-        """print("###")"""
+        self.footsteps = np.zeros((2, 4))
 
         for i in range(4):
             index = next((idx for idx, val in np.ndenumerate(fsteps[:, 3*i+1]) if ((not (val==0)) and (not np.isnan(val)))), [-1])[0]
-            #print(str(i) + ": ", (np.array([fsteps[index, (1+1+i*3):(3+i*3)]]).ravel()))
             pos_tmp = np.array(mpc_interface.oMl * (np.array([fsteps[index, (1+i*3):(4+i*3)]]).transpose()))
             self.footsteps[:, i] = pos_tmp[0:2, 0]
-
-        """if (k_simu % 20) == 10:
-            for i_disp in range(4):
-                print("Foot "+str(i_disp) + ": ", self.feetGoal[i_disp].translation.ravel())"""
-        #print(self.footsteps)
 
         return 0
 
     def update_ref_forces(self, mpc_interface):
+        """ Update the reference contact forces that TSID should try to apply on the ground
 
-        """RPY = utils.rotationMatrixToEulerAngles(self.robot.framePosition(
-            self.invdyn.data(), self.ID_base).rotation)
-        c, s = np.cos(RPY[2]), np.sin(RPY[2])
-        self.R[:2, :2] = np.array([[c, -s], [s, c]])"""
+        Args:
+            mpc_interface (object): MpcInterface object of the control loop
+        """
 
         for j, i_foot in enumerate([0, 1, 2, 3]):
-            self.contacts[i_foot].setForceReference(
-                self.w_reg_f * (mpc_interface.oMl.rotation @ self.f_applied[3*j:3*(j+1)]).T)
-
-            """self.contacts[i_foot].setRegularizationTaskWeightVector(
-                np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)"""
+            self.contacts[i_foot].setForceReference((self.w_reg_f * mpc_interface.oMl.rotation @ self.f_applied[3*j:3*(j+1)]).T)
 
         return 0
 
     def update_tasks(self, k_simu, k_loop, looping, mpc_interface, gait, ftps_Ids_deb):
+        """ Update TSID tasks (feet tracking, contacts, force tracking)
+
+        Args:
+            k_simu (int): number of TSID time steps since the start of the simulation
+            k_loop (int): number of TSID time steps since the start of the current gait period
+            looping (int): number of TSID time steps in one period of gait
+            mpc_interface (object): MpcInterface object of the control loop
+            gait (20x5 array): contains information about the contact sequence with 1s and 0s
+            fsteps (20x13): duration of each phase of the gait sequence (first column)
+                            and desired location of footsteps for these phases (other columns)
+        """
 
         # Update the foot tracking tasks
         self.update_feet_tasks(k_loop, gait, looping, mpc_interface, ftps_Ids_deb)
@@ -752,9 +527,9 @@ class controller:
                 # Enable foot tracking task
                 self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
 
-            # If foot in stance phase
-            #if (gait[0, i_foot+1] == 1):
+            # If foot entered stance phase
             if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 1) and (gait[index-1, i_foot+1] == 0):
+
                 # Update the position of contacts
                 self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
                 self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
@@ -763,10 +538,7 @@ class controller:
                 self.contacts[i_foot].setReference(self.pos_foot)
                 self.goals[:, i_foot] = mpc_interface.o_feet[:, i_foot].transpose()
 
-            # If foot entered stance phase
-            if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 1) and (gait[index-1, i_foot+1] == 0):
-
-                if not ((k_loop == 0) and (k_simu < looping)):
+                if not ((k_loop == 0) and (k_simu < looping)):  # If it is not the first gait period
                     # Enable contact
                     self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
                     self.contacts_order.append(i_foot)
@@ -774,148 +546,14 @@ class controller:
                     # Disable foot tracking task
                     self.invdyn.removeTask("foot_track_" + str(i_foot), 0.0)
 
-        if False:  # k_simu >= 0:
-            if k_loop == 0:  # Start swing phase
-
-                # Update active feet pair
-                self.pair = -1
-
-                # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
-
-                if k_simu >= looping:  # 600:
-                    for i_foot in [0, 3]:
-                        # Update the position of the contacts and enable them
-                        """self.pos_foot = self.robot.framePosition(
-                            self.invdyn.data(), self.ID_feet[i_foot])"""
-                        self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                        self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
-                        self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
-                        self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                        self.contacts[i_foot].setReference(self.pos_foot)
-                        self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
-                        self.contacts_order.append(i_foot)
-
-                        # Disable both foot tracking tasks
-                        self.invdyn.removeTask("foot_track_" + str(i_foot), 0.0)
-            elif k_loop < 20:
-
-                # 4 Feet in stance phase, nothing to do
-                return 0
-
-            elif k_loop == 20:
-
-                # Update active feet pair
-                self.pair = 0
-
-                # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
-
-                for i_foot in [1, 2]:
-                    # Disable the contacts for both feet (1 and 2)
-                    self.invdyn.removeRigidContact(self.foot_frames[i_foot], 0.0)
-                    self.contacts_order.remove(i_foot)
-
-                    # Enable the foot tracking task for both feet (1 and 2)
-                    self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
-
-                for i_foot in [0, 3]:
-                    # Update position of contacts
-                    """self.pos_foot = self.robot.framePosition(
-                        self.invdyn.data(), self.ID_feet[i_foot])"""
-                    self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                    self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
-                    self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
-                    self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                    self.contacts[i_foot].setReference(self.pos_foot)
-
-            elif k_loop > 20 and k_loop < (looping*0.5):  # 300:
-
-                # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
-
-                for i_foot in [0, 3]:
-                    # Update position of contacts
-                    """self.pos_foot = self.robot.framePosition(
-                        self.invdyn.data(), self.ID_feet[i_foot])"""
-                    self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                    self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
-                    self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
-                    self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                    self.contacts[i_foot].setReference(self.pos_foot)
-
-            elif k_loop == (looping*0.5):  # :300:
-
-                # Update active feet pair
-                self.pair = -1
-
-                # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
-
-                for i_foot in [1, 2]:
-                    # Update the position of the contacts and enable them
-                    """self.pos_foot = self.robot.framePosition(
-                        self.invdyn.data(), self.ID_feet[i_foot])"""
-                    self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                    self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
-                    self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
-                    self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                    self.contacts[i_foot].setReference(self.pos_foot)
-                    self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
-                    self.contacts_order.append(i_foot)
-
-                    # Disable both foot tracking tasks
-                    self.invdyn.removeTask("foot_track_" + str(i_foot), 0.0)
-
-            elif k_loop < (looping*0.5+20):
-
-                # 4 Feet in stance phase, nothing to do
-                return 0
-
-            elif k_loop == (looping*0.5+20):  # 320:
-
-                # Update active feet pair
-                self.pair = 1
-
-                # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
-
-                for i_foot in [0, 3]:
-                    # Disable the contacts for both feet (0 and 3)
-                    self.invdyn.removeRigidContact(self.foot_frames[i_foot], 0.0)
-                    self.contacts_order.remove(i_foot)
-
-                    # Enable the foot tracking task for both feet (0 and 3)
-                    self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
-
-                for i_foot in [1, 2]:
-                    # Update position of contacts
-                    """self.pos_foot = self.robot.framePosition(
-                        self.invdyn.data(), self.ID_feet[i_foot])"""
-                    self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                    self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
-                    self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
-                    self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                    self.contacts[i_foot].setReference(self.pos_foot)
-
-            else:
-
-                # Update the foot tracking tasks
-                self.update_feet_tasks(k_loop, self.pair, looping, mpc_interface, ftps_Ids_deb)
-
-                for i_foot in [1, 2]:
-                    # Update position of contacts
-                    """self.pos_foot = self.robot.framePosition(
-                        self.invdyn.data(), self.ID_feet[i_foot])"""
-                    self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
-                    self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
-                    self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
-                    self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
-                    self.contacts[i_foot].setReference(self.pos_foot)
-
         return 0
 
     def solve_HQP_problem(self, t):
+        """ Solve the QP problem by calling TSID's solver
+
+        Args:
+            t (float): time elapsed since the start of the simulation
+        """
 
         # Resolution of the HQP problem
         HQPData = self.invdyn.computeProblemData(t, self.qtsid, self.vtsid)
@@ -924,23 +562,14 @@ class controller:
         # Torques, accelerations, velocities and configuration computation
         self.tau_ff = self.invdyn.getActuatorForces(self.sol)
         self.fc = self.invdyn.getContactForces(self.sol)
-        # print(k_simu, " : ", self.fc.transpose())
-        # print(self.fc.transpose())
         self.ades = self.invdyn.getAccelerations(self.sol)
         if self.enable_hybrid_control:
             self.vtsid += self.ades * dt
             self.qtsid = pin.integrate(self.model, self.qtsid, self.vtsid * dt)
 
-        # Call display and log function
-        # self.display(t, solo, k_simu, sequencer)
-        # self.log(t, solo, k_simu, sequencer, mpc_interface)
-
-        # Placeholder torques for PyBullet
-        # tau = np.zeros((12, 1))
-
-        # Check for NaN value
+        # Check for NaN value in the output torques (means error during solving process)
         if np.any(np.isnan(self.tau_ff)):
-            # self.error = True
+            self.error = True
             self.tau = np.zeros((12, 1))
         else:
             # Torque PD controller
@@ -953,13 +582,15 @@ class controller:
 
             # Saturation to limit the maximal torque
             t_max = 2.5
-            # faster than np.maximum(a_min, np.minimum(a, a_max))
+            # clip is faster than np.maximum(a_min, np.minimum(a, a_max))
             self.tau = np.clip(torques12, -t_max, t_max).flatten()
 
         return 0
 
     def display(self, t, solo, k_simu, sequencer):
-
+        """ To display debug spheres in Gepetto Viewer
+        May not be up to date.
+        """
         if self.verbose:
             # Display target 3D positions of footholds with green spheres (gepetto gui)
             rgbt = [0.0, 1.0, 0.0, 0.5]
@@ -1061,6 +692,9 @@ class controller:
                 solo.display(self.qtsid)
 
     def log(self, t, solo, k_simu, sequencer, mpc_interface):
+        """ To log various quantities
+        Not used anymore since logging is done by the Logger object
+        """
 
         self.h_ref_feet[k_simu] = mpc_interface.mean_feet_z
 
