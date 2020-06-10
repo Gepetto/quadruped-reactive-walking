@@ -23,20 +23,20 @@ mpc_wrapper = MPC_Wrapper.MPC_Wrapper(dt_mpc, np.int(T_mpc/dt_mpc), multiprocess
 joystick = types.SimpleNamespace()  # Empty object
 joystick.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-# MpcInterface object that contains information about the current state of the robot
-mpc_interface = types.SimpleNamespace()  # Empty object
-mpc_interface.lC = np.array([[0.0, 0.0, 0.2]]).T  # CoM centered and at 20 cm above the ground
-mpc_interface.abg = np.array([[0.0, 0.0, 0.0]]).T  # horizontal base (roll, pitch, 0.0)
-mpc_interface.lV = np.array([[0.0, 0.0, 0.1]]).T  # motionless base (linear velocity)
-mpc_interface.lW = np.array([[0.0, 0.0, 0.0]]).T  # motionless base (angular velocity)
-mpc_interface.l_feet = np.array([[0.19, 0.19, -0.19, -0.19],
+# Interface object that contains information about the current state of the robot
+interface = types.SimpleNamespace()  # Empty object
+interface.lC = np.array([[0.0, 0.0, 0.2]]).T  # CoM centered and at 20 cm above the ground
+interface.abg = np.array([[0.0, 0.0, 0.0]]).T  # horizontal base (roll, pitch, 0.0)
+interface.lV = np.array([[0.0, 0.0, 0.1]]).T  # motionless base (linear velocity)
+interface.lW = np.array([[0.0, 0.0, 0.0]]).T  # motionless base (angular velocity)
+interface.l_feet = np.array([[0.19, 0.19, -0.19, -0.19],
                                  [0.15005, -0.15005, 0.15005, -0.15005],
                                  [0.0, 0.0, 0.0, 0.0]])  # position of feet in local frame
 
 # FootstepPlanner object that contains information about the footsteps
 fstep_planner = types.SimpleNamespace()  # Empty object
-fstep_planner.x0 = np.vstack((mpc_interface.lC, mpc_interface.abg,
-                              mpc_interface.lV, mpc_interface.lW))  # Current state vector
+fstep_planner.x0 = np.vstack((interface.lC, interface.abg,
+                              interface.lV, interface.lW))  # Current state vector
 fstep_planner.xref = np.repeat(fstep_planner.x0, np.int(T_mpc/dt_mpc)+1, axis=1)  # Desired future state vectors
 fstep_planner.xref[8, 1:] = 0.0
 fstep_planner.fsteps = np.full((6, 13), np.nan)  # Array that contains information about the gait
@@ -44,13 +44,13 @@ fstep_planner.fsteps = np.full((6, 13), np.nan)  # Array that contains informati
 # All feet in stance phase during the whole period
 fstep_planner.fsteps[:, 0] = np.zeros((6,))
 fstep_planner.fsteps[0, 0] = np.int(T_mpc/dt_mpc)
-fstep_planner.fsteps[0, 1:] = mpc_interface.l_feet.ravel(order="F")
+fstep_planner.fsteps[0, 1:] = interface.l_feet.ravel(order="F")
 
 # FL+HR in stance during a half period then FR+HL in stance
 """fstep_planner.fsteps[:, 0] = np.zeros((6,))
 fstep_planner.fsteps[0:2, 0] = np.int(0.5*T_mpc/dt_mpc)
-fstep_planner.fsteps[0, 1:] = mpc_interface.l_feet.ravel(order="F")
-fstep_planner.fsteps[1, 1:] = mpc_interface.l_feet.ravel(order="F")
+fstep_planner.fsteps[0, 1:] = interface.l_feet.ravel(order="F")
+fstep_planner.fsteps[1, 1:] = interface.l_feet.ravel(order="F")
 fstep_planner.fsteps[0, 4:10] = np.nan
 fstep_planner.fsteps[1, 1:4] = np.nan
 fstep_planner.fsteps[1, 10:14] = np.nan"""
@@ -60,10 +60,10 @@ fstep_planner.fsteps[1, 10:14] = np.nan"""
 #############
 
 # Run the MPC once to initialize internal matrices
-mpc_wrapper.run_MPC(dt_mpc, np.int(T_mpc/dt_mpc), 0, T_mpc, T_mpc/2, joystick, fstep_planner, mpc_interface)
+mpc_wrapper.run_MPC(dt_mpc, np.int(T_mpc/dt_mpc), 0, T_mpc, T_mpc/2, joystick, fstep_planner, interface)
 
 # Run the MPC to get the reference forces and the next predicted state
-mpc_wrapper.run_MPC(dt_mpc, np.int(T_mpc/dt_mpc), 1, T_mpc, T_mpc/2, joystick, fstep_planner, mpc_interface)
+mpc_wrapper.run_MPC(dt_mpc, np.int(T_mpc/dt_mpc), 1, T_mpc, T_mpc/2, joystick, fstep_planner, interface)
 
 # Output of the MPC
 f_applied = mpc_wrapper.get_latest_result(1)

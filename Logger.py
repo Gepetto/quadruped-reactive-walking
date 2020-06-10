@@ -141,13 +141,13 @@ class Logger:
 
         return 0
 
-    def log_footsteps(self, k, mpc_interface, tsid_controller):
+    def log_footsteps(self, k, interface, tsid_controller):
         """ Store current and desired position, velocity and acceleration of feet over time
         """
 
-        self.feet_pos[:, :, k] = mpc_interface.o_feet
-        self.feet_vel[:, :, k] = mpc_interface.ov_feet
-        self.feet_acc[:, :, k] = mpc_interface.oa_feet
+        self.feet_pos[:, :, k] = interface.o_feet
+        self.feet_vel[:, :, k] = interface.ov_feet
+        self.feet_acc[:, :, k] = interface.oa_feet
         self.feet_pos_target[:, :, k] = tsid_controller.goals.copy()
         self.feet_vel_target[:, :, k] = tsid_controller.vgoals.copy()
         self.feet_acc_target[:, :, k] = tsid_controller.agoals.copy()
@@ -190,17 +190,17 @@ class Logger:
 
         return 0
 
-    def log_state(self, k, joystick, mpc_interface, mpc_wrapper):
+    def log_state(self, k, joystick, interface, mpc_wrapper):
         """ Store information about the state of the robot
         """
 
-        self.RPY[:, k:(k+1)] = mpc_interface.RPY[:, 0]  # roll, pitch, yaw of the base in world frame
-        self.oC[:, k:(k+1)] = mpc_interface.oC[:, 0]  #  position of the CoM in world frame
-        self.oV[:, k:(k+1)] = mpc_interface.oV[:, 0]  #  linear velocity of the CoM in world frame
-        self.oW[:, k] = mpc_interface.oW[:, 0]  # angular velocity of the CoM in world frame
-        self.lC[:, k:(k+1)] = mpc_interface.lC[:, 0]  #  position of the CoM in local frame
-        self.lV[:, k:(k+1)] = mpc_interface.lV[:, 0]  #  linear velocity of the CoM in local frame
-        self.lW[:, k:(k+1)] = mpc_interface.lW[:, 0]  #  angular velocity of the CoM in local frame
+        self.RPY[:, k:(k+1)] = interface.RPY[:, 0]  # roll, pitch, yaw of the base in world frame
+        self.oC[:, k:(k+1)] = interface.oC[:, 0]  #  position of the CoM in world frame
+        self.oV[:, k:(k+1)] = interface.oV[:, 0]  #  linear velocity of the CoM in world frame
+        self.oW[:, k] = interface.oW[:, 0]  # angular velocity of the CoM in world frame
+        self.lC[:, k:(k+1)] = interface.lC[:, 0]  #  position of the CoM in local frame
+        self.lV[:, k:(k+1)] = interface.lV[:, 0]  #  linear velocity of the CoM in local frame
+        self.lW[:, k:(k+1)] = interface.lW[:, 0]  #  angular velocity of the CoM in local frame
 
         # Reference state vector in local frame
         # Velocity control for x, y and yaw components (user input)
@@ -318,7 +318,7 @@ class Logger:
             # If it returns 0 then it means there is no contact point with a non zero normal force (should not happen)
             return [0]
 
-    def log_forces(self, k, mpc_interface, tsid_controller, robotId, planeId):
+    def log_forces(self, k, interface, tsid_controller, robotId, planeId):
         """ Store information about contact forces
         """
 
@@ -343,7 +343,7 @@ class Logger:
 
         # Contact forces desired by MPC (transformed into world frame)
         for f in range(4):
-            self.forces_mpc[3*f:(3*(f+1)), k:(k+1)] = (mpc_interface.oMl.rotation @ tsid_controller.f_applied[3*f:3*(f+1)]).T
+            self.forces_mpc[3*f:(3*(f+1)), k:(k+1)] = (interface.oMl.rotation @ tsid_controller.f_applied[3*f:3*(f+1)]).T
 
         # Contact forces desired by TSID (world frame)
         for i, j in enumerate(tsid_controller.contacts_order):
@@ -582,7 +582,7 @@ class Logger:
 
         return 0
 
-    def call_log_functions(self, k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, tsid_controller, enable_multiprocessing, robotId, planeId, solo):
+    def call_log_functions(self, k, sequencer, joystick, fstep_planner, interface, mpc_wrapper, tsid_controller, enable_multiprocessing, robotId, planeId, solo):
         """ Call logging functions of the Logger class
         """
 
@@ -599,14 +599,14 @@ class Logger:
         self.log_desired_contact_forces(mpc, sequencer, k_loop)"""
 
         # Store current and desired position, velocity and acceleration of feet over time
-        self.log_footsteps(k, mpc_interface, tsid_controller)
+        self.log_footsteps(k, interface, tsid_controller)
 
         # Store information about the state of the robot
         if not enable_multiprocessing:
-            self.log_state(k, joystick, mpc_interface, mpc_wrapper)
+            self.log_state(k, joystick, interface, mpc_wrapper)
 
         # Store information about contact forces
-        self.log_forces(k, mpc_interface, tsid_controller, robotId, planeId)
+        self.log_forces(k, interface, tsid_controller, robotId, planeId)
 
         # Store information about torques
         self.log_torques(k, tsid_controller)

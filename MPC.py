@@ -498,7 +498,7 @@ class MPC:
         # Retrieving the reference velocity from the joystick
         self.v_ref = v_ref
 
-        # Update MPC's state vectors by retrieving information from the mpc_interface
+        # Update MPC's state vectors by retrieving information from the interface
         if k > 0:
             self.q[0:3, 0:1] = lC
             self.q[3:6, 0:1] = abg

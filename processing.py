@@ -12,7 +12,7 @@ def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller
         k (int): Number of inv dynamics iterations since the start of the simulation
         k_mpc (int): Number of inv dynamics iterations for one iteration of the MPC
         pyb_sim (object): PyBullet simulation
-        interface (object): MpcInterface object of the control loop
+        interface (object): Interface object of the control loop
         joystick (object): Interface with the gamepad
         tsid_controller (object): Inverse dynamics controller
     """
@@ -68,7 +68,7 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
         k (int): Number of inv dynamics iterations since the start of the simulation
         k_mpc (int): Number of inv dynamics iterations for one iteration of the MPC
         pyb_sim (object): PyBullet simulation
-        interface (object): MpcInterface object of the control loop
+        interface (object): Interface object of the control loop
         joystick (object): Interface with the gamepad
         fstep_planner (object): Footsteps planner object
     """
@@ -100,7 +100,7 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
     Args:
         k (int): Number of inv dynamics iterations since the start of the simulation
         k_mpc (int): Number of inv dynamics iterations for one iteration of the MPC
-        interface (object): MpcInterface object of the control loop
+        interface (object): Interface object of the control loop
         joystick (object): Interface with the gamepad
         fstep_planner (object): Footsteps planner object
         mpc_wrapper (object): Wrapper that acts as a black box for the MPC
@@ -156,7 +156,7 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, joystick, fstep_plann
         k (int): Number of inv dynamics iterations since the start of the simulation
         f_applied (12x1 array): Reference contact forces for all feet (0s for feet in swing phase)
         pyb_sim (object): PyBullet simulation
-        interface (object): MpcInterface object of the control loop
+        interface (object): Interface object of the control loop
         joystick (object): Interface with the gamepad
         fstep_planner (object): Footsteps planner object
         mpc_wrapper (object): Wrapper that acts as a black box for the MPC
@@ -182,8 +182,8 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, joystick, fstep_plann
     #####################################
 
     # TSID needs the velocity of the robot in base frame
-    """pyb_sim.vmes12[0:3, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
-    pyb_sim.vmes12[3:6, 0:1] = mpc_interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]"""
+    """pyb_sim.vmes12[0:3, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
+    pyb_sim.vmes12[3:6, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]"""
     pyb_sim.qmes12 = myController.qtsid.copy()
     pyb_sim.vmes12 = myController.vtsid.copy()
 

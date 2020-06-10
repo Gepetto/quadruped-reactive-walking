@@ -33,7 +33,7 @@ class MPC_Wrapper:
             # Create the new version of the MPC solver object
             self.mpc = MPC.MPC(dt, n_steps)
 
-    def run_MPC(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface):
+    def run_MPC(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, interface):
         """Call either the asynchronous MPC or the synchronous MPC depending on the value of multiprocessing during
         the creation of the wrapper
 
@@ -45,13 +45,13 @@ class MPC_Wrapper:
             t_stance (float): duration of one stance phase
             joystick (object): interface with the gamepad
             fstep_planner (object): FootstepPlanner object of the control loop
-            mpc_interface (object): MpcInterface object of the control loop
+            interface (object): Interface object of the control loop
         """
 
         if self.multiprocessing:
-            self.run_MPC_asynchronous(dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface)
+            self.run_MPC_asynchronous(dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, interface)
         else:
-            self.run_MPC_synchronous(dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface)
+            self.run_MPC_synchronous(dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, interface)
 
         return 0
 
@@ -77,7 +77,7 @@ class MPC_Wrapper:
             # Default forces for the first iteration
             return np.array([0.0, 0.0, 8.0] * 4)
 
-    def run_MPC_synchronous(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface):
+    def run_MPC_synchronous(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, interface):
         """Run the MPC (synchronous version) to get the desired contact forces for the feet currently in stance phase
 
         Args:
@@ -88,18 +88,18 @@ class MPC_Wrapper:
             t_stance (float): duration of one stance phase
             joystick (object): interface with the gamepad
             fstep_planner (object): FootstepPlanner object of the control loop
-            mpc_interface (object): MpcInterface object of the control loop
+            interface (object): Interface object of the control loop
         """
 
         # Run the MPC to get the reference forces and the next predicted state
         # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
 
         """print(dt, n_steps, k, T_gait, t_stance)
-        print(np.round(mpc_interface.lC.ravel(), decimals=2))
-        print(np.round(mpc_interface.abg.ravel(), decimals=2))
-        print(np.round(mpc_interface.lV.ravel(), decimals=2))
-        print(np.round(mpc_interface.lW.ravel(), decimals=2))
-        print(mpc_interface.l_feet.ravel())
+        print(np.round(interface.lC.ravel(), decimals=2))
+        print(np.round(interface.abg.ravel(), decimals=2))
+        print(np.round(interface.lV.ravel(), decimals=2))
+        print(np.round(interface.lW.ravel(), decimals=2))
+        print(interface.l_feet.ravel())
         print(joystick.v_ref.ravel())
         print(fstep_planner.fsteps)"""
 
@@ -107,22 +107,22 @@ class MPC_Wrapper:
             deb=1
 
         self.mpc.run((k/self.k_mpc), T_gait, t_stance,
-                     mpc_interface.lC, mpc_interface.abg, mpc_interface.lV, mpc_interface.lW,
-                     mpc_interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
+                     interface.lC, interface.abg, interface.lV, interface.lW,
+                     interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
                      fstep_planner.fsteps)
 
-        """tmp_lC = mpc_interface.lC.copy()
-        tmp_lC[2, 0] += dt * mpc_interface.lV[2, 0]
-        tmp_abg = mpc_interface.abg + dt * mpc_interface.lW
+        """tmp_lC = interface.lC.copy()
+        tmp_lC[2, 0] += dt * interface.lV[2, 0]
+        tmp_abg = interface.abg + dt * interface.lW
         tmp_abg[2, 0] = 0.0
-        tmp_lfeet = mpc_interface.l_feet - dt * mpc_interface.lV
+        tmp_lfeet = interface.l_feet - dt * interface.lV
         tmp_xref = fstep_planner.xref.copy()
         tmp_xref """
 
         # Output of the MPC
         self.f_applied = self.mpc.f_applied
 
-    def run_MPC_asynchronous(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface):
+    def run_MPC_asynchronous(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, interface):
         """Run the MPC (asynchronous version) to get the desired contact forces for the feet currently in stance phase
 
         Args:
@@ -133,7 +133,7 @@ class MPC_Wrapper:
             t_stance (float): duration of one stance phase
             joystick (object): interface with the gamepad
             fstep_planner (object): FootstepPlanner object of the control loop
-            mpc_interface (object): MpcInterface object of the control loop
+            interface (object): Interface object of the control loop
         """
 
         # If this is the first iteration, creation of the parallel process
@@ -142,15 +142,15 @@ class MPC_Wrapper:
             p.start()
 
         # print("Setting Data")
-        self.compress_dataIn(dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface)
+        self.compress_dataIn(dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, interface)
 
         """print("Sending")
         print(dt, n_steps, k, T_gait, t_stance)
-        print(mpc_interface.lC.ravel())
-        print(mpc_interface.abg.ravel())
-        print(mpc_interface.lV.ravel())
-        print(mpc_interface.lW.ravel())
-        print(mpc_interface.l_feet.ravel())
+        print(interface.lC.ravel())
+        print(interface.abg.ravel())
+        print(interface.lV.ravel())
+        print(interface.lW.ravel())
+        print(interface.l_feet.ravel())
         print(joystick.v_ref.ravel())
         print(fstep_planner.fsteps)"""
 
@@ -221,7 +221,7 @@ class MPC_Wrapper:
 
         return 0
 
-    def compress_dataIn(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, mpc_interface):
+    def compress_dataIn(self, dt, n_steps, k, T_gait, t_stance, joystick, fstep_planner, interface):
         """Compress data in a single C-type array that belongs to the shared memory to send data from the main control
         loop to the asynchronous MPC
 
@@ -233,7 +233,7 @@ class MPC_Wrapper:
             t_stance (float): duration of one stance phase
             joystick (object): interface with the gamepad
             fstep_planner (object): FootstepPlanner object of the control loop
-            mpc_interface (object): MpcInterface object of the control loop
+            interface (object): Interface object of the control loop
         """
 
         # print("Compressing dataIn")
@@ -242,8 +242,8 @@ class MPC_Wrapper:
         fstep_planner.fsteps[np.isnan(fstep_planner.fsteps)] = 0.0
 
         # Compress data in the shared input array
-        self.dataIn[:] = np.concatenate([[dt, n_steps, k, T_gait, t_stance], np.array(mpc_interface.lC).ravel(), np.array(mpc_interface.abg).ravel(),
-                         np.array(mpc_interface.lV).ravel(), np.array(mpc_interface.lW).ravel(), np.array(mpc_interface.l_feet).ravel(), fstep_planner.xref.ravel(), fstep_planner.x0.ravel(), joystick.v_ref.ravel(),
+        self.dataIn[:] = np.concatenate([[dt, n_steps, k, T_gait, t_stance], np.array(interface.lC).ravel(), np.array(interface.abg).ravel(),
+                         np.array(interface.lV).ravel(), np.array(interface.lW).ravel(), np.array(interface.l_feet).ravel(), fstep_planner.xref.ravel(), fstep_planner.x0.ravel(), joystick.v_ref.ravel(),
                          fstep_planner.fsteps.ravel()], axis=0)
 
         return 0.0

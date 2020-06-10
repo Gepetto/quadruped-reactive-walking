@@ -39,7 +39,7 @@ enable_gepetto_viewer = True
 
 # Create Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator
 # and MpcSolver objects
-joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, mpc_interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc, n_periods)
+joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc, n_periods)
 
 # Enable/Disable multiprocessing (MPC running in a parallel process)
 enable_multiprocessing = False
@@ -80,19 +80,19 @@ for k in range(int(N_SIMULATION)):
         print("Iteration: ", k)
 
     # Process states update and joystick
-    proc.process_states(solo, k, k_mpc, pyb_sim, mpc_interface, joystick, myController)
+    proc.process_states(solo, k, k_mpc, pyb_sim, interface, joystick, myController)
 
     # Process footstep planner
-    proc.process_footsteps_planner(k, k_mpc, pyb_sim, mpc_interface, joystick, fstep_planner)
+    proc.process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_planner)
 
     # Process MPC once every k_mpc iterations of TSID
     if (k % k_mpc) == 0:
-        f_applied = proc.process_mpc(k, k_mpc, mpc_interface, joystick, fstep_planner, mpc_wrapper, dt_mpc,
+        f_applied = proc.process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mpc,
                                      sequencer, ID_deb_lines)
 
     # Process Inverse Dynamics
     time_tsid = time.time()
-    jointTorques = proc.process_invdyn(solo, k, f_applied, pyb_sim, mpc_interface, joystick, fstep_planner,
+    jointTorques = proc.process_invdyn(solo, k, f_applied, pyb_sim, interface, joystick, fstep_planner,
                                        mpc_wrapper, myController, sequencer, enable_hybrid_control)
     t_list_tsid[k] = time.time() - time_tsid  # Logging the time spent to run this iteration of inverse dynamics
 
@@ -100,7 +100,7 @@ for k in range(int(N_SIMULATION)):
     # proc.process_pybullet(pyb_sim, jointTorques)
 
     # Call logger object to log various parameters
-    logger.call_log_functions(k, sequencer, joystick, fstep_planner, mpc_interface, mpc_wrapper, myController,
+    logger.call_log_functions(k, sequencer, joystick, fstep_planner, interface, mpc_wrapper, myController,
                               enable_multiprocessing, pyb_sim.robotId, pyb_sim.planeId, solo)
 
 ####################

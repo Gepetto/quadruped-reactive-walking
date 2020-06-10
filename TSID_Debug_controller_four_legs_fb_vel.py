@@ -245,7 +245,7 @@ class controller:
         # Resize the solver to fit the number of variables, equality and inequality constraints
         self.solver.resize(self.invdyn.nVar, self.invdyn.nEq, self.invdyn.nIn)
 
-    def update_feet_tasks(self, k_loop, gait, looping, mpc_interface, ftps_Ids_deb):
+    def update_feet_tasks(self, k_loop, gait, looping, interface, ftps_Ids_deb):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
 
@@ -253,7 +253,7 @@ class controller:
             k_loop (int): number of time steps since the start of the current gait cycle
             pair (int): the current pair of feet in swing phase, for a walking trot gait
             looping (int): total number of time steps in one gait cycle
-            mpc_interface (MpcInterface object): interface between the simulator and the MPC/InvDyn
+            interface (Interface object): interface between the simulator and the MPC/InvDyn
             ftps_Ids_deb (list): IDs of debug spheres in PyBullet
         """
 
@@ -290,8 +290,8 @@ class controller:
             # Get desired 3D position, velocity and acceleration
             if t0s[i] == 0.000:
                 [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
-                    mpc_interface.o_feet[0, i_foot], mpc_interface.ov_feet[0, i_foot], mpc_interface.oa_feet[0, i_foot],
-                    mpc_interface.o_feet[1, i_foot], mpc_interface.ov_feet[1, i_foot], mpc_interface.oa_feet[1, i_foot],
+                    interface.o_feet[0, i_foot], interface.ov_feet[0, i_foot], interface.oa_feet[0, i_foot],
+                    interface.o_feet[1, i_foot], interface.ov_feet[1, i_foot], interface.oa_feet[1, i_foot],
                     self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0s[i],  self.t_swing[i_foot], self.dt)
                 self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
             else:
@@ -302,7 +302,7 @@ class controller:
                 self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
 
             # Take into account vertical offset of Pybullet
-            z0 += mpc_interface.mean_feet_z
+            z0 += interface.mean_feet_z
 
             # Store desired position, velocity and acceleration for later call to this function
             self.goals[:, i_foot] = np.array([x0, y0, z0])
@@ -331,7 +331,7 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qtsid, vtsid, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied, fsteps, gait,
+    def control(self, qtsid, vtsid, k_simu, solo, sequencer, interface, v_ref, f_applied, fsteps, gait,
                 ftps_Ids_deb, enable_hybrid_control=False, qmes=None, vmes=None, qmpc=None, vmpc=None):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
@@ -343,7 +343,7 @@ class controller:
             k_simu (int): number of time steps since the start of the simulation
             solo (object): Pinocchio wrapper for the quadruped
             sequencer (object): ContactSequencer object that contains information about the current gait
-            mpc_interface (MpcInterface object): interface between the simulator and the MPC/InvDyn
+            interface (Interface object): interface between the simulator and the MPC/InvDyn
             v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
             f_applied (12 array): desired contact forces for all feet (0s for feet in swing phase)
             fsteps (Xx13 array): contains the remaining number of steps of each phase of the gait (first column) and
@@ -422,21 +422,21 @@ class controller:
         k_loop = (k_simu - 0) % looping  # Current number of iterations since the start of the current gait cycle
 
         # Update the desired position of footholds thanks to the footstep planner
-        self.update_footsteps(mpc_interface, fsteps)
+        self.update_footsteps(interface, fsteps)
 
         ######################################
         # UPDATE REFERENCE OF CONTACT FORCES #
         ######################################
 
         # Update the contact force tracking tasks to follow the forces computed by the MPC
-        self.update_ref_forces(mpc_interface)
+        self.update_ref_forces(interface)
 
         ################
         # UPDATE TASKS #
         ################
 
         # Enable/disable contact and 3D tracking tasks depending on the state of the feet (swing or stance phase)
-        self.update_tasks(k_simu, k_loop, looping, mpc_interface, gait, ftps_Ids_deb)
+        self.update_tasks(k_simu, k_loop, looping, interface, gait, ftps_Ids_deb)
 
         ###############
         # HQP PROBLEM #
@@ -472,11 +472,11 @@ class controller:
 
         return 0
 
-    def update_footsteps(self, mpc_interface, fsteps):
+    def update_footsteps(self, interface, fsteps):
         """ Update desired location of footsteps using information coming from the footsteps planner
 
         Args:
-            mpc_interface (object): MpcInterface object of the control loop
+            interface (object): Interface object of the control loop
             fsteps (20x13): duration of each phase of the gait sequence (first column)
                             and desired location of footsteps for these phases (other columns)
         """
@@ -485,38 +485,38 @@ class controller:
 
         for i in range(4):
             index = next((idx for idx, val in np.ndenumerate(fsteps[:, 3*i+1]) if ((not (val==0)) and (not np.isnan(val)))), [-1])[0]
-            pos_tmp = np.array(mpc_interface.oMl * (np.array([fsteps[index, (1+i*3):(4+i*3)]]).transpose()))
+            pos_tmp = np.array(interface.oMl * (np.array([fsteps[index, (1+i*3):(4+i*3)]]).transpose()))
             self.footsteps[:, i] = pos_tmp[0:2, 0]
 
         return 0
 
-    def update_ref_forces(self, mpc_interface):
+    def update_ref_forces(self, interface):
         """ Update the reference contact forces that TSID should try to apply on the ground
 
         Args:
-            mpc_interface (object): MpcInterface object of the control loop
+            interface (object): Interface object of the control loop
         """
 
         for j, i_foot in enumerate([0, 1, 2, 3]):
-            self.contacts[i_foot].setForceReference((self.w_reg_f * mpc_interface.oMl.rotation @ self.f_applied[3*j:3*(j+1)]).T)
+            self.contacts[i_foot].setForceReference((self.w_reg_f * interface.oMl.rotation @ self.f_applied[3*j:3*(j+1)]).T)
 
         return 0
 
-    def update_tasks(self, k_simu, k_loop, looping, mpc_interface, gait, ftps_Ids_deb):
+    def update_tasks(self, k_simu, k_loop, looping, interface, gait, ftps_Ids_deb):
         """ Update TSID tasks (feet tracking, contacts, force tracking)
 
         Args:
             k_simu (int): number of TSID time steps since the start of the simulation
             k_loop (int): number of TSID time steps since the start of the current gait period
             looping (int): number of TSID time steps in one period of gait
-            mpc_interface (object): MpcInterface object of the control loop
+            interface (object): Interface object of the control loop
             gait (20x5 array): contains information about the contact sequence with 1s and 0s
             fsteps (20x13): duration of each phase of the gait sequence (first column)
                             and desired location of footsteps for these phases (other columns)
         """
 
         # Update the foot tracking tasks
-        self.update_feet_tasks(k_loop, gait, looping, mpc_interface, ftps_Ids_deb)
+        self.update_feet_tasks(k_loop, gait, looping, interface, ftps_Ids_deb)
 
         # Index of the first blank line in the gait matrix
         index = next((idx for idx, val in np.ndenumerate(gait[:, 0]) if (((val==0)))), [-1])[0]
@@ -537,12 +537,12 @@ class controller:
             if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 1) and (gait[index-1, i_foot+1] == 0):
 
                 # Update the position of contacts
-                self.pos_foot.translation = mpc_interface.o_feet[:, i_foot]
+                self.pos_foot.translation = interface.o_feet[:, i_foot]
                 self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
-                self.memory_contacts[:, i_foot] = mpc_interface.o_feet[0:2, i_foot]
-                self.feetGoal[i_foot].translation = mpc_interface.o_feet[:, i_foot].transpose()
+                self.memory_contacts[:, i_foot] = interface.o_feet[0:2, i_foot]
+                self.feetGoal[i_foot].translation = interface.o_feet[:, i_foot].transpose()
                 self.contacts[i_foot].setReference(self.pos_foot)
-                self.goals[:, i_foot] = mpc_interface.o_feet[:, i_foot].transpose()
+                self.goals[:, i_foot] = interface.o_feet[:, i_foot].transpose()
 
                 if not ((k_loop == 0) and (k_simu < looping)):  # If it is not the first gait period
                     # Enable contact
@@ -697,12 +697,12 @@ class controller:
                 solo.viewer.gui.refresh()
                 solo.display(self.qtsid)
 
-    def log(self, t, solo, k_simu, sequencer, mpc_interface):
+    def log(self, t, solo, k_simu, sequencer, interface):
         """ To log various quantities
         Not used anymore since logging is done by the Logger object
         """
 
-        self.h_ref_feet[k_simu] = mpc_interface.mean_feet_z
+        self.h_ref_feet[k_simu] = interface.mean_feet_z
 
         # Log pos, vel, acc of the flying foot
         for i_foot in range(4):
@@ -715,7 +715,7 @@ class controller:
                 self.invdyn.data(), self.ID_feet[i_foot])
             acc = self.robot.frameAccelerationWorldOriented(
                 self.invdyn.data(), self.ID_feet[i_foot])
-            self.f_pos[i_foot, k_simu:(k_simu+1), :] = mpc_interface.o_feet[:,
+            self.f_pos[i_foot, k_simu:(k_simu+1), :] = interface.o_feet[:,
                                                                             i_foot]  # pos.translation[0:3].transpose()
             self.f_vel[i_foot, k_simu:(k_simu+1), :] = vel.vector[0:3].transpose()
             self.f_acc[i_foot, k_simu:(k_simu+1), :] = acc.vector[0:3].transpose()

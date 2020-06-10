@@ -3,7 +3,7 @@
 import numpy as np
 import pinocchio as pin
 
-class MpcInterface:
+class Interface:
     """Interface between the simulation and the FootstepPlanner/MPC/TSID. Retrieve information from the simulator
        (positions, orientations, velocities) and compute different useful quantities (transforms, roll-pitch-yaw)
     """
@@ -43,7 +43,7 @@ class MpcInterface:
         self.o_shoulders = np.zeros((3, 4))
 
     def update(self, solo, qmes12, vmes12):
-        """Update the quantities of the MpcInterface based on the last measurements from the simulation
+        """Update the quantities of the Interface based on the last measurements from the simulation
 
         Args:
             solo (object): Pinocchio wrapper for the quadruped
