@@ -135,6 +135,9 @@ class controller:
         # Parameter to enable/disable hybrid control
         self.enable_hybrid_control = False
 
+        # Time since the start of the simulation
+        self.t = 0.0
+
         ########################################################################
         #             Definition of the Model and TSID problem                 #
         ########################################################################
@@ -328,7 +331,7 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qtsid, vtsid, t, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied, fsteps, gait,
+    def control(self, qtsid, vtsid, k_simu, solo, sequencer, mpc_interface, v_ref, f_applied, fsteps, gait,
                 ftps_Ids_deb, enable_hybrid_control=False, qmes=None, vmes=None, qmpc=None, vmpc=None):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
@@ -440,7 +443,10 @@ class controller:
         ###############
 
         # Solve the inverse dynamics problem with TSID
-        self.solve_HQP_problem(t)
+        self.solve_HQP_problem(self.t)
+
+        # Time incrementation
+        self.t += dt
 
         ###########
         # DISPLAY #

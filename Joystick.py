@@ -26,7 +26,23 @@ class Joystick:
         self.VyScale = 0.4
         self.vYawScale = 0.4
 
-    def update_v_ref(self, k_loop):
+    def update_v_ref(self, k_loop, predefined):
+        """Update the reference velocity of the robot along X, Y and Yaw in local frame by
+        listening to a gamepad handled by an independent thread
+
+        Args:
+            k_loop (int): number of MPC iterations since the start of the simulation
+            predefined (bool): if true use hardcoded velocity ref, otherwise use gamepad
+        """
+
+        if predefined:
+            self.update_v_ref_predefined(k_loop)
+        else:
+            self.update_v_ref_gamepad(k_loop)
+
+        return 0
+
+    def update_v_ref_gamepad(self, k_loop):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame by
         listening to a gamepad handled by an independent thread
 

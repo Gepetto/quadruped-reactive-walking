@@ -119,6 +119,8 @@ def quaternionToRPY(quat):
 
 
 def init_viewer(enable_viewer):
+    # loadSolo(False) to load solo12
+    # loadSolo(True) to load solo8
     solo = robots_loader.loadSolo(False)
 
     if enable_viewer:

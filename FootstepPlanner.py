@@ -61,6 +61,8 @@ class FootstepPlanner:
         # Gait matrix
         self.gait = np.zeros((20, 5))
         self.fsteps = np.full((self.gait.shape[0], 13), np.nan)
+        self.gait_invdyn = self.gait.copy()
+        self.fsteps_invdyn = self.fsteps.copy()
 
         self.flag_rotation_command = int(0)
         self.h_rotation_command = 0.20
