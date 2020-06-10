@@ -119,4 +119,3 @@ plt.figure()
 plt.plot(t_list_tsid, 'k+')
 plt.title("Time TSID")
 plt.show(block=False)
-
