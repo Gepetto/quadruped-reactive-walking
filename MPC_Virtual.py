@@ -4,14 +4,25 @@ import MPC_Wrapper
 
 
 class MPC_Virtual():
+    """Wrapper for different MPC solvers. Only two functions are used rom the main loop:
+    solve() is used to run one iteration of the MPC
+    get_latest_result() is used to retrieve the reference contact forces
+    Automatically call the solver chosen by the user
 
-    def __init__(self, MPC_type, dt_mpc, sequencer, k_mpc):
+    Args:
+        mpc_type (bool): True to have PA's MPC, False to have Thomas's MPC
+        dt_mpc (float): Duration of one time step of the MPC
+        sequencer (object): Contain various information about the contact sequence
+        k_mpc (int): Number of inv dyn time step for one iteration of the MPC
+    """
 
-        if MPC_type:
+    def __init__(self, mpc_type, dt_mpc, sequencer, k_mpc):
+
+        if mpc_type:
 
             # Enable/Disable multiprocessing (MPC running in a parallel process)
             enable_multiprocessing = False
-            self.solver = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], k_mpc,
+            self.solver = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], k_mpc, sequencer.T_gait,
                                                   multiprocessing=enable_multiprocessing)
 
         else:

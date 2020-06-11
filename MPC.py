@@ -16,10 +16,10 @@ class MPC:
         n_steps (int): number of time step in one gait cycle
         n_contacts (int): cumulative number of feet touching the ground in one gait cycle, for instance if 4 feet
                           touch the ground during 10 time steps then 2 feet during 5 time steps then n_contacts = 50
-
+        T_gait (float): duration of one period of gait
     """
 
-    def __init__(self, dt, n_steps):
+    def __init__(self, dt, n_steps, T_gait):
 
         # Time step of the MPC solver
         self.dt = dt
@@ -41,6 +41,9 @@ class MPC:
         # Number of time steps in the prediction horizon
         self.n_steps = n_steps
 
+        # Duration of one period of gait
+        self.T_gait = T_gait
+
         # Reference trajectory matrix of size 12 by (1 + N)  with the current state of
         # the robot in column 0 and the N steps of the prediction horizon in the others
         self.xref = np.zeros((12, 1 + self.n_steps))
@@ -56,9 +59,6 @@ class MPC:
 
         # Initial velocity vector of the robot in local frame
         self.v = np.zeros((6, 1))
-
-        # Reference velocity vector of the robot in local frame
-        self.v_ref = np.zeros((6, 1))
 
         # Reference height that the robot will try to maintain
         self.h_ref = self.q[2, 0]
@@ -80,18 +80,6 @@ class MPC:
 
         self.S_gait = np.zeros((12*self.n_steps,))
         self.gait = np.zeros((20, 5))
-
-    def update_v_ref(self, joystick):
-        """Get reference velocity in local frame from a joystick-like object (gamepad for instance)
-
-        Args:
-            joystick (object): a joystick-like object with a v_ref attribute
-        """
-
-        # Retrieving the reference velocity from the joystick
-        self.v_ref = joystick.v_ref
-
-        return 0
 
     def create_matrices(self):
         """Create the constraint matrices of the MPC (M.X = N and L.X <= K)
@@ -469,22 +457,14 @@ class MPC:
 
         return 0
 
-    def run(self, k, T_gait, lC, abg, lV, lW, l_feet, xref, x0, v_ref, fsteps):
+    def run(self, k, xref, fsteps):
         """Run one iteration of the whole MPC by calling all the necessary functions (data retrieval,
            update of constraint matrices, update of the solver, running the solver, retrieving result)
 
         Args:
             k (int): the number of MPC iterations since the start of the simulation
-            T_gait (float): duration of one period of gait
-            lC (3x0 array): position of the center of mass in local frame
-            abg (3x0 array): orientation of the trunk in local frame
-            lV (3x0 array): linear velocity of the CoM in local frame
-            lW (3x0 array): angular velocity of the trunk in local frame
-            l_feet (3x4 array): current position of feet in local frame
             xref (12x(N+1) array): current state vector of the robot (first column) and future desired state vectors
                                    (other columns). N is the number of time step in the prediction horizon
-            x0 (12x1 array): current state vector of the robot (position/orientation/linear vel/angular vel)
-            v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
             fsteps (Xx13 array): contains the remaining number of steps of each phase of the gait (first column) and
                                  the [x, y, z]^T desired position of each foot for each phase of the gait (12 other
                                  columns). For feet currently touching the ground the desired position is where they
@@ -494,22 +474,17 @@ class MPC:
         # Recontruct the gait based on the computed footsteps
         self.construct_gait(fsteps)
 
-        # Retrieving the reference velocity from the joystick
-        self.v_ref = v_ref
-
         # Update MPC's state vectors by retrieving information from the interface
         if k > 0:
-            self.q[0:3, 0:1] = lC
-            self.q[3:6, 0:1] = abg
-            self.v[0:3, 0:1] = lV
-            self.v[3:6, 0:1] = lW
+            self.q[0:3, 0:1] = xref[0:3, 0:1]
+            self.q[3:6, 0:1] = xref[3:6, 0:1]
+            self.v[0:3, 0:1] = xref[6:9, 0:1]
+            self.v[3:6, 0:1] = xref[9:12, 0:1]
 
         # Retrieve data required for the MPC
-        self.T_gait = T_gait
-        self.lC = lC
-        self.footholds[0:2, :] = l_feet[0:2, :]
+        self.lC = xref[0:3, 0:1]
         self.xref = xref
-        self.x0 = x0
+        self.x0 = xref[:, 0:1]
 
         # Create the constraint and weight matrices used by the QP solver
         # Minimize x^T.P.x + x^T.Q with constraints M.X == N and L.X <= K

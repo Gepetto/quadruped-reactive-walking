@@ -12,10 +12,12 @@ class MPC_Wrapper:
     Args:
         dt (float): Time step of the MPC
         n_steps (int): Number of time steps in one gait cycle
+        k_mpc (int): Number of inv dyn time step for one iteration of the MPC
+        T_gait (float): Duration of one period of gait
         multiprocessing (bool): Enable/Disable running the MPC with another process
     """
 
-    def __init__(self, dt, n_steps, k_mpc, multiprocessing=False):
+    def __init__(self, dt, n_steps, k_mpc, T_gait, multiprocessing=False):
 
         self.f_applied = np.zeros((12,))
         self.not_first_iter = False
@@ -32,26 +34,23 @@ class MPC_Wrapper:
             self.fsteps_future = np.zeros((20, 13))
         else:
             # Create the new version of the MPC solver object
-            self.mpc = MPC.MPC(dt, n_steps)
+            self.mpc = MPC.MPC(dt, n_steps, T_gait)
 
-    def solve(self, dt, n_steps, k, T_gait, joystick, fstep_planner, interface):
+    def solve(self, k, fstep_planner):
         """Call either the asynchronous MPC or the synchronous MPC depending on the value of multiprocessing during
         the creation of the wrapper
 
         Args:
-            dt (float): Time step of the MPC
-            n_steps (int): Number of time steps in one gait cycle
             k (int): Number of inv dynamics iterations since the start of the simulation
-            T_gait (float): duration of one period of gait
-            joystick (object): interface with the gamepad
             fstep_planner (object): FootstepPlanner object of the control loop
-            interface (object): Interface object of the control loop
         """
 
         if self.multiprocessing:
-            self.run_MPC_asynchronous(dt, n_steps, k, T_gait, joystick, fstep_planner, interface)
+            # TODO: Adapt asynchronous for lower number of parameters
+            raise("Error: Asynchronous MPC is not up to date")
+            # self.run_MPC_asynchronous(dt, n_steps, k, T_gait, joystick, fstep_planner, interface)
         else:
-            self.run_MPC_synchronous(dt, n_steps, k, T_gait, joystick, fstep_planner, interface)
+            self.run_MPC_synchronous(k, fstep_planner)
 
         return 0
 
@@ -78,17 +77,12 @@ class MPC_Wrapper:
             self.not_first_iter = True
             return np.array([0.0, 0.0, 8.0] * 4)
 
-    def run_MPC_synchronous(self, dt, n_steps, k, T_gait, joystick, fstep_planner, interface):
+    def run_MPC_synchronous(self, k, fstep_planner):
         """Run the MPC (synchronous version) to get the desired contact forces for the feet currently in stance phase
 
         Args:
-            dt (float): Time step of the MPC
-            n_steps (int): Number of time steps in one gait cycle
             k (int): Number of inv dynamics iterations since the start of the simulation
-            T_gait (float): duration of one period of gait
-            joystick (object): interface with the gamepad
             fstep_planner (object): FootstepPlanner object of the control loop
-            interface (object): Interface object of the control loop
         """
 
         # Run the MPC to get the reference forces and the next predicted state
@@ -106,10 +100,7 @@ class MPC_Wrapper:
         if k > 1900:
             deb=1
 
-        self.mpc.run((k/self.k_mpc), T_gait,
-                     interface.lC, interface.abg, interface.lV, interface.lW,
-                     interface.l_feet, fstep_planner.xref, fstep_planner.x0, joystick.v_ref,
-                     fstep_planner.fsteps)
+        self.mpc.run((k/self.k_mpc), fstep_planner.xref, fstep_planner.fsteps)
 
         """tmp_lC = interface.lC.copy()
         tmp_lC[2, 0] += dt * interface.lV[2, 0]

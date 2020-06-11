@@ -140,8 +140,7 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
         print("###")"""
     # Run the MPC to get the reference forces and the next predicted state
     # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
-    mpc_wrapper.solve(dt_mpc, sequencer.S.shape[0], k, sequencer.T_gait,
-                        joystick, fstep_planner, interface)
+    mpc_wrapper.solve(k, fstep_planner)
 
     # Output of the MPC (no delay)
     f_applied = mpc_wrapper.get_latest_result()

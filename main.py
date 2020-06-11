@@ -101,7 +101,7 @@ for k in range(int(N_SIMULATION)):
 
     # Call logger object to log various parameters
     logger.call_log_functions(k, sequencer, joystick, fstep_planner, interface, mpc_wrapper, myController,
-                              enable_multiprocessing, pyb_sim.robotId, pyb_sim.planeId, solo)
+                              False, pyb_sim.robotId, pyb_sim.planeId, solo)
 
 ####################
 # END OF MAIN LOOP #
@@ -110,7 +110,7 @@ for k in range(int(N_SIMULATION)):
 print("END")
 
 # Display what has been logged by the logger
-logger.plot_graphs(enable_multiprocessing)
+logger.plot_graphs(enable_multiprocessing=False)
 
 quit()
 
