@@ -11,7 +11,7 @@ import EmergencyStop_controller
 import ForceMonitor
 import MPC_Wrapper
 import processing as proc
-
+import MPC_Virtual
 ########################################################################
 #                        Parameters definition                         #
 ########################################################################
@@ -39,11 +39,11 @@ enable_gepetto_viewer = True
 
 # Create Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator
 # and MpcSolver objects
-joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc, n_periods)
+joystick, sequencer, fstep_planner, logger, interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc, n_periods)
 
-# Enable/Disable multiprocessing (MPC running in a parallel process)
-enable_multiprocessing = False
-mpc_wrapper = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], k_mpc, multiprocessing=enable_multiprocessing)
+# Wrapper that makes the link with the solver that you want to use for the MPC
+# First argument to True to have PA's MPC, to False to have Thomas's MPC
+mpc_wrapper = MPC_Virtual.MPC_Virtual(True, dt_mpc, sequencer, k_mpc)
 
 # Enable/Disable hybrid control
 enable_hybrid_control = True
@@ -93,7 +93,7 @@ for k in range(int(N_SIMULATION)):
     # Process Inverse Dynamics
     time_tsid = time.time()
     jointTorques = proc.process_invdyn(solo, k, f_applied, pyb_sim, interface, joystick, fstep_planner,
-                                       mpc_wrapper, myController, sequencer, enable_hybrid_control)
+                                       myController, sequencer, enable_hybrid_control)
     t_list_tsid[k] = time.time() - time_tsid  # Logging the time spent to run this iteration of inverse dynamics
 
     # Process PyBullet

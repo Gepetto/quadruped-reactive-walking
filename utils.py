@@ -151,26 +151,13 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods):
     # Create footstep planner object
     fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, sequencer.S.shape[0], n_periods)
 
-    # Create trajectory generator object
-    ftraj_gen = None  # FootTrajectoryGenerator.FootTrajectoryGenerator(dt_mpc)
-
-    # Create MPC solver object
-    # mpc = MpcSolver.MpcSolver(dt_mpc, sequencer, k_max_loop)
-
-    # Create the new version of the MPC solver object
-    mpc = None  # MPC.MPC(dt_mpc, sequencer.S.shape[0])
-    """mpc_v2.update_v_ref(joystick)
-    mpc_v2.run(0, sequencer, fstep_planner, ftraj_gen)
-    mpc_v2.update_matrices(sequencer)
-    """
-
     # Create logger object
     logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc, n_periods)
 
     # Create Interface object
     interface = Interface.Interface()
 
-    return joystick, sequencer, fstep_planner, ftraj_gen, mpc, logger, interface
+    return joystick, sequencer, fstep_planner, logger, interface
 
 
 def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):

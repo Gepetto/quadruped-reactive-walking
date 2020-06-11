@@ -469,14 +469,13 @@ class MPC:
 
         return 0
 
-    def run(self, k, T_gait, t_stance, lC, abg, lV, lW, l_feet, xref, x0, v_ref, fsteps):
+    def run(self, k, T_gait, lC, abg, lV, lW, l_feet, xref, x0, v_ref, fsteps):
         """Run one iteration of the whole MPC by calling all the necessary functions (data retrieval,
            update of constraint matrices, update of the solver, running the solver, retrieving result)
 
         Args:
             k (int): the number of MPC iterations since the start of the simulation
             T_gait (float): duration of one period of gait
-            t_stance (float): duration of one stance phase
             lC (3x0 array): position of the center of mass in local frame
             abg (3x0 array): orientation of the trunk in local frame
             lV (3x0 array): linear velocity of the CoM in local frame
@@ -507,7 +506,6 @@ class MPC:
 
         # Retrieve data required for the MPC
         self.T_gait = T_gait
-        self.t_stance = t_stance
         self.lC = lC
         self.footholds[0:2, :] = l_feet[0:2, :]
         self.xref = xref

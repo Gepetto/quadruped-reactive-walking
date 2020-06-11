@@ -205,7 +205,7 @@ class Logger:
         # Reference state vector in local frame
         # Velocity control for x, y and yaw components (user input)
         # Position control for z, roll and pitch components (hardcoded default values of h_ref, 0.0 and 0.0)
-        self.state_ref[0:6, k] = np.array([0.0, 0.0, mpc_wrapper.mpc.h_ref, 0.0, 0.0, 0.0])
+        self.state_ref[0:6, k] = np.array([0.0, 0.0, mpc_wrapper.solver.mpc.h_ref, 0.0, 0.0, 0.0])
         self.state_ref[6:12, k] = joystick.v_ref[:, 0]
 
         return 0
@@ -460,23 +460,23 @@ class Logger:
         """
 
         # Cost of each component of the cost function over the prediction horizon (state vector and contact forces)
-        cost = (np.diag(mpc_wrapper.mpc.x) @ np.diag(mpc_wrapper.mpc.P.data)) @ np.array([mpc_wrapper.mpc.x]).transpose()
+        cost = (np.diag(mpc_wrapper.solver.mpc.x) @ np.diag(mpc_wrapper.solver.mpc.P.data)) @ np.array([mpc_wrapper.solver.mpc.x]).transpose()
 
         # Sum components of the state vector
         for i in range(12):
-            self.cost_components[i, k:(k+1)] = np.sum(cost[i:(12*mpc_wrapper.mpc.n_steps):12])
+            self.cost_components[i, k:(k+1)] = np.sum(cost[i:(12*mpc_wrapper.solver.mpc.n_steps):12])
 
         # Sum components of the contact forces
-        self.cost_components[12, k:(k+1)] = np.sum(cost[(12*mpc_wrapper.mpc.n_steps):])
+        self.cost_components[12, k:(k+1)] = np.sum(cost[(12*mpc_wrapper.solver.mpc.n_steps):])
 
         """if k % 50 == 0:
-            print(np.sum(np.power(mpc_wrapper.mpc.x[6:(12*mpc_wrapper.mpc.n_steps):12], 2)))
+            print(np.sum(np.power(mpc_wrapper.solver.mpc.x[6:(12*mpc_wrapper.solver.mpc.n_steps):12], 2)))
 
         absc = np.array([i for i in range(16)])
         if k == 0:
             plt.figure()
         if k % 100 == 0:
-            plt.plot(absc+k, np.power(mpc_wrapper.mpc.x[6:(12*mpc_wrapper.mpc.n_steps):12], 2))
+            plt.plot(absc+k, np.power(mpc_wrapper.solver.mpc.x[6:(12*mpc_wrapper.solver.mpc.n_steps):12], 2))
         if k == 5999 == 0:
             plt.show(block=True)"""
         return 0
@@ -508,7 +508,7 @@ class Logger:
         """ Store information about the predicted evolution of the optimization vector components
         """
 
-        self.pred_trajectories[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.x_robot
+        self.pred_trajectories[:, :, int(k/self.k_mpc)] = mpc_wrapper.solver.mpc.x_robot
 
         return 0
 
