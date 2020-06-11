@@ -89,58 +89,6 @@ class Logger:
         self.vel_ref = np.zeros((6, k_max_loop))
         self.vel_err = np.zeros((3, k_max_loop))
 
-    def log_state_vectors(self, mpc, k_loop):
-        """ Log current and reference state vectors (position + velocity)
-        """
-
-        self.log_state[:, k_loop:(k_loop+1)] = np.vstack((mpc.q_w, mpc.v))
-        self.log_state_ref[:, k_loop:(k_loop+1)] = mpc.xref[:, 1:2]
-
-        return 0
-
-    def log_various_footholds(self, mpc, k_loop):
-        """ Log current and reference state vectors (position + velocity)
-        """
-
-        self.log_footholds[:, k_loop, :] = mpc.footholds[0:2, :].transpose()
-        self.log_footholds_w[:, k_loop, :] = mpc.footholds_world[0:2, :].transpose()
-
-        return 0
-
-    def log_predicted_trajectory(self, mpc, k_loop):
-        """ Log the trajectory predicted by the MPC to see how it changes over time
-        """
-
-        k_start = 5
-        k_gap = self.k_mpc
-        if k_loop >= k_start:
-            if ((k_loop - k_start) % k_gap) == 0:
-                x_log = mpc.x_robot.copy()
-                c, s = np.cos(mpc.q_w[5, 0]), np.sin(mpc.q_w[5, 0])
-                R = np.array([[c, -s], [s, c]])
-                x_log[0:2, :] = np.dot(R, x_log[0:2, :]) + mpc.q_w[0:2, 0:1]
-                x_log[5, :] += mpc.q_w[5, 0]
-                i = int((k_loop - k_start)/k_gap)
-                if i < self.log_predicted_traj.shape[1]:
-                    self.log_predicted_traj[:, i, :] = x_log
-
-        return 0
-
-    def log_desired_contact_forces(self, mpc, sequencer, k_loop):
-        """ Log the output contact forces of the MPC
-        """
-
-        """cpt = 0
-        update = np.array(sequencer.S[0]).ravel()
-        for i in range(4):
-            if update[i]:
-                self.log_contact_forces[i, k_loop, :] = mpc.f_applied[(cpt*3):((cpt+1)*3)]
-                cpt += 1"""
-
-        self.log_contact_forces[:, k_loop, :] = mpc.f_applied.reshape((4, 3))
-
-        return 0
-
     def log_footsteps(self, k, interface, tsid_controller):
         """ Store current and desired position, velocity and acceleration of feet over time
         """
@@ -585,18 +533,6 @@ class Logger:
     def call_log_functions(self, k, sequencer, joystick, fstep_planner, interface, mpc_wrapper, tsid_controller, enable_multiprocessing, robotId, planeId, solo):
         """ Call logging functions of the Logger class
         """
-
-        """# Logging reference and current state vectors
-        self.log_state_vectors(mpc, k_loop)
-
-        # Log footholds
-        self.log_various_footholds(mpc, k_loop)
-
-        # Logging predicted trajectory of the robot to see how it changes over time
-        self.log_predicted_trajectory(mpc, k_loop)
-
-        # Log desired contact forces
-        self.log_desired_contact_forces(mpc, sequencer, k_loop)"""
 
         # Store current and desired position, velocity and acceleration of feet over time
         self.log_footsteps(k, interface, tsid_controller)
