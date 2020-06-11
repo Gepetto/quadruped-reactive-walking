@@ -122,7 +122,6 @@ class controller:
 
         # Footstep planner object
         # self.fstep_planner = FootstepPlanner.FootstepPlanner(0.001, 32)
-        self.v_ref = np.zeros((6, 1))
         self.vu_m = np.zeros((6, 1))
         self.t_stance = 0.16
         self.T_gait = 0.32
@@ -331,7 +330,7 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qtsid, vtsid, k_simu, solo, sequencer, interface, v_ref, f_applied, fsteps, gait,
+    def control(self, qtsid, vtsid, k_simu, solo, interface, f_applied, fsteps, gait,
                 ftps_Ids_deb, enable_hybrid_control=False, qmes=None, vmes=None, qmpc=None, vmpc=None):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
@@ -342,9 +341,7 @@ class controller:
             t (float): time elapsed since the start of the simulation
             k_simu (int): number of time steps since the start of the simulation
             solo (object): Pinocchio wrapper for the quadruped
-            sequencer (object): ContactSequencer object that contains information about the current gait
             interface (Interface object): interface between the simulator and the MPC/InvDyn
-            v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
             f_applied (12 array): desired contact forces for all feet (0s for feet in swing phase)
             fsteps (Xx13 array): contains the remaining number of steps of each phase of the gait (first column) and
                                  the [x, y, z]^T desired position of each foot for each phase of the gait (12 other
@@ -357,7 +354,6 @@ class controller:
                                robot (for hybrid control)
         """
 
-        self.v_ref = v_ref
         self.f_applied = f_applied
 
         # If hybrid control is turned on/off the CoM task needs to be turned on/off too

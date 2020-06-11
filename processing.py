@@ -93,7 +93,7 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
     return 0
 
 
-def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mpc, sequencer, ID_deb_lines):
+def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mpc, ID_deb_lines):
     """Update and run the model predictive control to get the reference contact forces that should be
     applied by feet in stance phase
 
@@ -105,7 +105,6 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
         fstep_planner (object): Footsteps planner object
         mpc_wrapper (object): Wrapper that acts as a black box for the MPC
         dt_mpc (float): time step of the MPC
-        sequencer (object): sequencer object that contains information about the contact sequence
         ID_deb_lines (list): IDs of lines in PyBullet for debug purpose
     """
 
@@ -124,7 +123,7 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
                                             replaceItemUniqueId=ID_deb_lines[i_line])
 
     # Get the reference trajectory over the prediction horizon
-    fstep_planner.getRefStates((k/k_mpc), sequencer.T_gait, interface.lC, interface.abg,
+    fstep_planner.getRefStates((k/k_mpc), fstep_planner.T_gait, interface.lC, interface.abg,
                                interface.lV, interface.lW, joystick.v_ref, h_ref=0.2027682)
 
     """if k > 0:
@@ -148,8 +147,8 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
     return f_applied
 
 
-def process_invdyn(solo, k, f_applied, pyb_sim, interface, joystick, fstep_planner, myController,
-                   sequencer, enable_hybrid_control):
+def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myController,
+                   enable_hybrid_control):
     """Update and run the whole body inverse dynamics using information coming from the MPC and the footstep planner
 
     Args:
@@ -161,7 +160,6 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, joystick, fstep_plann
         joystick (object): Interface with the gamepad
         fstep_planner (object): Footsteps planner object
         myController (object): Inverse Dynamics controller
-        sequencer (object): sequencer object that contains information about the contact sequence
         enable_hybrid_control (bool): whether hybrid control is enabled or not
     """
 
@@ -195,14 +193,14 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, joystick, fstep_plann
     # Retrieve the joint torques from the current active controller
     if enable_hybrid_control:
         jointTorques = myController.control(myController.qtsid, myController.vtsid, k, solo,
-                                            sequencer, interface, joystick.v_ref, f_applied,
-                                            fstep_planner.fsteps_invdyn, fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb,
+                                            interface, f_applied, fstep_planner.fsteps_invdyn,
+                                            fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb,
                                             enable_hybrid_control, pyb_sim.qmes12, pyb_sim.vmes12
                                             ).reshape((12, 1))
     else:
         jointTorques = myController.control(pyb_sim.qmes12, pyb_sim.vmes12, k, solo,
-                                            sequencer, interface, joystick.v_ref, f_applied,
-                                            fstep_planner.fsteps_invdyn, fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
+                                            interface, f_applied, fstep_planner.fsteps_invdyn,
+                                            fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
 
     return jointTorques
 

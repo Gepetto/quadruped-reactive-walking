@@ -12,17 +12,18 @@ class MPC_Virtual():
     Args:
         mpc_type (bool): True to have PA's MPC, False to have Thomas's MPC
         dt_mpc (float): Duration of one time step of the MPC
-        sequencer (object): Contain various information about the contact sequence
+        n_steps (int): Number of time steps in one gait cycle
         k_mpc (int): Number of inv dyn time step for one iteration of the MPC
+        T_gait (float): Duration of one period of gait
     """
 
-    def __init__(self, mpc_type, dt_mpc, sequencer, k_mpc):
+    def __init__(self, mpc_type, dt_mpc, n_steps, k_mpc, T_gait):
 
         if mpc_type:
 
             # Enable/Disable multiprocessing (MPC running in a parallel process)
             enable_multiprocessing = False
-            self.solver = MPC_Wrapper.MPC_Wrapper(dt_mpc, sequencer.S.shape[0], k_mpc, sequencer.T_gait,
+            self.solver = MPC_Wrapper.MPC_Wrapper(dt_mpc, n_steps, k_mpc, T_gait,
                                                   multiprocessing=enable_multiprocessing)
 
         else:

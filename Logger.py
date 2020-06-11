@@ -530,7 +530,7 @@ class Logger:
 
         return 0
 
-    def call_log_functions(self, k, sequencer, joystick, fstep_planner, interface, mpc_wrapper, tsid_controller, enable_multiprocessing, robotId, planeId, solo):
+    def call_log_functions(self, k, joystick, fstep_planner, interface, mpc_wrapper, tsid_controller, enable_multiprocessing, robotId, planeId, solo):
         """ Call logging functions of the Logger class
         """
 

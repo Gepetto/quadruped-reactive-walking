@@ -11,10 +11,10 @@ class FootstepPlanner:
 
     Args:
         dt (float): Duration of one time step of the MPC
-        n_steps (int): Number of time steps in one gait cycle
+        n_periods (int): Number of gait periods in one gait cycle
     """
 
-    def __init__(self, dt, n_steps, n_periods):
+    def __init__(self, dt, n_periods):
 
         # Feedback gain for the feedback term of the planner
         self.k_feedback = 0.03
@@ -47,16 +47,16 @@ class FootstepPlanner:
         self.footsteps_tsid = np.zeros((3, 4))
         self.t_remaining_tsid = np.zeros((1, 4))
 
+        # Gait duration
+        self.n_periods = n_periods
+        self.T_gait = 0.32
+
         # Number of time steps in the prediction horizon
-        self.n_steps = n_steps
+        self.n_steps = np.int(n_periods*self.T_gait/self.dt)
 
         # Reference trajectory matrix of size 12 by (1 + N)  with the current state of
         # the robot in column 0 and the N steps of the prediction horizon in the others
         self.xref = np.zeros((12, 1 + self.n_steps))
-
-        # Gait duration
-        self.n_periods = n_periods
-        self.T_gait = 0.32
 
         # Gait matrix
         self.gait = np.zeros((20, 5))

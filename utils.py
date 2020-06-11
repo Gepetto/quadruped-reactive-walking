@@ -145,11 +145,8 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods):
     # Create Joystick object
     joystick = Joystick.Joystick(k_mpc)
 
-    # Create contact sequencer object
-    sequencer = ContactSequencer.ContactSequencer(dt_mpc, n_periods)
-
     # Create footstep planner object
-    fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, sequencer.S.shape[0], n_periods)
+    fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, n_periods)
 
     # Create logger object
     logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc, n_periods)
@@ -157,7 +154,7 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods):
     # Create Interface object
     interface = Interface.Interface()
 
-    return joystick, sequencer, fstep_planner, logger, interface
+    return joystick, fstep_planner, logger, interface
 
 
 def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
