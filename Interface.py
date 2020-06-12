@@ -3,6 +3,7 @@
 import numpy as np
 import pinocchio as pin
 
+
 class Interface:
     """Interface between the simulation and the FootstepPlanner/MPC/TSID. Retrieve information from the simulator
        (positions, orientations, velocities) and compute different useful quantities (transforms, roll-pitch-yaw)

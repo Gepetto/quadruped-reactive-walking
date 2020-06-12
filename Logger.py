@@ -4,6 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import pybullet as pyb
 
+
 class Logger:
     """Joystick-like controller that outputs the reference velocity in local frame
     """
@@ -370,7 +371,7 @@ class Logger:
             plt.xlabel("Time [s]")
             plt.ylabel(ylabels[i])
 
-        plt.suptitle("MPC, TSID contact forces (world frame)")     
+        plt.suptitle("MPC, TSID contact forces (world frame)")
 
         return 0
 

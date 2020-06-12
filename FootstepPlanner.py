@@ -47,6 +47,9 @@ class FootstepPlanner:
         self.footsteps_tsid = np.zeros((3, 4))
         self.t_remaining_tsid = np.zeros((1, 4))
 
+        # To store the height of contacts
+        self.z_contacts = np.zeros((1, 4))
+
         # Gait duration
         self.n_periods = n_periods
         self.T_gait = 0.32
@@ -331,6 +334,8 @@ class FootstepPlanner:
                     self.next_footstep[0:2, :] -= np.array([[0.14, 0.14, -0.14, -0.14],
                                                             [0.12, -0.12, 0.12, -0.12]])
 
+                self.next_footstep[2, :] = self.z_contacts[0, :].copy()
+
                 # Get future yaw angle compared to current position
                 angle = v_ref[5, 0] * dt_cum
                 c, s = np.cos(angle), np.sin(angle)
@@ -424,11 +429,12 @@ class FootstepPlanner:
 
         return 0
 
-    def update_fsteps(self, k, l_feet, v_cur, v_ref, h, oMl, ftps_Ids, reduced):
+    def update_fsteps(self, k, k_mpc, l_feet, v_cur, v_ref, h, oMl, ftps_Ids, reduced):
         """Update the gait cycle and compute the desired location of footsteps for a given pair of current/reference velocities
 
         Args:
             k (int): number of MPC iterations since the start of the simulation
+            k_mpc (int): Number of inv dynamics iterations for one iteration of the MPC
             l_feet (3x4 array): current position of feet in local frame
             v_cur (6x1 array): current velocity vector of the flying base in local frame (linear and angular stacked)
             v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
@@ -437,9 +443,13 @@ class FootstepPlanner:
             ftps_Ids (4xX array): IDs of PyBullet objects to visualize desired footsteps location with spheres
         """
 
-        if k > 0:
+        if (k != -1) and ((k % k_mpc) == 0):
             # Move one step further in the gait
             self.roll()
+
+        for i in range(4):
+            if self.gait[0, i+1]:
+                self.z_contacts[0, i] = l_feet[2, i]
 
         # Compute the desired location of footsteps over the prediction horizon
         self.compute_footsteps(l_feet, v_cur, v_ref, h, reduced)

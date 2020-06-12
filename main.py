@@ -9,9 +9,9 @@ from TSID_Debug_controller_four_legs_fb_vel import controller, dt
 import Safety_controller
 import EmergencyStop_controller
 import ForceMonitor
-import MPC_Wrapper
 import processing as proc
 import MPC_Virtual
+
 ########################################################################
 #                        Parameters definition                         #
 ########################################################################
@@ -37,8 +37,7 @@ ID_deb_lines = []
 # Enable/Disable Gepetto viewer
 enable_gepetto_viewer = True
 
-# Create Joystick, ContactSequencer, FootstepPlanner, FootTrajectoryGenerator
-# and MpcSolver objects
+# Create Joystick, FootstepPlanner, Logger and Interface objects
 joystick, fstep_planner, logger, interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc, n_periods)
 
 # Wrapper that makes the link with the solver that you want to use for the MPC
@@ -118,4 +117,4 @@ quit()
 plt.figure()
 plt.plot(t_list_tsid, 'k+')
 plt.title("Time TSID")
-plt.show(block=False)
+plt.show(block=True)

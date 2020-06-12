@@ -47,9 +47,6 @@ def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller
         if pyb_sim.vmes12[0, 0] > 0:
             deb = 1"""
 
-    # Check the state of the robot to trigger events and update the simulator camera
-    # pyb_sim.check_pyb_env(pyb_sim.qmes12)
-
     # Update the interface that makes the interface between the simulation and the MPC/TSID
     interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
 
@@ -75,16 +72,16 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
 
     # Initialization of the desired location of footsteps (need to run update_fsteps once)
     if (k == 0):
-        fstep_planner.update_fsteps(k, interface.l_feet, np.vstack((interface.lV, interface.lW)), joystick.v_ref,
+        fstep_planner.update_fsteps(k, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)), joystick.v_ref,
                                     interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids, False)
 
     # Update footsteps desired location once every k_mpc iterations of TSID
-    if (k % k_mpc) == 0:
+    if True:  # (k % k_mpc) == 0:
 
         # fstep_planner.fsteps_invdyn = fstep_planner.fsteps.copy()
         # fstep_planner.gait_invdyn = fstep_planner.gait.copy()
 
-        fstep_planner.update_fsteps(k+1, interface.l_feet, np.vstack((interface.lV, interface.lW)), joystick.v_ref,
+        fstep_planner.update_fsteps(k+1, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)), joystick.v_ref,
                                     interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids, joystick.reduced)
 
         fstep_planner.fsteps_invdyn = fstep_planner.fsteps.copy()
@@ -111,16 +108,22 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
     # Debug lines
     if len(ID_deb_lines) == 0:
         for i_line in range(4):
-            start = interface.oMl * np.array([[interface.l_shoulders[0, i_line], interface.l_shoulders[1, i_line], 0.01]]).transpose()
-            end = interface.oMl * np.array([[interface.l_shoulders[0, i_line] + 0.4, interface.l_shoulders[1, i_line], 0.01]]).transpose()
-            lineID = pyb.addUserDebugLine(np.array(start).ravel().tolist(), np.array(end).ravel().tolist(), lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8)
+            start = interface.oMl * np.array([[interface.l_shoulders[0, i_line],
+                                               interface.l_shoulders[1, i_line], 0.01]]).transpose()
+            end = interface.oMl * np.array([[interface.l_shoulders[0, i_line] + 0.4,
+                                             interface.l_shoulders[1, i_line], 0.01]]).transpose()
+            lineID = pyb.addUserDebugLine(np.array(start).ravel().tolist(), np.array(end).ravel().tolist(),
+                                          lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8)
             ID_deb_lines.append(lineID)
     else:
         for i_line in range(4):
-            start = interface.oMl * np.array([[interface.l_shoulders[0, i_line], interface.l_shoulders[1, i_line], 0.01]]).transpose()
-            end = interface.oMl * np.array([[interface.l_shoulders[0, i_line] + 0.4, interface.l_shoulders[1, i_line], 0.01]]).transpose()
-            lineID = pyb.addUserDebugLine(np.array(start).ravel().tolist(), np.array(end).ravel().tolist(), lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8,
-                                            replaceItemUniqueId=ID_deb_lines[i_line])
+            start = interface.oMl * np.array([[interface.l_shoulders[0, i_line],
+                                               interface.l_shoulders[1, i_line], 0.01]]).transpose()
+            end = interface.oMl * np.array([[interface.l_shoulders[0, i_line] + 0.4,
+                                             interface.l_shoulders[1, i_line], 0.01]]).transpose()
+            lineID = pyb.addUserDebugLine(np.array(start).ravel().tolist(), np.array(end).ravel().tolist(),
+                                          lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8,
+                                          replaceItemUniqueId=ID_deb_lines[i_line])
 
     # Get the reference trajectory over the prediction horizon
     fstep_planner.getRefStates((k/k_mpc), fstep_planner.T_gait, interface.lC, interface.abg,
@@ -212,6 +215,9 @@ def process_pybullet(pyb_sim, jointTorques):
         pyb_sim (object): PyBullet simulation
         jointTorques (12x1 array): Reference torques for the actuators
     """
+
+    # Check the state of the robot to trigger events and update the simulator camera
+    pyb_sim.check_pyb_env(pyb_sim.qmes12)
 
     # Set control torque for all joints
     pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,

@@ -13,7 +13,6 @@ import numpy as np
 import numpy.matlib as matlib
 import tsid
 import FootTrajectoryGenerator as ftg
-import FootstepPlanner
 import pybullet as pyb
 import utils
 import time
@@ -302,6 +301,7 @@ class controller:
 
             # Take into account vertical offset of Pybullet
             z0 += interface.mean_feet_z
+            # z0 += self.pos_contact[i_foot][0, 2]
 
             # Store desired position, velocity and acceleration for later call to this function
             self.goals[:, i_foot] = np.array([x0, y0, z0])
@@ -711,8 +711,7 @@ class controller:
                 self.invdyn.data(), self.ID_feet[i_foot])
             acc = self.robot.frameAccelerationWorldOriented(
                 self.invdyn.data(), self.ID_feet[i_foot])
-            self.f_pos[i_foot, k_simu:(k_simu+1), :] = interface.o_feet[:,
-                                                                            i_foot]  # pos.translation[0:3].transpose()
+            self.f_pos[i_foot, k_simu:(k_simu+1), :] = interface.o_feet[:, i_foot]  # pos.translation[0:3].transpose()
             self.f_vel[i_foot, k_simu:(k_simu+1), :] = vel.vector[0:3].transpose()
             self.f_acc[i_foot, k_simu:(k_simu+1), :] = acc.vector[0:3].transpose()
 

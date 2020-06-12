@@ -4,10 +4,7 @@ import numpy as np
 import robots_loader  # Gepetto viewer
 
 import Joystick
-import ContactSequencer
 import FootstepPlanner
-import FootTrajectoryGenerator
-import MPC
 import Logger
 import Interface
 

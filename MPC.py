@@ -448,7 +448,7 @@ class MPC:
         # Predicted position and velocity of the robot during the next time step
         self.q_next = self.x_robot[0:6, 0:1]
         self.v_next = self.x_robot[6:12, 0:1]
-        
+
         #plt.figure()
         #plt.plot(self.x[6:self.xref.shape[0]*(self.xref.shape[1]-1)+6:12])
         """plt.plot(self.x[self.xref.shape[0]*(self.xref.shape[1]-1)+2::12])
