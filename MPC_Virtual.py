@@ -1,6 +1,7 @@
 # coding: utf8
 
 import MPC_Wrapper
+import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 
 
 class MPC_Virtual():
@@ -28,8 +29,8 @@ class MPC_Virtual():
 
         else:
 
-            # Thomas' MPC
-            a = 0
+            # Crocoddyl MPC
+            self.solver = MPC_crocoddyl.MPC_crocoddyl(dt_mpc, T_gait , 1 , True)  # mu = 1 & inner = True -> mu = 0.7
 
         self.solve = self.solver.solve
         self.get_latest_result = self.solver.get_latest_result
