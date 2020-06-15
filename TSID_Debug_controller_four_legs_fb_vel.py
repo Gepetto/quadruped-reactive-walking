@@ -60,12 +60,16 @@ class controller:
 
         # Coefficients of the contact tasks
         kp_contact = 100.0         # proportionnal gain for the contacts
-        self.w_forceRef = 50.0  # weight of the forces regularization
+        self.w_forceRef = 500.0  # weight of the forces regularization
         self.w_reg_f = 50.0
 
         # Coefficients of the foot tracking task
-        kp_foot = 100.0               # proportionnal gain for the tracking task
+        kp_foot = 1000.0               # proportionnal gain for the tracking task
         self.w_foot = 500.0       # weight of the tracking task
+
+        # Coefficients of the trunk task
+        kp_trunk = 100
+        w_trunk = 10
 
         # Arrays to store logs
         k_max_loop = N_simulation
@@ -227,11 +231,37 @@ class controller:
             self.feetTask[i_foot] = tsid.TaskSE3Equality(
                 "foot_track_" + str(i_foot), self.robot, self.foot_frames[i_foot])
             self.feetTask[i_foot].setKp(kp_foot * mask)
-            self.feetTask[i_foot].setKd(2.0 * np.sqrt(kp_foot) * mask)
+            self.feetTask[i_foot].setKd(10.0 * mask) # 2.0 * np.sqrt(kp_foot) * mask)
             self.feetTask[i_foot].setMask(mask)
             self.feetTask[i_foot].useLocalFrame(False)
 
         # The reference will be set later when the task is enabled
+
+        ######################
+        # TRUNK POSTURE TASK #
+        ######################
+
+        # Task definition (creating the task object)
+        self.trunkTask = tsid.TaskSE3Equality("task-trunk", self.robot, 'base_link')
+        mask = np.matrix([0.0, 0.0, 0.0, 1.0, 1.0, 0.0]).T
+        self.trunkTask.setKp(np.multiply(kp_trunk, mask))
+        self.trunkTask.setKd(2.0 * np.sqrt(np.multiply(kp_trunk, mask)))
+        self.trunkTask.useLocalFrame(False)
+        self.trunkTask.setMask(mask)
+
+        # Add the task to the HQP with weight = w_trunk, priority level = 1 (not real constraint)
+        # and a transition duration = 0.0
+        if w_trunk > 0.0:
+            self.invdyn.addMotionTask(self.trunkTask, w_trunk, 1, 0.0)
+
+        # TSID Trajectory (creating the trajectory object and linking it to the task)
+        self.trunk_ref = self.robot.framePosition(self.invdyn.data(), self.ID_base)
+        self.trajTrunk = tsid.TrajectorySE3Constant("traj_base_link", self.trunk_ref)
+        self.sampleTrunk = self.trajTrunk.computeNext()
+        self.sampleTrunk.pos(np.matrix([0.0, 0.0, 0.2027682, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)
+        self.sampleTrunk.vel(np.matrix([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T)
+        self.sampleTrunk.acc(np.matrix([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T)
+        self.trunkTask.setReference(self.sampleTrunk)
 
         ##########
         # SOLVER #
@@ -264,7 +294,7 @@ class controller:
         for i in feet:  # For each foot in swing phase get remaining duration of the swing phase
             # Index of the line containing the next stance phase
             index = next((idx for idx, val in np.ndenumerate(gait[:, 1+i]) if (((val==1)))), [-1])[0]
-            remaining_iterations = np.cumsum(gait[:index, 0])[-1] * self.k_mpc - (k_loop % self.k_mpc)
+            remaining_iterations = np.cumsum(gait[:index, 0])[-1] * self.k_mpc - ((k_loop+1) % self.k_mpc)
 
             # Compute total duration of current swing phase
             i_iter = 1
@@ -278,7 +308,7 @@ class controller:
                 i_iter -= 1
             self.t_swing[i] *= self.dt * self.k_mpc
 
-            t0s.append(np.round(self.t_swing[i] - remaining_iterations * self.dt, decimals=3))
+            t0s.append(np.round(self.t_swing[i] - remaining_iterations * self.dt - 0.001, decimals=3))
 
         # self.footsteps contains the target (x, y) positions for both feet in swing phase
 
@@ -534,11 +564,14 @@ class controller:
 
                 # Update the position of contacts
                 self.pos_foot.translation = interface.o_feet[:, i_foot]
+                self.pos_foot.translation[2, 0] = 0.0
                 self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
                 self.memory_contacts[:, i_foot] = interface.o_feet[0:2, i_foot]
                 self.feetGoal[i_foot].translation = interface.o_feet[:, i_foot].transpose()
+                self.feetGoal[i_foot].translation[2, 0] = 0.0
                 self.contacts[i_foot].setReference(self.pos_foot)
                 self.goals[:, i_foot] = interface.o_feet[:, i_foot].transpose()
+                self.goals[2, i_foot] = 0.0
 
                 if not ((k_loop == 0) and (k_simu < looping)):  # If it is not the first gait period
                     # Enable contact
@@ -572,11 +605,13 @@ class controller:
         # Check for NaN value in the output torques (means error during solving process)
         if np.any(np.isnan(self.tau_ff)):
             self.error = True
-            self.tau = np.zeros((12, 1))
+            self.tau = np.zeros((1, 12))
+            raise ValueError('NaN value in feedforward torque')
         else:
             # Torque PD controller
             P = 3.0
             D = 0.3
+            print((self.qtsid[7:] - self.qmes[7:]).ravel())
             if self.enable_hybrid_control:
                 torques12 = self.tau_ff + P * (self.qtsid[7:] - self.qmes[7:]) + D * (self.vtsid[6:] - self.vmes[6:])
             else:
