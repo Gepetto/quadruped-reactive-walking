@@ -2,7 +2,8 @@
 
 import numpy as np
 import pybullet as pyb
-
+import os
+from matplotlib import pyplot as plt
 
 def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller):
     """Update states by retrieving information from the simulation and the gamepad
@@ -22,7 +23,7 @@ def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller
         # Retrieve data from the simulation (position/orientation/velocity of the robot)
         pyb_sim.retrieve_pyb_data()
         pyb_sim.qmes12[2, 0] = 0.2027682
-    elif (k % k_mpc) == 0:
+    else: # if (k % k_mpc) == 0:
         # Using TSID future state as the robot state
         pyb_sim.qmes12 = tsid_controller.qtsid.copy()
         pyb_sim.vmes12[0:3, 0:1] = interface.oMb.rotation @ tsid_controller.vtsid[0:3, 0:1]
@@ -49,6 +50,9 @@ def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller
 
     # Update the interface that makes the interface between the simulation and the MPC/TSID
     interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
+
+    if k != 0:
+        pyb_sim.retrieve_pyb_data()
 
     # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
     if (k % k_mpc) == 0:
@@ -183,10 +187,10 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
     #####################################
 
     # TSID needs the velocity of the robot in base frame
-    """pyb_sim.vmes12[0:3, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
-    pyb_sim.vmes12[3:6, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]"""
-    pyb_sim.qmes12 = myController.qtsid.copy()
-    pyb_sim.vmes12 = myController.vtsid.copy()
+    pyb_sim.vmes12[0:3, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
+    pyb_sim.vmes12[3:6, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]
+    """pyb_sim.qmes12 = myController.qtsid.copy()
+    pyb_sim.vmes12 = myController.vtsid.copy()"""
 
     # Initial conditions
     if k == 0:
@@ -208,11 +212,12 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
     return jointTorques
 
 
-def process_pybullet(pyb_sim, jointTorques):
+def process_pybullet(pyb_sim, k, jointTorques):
     """Update the torques applied by the actuators of the quadruped and run one step of simulation
 
     Args:
         pyb_sim (object): PyBullet simulation
+        k (int): Number of inv dynamics iterations since the start of the simulation
         jointTorques (12x1 array): Reference torques for the actuators
     """
 

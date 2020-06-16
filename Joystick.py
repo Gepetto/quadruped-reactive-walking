@@ -22,8 +22,8 @@ class Joystick:
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 0.2
-        self.VyScale = 0.4
+        self.VxScale = 0.5
+        self.VyScale = 1.0
         self.vYawScale = 0.4
 
     def update_v_ref(self, k_loop, predefined):
@@ -79,12 +79,30 @@ class Joystick:
         """if k_loop == self.k_mpc*16*3:
             self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
-        alpha = np.max([np.min([(k_loop-self.k_mpc*16*3)/6500, 1.0]), 0.0])
-        self.v_ref = np.array([[2.0*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+        """alpha = np.max([np.min([(k_loop-self.k_mpc*16*3)/6500, 1.0]), 0.0])
+        self.v_ref = np.array([[2.0*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
-        # Turning
-        """if k_loop == self.k_mpc*16*13:
-            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
+        # Video Demo 16/06/2020
+        if k_loop < 4000:
+            alpha = np.max([np.min([(k_loop-self.k_mpc*16*2)/3000, 1.0]), 0.0])
+            self.v_ref = np.array([[1.0*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+        elif k_loop < 5000:
+            alpha = np.max([np.min([(k_loop-4000)/500, 1.0]), 0.0])
+            self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, -0.5*alpha]]).T
+
+        elif k_loop < 6000:
+            alpha = np.max([np.min([(k_loop-5000)/500, 1.0]), 0.0])
+            self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, -0.5*(1.0-alpha)]]).T
+
+        elif k_loop < 8000:
+            alpha = np.max([np.min([(k_loop-6000)/2000, 1.0]), 0.0])
+            self.v_ref = np.array([[1.0*(1-alpha), 1.0*alpha, 0.0, 0.0, 0.0, 0.0]]).T
+
+        else:
+            alpha = np.max([np.min([(k_loop-8000)/1000, 1.0]), 0.0])
+            self.v_ref = np.array([[0.0, 1.0*(1.0-alpha), 0.0, 0.0, 0.0, 0.0]]).T
+        # End Video Demo 16/06/2020
 
         """if k_loop == self.k_mpc*16*6:
             self.v_ref = np.array([[0.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T

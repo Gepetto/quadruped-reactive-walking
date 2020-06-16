@@ -611,7 +611,6 @@ class controller:
             # Torque PD controller
             P = 3.0
             D = 0.3
-            print((self.qtsid[7:] - self.qmes[7:]).ravel())
             if self.enable_hybrid_control:
                 torques12 = self.tau_ff + P * (self.qtsid[7:] - self.qmes[7:]) + D * (self.vtsid[6:] - self.vmes[6:])
             else:
