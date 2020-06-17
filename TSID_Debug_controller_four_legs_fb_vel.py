@@ -30,9 +30,12 @@ class controller:
 
         Args:
             N_similation (int): maximum number of Inverse Dynamics iterations for the simulation
+            k_mpc (int): number of tsid iterations for one iteration of the mpc
+            n_periods (int): number of gait periods in the prediction horizon
+            T_gait (float): duration of one gait period
     """
 
-    def __init__(self, N_simulation, k_mpc, n_periods):
+    def __init__(self, N_simulation, k_mpc, n_periods, T_gait):
 
         self.q_ref = np.array([[0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0, 1.0,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
@@ -64,7 +67,7 @@ class controller:
         self.w_reg_f = 50.0
 
         # Coefficients of the foot tracking task
-        kp_foot = 1000.0               # proportionnal gain for the tracking task
+        kp_foot = 5000.0               # proportionnal gain for the tracking task
         self.w_foot = 500.0       # weight of the tracking task
 
         # Coefficients of the trunk task
@@ -108,7 +111,7 @@ class controller:
 
         # For update_feet_tasks function
         self.dt = 0.001  #  [s], time step
-        self.t1 = 0.14  # [s], duration of swing phase
+        self.t1 = T_gait * 0.5 - 0.02  # [s], duration of swing phase
 
         # Rotation matrix
         self.R = np.eye(3)
@@ -126,8 +129,8 @@ class controller:
         # Footstep planner object
         # self.fstep_planner = FootstepPlanner.FootstepPlanner(0.001, 32)
         self.vu_m = np.zeros((6, 1))
-        self.t_stance = 0.16
-        self.T_gait = 0.32
+        self.t_stance = T_gait * 0.5
+        self.T_gait = T_gait
         self.n_periods = n_periods
         self.h_ref = 0.235 - 0.01205385
         self.t_swing = np.zeros((4, ))  # Total duration of current swing phase for each foot
@@ -231,7 +234,7 @@ class controller:
             self.feetTask[i_foot] = tsid.TaskSE3Equality(
                 "foot_track_" + str(i_foot), self.robot, self.foot_frames[i_foot])
             self.feetTask[i_foot].setKp(kp_foot * mask)
-            self.feetTask[i_foot].setKd(10.0 * mask) # 2.0 * np.sqrt(kp_foot) * mask)
+            self.feetTask[i_foot].setKd(2.0 * np.sqrt(kp_foot) * mask)
             self.feetTask[i_foot].setMask(mask)
             self.feetTask[i_foot].useLocalFrame(False)
 

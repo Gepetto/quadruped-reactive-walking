@@ -12,9 +12,10 @@ class FootstepPlanner:
     Args:
         dt (float): Duration of one time step of the MPC
         n_periods (int): Number of gait periods in one gait cycle
+        T_gait (float): Duration of one gait period
     """
 
-    def __init__(self, dt, n_periods):
+    def __init__(self, dt, n_periods, T_gait):
 
         # Feedback gain for the feedback term of the planner
         self.k_feedback = 0.03
@@ -52,7 +53,7 @@ class FootstepPlanner:
 
         # Gait duration
         self.n_periods = n_periods
-        self.T_gait = 0.32
+        self.T_gait = T_gait
 
         # Number of time steps in the prediction horizon
         self.n_steps = np.int(n_periods*self.T_gait/self.dt)
@@ -378,7 +379,7 @@ class FootstepPlanner:
         """
 
         # TODO: Automatic detection of t_stance to handle arbitrary gaits
-        t_stance = 0.16
+        t_stance = self.T_gait * 0.5
 
         # Order of feet: FL, FR, HL, HR
 

@@ -21,7 +21,7 @@ dt_mpc = 0.02
 k_mpc = int(dt_mpc / dt)  # dt is dt_tsid, defined in the TSID controller script
 t = 0.0  # Time
 n_periods = 1  # Number of periods in the prediction horizon
-
+T_gait = 0.48  # Duration of one gait period
 # Simulation parameters
 N_SIMULATION = 6500  # number of time steps simulated
 
@@ -38,7 +38,7 @@ ID_deb_lines = []
 enable_gepetto_viewer = True
 
 # Create Joystick, FootstepPlanner, Logger and Interface objects
-joystick, fstep_planner, logger, interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc, n_periods)
+joystick, fstep_planner, logger, interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait)
 
 # Wrapper that makes the link with the solver that you want to use for the MPC
 # First argument to True to have PA's MPC, to False to have Thomas's MPC
@@ -69,7 +69,7 @@ myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 ########################################################################
 
 # Define the default controller as well as emergency and safety controller
-myController = controller(int(N_SIMULATION), k_mpc, n_periods)
+myController = controller(int(N_SIMULATION), k_mpc, n_periods, T_gait)
 mySafetyController = Safety_controller.controller_12dof()
 myEmergencyStop = EmergencyStop_controller.controller_12dof()
 
@@ -96,7 +96,7 @@ for k in range(int(N_SIMULATION)):
     t_list_tsid[k] = time.time() - time_tsid  # Logging the time spent to run this iteration of inverse dynamics
 
     # Process PyBullet
-    # proc.process_pybullet(pyb_sim, jointTorques)
+    proc.process_pybullet(pyb_sim, k, jointTorques)
 
     # Call logger object to log various parameters
     logger.call_log_functions(k, joystick, fstep_planner, interface, mpc_wrapper, myController,

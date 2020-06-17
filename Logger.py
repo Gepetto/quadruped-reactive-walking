@@ -6,10 +6,18 @@ import pybullet as pyb
 
 
 class Logger:
-    """Joystick-like controller that outputs the reference velocity in local frame
+    """Logger object to store information about plenty of different quantities in the simulation
+
+    Args:
+        k_max_loop (int): maximum number of iterations of the simulation
+        dt (float): time step of TSID
+        dt_mpc (float): time step of the MPC
+        k_mpc (int): number of tsid iterations for one iteration of the mpc
+        n_periods (int): number of gait periods in the prediction horizon
+        T_gait (float): duration of one gait period
     """
 
-    def __init__(self, k_max_loop, dt, dt_mpc, k_mpc, n_periods):
+    def __init__(self, k_max_loop, dt, dt_mpc, k_mpc, n_periods, T_gait):
 
         # Max number of iterations of the main loop
         self.k_max_loop = k_max_loop
@@ -78,9 +86,8 @@ class Logger:
 
         # Store information about the predicted evolution of the optimization vector components
         self.n_periods = n_periods
-        T = 0.32
-        self.T = T
-        self.pred_trajectories = np.zeros((12, int(self.n_periods*T/dt_mpc), int(k_max_loop/k_mpc)))
+        self.T = T_gait
+        self.pred_trajectories = np.zeros((12, int(self.n_periods*T_gait/dt_mpc), int(k_max_loop/k_mpc)))
 
         # Store information about one of the tracking task
         self.pos = np.zeros((12, k_max_loop))
