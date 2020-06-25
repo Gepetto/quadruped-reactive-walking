@@ -18,9 +18,10 @@ class Logger:
         k_mpc (int): number of tsid iterations for one iteration of the mpc
         n_periods (int): number of gait periods in the prediction horizon
         T_gait (float): duration of one gait period
+        type_MPC (bool): which MPC you want to use (PA's or Thomas')
     """
 
-    def __init__(self, k_max_loop, dt, dt_mpc, k_mpc, n_periods, T_gait):
+    def __init__(self, k_max_loop, dt, dt_mpc, k_mpc, n_periods, T_gait, type_MPC):
 
         # Max number of iterations of the main loop
         self.k_max_loop = k_max_loop
@@ -33,6 +34,11 @@ class Logger:
 
         # Number of TSID steps for 1 step of the MPC
         self.k_mpc = k_mpc
+
+        # Which MPC solver you want to use
+        # True to have PA's MPC, to False to have Thomas's MPC
+        self.type_MPC = type_MPC
+
         """# Log state vector and reference state vector
         self.log_state = np.zeros((12, k_max_loop))
         self.log_state_ref = np.zeros((12, k_max_loop))
@@ -213,7 +219,10 @@ class Logger:
         # Reference state vector in local frame
         # Velocity control for x, y and yaw components (user input)
         # Position control for z, roll and pitch components (hardcoded default values of h_ref, 0.0 and 0.0)
-        self.state_ref[0:6, k] = np.array([0.0, 0.0, mpc_wrapper.solver.mpc.h_ref, 0.0, 0.0, 0.0])
+        if self.type_MPC:
+            self.state_ref[0:6, k] = np.array([0.0, 0.0, mpc_wrapper.solver.mpc.h_ref, 0.0, 0.0, 0.0])
+        else:
+            self.state_ref[0:6, k] = np.array([0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0])
         self.state_ref[6:12, k] = joystick.v_ref[:, 0]
 
         return 0
@@ -664,11 +673,11 @@ class Logger:
         self.log_torques(k, tsid_controller)
 
         # Store information about the cost function
-        if not enable_multiprocessing:
+        if self.type_MPC and not enable_multiprocessing:
             self.log_cost_function(k, mpc_wrapper)
 
         # Store information about the predicted evolution of the optimization vector components
-        if not enable_multiprocessing and ((k % self.k_mpc) == 0):
+        if self.type_MPC and not enable_multiprocessing and ((k % self.k_mpc) == 0):
             self.log_predicted_trajectories(k, mpc_wrapper)
 
         # Store information about one of the foot tracking task
@@ -692,7 +701,7 @@ class Logger:
         self.plot_torques()
 
         # Plot information about the state of the robot
-        if not enable_multiprocessing:
+        if self.type_MPC and not enable_multiprocessing:
             self.plot_cost_function()
 
         # Plot information about the predicted evolution of the optimization vector components

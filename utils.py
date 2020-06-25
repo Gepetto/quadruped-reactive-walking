@@ -137,7 +137,7 @@ def init_viewer(enable_viewer):
     return solo
 
 
-def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait):
+def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC):
     """ Create several objects that are used in the control loop
 
     Args:
@@ -147,6 +147,7 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait):
         k_mpc (int): number of tsid iterations for one iteration of the mpc
         n_periods (int): number of gait periods in the prediction horizon
         T_gait (float): duration of one gait period
+        type_MPC (bool): which MPC you want to use (PA's or Thomas')
     """
 
     # Create Joystick object
@@ -156,7 +157,7 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait):
     fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, n_periods, T_gait)
 
     # Create logger object
-    logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc, n_periods, T_gait)
+    logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc, n_periods, T_gait, type_MPC)
 
     # Create Interface object
     interface = Interface.Interface()

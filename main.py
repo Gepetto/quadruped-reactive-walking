@@ -23,7 +23,7 @@ t = 0.0  # Time
 n_periods = 1  # Number of periods in the prediction horizon
 T_gait = 0.48  # Duration of one gait period
 # Simulation parameters
-N_SIMULATION = 6500  # number of time steps simulated
+N_SIMULATION = 1000  # number of time steps simulated
 
 # Initialize the error for the simulation time
 time_error = False
@@ -37,12 +37,16 @@ ID_deb_lines = []
 # Enable/Disable Gepetto viewer
 enable_gepetto_viewer = True
 
+# Which MPC solver you want to use
+# True to have PA's MPC, to False to have Thomas's MPC
+type_MPC = True
+
 # Create Joystick, FootstepPlanner, Logger and Interface objects
-joystick, fstep_planner, logger, interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait)
+joystick, fstep_planner, logger, interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC)
 
 # Wrapper that makes the link with the solver that you want to use for the MPC
 # First argument to True to have PA's MPC, to False to have Thomas's MPC
-mpc_wrapper = MPC_Virtual.MPC_Virtual(True, dt_mpc, fstep_planner.n_steps, k_mpc, fstep_planner.T_gait)
+mpc_wrapper = MPC_Virtual.MPC_Virtual(type_MPC, dt_mpc, fstep_planner.n_steps, k_mpc, fstep_planner.T_gait)
 
 # Enable/Disable hybrid control
 enable_hybrid_control = True
