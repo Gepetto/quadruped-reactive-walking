@@ -528,7 +528,7 @@ class controller:
         """
 
         for j, i_foot in enumerate([0, 1, 2, 3]):
-            self.contacts[i_foot].setForceReference((self.w_reg_f * interface.oMl.rotation @ self.f_applied[3*j:3*(j+1)]).T)
+            self.contacts[i_foot].setForceReference((interface.oMl.rotation @ self.f_applied[3*j:3*(j+1)]).T)
 
         return 0
 
