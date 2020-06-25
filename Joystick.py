@@ -79,30 +79,92 @@ class Joystick:
         """if k_loop == self.k_mpc*16*3:
             self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
-        """alpha = np.max([np.min([(k_loop-self.k_mpc*16*3)/6500, 1.0]), 0.0])
-        self.v_ref = np.array([[2.0*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
+        alpha = np.max([np.min([(k_loop-self.k_mpc*16*3)/5000, 1.0]), 0.0])
+        self.v_ref = np.array([[0.3*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         # Video Demo 16/06/2020
+        """V_max = 0.3
+        Rot_max = 0.2
         if k_loop < 4000:
             alpha = np.max([np.min([(k_loop-self.k_mpc*16*2)/3000, 1.0]), 0.0])
-            self.v_ref = np.array([[1.0*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+            self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         elif k_loop < 5000:
             alpha = np.max([np.min([(k_loop-4000)/500, 1.0]), 0.0])
-            self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, -0.5*alpha]]).T
+            self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -Rot_max*alpha]]).T
 
         elif k_loop < 6000:
             alpha = np.max([np.min([(k_loop-5000)/500, 1.0]), 0.0])
-            self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, -0.5*(1.0-alpha)]]).T
+            self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -Rot_max*(1.0-alpha)]]).T
 
         elif k_loop < 8000:
             alpha = np.max([np.min([(k_loop-6000)/2000, 1.0]), 0.0])
-            self.v_ref = np.array([[1.0*(1-alpha), 1.0*alpha, 0.0, 0.0, 0.0, 0.0]]).T
+            self.v_ref = np.array([[V_max*(1-alpha), V_max*alpha, 0.0, 0.0, 0.0, 0.0]]).T
 
         else:
             alpha = np.max([np.min([(k_loop-8000)/1000, 1.0]), 0.0])
-            self.v_ref = np.array([[0.0, 1.0*(1.0-alpha), 0.0, 0.0, 0.0, 0.0]]).T
+            self.v_ref = np.array([[0.0, V_max*(1.0-alpha), 0.0, 0.0, 0.0, 0.0]]).T"""
         # End Video Demo 16/06/2020
+
+        # Video Demo 24/06/2020
+        """V_max = 0.3
+        Rot_max = 0.2
+        if k_loop < 8000:
+            alpha = np.max([np.min([(k_loop-self.k_mpc*16*2)/2000, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+        elif k_loop < 12000:
+            alpha = np.max([np.min([(k_loop-8000)/4000, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max*(1-alpha), -V_max*alpha, 0.0, 0.0, 0.0, 0.0]]).T
+
+        elif k_loop < 20000:
+            alpha = np.max([np.min([(k_loop-12000)/7000, 1.0]), 0.0])
+            self.v_ref = np.array([[0.0, -V_max*(1-alpha), 0.0, 0.0, 0.0, 0]]).T
+
+        elif k_loop < 22000:
+            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+        elif k_loop < 26000:
+            alpha = np.max([np.min([(k_loop-22000)/1000, 1.0]), 0.0])
+            self.v_ref = np.array([[-V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+        elif k_loop < 33000:
+            alpha = np.max([np.min([(k_loop-26000)/4000, 1.0]), 0.0])
+            self.v_ref = np.array([[-V_max*(1-alpha), 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+        elif k_loop < 36000:
+            alpha = np.max([np.min([(k_loop-33000)/1000, 1.0]), 0.0])
+            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, +0.3*alpha]]).T
+            
+        elif k_loop < 40000:
+            alpha = np.max([np.min([(k_loop-36000)/1000, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, +0.3]]).T
+
+        elif k_loop < 41000:
+            alpha = np.max([np.min([(k_loop-40000)/1000, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, +0.3*(1-alpha)]]).T
+
+        elif k_loop < 43000:
+            self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+        elif k_loop < 44000:
+            alpha = np.max([np.min([(k_loop-43000)/500, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -0.3*alpha]]).T
+
+        else: 
+            alpha = np.max([np.min([(k_loop-44000)/1450, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -0.3*(1-alpha)]]).T"""
+        # End Video Demo 24/06/2020
+
+        """if k_loop < 8000:
+            alpha = np.max([np.min([(k_loop-self.k_mpc*16*2)/2500, 1.0]), 0.0])
+            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, +0.2*alpha]]).T
+        elif k_loop < 13000:
+            alpha = np.max([np.min([(k_loop-8000)/5000, 1.0]), 0.0])
+            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, +0.2*(1-alpha)]]).T
+        else:
+            alpha = np.max([np.min([(k_loop-13000)/2000, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
         """if k_loop == self.k_mpc*16*6:
             self.v_ref = np.array([[0.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T

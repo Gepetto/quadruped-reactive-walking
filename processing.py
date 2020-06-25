@@ -2,6 +2,7 @@
 
 import numpy as np
 import pybullet as pyb
+import pinocchio as pin
 import os
 from matplotlib import pyplot as plt
 
@@ -18,41 +19,63 @@ def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller
         tsid_controller (object): Inverse dynamics controller
     """
 
+    pyb_feedback = True
+
+    if k != 0:
+        # Retrieve data from the simulation (position/orientation/velocity of the robot)
+        # Stored in pyb_sim.qmes12 and pyb_sim.vmes12 (quantities in PyBullet world frame)
+        pyb_sim.retrieve_pyb_data()
+
+        # Retrieve state desired by TSID (position/orientation/velocity of the robot)
+        tsid_controller.qtsid[:, 0:1] = tsid_controller.qdes[:, 0].copy()  # in TSID world frame
+        tsid_controller.vtsid[:, 0:1] = tsid_controller.vdes[:, 0].copy()  # in robot base frame
+
+        # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
+        if pyb_feedback:
+            # Orientation is roll/pitch of PyBullet and Yaw of TSID
+            RPY_pyb = pin.rpy.matrixToRpy((pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7]),
+                                          np.array([0.0, 0.0, 0.0]))).rotation)
+            RPY_tsid = pin.rpy.matrixToRpy((pin.SE3(pin.Quaternion(tsid_controller.qtsid[3:7]),
+                                           np.array([0.0, 0.0, 0.0]))).rotation)
+            tsid_controller.qtsid[3:7, 0:1] = np.array([pyb.getQuaternionFromEuler(np.array([RPY_pyb[0], RPY_pyb[1],
+                                                                                             RPY_tsid[2]]))]).transpose()
+
+        # Transform from TSID world frame to robot base frame (just rotation part)
+        oMb_tsid = pin.SE3(pin.Quaternion(tsid_controller.qtsid[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
+
+        # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
+        if pyb_feedback:
+
+            # Linear/angular velocity taken from PyBullet (in PyBullet world frame)
+            tsid_controller.vtsid[0:6, 0:1] = pyb_sim.vmes12[0:6, 0:1].copy()
+
+            # Transform from PyBullet world frame to robot base frame (just rotation part)
+            oMb_pyb = pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
+
+            # Get linear and angular velocities from PyBullet world frame to robot base frame
+            tsid_controller.vtsid[0:3, 0:1] = oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[0:3, 0:1]
+            tsid_controller.vtsid[3:6, 0:1] = oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[3:6, 0:1]
+
     # Algorithm needs the velocity of the robot in world frame
     if k == 0:
         # Retrieve data from the simulation (position/orientation/velocity of the robot)
         pyb_sim.retrieve_pyb_data()
         pyb_sim.qmes12[2, 0] = 0.2027682
-    else: # if (k % k_mpc) == 0:
-        # Using TSID future state as the robot state
-        pyb_sim.qmes12 = tsid_controller.qtsid.copy()
-        pyb_sim.vmes12[0:3, 0:1] = interface.oMb.rotation @ tsid_controller.vtsid[0:3, 0:1]
-        pyb_sim.vmes12[3:6, 0:1] = interface.oMb.rotation @ tsid_controller.vtsid[3:6, 0:1]
-        pyb_sim.vmes12[7:, 0:1] = tsid_controller.vtsid[7:, 0:1].copy()
 
-        # Using MPC future state as the robot state
-        """lMn = pin.SE3(pin.Quaternion(np.array([pyb.getQuaternionFromEuler(mpc_wrapper.mpc.q_next[3:6, 0])]).transpose()),
-                      mpc_wrapper.mpc.q_next[0:3, 0] - mpc_wrapper.mpc.x0[0:3, 0])
-        tmp = interface.oMl.rotation @ lMn.translation
-        pyb_sim.qmes12[0:3, 0:1] = interface.oMl * lMn.translation # tmp[0:3, 0:1]
-        #pyb_sim.qmes12[2, 0] = tmp[2, 0]
-        pyb_sim.qmes12[3:7, 0:1] = utils.getQuaternion(np.array([utils.rotationMatrixToEulerAngles(interface.oMl.rotation @ lMn.rotation)]).transpose())
-        pyb_sim.vmes12[0:3, 0] = interface.oMl.rotation @ mpc_wrapper.mpc.v_next[0:3, 0]
-        pyb_sim.vmes12[3:6, 0] = interface.oMl.rotation @ mpc_wrapper.mpc.v_next[3:6, 0]
+        # Update the interface that makes the interface between the simulation and the MPC/TSID
+        interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
 
-        if False: #k > 0:
-            for i_foot in range(4):
-                if fstep_planner.gait[0, i_foot+1] == 1:
-                    footsteps_ideal[:, i_foot:(i_foot+1)] = interface.oMl.inverse() * ((interface.oMl * footsteps_ideal[:, i_foot:(i_foot+1)]) - tmp)
+    else:
+        # To update the interface we need the position/velocity in TSID world frame
+        # qtsid is already in TSID world frame
+        # vtsid is in robot base frame, need to get it into TSID world frame
+        pyb_sim.qtsid_w = tsid_controller.qtsid.copy()
+        pyb_sim.vtsid_w = tsid_controller.vtsid.copy()
+        pyb_sim.vtsid_w[0:3, 0:1] = oMb_tsid.rotation @ pyb_sim.vtsid_w[0:3, 0:1]
+        pyb_sim.vtsid_w[3:6, 0:1] = oMb_tsid.rotation @ pyb_sim.vtsid_w[3:6, 0:1]
 
-        if pyb_sim.vmes12[0, 0] > 0:
-            deb = 1"""
-
-    # Update the interface that makes the interface between the simulation and the MPC/TSID
-    interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
-
-    if k != 0:
-        pyb_sim.retrieve_pyb_data()
+        # Update the interface that makes the interface between the simulation and the MPC/TSID
+        interface.update(solo, pyb_sim.qtsid_w, pyb_sim.vtsid_w)
 
     # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
     if (k % k_mpc) == 0:
@@ -187,8 +210,10 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
     #####################################
 
     # TSID needs the velocity of the robot in base frame
-    pyb_sim.vmes12[0:3, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
-    pyb_sim.vmes12[3:6, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]
+    if not enable_hybrid_control:
+        pyb_sim.vmes12[0:3, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
+        pyb_sim.vmes12[3:6, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]
+
     """pyb_sim.qmes12 = myController.qtsid.copy()
     pyb_sim.vmes12 = myController.vtsid.copy()"""
 

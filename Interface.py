@@ -79,8 +79,6 @@ class Interface:
         # Update position/orientation of frames
         pin.updateFramePlacements(solo.model, solo.data)
 
-        pin.ccrba(solo.model, solo.data, qmes12, self.vmes12_base)
-
         # Update minimum height of feet
         # TODO: Rename mean_feet_z into min_feet_z
         self.mean_feet_z = solo.data.oMf[self.indexes[0]].translation[2, 0]
@@ -95,8 +93,7 @@ class Interface:
         self.oC = solo.data.com[0]
         self.oV = solo.data.vcom[0]
         self.oW = vmes12[3:6]
-
-        pin.crba(solo.model, solo.data, qmes12)
+        self.mot = qmes12[7:, 0:1]  # angular position of actuators
 
         # Get SE3 object from world frame to base frame
         self.oMb = pin.SE3(pin.Quaternion(qmes12[3:7]), self.oC)
@@ -120,20 +117,20 @@ class Interface:
             # getFrameVelocity output is in the frame of the foot so a transform is required
             self.ov_feet[:, i:(i+1)] = solo.data.oMf[j].rotation @ pin.getFrameVelocity(solo.model,
                                                                                         solo.data, j).vector[0:3, 0:1]
-            self.lv_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.ov_feet[:, i:(i+1)]
+            # self.lv_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.ov_feet[:, i:(i+1)]  # (NOT USED)
 
             # getFrameAcceleration output is in the frame of the foot so a transform is required
             self.oa_feet[:, i:(i+1)] = solo.data.oMf[j].rotation @ pin.getFrameAcceleration(solo.model,
                                                                                             solo.data, j).vector[0:3,
                                                                                                                  0:1]
-            self.la_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.oa_feet[:, i:(i+1)]
+            # self.la_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.oa_feet[:, i:(i+1)]  # (NOT USED)
 
         # Orientation of the base in local frame
         # Base and local frames have the same yaw orientation in world frame
         self.abg[0:2] = self.RPY[0:2]
 
-        # Position of shoulders in world frame
-        for i in range(4):
-            self.o_shoulders[:, i:(i+1)] = self.oMl * self.l_shoulders[:, i]
+        # Position of shoulders in world frame (NOT USED)
+        # for i in range(4):
+        #    self.o_shoulders[:, i:(i+1)] = self.oMl * self.l_shoulders[:, i]
 
         return 0

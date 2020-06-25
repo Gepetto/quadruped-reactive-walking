@@ -270,9 +270,9 @@ class MPC:
         P_col = np.hstack((P_col, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
         P_data = np.hstack((P_data, 0.0*np.ones((n_x * self.n_steps * 2 - n_x * self.n_steps,))))
 
-        P_data[(n_x * self.n_steps)::3] = 1.0e-5  # force along x
-        P_data[(n_x * self.n_steps + 1)::3] = 1.0e-5  # force along y
-        P_data[(n_x * self.n_steps + 2)::3] = 1.0e-5  # force along z
+        P_data[(n_x * self.n_steps)::3] = 2.0e-6  # force along x
+        P_data[(n_x * self.n_steps + 1)::3] = 2.0e-6  # force along y
+        P_data[(n_x * self.n_steps + 2)::3] = 2.0e-6  # force along z
 
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(
@@ -412,8 +412,8 @@ class MPC:
         # Setup the solver (first iteration) then just update it
         if k == 0:  # Setup the solver with the matrices
             self.prob.setup(P=self.P, q=self.Q, A=self.ML, l=self.NK_inf, u=self.NK.ravel(), verbose=False)
-            self.prob.update_settings(eps_abs=1e-7)
-            self.prob.update_settings(eps_rel=1e-7)
+            self.prob.update_settings(eps_abs=1e-5)
+            self.prob.update_settings(eps_rel=1e-5)
             # self.prob.warm_start(x=initx)
         else:  # Code to update the QP problem without creating it again
             self.prob.update(Ax=self.ML.data, l=self.NK_inf, u=self.NK.ravel())

@@ -3,6 +3,9 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import pybullet as pyb
+import pinocchio as pin
+import scipy.stats as scipystats
+from matplotlib import cm
 
 
 class Logger:
@@ -69,6 +72,16 @@ class Logger:
         self.lV = np.zeros((3, k_max_loop))  #  linear velocity of the CoM in local frame
         self.lW = np.zeros((3, k_max_loop))  #  angular velocity of the CoM in local frame
         self.state_ref = np.zeros((12, k_max_loop))  #  reference state vector
+        self.mot = np.zeros((12, k_max_loop))  #  angular position of actuators
+        self.Vmot = np.zeros((12, k_max_loop))  #  angular velocity of actuators
+
+        # Position and velocity data in PyBullet simulation
+        self.lC_pyb = np.zeros((3, k_max_loop))
+        self.RPY_pyb = np.zeros((3, k_max_loop))
+        self.mot_pyb = np.zeros((12, k_max_loop))
+        self.lV_pyb = np.zeros((3, k_max_loop))
+        self.lW_pyb = np.zeros((3, k_max_loop))
+        self.Vmot_pyb = np.zeros((12, k_max_loop))
 
         # Store information about contact forces
         self.forces_order = [0, 1, 2, 3]
@@ -79,6 +92,7 @@ class Logger:
 
         # Store information about torques
         self.torques_ff = np.zeros((12, k_max_loop))
+        self.torques_pd = np.zeros((12, k_max_loop))
         self.torques_sent = np.zeros((12, k_max_loop))
 
         # Store information about the cost function of the MPC
@@ -114,39 +128,54 @@ class Logger:
         """ Plot current and desired position, velocity and acceleration of feet over time
         """
 
+        # Target feet positions are only updated during swing phase so during the initial stance phase these
+        # positions are 0.0 for x, y, z even if it is not the initial feet positions
+        # For display purpose we set feet target positions to feet positions from the beginning of the simulation to
+        # the start of the first swing phase
+        # Instead of having 0.0 0.0 0.0 0.19 0.19 0.19 (step when the first swing phase start and the target position
+        # is updated) we have 0.19 0.19 0.19 0.19 0.19 0.19 (avoid the step on the graph)
+        for i in range(4):
+            index = next((idx for idx, val in np.ndenumerate(self.feet_pos_target[0, i, :]) if ((not (val==0.0)))), [-1])[0]
+            if index > 0:
+                for j in range(2):
+                    self.feet_pos_target[j, i, :(index+1)] = self.feet_pos_target[j, i, index+1]
+
         index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
-        index = [1, 3, 5, 2, 4, 6]
-
-        lgd = ["Pos X FL", "Pos Y FL", "Pos Z FL", "Pos X FR", "Pos Y FR", "Pos Z FR"]
+        lgd_X = ["FL", "FR", "HL", "HR"]
+        lgd_Y = ["Pos X", "Pos Y", "Pos Z"]
         plt.figure()
-        for i in range(6):
-            plt.subplot(3, 2, index[i])
-            plt.plot(self.t_range, self.feet_pos[i % 3, np.int(i/3), :], linewidth=2, marker='x')
-            plt.plot(self.t_range, self.feet_pos_target[i % 3, np.int(i/3), :], linewidth=2, marker='x')
-            plt.legend([lgd[i], lgd[i]+" Ref"])
-        plt.suptitle("Current and desired position of feet (world frame)")
+        for i in range(12):
+            plt.subplot(3, 4, index[i])
+            plt.plot(self.t_range, self.feet_pos[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
+            plt.plot(self.t_range, self.feet_pos_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)], lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+        plt.suptitle("Current and reference positions of feet (world frame)")
 
-        lgd = ["Vel X FL", "Vel Y FL", "Vel Z FL", "Vel X FR", "Vel Y FR", "Vel Z FR"]
+        index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+        lgd_X = ["FL", "FR", "HL", "HR"]
+        lgd_Y = ["Vel X", "Vel Y", "Vel Z"]
         plt.figure()
-        for i in range(6):
-            plt.subplot(3, 2, index[i])
-            plt.plot(self.t_range, self.feet_vel[i % 3, np.int(i/3), :], linewidth=2, marker='x')
-            plt.plot(self.t_range, self.feet_vel_target[i % 3, np.int(i/3), :], linewidth=2, marker='x')
-            plt.legend([lgd[i], lgd[i]+" Ref"])
-        plt.suptitle("Current and desired velocity of feet (world frame)")
+        for i in range(12):
+            plt.subplot(3, 4, index[i])
+            plt.plot(self.t_range, self.feet_vel[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
+            plt.plot(self.t_range, self.feet_vel_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)], lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+        plt.suptitle("Current and reference velocities of feet (world frame)")
 
-        lgd = ["Acc X FL", "Acc Y FL", "Acc Z FL", "Acc X FR", "Acc Y FR", "Acc Z FR"]
+        index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+        lgd_X = ["FL", "FR", "HL", "HR"]
+        lgd_Y = ["Acc X", "Acc Y", "Acc Z"]
         plt.figure()
-        for i in range(6):
-            plt.subplot(3, 2, index[i])
-            plt.plot(self.t_range, self.feet_acc[i % 3, np.int(i/3), :], linewidth=2, marker='x')
-            plt.plot(self.t_range, self.feet_acc_target[i % 3, np.int(i/3), :], linewidth=2, marker='x')
-            plt.legend([lgd[i], lgd[i]+" Ref"])
-        plt.suptitle("Current and desired acceleration of feet (world frame)")
+        for i in range(12):
+            plt.subplot(3, 4, index[i])
+            plt.plot(self.t_range, self.feet_acc[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
+            plt.plot(self.t_range, self.feet_acc_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)], lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+        plt.suptitle("Current and reference accelerations of feet (world frame)")
 
         return 0
 
-    def log_state(self, k, joystick, interface, mpc_wrapper):
+    def log_state(self, k, pyb_sim, joystick, interface, mpc_wrapper, solo):
         """ Store information about the state of the robot
         """
 
@@ -157,6 +186,29 @@ class Logger:
         self.lC[:, k:(k+1)] = interface.lC[:, 0]  #  position of the CoM in local frame
         self.lV[:, k:(k+1)] = interface.lV[:, 0]  #  linear velocity of the CoM in local frame
         self.lW[:, k:(k+1)] = interface.lW[:, 0]  #  angular velocity of the CoM in local frame
+        self.mot[:, k:(k+1)] = interface.mot[:, 0:1]
+        self.Vmot[:, k:(k+1)] = interface.vmes12_base[6:, 0:1]
+
+        # Get PyBullet velocity in base frame for Pinocchio
+        oRb = pin.Quaternion(pyb_sim.qmes12[3:7]).matrix()
+        vmes12_base = pyb_sim.vmes12.copy()
+        vmes12_base[0:3, 0:1] = oRb.transpose() @ vmes12_base[0:3, 0:1]
+        vmes12_base[3:6, 0:1] = oRb.transpose() @ vmes12_base[3:6, 0:1]
+
+        # Get CoM position in PyBullet simulation
+        pin.centerOfMass(solo.model, solo.data, pyb_sim.qmes12, vmes12_base)
+
+        self.RPY_pyb[:, k:(k+1)] = pin.rpy.matrixToRpy((pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7]), np.array([0.0, 0.0, 0.0]))).rotation)
+        oMl = pin.SE3(pin.utils.rotate('z', self.RPY_pyb[2, k]),
+                      np.array([pyb_sim.qmes12[0, 0], pyb_sim.qmes12[1, 0], interface.mean_feet_z]))
+
+        # Store data about PyBullet simulation
+        self.lC_pyb[:, k:(k+1)] = oMl.inverse() * solo.data.com[0]
+        #self.RPY_pyb[2, k:(k+1)] = 0.0
+        self.mot_pyb[:, k:(k+1)] = pyb_sim.qmes12[7:, 0:1]
+        self.lV_pyb[:, k:(k+1)] = oMl.rotation.transpose() @ solo.data.vcom[0]
+        self.lW_pyb[:, k:(k+1)] = oMl.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]
+        self.Vmot_pyb[:, k:(k+1)] = pyb_sim.vmes12[6:, 0:1]
 
         # Reference state vector in local frame
         # Velocity control for x, y and yaw components (user input)
@@ -170,88 +222,122 @@ class Logger:
         """ Plot information about the state of the robot
         """
 
-        # Evolution of the position of CoM and orientation of the robot over time (world frame)
+        index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+        lgd = ["Pos CoM X", "Pos CoM Y", "Pos CoM Z", "Roll", "Pitch", "Yaw",
+               "Lin Vel CoM X", "Lin Vel CoM Y", "Lin Vel CoM Z", "Ang Vel Roll", "Ang Vel Pitch", "Ang Vel Yaw"]
         plt.figure()
-        ylabels = ["Position X", "Position Y", "Position Z",
-                   "Orientation Roll", "Orientation Pitch", "Orientation Yaw"]
-        for i, j in enumerate([1, 3, 5, 2, 4, 6]):
-            plt.subplot(3, 2, j)
+        for i in range(12):
+            plt.subplot(3, 4, index[i])
             if i < 3:
-                plt.plot(self.t_range, self.oC[i, :], "b", linewidth=2)
+                plt.plot(self.t_range, self.lC[i, :], "b", linewidth=3)
+                plt.plot(self.t_range, self.lC_pyb[i, :], "g", linewidth=3)
+            elif i < 6:
+                plt.plot(self.t_range, self.RPY[i-3, :], "b", linewidth=3)
+                plt.plot(self.t_range, self.RPY_pyb[i-3, :], "g", linewidth=3)
+            elif i < 9:
+                plt.plot(self.t_range, self.lV[i-6, :], "b", linewidth=3)
+                plt.plot(self.t_range, self.lV_pyb[i-6, :], "g", linewidth=3)
             else:
-                plt.plot(self.t_range, self.RPY[i-3, :], "b", linewidth=2)
+                plt.plot(self.t_range, self.lW[i-9, :], "b", linewidth=3)
+                plt.plot(self.t_range, self.lW_pyb[i-9, :], "g", linewidth=3)
+
+            if i in [2, 3, 4, 6, 7, 8, 9, 10, 11]:
+                plt.plot(self.t_range, self.state_ref[i, :], "r", linewidth=3)
+
             plt.xlabel("Time [s]")
-            plt.ylabel(ylabels[i])
-        plt.suptitle("Position of CoM and orientation of the robot (world frame)")
+            plt.ylabel(lgd[i])
 
-        # Evolution of the linear and angular velocities of the robot over time (world frame)
+            plt.legend([lgd[i]+" TSID", lgd[i]+" Pyb", lgd[i]+" Ref"])
+
+        plt.suptitle("State of the robot in TSID Vs PyBullet Vs Reference (local frame)")
+
+        index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+
+        lgd = ["DoF 1 FL", "DoF 2 FL", "DoF 3 FL", "DoF 1 FR", "DoF 2 FR", "DoF 3 FR",
+               "DoF 1 HL", "DoF 2 HL", "DoF 3 HL", "DoF 1 HR", "DoF 2 HR", "DoF 3 HR"]
         plt.figure()
-        ylabels = ["Linear vel X", "Linear vel Y", "Linear vel Z",
-                   "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
-        for i, j in enumerate([1, 3, 5, 2, 4, 6]):
-            plt.subplot(3, 2, j)
-            if i < 3:
-                plt.plot(self.t_range, self.oV[i, :], "b", linewidth=2)
-            else:
-                plt.plot(self.t_range, self.oW[i-3, :], "b", linewidth=2)
+        for i in range(12):
+            plt.subplot(3, 4, index[i])
+            h1, = plt.plot(self.t_range, self.mot[i, :], color="b", linewidth=3)
+            h2, = plt.plot(self.t_range, self.mot_pyb[i, :], color="g", linewidth=3)
+            plt.legend([h1, h2], [lgd[i] + " TSID", lgd[i] + " Pyb"])
             plt.xlabel("Time [s]")
-            plt.ylabel(ylabels[i])
-        plt.suptitle("Linear and angular velocities of the robot (world frame)")
+            plt.ylabel("Angular position [rad]")
+        plt.suptitle("Angular positions of actuators in TSID and PyBullet")
 
-        # Evolution of the linear and angular velocities of the robot over time (local frame)
         plt.figure()
-        ylabels = ["Linear vel X", "Linear vel Y", "Linear vel Z",
-                   "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
-        for i, j in enumerate([1, 3, 5, 2, 4, 6]):
-            plt.subplot(3, 2, j)
-            if i < 3:
-                plt.plot(self.t_range, self.lV[i, :], "b", linewidth=2)
-            else:
-                plt.plot(self.t_range, self.lW[i-3, :], "b", linewidth=2)
+        for i in range(12):
+            plt.subplot(3, 4, index[i])
+            h1, = plt.plot(self.t_range, self.Vmot[i, :], color="b", linewidth=3)
+            h2, = plt.plot(self.t_range, self.Vmot_pyb[i, :], color="g", linewidth=3)
+            plt.legend([h1, h2], [lgd[i] + " TSID", lgd[i] + " Pyb"])
             plt.xlabel("Time [s]")
-            plt.ylabel(ylabels[i])
-        plt.suptitle("Linear and angular velocities of the robot (local frame)")
+            plt.ylabel("Angular velocity [rad/s]")
+        plt.suptitle("Angular velocities of actuators in TSID and PyBullet")
 
-        # Evolution of the position of the center of mass over time (local frame)
+        R = np.zeros((12, 12))
+
         plt.figure()
-        ylabels = ["Position X", "Position Y", "Position Z"]
-        for i, j in enumerate([1, 2, 3]):
-            plt.subplot(3, 1, j)
-            plt.plot(self.t_range, self.lC[i, :], "b", linewidth=2)
-            plt.xlabel("Time [s]")
-            plt.ylabel(ylabels[i])
-        plt.suptitle("Position of the center of mass over time (local frame)")
+        lgd = ["Pos CoM X [m]", "Pos CoM Y [m]", "Pos CoM Z [m]",
+               "Roll [rad]", "Pitch [rad]", "Yaw [rad]",
+               "Vel CoM X [m]", "Vel CoM Y [m]", "Vel CoM Z [m]",
+               "Ang Vel Roll", "Ang Vel Pitch", "Ang Vel Yaw"]
+        for i in range(12):
+            for j in range(12):
+                plt.subplot(12, 12, (11-i) * 12 + j + 1)
+                if i < 3:
+                    x1 = self.lC[i, :]
+                    x2 = self.lC_pyb[i, :]
+                    if i == 2:
+                        x1[0] = x1[1]
+                elif i < 6:
+                    x1 = self.RPY[i-3, :]
+                    x2 = self.RPY_pyb[i-3, :]
+                elif i < 9:
+                    x1 = self.lV[i-6, :]
+                    x2 = self.lV_pyb[i-6, :]
+                else:
+                    x1 = self.lW[i-9, :]
+                    x2 = self.lW_pyb[i-9, :]
+                if j < 3:
+                    y1 = self.lC[j, :]
+                    y2 = self.lC_pyb[j, :]
+                    if j == 2:
+                        y1[0] = y1[1]
+                elif j < 6:
+                    y1 = self.RPY[j-3, :]
+                    y2 = self.RPY_pyb[j-3, :]
+                elif j < 9:
+                    y1 = self.lV[j-6, :]
+                    y2 = self.lV_pyb[j-6, :]
+                else:
+                    y1 = self.lW[j-9, :]
+                    y2 = self.lW_pyb[j-9, :]
 
-        # Evolution of the position of the robot CoM in world frame (X, Y) graph
-        plt.figure()
-        plt.plot(self.oC[0, :], self.oC[1, :], "b", linewidth=2)
-        plt.xlabel("Position X [m]")
-        plt.ylabel("Position Y [m]")
-        plt.title("Position of the robot CoM in world frame (X, Y) graph")
+                plt.plot(y1, x1, color="b", linestyle='', marker='*', markersize=6)
+                plt.tick_params(
+                    axis='both',        # changes apply to the x-axis
+                    which='both',       # both major and minor ticks are affected
+                    bottom=False,       # ticks along the bottom edge are off
+                    left=False,         # ticks along the top edge are off
+                    labelbottom=False,  # labels along the bottom edge are off
+                    labelleft=False)
+                if i == 0:
+                    plt.xlabel(lgd[j])
+                if j == 0:
+                    plt.ylabel(lgd[i])
 
-        # Evolution of the linear and angular velocities of the robot over time (world frame)
-        plt.figure()
-        ylabels = ["Position Z", "Position Roll", "Position Pitch", "Linear vel X", "Linear vel Y", "Linear vel Z",
-                   "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
-        for i, j in enumerate([1, 4, 7, 2, 5, 8, 3, 6, 9]):
-            plt.subplot(3, 3, j)
-            if i == 0:
-                plt.plot(self.t_range, self.lC[2, :], "b", linewidth=2)
-                plt.plot(self.t_range, self.state_ref[2, :], "r", linewidth=2)
-            elif i <= 2:
-                plt.plot(self.t_range, self.RPY[i-1, :], "b", linewidth=2)
-                plt.plot(self.t_range, self.state_ref[2+i, :], "r", linewidth=2)
-            elif i <= 5:
-                plt.plot(self.t_range, self.lV[i-3, :], "b", linewidth=2)
-                plt.plot(self.t_range, self.state_ref[6+i-3, :], "r", linewidth=2)
-            else:
-                plt.plot(self.t_range, self.lW[i-6, :], "b", linewidth=2)
-                plt.plot(self.t_range, self.state_ref[6+i-3, :], "r", linewidth=2)
-            plt.xlabel("Time [s]")
-            plt.ylabel(ylabels[i])
-            plt.legend(["Performed", "Desired"])
+                slope, intercept, r_value, p_value, std_err = scipystats.linregress(x1, y1)
 
-        plt.suptitle("Performed trajectory VS Desired trajectory (local frame)")
+                R[i, j] = r_value
+        plt.suptitle("Correlation of state variables")
+
+        cmap = cm.get_cmap('gist_heat', 256)
+        fig = plt.figure()
+        ax = fig.gca()
+        psm = ax.pcolormesh(R, cmap=cmap, rasterized=True, vmin=0, vmax=1)
+        fig.colorbar(psm, ax=ax)
+        plt.suptitle("R coefficient of a first order regression")
 
         return 0
 
@@ -347,38 +433,53 @@ class Logger:
         """ Plot information about contact forces
         """
 
-        # Evolution of the linear and angular velocities of the robot over time (world frame)
+        index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+        lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]
+        lgd2 = ["FL", "FR", "HL", "HR"]
         plt.figure()
-        ylabels = ["Contact forces X", "Contact forces Y", "Contact forces Z"]
-        for i, j in enumerate([1, 2, 3]):
-            plt.subplot(3, 1, j)
-            f_colors_mpc = ["b", "purple"]
-            f_colors_tsid = ["r", "green"]
-            for g, f in enumerate([0, 3]):
-                if g == 0:
-                    h1, = plt.plot(self.t_range, self.forces_mpc[3*f+i, :], f_colors_mpc[g], linewidth=4)
-                    h3, = plt.plot(self.t_range, self.forces_tsid[3*f+i, :], f_colors_tsid[g], linewidth=2)
-                else:
-                    h2, = plt.plot(self.t_range, self.forces_mpc[3*f+i, :], f_colors_mpc[g], linewidth=4)
-                    h4, = plt.plot(self.t_range, self.forces_tsid[3*f+i, :], f_colors_tsid[g], linewidth=2)
-                #h3, = plt.plot(self.t_range, self.forces_pyb[3*f+i, :], "darkgreen", linewidth=2)
-            """h1 = h2
-            h3 = h2
-            h4 = h2"""
-            if i == 2:
-                tmp = self.forces_pyb[2, :]
-                for f in range(1, 4):
-                    tmp += self.forces_pyb[3*f+2, :]
-                #h4, = plt.plot(self.t_range, tmp, "rebeccapurple", linewidth=2, linestyle="--")
-                plt.legend([h1, h2, h3, h4], ["FL MPC", "HR MPC", "FL TSID", "HR TSID"])
-                plt.ylim([-1.0, 18.5])
-            else:
-                plt.ylim([-3.0, 5.0])
-                plt.legend([h1, h2, h3, h4], ["FL MPC", "HR MPC", "FL TSID", "HR TSID"])
-            plt.xlabel("Time [s]")
-            plt.ylabel(ylabels[i])
+        for i in range(12):
+            plt.subplot(3, 4, index[i])
 
-        plt.suptitle("MPC, TSID contact forces (world frame)")
+            h1, = plt.plot(self.t_range, self.forces_mpc[i, :], "r", linewidth=5)
+            h2, = plt.plot(self.t_range, self.forces_tsid[i, :], "b", linewidth=3)
+            h3, = plt.plot(self.t_range, self.forces_pyb[i, :], "g", linewidth=3, linestyle="--")
+
+            plt.xlabel("Time [s]")
+            plt.ylabel(lgd1[i%3]+" "+lgd2[int(i/3)])
+
+            plt.legend([h1, h2, h3], [lgd1[i%3]+" "+lgd2[int(i/3)], lgd1[i%3]+" "+lgd2[int(i/3)], lgd1[i%3]+" "+lgd2[int(i/3)]])
+
+            if (i % 3) == 2:
+                plt.ylim([-1.0, 20.0])
+            else:
+                plt.ylim([-8.0, 8.0])
+
+        plt.suptitle("MPC, TSID and PyBullet contact forces (world frame)")
+
+        plt.figure()
+        plt.plot(self.t_range, np.sum(self.forces_mpc[2::3, :], axis=0), "r", linewidth=5)
+        plt.plot(self.t_range, np.sum(self.forces_tsid[2::3, :], axis=0), "b", linewidth=3)
+        plt.plot(self.t_range, np.sum(self.forces_pyb[2::3, :], axis=0), "g", linewidth=3, linestyle="--")
+        plt.plot(self.t_range, 2.5*9.81*np.ones((len(self.t_range))), "k", linewidth=5)
+        plt.suptitle("Total vertical contact force considering all contacts")
+
+        index = [1, 2, 3, 4]
+        lgd = ["FL", "FR", "HL", "HR"]
+        plt.figure()
+        for i in range(4):
+            plt.subplot(2, 2, index[i])
+
+            ctct_status = np.sum(np.abs(self.forces_mpc[(3*i):(3*(i+1)), :]), axis=0) > 0.05
+            ctct_mismatch = np.logical_xor((np.sum(np.abs(self.forces_tsid[(3*i):(3*(i+1)), :]), axis=0) != 0),
+                                           (np.sum(np.abs(self.forces_pyb[(3*i):(3*(i+1)), :]), axis=0) != 0))
+
+            plt.plot(self.t_range, ctct_status, "r", linewidth=3)
+            plt.plot(self.t_range, ctct_mismatch, "k", linewidth=3)
+
+            plt.xlabel("Time [s]")
+            plt.ylabel("Contact status mismatch (True/False)")
+            plt.legend(["MPC Contact Status " + lgd[i], "Mismatch " + lgd[i]])
+        plt.suptitle("Contact status mismatch between MPC/TSID and PyBullet")
 
         return 0
 
@@ -387,6 +488,7 @@ class Logger:
         """
 
         self.torques_ff[:, k:(k+1)] = tsid_controller.tau_ff
+        self.torques_pd[:, k:(k+1)] = tsid_controller.tau_pd
         self.torques_sent[:, k:(k+1)] = tsid_controller.tau.transpose()
 
         return 0
@@ -402,12 +504,13 @@ class Logger:
         plt.figure()
         for i in range(12):
             plt.subplot(3, 4, index[i])
-            h1, = plt.plot(self.t_range, self.torques_ff[i, :], linewidth=2)
-            h2, = plt.plot(self.t_range, self.torques_sent[i, :], linewidth=2)
-            plt.legend([h1, h2], [lgd[i] + " FF", lgd[i]+" Sent"])
+            h1, = plt.plot(self.t_range, self.torques_ff[i, :], color="b", linewidth=3)
+            h2, = plt.plot(self.t_range, self.torques_pd[i, :], color="r", linewidth=3)
+            h3, = plt.plot(self.t_range, self.torques_sent[i, :], color="g", linewidth=3)
+            plt.legend([h1, h2, h3], [lgd[i] + " FF", lgd[i] + " PD", lgd[i]+" Sent"])
             plt.xlabel("Time [s]")
             plt.ylabel("Torque [Nm]")
-        plt.suptitle("Feedforward torques and sent torques (output of PD + saturation)")
+        plt.suptitle("Feedforward, PD and sent torques (output of PD+ with saturation)")
 
         return 0
 
@@ -528,17 +631,22 @@ class Logger:
             if i < 3:
                 plt.plot(self.pos[i, :], color='r', linewidth=2, marker='x')
                 plt.plot(self.pos_ref[i, :], color='g', linewidth=2, marker='x')
+                plt.plot(self.feet_pos_target[i, 1, :], color='b', linewidth=2, marker='x')
                 #plt.plot(self.pos_err[i, :], color='b', linewidth=2, marker='x')
+                plt.legend(["Pos", "Pos ref", "Pos target"])
             else:
                 plt.plot(self.vel[i-3, :], color='r', linewidth=2, marker='x')
                 plt.plot(self.vel_ref[i-3, :], color='g', linewidth=2, marker='x')
                 #plt.plot(self.vel_err[i-3, :], color='b', linewidth=2, marker='x')
+                plt.plot(self.feet_vel_target[i-3, 1, :], color='b', linewidth=2, marker='x')
+                plt.legend(["Vel", "Vel ref", "Vel target"])
+
             plt.ylabel(lgd[i])
         plt.suptitle("Tracking FR foot")
 
         return 0
 
-    def call_log_functions(self, k, joystick, fstep_planner, interface, mpc_wrapper, tsid_controller, enable_multiprocessing, robotId, planeId, solo):
+    def call_log_functions(self, k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, tsid_controller, enable_multiprocessing, robotId, planeId, solo):
         """ Call logging functions of the Logger class
         """
 
@@ -547,7 +655,7 @@ class Logger:
 
         # Store information about the state of the robot
         if not enable_multiprocessing:
-            self.log_state(k, joystick, interface, mpc_wrapper)
+            self.log_state(k, pyb_sim, joystick, interface, mpc_wrapper, solo)
 
         # Store information about contact forces
         self.log_forces(k, interface, tsid_controller, robotId, planeId)
@@ -588,11 +696,11 @@ class Logger:
             self.plot_cost_function()
 
         # Plot information about the predicted evolution of the optimization vector components
-        if not enable_multiprocessing:
-            self.plot_predicted_trajectories()
+        # if not enable_multiprocessing:
+        #    self.plot_predicted_trajectories()
 
         # Plot information about one of the foot tracking task
-        self.plot_tracking_foot()
+        # self.plot_tracking_foot()
 
         # Display graphs
         plt.show(block=True)

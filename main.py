@@ -99,7 +99,7 @@ for k in range(int(N_SIMULATION)):
     proc.process_pybullet(pyb_sim, k, jointTorques)
 
     # Call logger object to log various parameters
-    logger.call_log_functions(k, joystick, fstep_planner, interface, mpc_wrapper, myController,
+    logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
                               False, pyb_sim.robotId, pyb_sim.planeId, solo)
 
 ####################
