@@ -297,7 +297,7 @@ class controller:
         t0s = []
         for i in feet:  # For each foot in swing phase get remaining duration of the swing phase
             # Index of the line containing the next stance phase
-            index = next((idx for idx, val in np.ndenumerate(gait[:, 1+i]) if (((val==1)))), [-1])[0]
+            index = next((idx for idx, val in np.ndenumerate(gait[:, 1+i]) if (((val == 1)))), [-1])[0]
             remaining_iterations = np.cumsum(gait[:index, 0])[-1] * self.k_mpc - ((k_loop+1) % self.k_mpc)
 
             # Compute total duration of current swing phase
@@ -514,7 +514,8 @@ class controller:
         self.footsteps = np.zeros((2, 4))
 
         for i in range(4):
-            index = next((idx for idx, val in np.ndenumerate(fsteps[:, 3*i+1]) if ((not (val==0)) and (not np.isnan(val)))), [-1])[0]
+            index = next((idx for idx, val in np.ndenumerate(
+                fsteps[:, 3*i+1]) if ((not (val == 0)) and (not np.isnan(val)))), [-1])[0]
             pos_tmp = np.array(interface.oMl * (np.array([fsteps[index, (1+i*3):(4+i*3)]]).transpose()))
             self.footsteps[:, i] = pos_tmp[0:2, 0]
 
@@ -549,7 +550,7 @@ class controller:
         self.update_feet_tasks(k_loop, gait, looping, interface, ftps_Ids_deb)
 
         # Index of the first blank line in the gait matrix
-        index = next((idx for idx, val in np.ndenumerate(gait[:, 0]) if (((val==0)))), [-1])[0]
+        index = next((idx for idx, val in np.ndenumerate(gait[:, 0]) if (((val == 0)))), [-1])[0]
 
         # Check status of each foot
         for i_foot in range(4):

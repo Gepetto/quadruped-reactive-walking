@@ -316,7 +316,8 @@ class FootstepPlanner:
 
             # Feet that were in stance phase and are still in stance phase do not move
             if np.any(rpt_gait[i-1, :] & rpt_gait[i, :]):
-                (self.fsteps[i, 1:])[rpt_gait[i-1, :] & rpt_gait[i, :]] = (self.fsteps[i-1, 1:])[rpt_gait[i-1, :] & rpt_gait[i, :]]
+                (self.fsteps[i, 1:])[rpt_gait[i-1, :] & rpt_gait[i, :]
+                                     ] = (self.fsteps[i-1, 1:])[rpt_gait[i-1, :] & rpt_gait[i, :]]
 
             # Feet that are in swing phase are NaN whether they were in stance phase previously or not
             if np.any(rpt_gait[i, :] == False):
@@ -352,13 +353,13 @@ class FootstepPlanner:
                     dx = v_cur[0, 0] * dt_cum
                     dy = v_cur[1, 0] * dt_cum
 
-
                 # Get desired position of footstep compared to current position
                 next_ft = (np.dot(R, self.next_footstep) + np.array([[dx], [dy], [0.0]])).ravel(order='F')
                 #next_ft = (self.next_footstep).ravel(order='F')
 
                 # Assignement only to feet that have been in swing phase
-                (self.fsteps[i, 1:])[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]] = next_ft[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]]
+                (self.fsteps[i, 1:])[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]
+                                     ] = next_ft[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]]
 
             i += 1
 
@@ -412,7 +413,7 @@ class FootstepPlanner:
         """
 
         # Index of the first empty line
-        index = next((idx for idx, val in np.ndenumerate(self.gait[:, 0]) if val==0.0), 0.0)[0]
+        index = next((idx for idx, val in np.ndenumerate(self.gait[:, 0]) if val == 0.0), 0.0)[0]
 
         # Create a new phase if needed or increase the last one by 1 step
         if np.array_equal(self.gait[0, 1:], self.gait[index-1, 1:]):
@@ -466,5 +467,5 @@ class FootstepPlanner:
                                                         posObj=pos_tmp,
                                                         ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
             i += 1"""
-        
+
         return 0

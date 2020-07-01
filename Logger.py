@@ -141,7 +141,8 @@ class Logger:
         # Instead of having 0.0 0.0 0.0 0.19 0.19 0.19 (step when the first swing phase start and the target position
         # is updated) we have 0.19 0.19 0.19 0.19 0.19 0.19 (avoid the step on the graph)
         for i in range(4):
-            index = next((idx for idx, val in np.ndenumerate(self.feet_pos_target[0, i, :]) if ((not (val==0.0)))), [-1])[0]
+            index = next((idx for idx, val in np.ndenumerate(
+                self.feet_pos_target[0, i, :]) if ((not (val == 0.0)))), [-1])[0]
             if index > 0:
                 for j in range(2):
                     self.feet_pos_target[j, i, :(index+1)] = self.feet_pos_target[j, i, index+1]
@@ -204,7 +205,8 @@ class Logger:
         # Get CoM position in PyBullet simulation
         pin.centerOfMass(solo.model, solo.data, pyb_sim.qmes12, vmes12_base)
 
-        self.RPY_pyb[:, k:(k+1)] = pin.rpy.matrixToRpy((pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7]), np.array([0.0, 0.0, 0.0]))).rotation)
+        self.RPY_pyb[:, k:(k+1)] = pin.rpy.matrixToRpy((pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7]),
+                                                                np.array([0.0, 0.0, 0.0]))).rotation)
         oMl = pin.SE3(pin.utils.rotate('z', self.RPY_pyb[2, k]),
                       np.array([pyb_sim.qmes12[0, 0], pyb_sim.qmes12[1, 0], interface.mean_feet_z]))
 
@@ -394,7 +396,8 @@ class Logger:
 
         # Contact forces desired by MPC (transformed into world frame)
         for f in range(4):
-            self.forces_mpc[3*f:(3*(f+1)), k:(k+1)] = (interface.oMl.rotation @ tsid_controller.f_applied[3*f:3*(f+1)]).T
+            self.forces_mpc[3*f:(3*(f+1)), k:(k+1)] = (interface.oMl.rotation @
+                                                       tsid_controller.f_applied[3*f:3*(f+1)]).T
 
         # Contact forces desired by TSID (world frame)
         for i, j in enumerate(tsid_controller.contacts_order):
@@ -454,9 +457,10 @@ class Logger:
             h3, = plt.plot(self.t_range, self.forces_pyb[i, :], "g", linewidth=3, linestyle="--")
 
             plt.xlabel("Time [s]")
-            plt.ylabel(lgd1[i%3]+" "+lgd2[int(i/3)])
+            plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)])
 
-            plt.legend([h1, h2, h3], [lgd1[i%3]+" "+lgd2[int(i/3)], lgd1[i%3]+" "+lgd2[int(i/3)], lgd1[i%3]+" "+lgd2[int(i/3)]])
+            plt.legend([h1, h2, h3], [lgd1[i % 3]+" "+lgd2[int(i/3)], lgd1[i %
+                                                                           3]+" "+lgd2[int(i/3)], lgd1[i % 3]+" "+lgd2[int(i/3)]])
 
             if (i % 3) == 2:
                 plt.ylim([-1.0, 20.0])
@@ -528,7 +532,8 @@ class Logger:
         """
 
         # Cost of each component of the cost function over the prediction horizon (state vector and contact forces)
-        cost = (np.diag(mpc_wrapper.solver.mpc.x) @ np.diag(mpc_wrapper.solver.mpc.P.data)) @ np.array([mpc_wrapper.solver.mpc.x]).transpose()
+        cost = (np.diag(mpc_wrapper.solver.mpc.x) @ np.diag(mpc_wrapper.solver.mpc.P.data)
+                ) @ np.array([mpc_wrapper.solver.mpc.x]).transpose()
 
         # Sum components of the state vector
         for i in range(12):
@@ -560,7 +565,7 @@ class Logger:
         for i in range(14):
             if i < 10:
                 h, = plt.plot(self.t_range, self.cost_components[i, :], linewidth=2)
-            elif i<=12:
+            elif i <= 12:
                 h, = plt.plot(self.t_range, self.cost_components[i, :], linewidth=2, linestyle="--")
             else:
                 h, = plt.plot(self.t_range, np.sum(self.cost_components, axis=0), linewidth=2, linestyle="--")
@@ -590,25 +595,26 @@ class Logger:
         index = [1, 4, 7, 2, 5, 8, 3, 6, 9]
 
         lgd = ["Position Z", "Position Roll", "Position Pitch", "Linear vel X", "Linear vel Y", "Linear vel Z",
-                   "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+               "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
         plt.figure()
         for i, o in enumerate([2, 3, 4, 6, 7, 8, 9, 10, 11]):
             plt.subplot(3, 3, index[i])
             for j in range(self.pred_trajectories.shape[2]):
                 if (j*self.k_mpc > self.k_max_loop):
                     break
-                #if (j % 1) == 0:
+                # if (j % 1) == 0:
                 #h, = plt.plot(t_pred[0:15] + j*self.dt_mpc, self.pred_trajectories[o, 0:15, j], linewidth=2, marker='x')
-                h, = plt.plot(t_pred[0:16] + j*self.dt_mpc, np.hstack(([self.lW[1, j*self.k_mpc]], self.pred_trajectories[o, 0:15, j])), linewidth=2, marker='x')
+                h, = plt.plot(t_pred[0:16] + j*self.dt_mpc, np.hstack(([self.lW[1, j*self.k_mpc]],
+                                                                       self.pred_trajectories[o, 0:15, j])), linewidth=2, marker='x')
             #h, = plt.plot(self.t_range[::20], self.state_ref[i, ::20], "r", linewidth=3, marker='*')
             if i == 0:
-                plt.plot(self.t_range[::20], self.lC[2, ::20], "r", linewidth=2)#, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.lC[2, ::20], "r", linewidth=2)  # , marker='o', linestyle="--")
             elif i <= 2:
-                plt.plot(self.t_range[::20], self.RPY[i-1, ::20], "r", linewidth=2)#, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.RPY[i-1, ::20], "r", linewidth=2)  # , marker='o', linestyle="--")
             elif i <= 5:
-                plt.plot(self.t_range[::20], self.lV[i-3, ::20], "r", linewidth=2)#, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.lV[i-3, ::20], "r", linewidth=2)  # , marker='o', linestyle="--")
             else:
-                plt.plot(self.t_range[::20], self.lW[i-6, ::20], "r", linewidth=2)#, marker='o', linestyle="--")
+                plt.plot(self.t_range[::20], self.lW[i-6, ::20], "r", linewidth=2)  # , marker='o', linestyle="--")
             plt.ylabel(lgd[i])
         plt.suptitle("Predicted trajectories (local frame)")
 
@@ -621,8 +627,10 @@ class Logger:
         self.pos[:, k:(k+1)] = tsid_controller.feetTask[1].position
         self.pos_ref[:, k:(k+1)] = tsid_controller.feetTask[1].position_ref
         self.pos_err[:, k:(k+1)] = tsid_controller.feetTask[1].position_error
-        self.vel[0:3, k:(k+1)] = (solo.data.oMi[solo.model.frames[18].parent].act(solo.model.frames[18].placement)).rotation @ tsid_controller.feetTask[1].velocity[0:3, 0:1]
-        self.vel[3:6, k:(k+1)] = (solo.data.oMi[solo.model.frames[18].parent].act(solo.model.frames[18].placement)).rotation @ tsid_controller.feetTask[1].velocity[3:6, 0:1]
+        self.vel[0:3, k:(k+1)] = (solo.data.oMi[solo.model.frames[18].parent].act(solo.model.frames[18].placement)
+                                  ).rotation @ tsid_controller.feetTask[1].velocity[0:3, 0:1]
+        self.vel[3:6, k:(k+1)] = (solo.data.oMi[solo.model.frames[18].parent].act(solo.model.frames[18].placement)
+                                  ).rotation @ tsid_controller.feetTask[1].velocity[3:6, 0:1]
         self.vel_ref[:, k:(k+1)] = tsid_controller.feetTask[1].velocity_ref
         self.vel_err[:, k:(k+1)] = tsid_controller.feetTask[1].velocity_error
 

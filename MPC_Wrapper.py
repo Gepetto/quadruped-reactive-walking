@@ -98,7 +98,7 @@ class MPC_Wrapper:
         print(fstep_planner.fsteps)"""
 
         if k > 1900:
-            deb=1
+            deb = 1
 
         self.mpc.run((k/self.k_mpc), fstep_planner.xref, fstep_planner.fsteps)
 
@@ -128,7 +128,8 @@ class MPC_Wrapper:
 
         # If this is the first iteration, creation of the parallel process
         if (k == 0):
-            p = Process(target=self.create_MPC_asynchronous, args=(self.newData, self.newResult, self.dataIn, self.dataOut))
+            p = Process(target=self.create_MPC_asynchronous, args=(
+                self.newData, self.newResult, self.dataIn, self.dataOut))
             p.start()
 
         # print("Setting Data")
@@ -168,9 +169,10 @@ class MPC_Wrapper:
                 # print("New data detected")
 
                 # Retrieve data thanks to the decompression function and reshape it
-                dt, nsteps, k, T_gait, lC, abg, lV, lW, l_feet, xref, x0, v_ref, fsteps  = self.decompress_dataIn(dataIn)
-    
-                #print("Receiving")
+                dt, nsteps, k, T_gait, lC, abg, lV, lW, l_feet, xref, x0, v_ref, fsteps = self.decompress_dataIn(
+                    dataIn)
+
+                # print("Receiving")
                 dt = dt[0]
                 nsteps = np.int(nsteps[0])
                 k = k[0]
@@ -231,8 +233,9 @@ class MPC_Wrapper:
 
         # Compress data in the shared input array
         self.dataIn[:] = np.concatenate([[dt, n_steps, k, T_gait], np.array(interface.lC).ravel(), np.array(interface.abg).ravel(),
-                         np.array(interface.lV).ravel(), np.array(interface.lW).ravel(), np.array(interface.l_feet).ravel(), fstep_planner.xref.ravel(), fstep_planner.x0.ravel(), joystick.v_ref.ravel(),
-                         fstep_planner.fsteps.ravel()], axis=0)
+                                         np.array(interface.lV).ravel(), np.array(interface.lW).ravel(), np.array(
+                                             interface.l_feet).ravel(), fstep_planner.xref.ravel(), fstep_planner.x0.ravel(), joystick.v_ref.ravel(),
+                                         fstep_planner.fsteps.ravel()], axis=0)
 
         return 0.0
 
@@ -275,7 +278,7 @@ class MPC_Wrapper:
         self.fsteps_future = fsteps.copy()
 
         # Index of the first empty line
-        index = next((idx for idx, val in np.ndenumerate(self.fsteps_future[:, 0]) if val==0.0), 0.0)[0]
+        index = next((idx for idx, val in np.ndenumerate(self.fsteps_future[:, 0]) if val == 0.0), 0.0)[0]
 
         # Create a new phase if needed or increase the last one by 1 step
         self.fsteps_future[index-1, 0] += 1.0

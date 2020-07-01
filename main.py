@@ -42,7 +42,8 @@ enable_gepetto_viewer = True
 type_MPC = True
 
 # Create Joystick, FootstepPlanner, Logger and Interface objects
-joystick, fstep_planner, logger, interface = utils.init_objects(dt, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC)
+joystick, fstep_planner, logger, interface = utils.init_objects(
+    dt, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC)
 
 # Wrapper that makes the link with the solver that you want to use for the MPC
 # First argument to True to have PA's MPC, to False to have Thomas's MPC

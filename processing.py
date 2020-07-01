@@ -6,6 +6,7 @@ import pinocchio as pin
 import os
 from matplotlib import pyplot as plt
 
+
 def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller):
     """Update states by retrieving information from the simulation and the gamepad
 
@@ -34,9 +35,9 @@ def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller
         if pyb_feedback:
             # Orientation is roll/pitch of PyBullet and Yaw of TSID
             RPY_pyb = pin.rpy.matrixToRpy((pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7]),
-                                          np.array([0.0, 0.0, 0.0]))).rotation)
+                                                   np.array([0.0, 0.0, 0.0]))).rotation)
             RPY_tsid = pin.rpy.matrixToRpy((pin.SE3(pin.Quaternion(tsid_controller.qtsid[3:7]),
-                                           np.array([0.0, 0.0, 0.0]))).rotation)
+                                                    np.array([0.0, 0.0, 0.0]))).rotation)
             tsid_controller.qtsid[3:7, 0:1] = np.array([pyb.getQuaternionFromEuler(np.array([RPY_pyb[0], RPY_pyb[1],
                                                                                              RPY_tsid[2]]))]).transpose()
 
@@ -99,8 +100,8 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
 
     # Initialization of the desired location of footsteps (need to run update_fsteps once)
     if (k == 0):
-        fstep_planner.update_fsteps(k, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)), joystick.v_ref,
-                                    interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids, False)
+        fstep_planner.update_fsteps(k, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
+                                    joystick.v_ref, interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids, False)
 
     # Update footsteps desired location once every k_mpc iterations of TSID
     if True:  # (k % k_mpc) == 0:
@@ -108,8 +109,9 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
         # fstep_planner.fsteps_invdyn = fstep_planner.fsteps.copy()
         # fstep_planner.gait_invdyn = fstep_planner.gait.copy()
 
-        fstep_planner.update_fsteps(k+1, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)), joystick.v_ref,
-                                    interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids, joystick.reduced)
+        fstep_planner.update_fsteps(k+1, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
+                                    joystick.v_ref, interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids,
+                                    joystick.reduced)
 
         fstep_planner.fsteps_invdyn = fstep_planner.fsteps.copy()
         fstep_planner.gait_invdyn = fstep_planner.gait.copy()

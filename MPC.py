@@ -25,7 +25,7 @@ class MPC:
         self.dt = dt
 
         # Mass of the robot
-        self.mass = 2.50000279 # 2.97784899
+        self.mass = 2.50000279  # 2.97784899
 
         # Inertia matrix of the robot in body frame (found in urdf)
         self.gI = np.diag([0.00578574, 0.01938108, 0.02476124]) * 2.0
@@ -419,7 +419,6 @@ class MPC:
             self.prob.update(Ax=self.ML.data, l=self.NK_inf, u=self.NK.ravel())
             self.prob.warm_start(x=initx)
 
-
         """if k == 0:
             self.prob.update_settings(check_termination=200)"""
 
@@ -449,11 +448,11 @@ class MPC:
         self.q_next = self.x_robot[0:6, 0:1]
         self.v_next = self.x_robot[6:12, 0:1]
 
-        #plt.figure()
-        #plt.plot(self.x[6:self.xref.shape[0]*(self.xref.shape[1]-1)+6:12])
+        # plt.figure()
+        # plt.plot(self.x[6:self.xref.shape[0]*(self.xref.shape[1]-1)+6:12])
         """plt.plot(self.x[self.xref.shape[0]*(self.xref.shape[1]-1)+2::12])
         plt.plot(self.x[self.xref.shape[0]*(self.xref.shape[1]-1)+5::12])"""
-        #plt.show(block=True)
+        # plt.show(block=True)
 
         return 0
 
@@ -643,7 +642,7 @@ class MPC:
         """
 
         # Index of the first empty line
-        index = next((idx for idx, val in np.ndenumerate(fsteps[:, 0]) if val==0.0), 0.0)[0]
+        index = next((idx for idx, val in np.ndenumerate(fsteps[:, 0]) if val == 0.0), 0.0)[0]
 
         self.gait[:, 0] = fsteps[:, 0]
 
@@ -653,11 +652,12 @@ class MPC:
 
     def check_result_mpc(self):
 
-        self.x1_eq = self.A @ self.x0 + self.ML[0:12, (12*16+0):(12*16+12)] @ np.array([self.f_applied]).transpose() + self.g
+        self.x1_eq = self.A @ self.x0 + self.ML[0:12,
+                                                (12*16+0):(12*16+12)] @ np.array([self.f_applied]).transpose() + self.g
 
         self.x1_mpc = self.x_robot[0:12, 0:1]
 
-        #print(self.x1_eq.ravel())
-        #print(self.x1_mpc.ravel())
+        # print(self.x1_eq.ravel())
+        # print(self.x1_mpc.ravel())
 
         return 0
