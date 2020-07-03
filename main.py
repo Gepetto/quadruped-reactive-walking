@@ -14,7 +14,7 @@ import MPC_Virtual
 import pybullet as pyb
 
 
-def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC):
+def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC, pyb_feedback):
 
     ########################################################################
     #                        Parameters definition                         #
@@ -87,7 +87,11 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
             print("Iteration: ", k)
 
         # Process states update and joystick
-        proc.process_states(solo, k, k_mpc, pyb_sim, interface, joystick, myController)
+        proc.process_states(solo, k, k_mpc, pyb_sim, interface, joystick, myController, pyb_feedback)
+
+        if np.isnan(interface.lC[2, 0]):
+            print("NaN value for the position of the center of mass. Simulation likely crashed. Ending loop.")
+            break
 
         # Process footstep planner
         proc.process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_planner)
@@ -102,6 +106,10 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         jointTorques = proc.process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner,
                                            myController, enable_hybrid_control)
         t_list_tsid[k] = time.time() - time_tsid  # Logging the time spent to run this iteration of inverse dynamics
+
+        if myController.error:
+            print('NaN value in feedforward torque. Ending loop.')
+            break
 
         # Process PyBullet
         proc.process_pybullet(pyb_sim, k, jointTorques)

@@ -7,7 +7,7 @@ import os
 from matplotlib import pyplot as plt
 
 
-def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller):
+def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller, pyb_feedback):
     """Update states by retrieving information from the simulation and the gamepad
 
     Args:
@@ -18,9 +18,8 @@ def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller
         interface (object): Interface object of the control loop
         joystick (object): Interface with the gamepad
         tsid_controller (object): Inverse dynamics controller
+        pyb_feedback (bool): Whether PyBullet feedback is enabled or not
     """
-
-    pyb_feedback = True
 
     if k != 0:
         # Retrieve data from the simulation (position/orientation/velocity of the robot)
@@ -249,7 +248,7 @@ def process_pybullet(pyb_sim, k, jointTorques):
     """
 
     # Check the state of the robot to trigger events and update the simulator camera
-    pyb_sim.check_pyb_env(pyb_sim.qmes12)
+    pyb_sim.check_pyb_env(k, pyb_sim.qmes12)
 
     # Set control torque for all joints
     pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,
