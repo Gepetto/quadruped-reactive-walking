@@ -202,7 +202,7 @@ class pybullet_simulator:
     def __init__(self, dt=0.001):
 
         # Start the client for PyBullet
-        physicsClient = pyb.connect(pyb.GUI)
+        physicsClient = pyb.connect(pyb.DIRECT)
         # p.GUI for graphical version
         # p.DIRECT for non-graphical version
 
@@ -381,10 +381,11 @@ class pybullet_simulator:
         pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=-50, cameraPitch=-35,
                                        cameraTargetPosition=[0.0, 0.6, 0.0])
 
-    def check_pyb_env(self, qmes12):
+    def check_pyb_env(self, k, qmes12):
         """Check the state of the robot to trigger events and update camera
 
         Args:
+            k (int): Number of inv dynamics iterations since the start of the simulation
             qmes12 (19x1 array): the position/orientation of the trunk and angular position of actuators
 
         """
@@ -400,7 +401,10 @@ class pybullet_simulator:
             self.flag_sphere2 = False
 
         # Apply perturbation
-        # pyb.applyExternalForce(pyb_sim.robotId, -1, [1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)"""
+        if (k >= 1000) and (k <= 1200):
+            pyb.applyExternalForce(self.robotId, -1, [0.0, -0.5, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+        if k == 1201:
+            print("End external force")
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
