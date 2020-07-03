@@ -63,16 +63,16 @@ class controller:
 
         # Coefficients of the contact tasks
         kp_contact = 100.0         # proportionnal gain for the contacts
-        self.w_forceRef = 100.0  # weight of the forces regularization
+        self.w_forceRef = 1000.0  # weight of the forces regularization
         self.w_reg_f = 50.0
 
         # Coefficients of the foot tracking task
         kp_foot = 100.0               # proportionnal gain for the tracking task
-        self.w_foot = 100.0       # weight of the tracking task
+        self.w_foot = 1000.0       # weight of the tracking task
 
         # Coefficients of the trunk task
-        kp_trunk = 50
-        w_trunk = 10
+        kp_trunk = 100
+        w_trunk = 100
 
         # Arrays to store logs
         k_max_loop = N_simulation
@@ -247,9 +247,9 @@ class controller:
 
         # Task definition (creating the task object)
         self.trunkTask = tsid.TaskSE3Equality("task-trunk", self.robot, 'base_link')
-        mask = np.matrix([0.0, 0.0, 1.0, 1.0, 1.0, 0.0]).T
-        self.trunkTask.setKp(np.matrix([0.0, 0.0, 10*kp_trunk, kp_trunk, kp_trunk, 0.0]).T)
-        self.trunkTask.setKd(np.matrix([0.0, 0.0, 10.0, 2.0 * np.sqrt(kp_trunk), 2.0 * np.sqrt(kp_trunk), 0.0]).T)
+        mask = np.matrix([0.0, 0.0, 0.0, 1.0, 1.0, 0.0]).T
+        self.trunkTask.setKp(np.matrix([0.0, 0.0, 0.0*kp_trunk, kp_trunk, kp_trunk, 0.0]).T)
+        self.trunkTask.setKd(np.matrix([0.0, 0.0, 0.0*2.0 * np.sqrt(kp_trunk), 2.0 * np.sqrt(kp_trunk), 2.0 * np.sqrt(kp_trunk), 0.0]).T)
         self.trunkTask.useLocalFrame(False)
         self.trunkTask.setMask(mask)
 
@@ -312,7 +312,7 @@ class controller:
                 i_iter -= 1
             self.t_swing[i] *= self.dt * self.k_mpc
 
-            t0s.append(np.round(self.t_swing[i] - remaining_iterations * self.dt - 0.001, decimals=3))
+            t0s.append(np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt - 0.001, 0.0)), decimals=3))
 
         # self.footsteps contains the target (x, y) positions for both feet in swing phase
 
@@ -610,7 +610,8 @@ class controller:
         if np.any(np.isnan(self.tau_ff)):
             self.error = True
             self.tau = np.zeros((1, 12))
-            raise ValueError('NaN value in feedforward torque')
+            # raise ValueError('NaN value in feedforward torque')
+            return 0
         else:
             # Torque PD controller
             P = 3.0

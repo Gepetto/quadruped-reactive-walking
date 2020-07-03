@@ -252,9 +252,9 @@ class MPC:
         P_data = 0.0 * np.ones((n_x * self.n_steps,))
 
         # Hand-tuning of parameters if you want to give more weight to specific components
-        P_data[0::12] = 0.1  # position along x
-        P_data[1::12] = 0.1  # position along y
-        P_data[2::12] = 1  # position along z
+        P_data[0::12] = 0.5  # position along x
+        P_data[1::12] = 0.5  # position along y
+        P_data[2::12] = 2  # position along z
         P_data[3::12] = 0.11  # roll
         P_data[4::12] = 0.11  # pitch
         P_data[5::12] = 0.11  # yaw
@@ -270,9 +270,9 @@ class MPC:
         P_col = np.hstack((P_col, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
         P_data = np.hstack((P_data, 0.0*np.ones((n_x * self.n_steps * 2 - n_x * self.n_steps,))))
 
-        P_data[(n_x * self.n_steps)::3] = 2.0e-6  # force along x
-        P_data[(n_x * self.n_steps + 1)::3] = 2.0e-6  # force along y
-        P_data[(n_x * self.n_steps + 2)::3] = 2.0e-6  # force along z
+        P_data[(n_x * self.n_steps)::3] = 1.0e-4  # force along x
+        P_data[(n_x * self.n_steps + 1)::3] = 1.0e-4  # force along y
+        P_data[(n_x * self.n_steps + 2)::3] = 1.0e-4  # force along z
 
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(
