@@ -327,7 +327,7 @@ class FootstepPlanner:
             if np.any((rpt_gait[i-1, :] == False) & rpt_gait[i, :]):
 
                 # Get future desired position of footsteps
-                self.compute_next_footstep(v_ref, v_ref, h)
+                self.compute_next_footstep(v_cur, v_ref, h)
 
                 """if reduced:
                     self.next_footstep[0:2, :] -= np.array([[0.0, 0.0, -0.0, -0.0],
