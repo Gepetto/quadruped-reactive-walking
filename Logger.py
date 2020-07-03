@@ -234,8 +234,8 @@ class Logger:
         """
 
         index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
-        lgd = ["Pos CoM X", "Pos CoM Y", "Pos CoM Z", "Roll", "Pitch", "Yaw",
-               "Lin Vel CoM X", "Lin Vel CoM Y", "Lin Vel CoM Z", "Ang Vel Roll", "Ang Vel Pitch", "Ang Vel Yaw"]
+        lgd = ["Pos CoM X [m]", "Pos CoM Y [m]", "Pos CoM Z [m]", "Roll [deg]", "Pitch [deg]", "Yaw [deg]",
+               "Lin Vel CoM X [m/s]", "Lin Vel CoM Y [m/s]", "Lin Vel CoM Z [m/s]", "Ang Vel Roll [deg/s]", "Ang Vel Pitch [deg/s]", "Ang Vel Yaw [deg/s]"]
         plt.figure()
         for i in range(12):
             plt.subplot(3, 4, index[i])
@@ -243,14 +243,14 @@ class Logger:
                 plt.plot(self.t_range, self.lC[i, :], "b", linewidth=3)
                 plt.plot(self.t_range, self.lC_pyb[i, :], "g", linewidth=3)
             elif i < 6:
-                plt.plot(self.t_range, self.RPY[i-3, :], "b", linewidth=3)
-                plt.plot(self.t_range, self.RPY_pyb[i-3, :], "g", linewidth=3)
+                plt.plot(self.t_range, (180/3.1415)*self.RPY[i-3, :], "b", linewidth=3)
+                plt.plot(self.t_range, (180/3.1415)*self.RPY_pyb[i-3, :], "g", linewidth=3)
             elif i < 9:
                 plt.plot(self.t_range, self.lV[i-6, :], "b", linewidth=3)
                 plt.plot(self.t_range, self.lV_pyb[i-6, :], "g", linewidth=3)
             else:
-                plt.plot(self.t_range, self.lW[i-9, :], "b", linewidth=3)
-                plt.plot(self.t_range, self.lW_pyb[i-9, :], "g", linewidth=3)
+                plt.plot(self.t_range, (180/3.1415)*self.lW[i-9, :], "b", linewidth=3)
+                plt.plot(self.t_range, (180/3.1415)*self.lW_pyb[i-9, :], "g", linewidth=3)
 
             if i in [2, 3, 4, 6, 7, 8, 9, 10, 11]:
                 plt.plot(self.t_range, self.state_ref[i, :], "r", linewidth=3)
@@ -259,6 +259,21 @@ class Logger:
             plt.ylabel(lgd[i])
 
             plt.legend([lgd[i]+" TSID", lgd[i]+" Pyb", lgd[i]+" Ref"])
+
+            if i < 2:
+                plt.ylim([-0.07, 0.07])
+            elif i == 2:
+                plt.ylim([0.16, 0.24])
+            elif i < 6:
+                plt.ylim([-10, 10])
+            elif i == 6:
+                plt.ylim([-0.05, 0.7])
+            elif i == 7:
+                plt.ylim([-0.1, 0.1])
+            elif i == 8:
+                plt.ylim([-0.2, 0.2])
+            else:
+                plt.ylim([-80.0, 80.0])
 
         plt.suptitle("State of the robot in TSID Vs PyBullet Vs Reference (local frame)")
 
@@ -285,6 +300,10 @@ class Logger:
             plt.xlabel("Time [s]")
             plt.ylabel("Angular velocity [rad/s]")
         plt.suptitle("Angular velocities of actuators in TSID and PyBullet")
+
+        print_correlation = False
+        if not print_correlation:
+            return 0
 
         R = np.zeros((12, 12))
 
@@ -693,7 +712,7 @@ class Logger:
 
         return 0
 
-    def plot_graphs(self, enable_multiprocessing):
+    def plot_graphs(self, enable_multiprocessing, show_block=True):
 
         # Plot current and desired position, velocity and acceleration of feet over time
         self.plot_footsteps()
@@ -720,7 +739,7 @@ class Logger:
         # self.plot_tracking_foot()
 
         # Display graphs
-        plt.show(block=True)
+        plt.show(block=show_block)
 
         """# Evolution of the position and orientation of the robot over time
         plt.figure()
