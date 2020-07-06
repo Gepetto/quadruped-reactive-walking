@@ -700,8 +700,8 @@ class Logger:
         self.log_torques(k, tsid_controller)
 
         # Store information about the cost function
-        if self.type_MPC and not enable_multiprocessing:
-            self.log_cost_function(k, mpc_wrapper)
+        """if self.type_MPC and not enable_multiprocessing:
+            self.log_cost_function(k, mpc_wrapper)"""
 
         # Store information about the predicted evolution of the optimization vector components
         if self.type_MPC and not enable_multiprocessing and ((k % self.k_mpc) == 0):
