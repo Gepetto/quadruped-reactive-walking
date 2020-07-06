@@ -7,13 +7,14 @@ import os
 from matplotlib import pyplot as plt
 
 
-def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller, pyb_feedback):
+def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback):
     """Update states by retrieving information from the simulation and the gamepad
 
     Args:
         solo (object): Pinocchio wrapper for the quadruped
         k (int): Number of inv dynamics iterations since the start of the simulation
         k_mpc (int): Number of inv dynamics iterations for one iteration of the MPC
+        velID (int): Identifier of the current velocity profile to be able to handle different scenarios
         pyb_sim (object): PyBullet simulation
         interface (object): Interface object of the control loop
         joystick (object): Interface with the gamepad
@@ -79,7 +80,7 @@ def process_states(solo, k, k_mpc, pyb_sim, interface, joystick, tsid_controller
 
     # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
     if (k % k_mpc) == 0:
-        joystick.update_v_ref(k, predefined=True)
+        joystick.update_v_ref(k, velID, predefined=True)
 
     return 0
 
@@ -238,17 +239,18 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
     return jointTorques
 
 
-def process_pybullet(pyb_sim, k, jointTorques):
+def process_pybullet(pyb_sim, k, envID, jointTorques):
     """Update the torques applied by the actuators of the quadruped and run one step of simulation
 
     Args:
         pyb_sim (object): PyBullet simulation
         k (int): Number of inv dynamics iterations since the start of the simulation
+        envID (int): Identifier of the current environment to be able to handle different scenarios
         jointTorques (12x1 array): Reference torques for the actuators
     """
 
     # Check the state of the robot to trigger events and update the simulator camera
-    pyb_sim.check_pyb_env(k, pyb_sim.qmes12)
+    pyb_sim.check_pyb_env(k, envID, pyb_sim.qmes12)
 
     # Set control torque for all joints
     pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,

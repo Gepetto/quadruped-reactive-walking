@@ -199,7 +199,7 @@ def getSkew(a):
 
 class pybullet_simulator:
 
-    def __init__(self, dt=0.001):
+    def __init__(self, envID, dt=0.001):
 
         # Start the client for PyBullet
         physicsClient = pyb.connect(pyb.DIRECT)
@@ -214,116 +214,118 @@ class pybullet_simulator:
         # baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))
         #pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)
 
-        mesh_scale = [1.0, 0.1, 0.02]
-        visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                              fileName="cube.obj",
-                                              halfExtents=[0.5, 0.5, 0.1],
-                                              rgbaColor=[1.0, 0.0, 0.0, 1.0],
-                                              specularColor=[0.4, .4, 0],
-                                              visualFramePosition=[0.0, 0.0, 0.0],
-                                              meshScale=mesh_scale)
+        if envID == 1:
 
-        collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
-                                                    fileName="cube.obj",
-                                                    collisionFramePosition=[0.0, 0.0, 0.0],
-                                                    meshScale=mesh_scale)
-        for i in range(4):
+            mesh_scale = [1.0, 0.1, 0.02]
+            visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                                fileName="cube.obj",
+                                                halfExtents=[0.5, 0.5, 0.1],
+                                                rgbaColor=[1.0, 0.0, 0.0, 1.0],
+                                                specularColor=[0.4, .4, 0],
+                                                visualFramePosition=[0.0, 0.0, 0.0],
+                                                meshScale=mesh_scale)
+
+            collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
+                                                        fileName="cube.obj",
+                                                        collisionFramePosition=[0.0, 0.0, 0.0],
+                                                        meshScale=mesh_scale)
+            for i in range(4):
+                tmpId = pyb.createMultiBody(baseMass=0.0,
+                                            baseInertialFramePosition=[0, 0, 0],
+                                            baseCollisionShapeIndex=collisionShapeId,
+                                            baseVisualShapeIndex=visualShapeId,
+                                            basePosition=[0.0, 0.5+0.2*i, 0.01],
+                                            useMaximalCoordinates=True)
+                pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
+
             tmpId = pyb.createMultiBody(baseMass=0.0,
                                         baseInertialFramePosition=[0, 0, 0],
                                         baseCollisionShapeIndex=collisionShapeId,
                                         baseVisualShapeIndex=visualShapeId,
-                                        basePosition=[0.0, 0.5+0.2*i, 0.01],
+                                        basePosition=[0.5, 0.5+0.2*4, 0.01],
                                         useMaximalCoordinates=True)
             pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
-        tmpId = pyb.createMultiBody(baseMass=0.0,
-                                    baseInertialFramePosition=[0, 0, 0],
-                                    baseCollisionShapeIndex=collisionShapeId,
-                                    baseVisualShapeIndex=visualShapeId,
-                                    basePosition=[0.5, 0.5+0.2*4, 0.01],
-                                    useMaximalCoordinates=True)
-        pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
-
-        tmpId = pyb.createMultiBody(baseMass=0.0,
-                                    baseInertialFramePosition=[0, 0, 0],
-                                    baseCollisionShapeIndex=collisionShapeId,
-                                    baseVisualShapeIndex=visualShapeId,
-                                    basePosition=[0.5, 0.5+0.2*5, 0.01],
-                                    useMaximalCoordinates=True)
-        pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
-
-        mesh_scale = [0.2, 0.1, 0.01]
-        visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                              fileName="cube.obj",
-                                              halfExtents=[0.5, 0.5, 0.1],
-                                              rgbaColor=[0.0, 1.0, 0.0, 1.0],
-                                              specularColor=[0.4, .4, 0],
-                                              visualFramePosition=[0.0, 0.0, 0.0],
-                                              meshScale=mesh_scale)
-
-        collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
-                                                    fileName="cube.obj",
-                                                    collisionFramePosition=[0.0, 0.0, 0.0],
-                                                    meshScale=mesh_scale)
-
-        for i in range(3):
             tmpId = pyb.createMultiBody(baseMass=0.0,
                                         baseInertialFramePosition=[0, 0, 0],
                                         baseCollisionShapeIndex=collisionShapeId,
                                         baseVisualShapeIndex=visualShapeId,
-                                        basePosition=[0.15 * (-1)**i, 0.9+0.2*i, 0.025],
+                                        basePosition=[0.5, 0.5+0.2*5, 0.01],
                                         useMaximalCoordinates=True)
             pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
-        mesh_scale = [0.05, 0.05, 0.05]
-        visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                              fileName="sphere_smooth.obj",
-                                              halfExtents=[0.5, 0.5, 0.1],
-                                              rgbaColor=[1.0, 0.0, 0.0, 1.0],
-                                              specularColor=[0.4, .4, 0],
-                                              visualFramePosition=[0.0, 0.0, 0.0],
-                                              meshScale=mesh_scale)
+            mesh_scale = [0.2, 0.1, 0.01]
+            visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                                fileName="cube.obj",
+                                                halfExtents=[0.5, 0.5, 0.1],
+                                                rgbaColor=[0.0, 1.0, 0.0, 1.0],
+                                                specularColor=[0.4, .4, 0],
+                                                visualFramePosition=[0.0, 0.0, 0.0],
+                                                meshScale=mesh_scale)
 
-        collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
-                                                    fileName="sphere_smooth.obj",
-                                                    collisionFramePosition=[0.0, 0.0, 0.0],
-                                                    meshScale=mesh_scale)
+            collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
+                                                        fileName="cube.obj",
+                                                        collisionFramePosition=[0.0, 0.0, 0.0],
+                                                        meshScale=mesh_scale)
 
-        self.sphereId1 = pyb.createMultiBody(baseMass=0.3,
-                                             baseInertialFramePosition=[0, 0, 0],
-                                             baseCollisionShapeIndex=collisionShapeId,
-                                             baseVisualShapeIndex=visualShapeId,
-                                             basePosition=[-0.6, 0.9, 0.05],
-                                             useMaximalCoordinates=True)
+            for i in range(3):
+                tmpId = pyb.createMultiBody(baseMass=0.0,
+                                            baseInertialFramePosition=[0, 0, 0],
+                                            baseCollisionShapeIndex=collisionShapeId,
+                                            baseVisualShapeIndex=visualShapeId,
+                                            basePosition=[0.15 * (-1)**i, 0.9+0.2*i, 0.025],
+                                            useMaximalCoordinates=True)
+                pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
-        self.sphereId2 = pyb.createMultiBody(baseMass=0.3,
-                                             baseInertialFramePosition=[0, 0, 0],
-                                             baseCollisionShapeIndex=collisionShapeId,
-                                             baseVisualShapeIndex=visualShapeId,
-                                             basePosition=[0.6, 1.1, 0.05],
-                                             useMaximalCoordinates=True)
+            mesh_scale = [0.05, 0.05, 0.05]
+            visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                                fileName="sphere_smooth.obj",
+                                                halfExtents=[0.5, 0.5, 0.1],
+                                                rgbaColor=[1.0, 0.0, 0.0, 1.0],
+                                                specularColor=[0.4, .4, 0],
+                                                visualFramePosition=[0.0, 0.0, 0.0],
+                                                meshScale=mesh_scale)
+
+            collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
+                                                        fileName="sphere_smooth.obj",
+                                                        collisionFramePosition=[0.0, 0.0, 0.0],
+                                                        meshScale=mesh_scale)
+
+            self.sphereId1 = pyb.createMultiBody(baseMass=0.3,
+                                                baseInertialFramePosition=[0, 0, 0],
+                                                baseCollisionShapeIndex=collisionShapeId,
+                                                baseVisualShapeIndex=visualShapeId,
+                                                basePosition=[-0.6, 0.9, 0.05],
+                                                useMaximalCoordinates=True)
+
+            self.sphereId2 = pyb.createMultiBody(baseMass=0.3,
+                                                baseInertialFramePosition=[0, 0, 0],
+                                                baseCollisionShapeIndex=collisionShapeId,
+                                                baseVisualShapeIndex=visualShapeId,
+                                                basePosition=[0.6, 1.1, 0.05],
+                                                useMaximalCoordinates=True)
+
+            # Flag to launch the two spheres in the environment toward the robot
+            self.flag_sphere1 = True
+            self.flag_sphere2 = True
 
         mesh_scale = [0.015, 0.015, 0.015]
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                              fileName="sphere_smooth.obj",
-                                              halfExtents=[0.5, 0.5, 0.1],
-                                              rgbaColor=[0.0, 0.0, 1.0, 1.0],
-                                              specularColor=[0.4, .4, 0],
-                                              visualFramePosition=[0.0, 0.0, 0.0],
-                                              meshScale=mesh_scale)
-
-        # Flag to launch the two spheres in the environment toward the robot
-        self.flag_sphere1 = True
-        self.flag_sphere2 = True
+                                            fileName="sphere_smooth.obj",
+                                            halfExtents=[0.5, 0.5, 0.1],
+                                            rgbaColor=[0.0, 0.0, 1.0, 1.0],
+                                            specularColor=[0.4, .4, 0],
+                                            visualFramePosition=[0.0, 0.0, 0.0],
+                                            meshScale=mesh_scale)
 
         self.ftps_Ids = np.zeros((4, 5), dtype=np.int)
         for i in range(4):
             for j in range(5):
                 self.ftps_Ids[i, j] = pyb.createMultiBody(baseMass=0.0,
-                                                          baseInertialFramePosition=[0, 0, 0],
-                                                          baseVisualShapeIndex=visualShapeId,
-                                                          basePosition=[0.0, 0.0, -0.1],
-                                                          useMaximalCoordinates=True)
+                                                        baseInertialFramePosition=[0, 0, 0],
+                                                        baseVisualShapeIndex=visualShapeId,
+                                                        basePosition=[0.0, 0.0, -0.1],
+                                                        useMaximalCoordinates=True)
 
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
                                               fileName="sphere_smooth.obj",
@@ -381,24 +383,26 @@ class pybullet_simulator:
         pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=-50, cameraPitch=-35,
                                        cameraTargetPosition=[0.0, 0.6, 0.0])
 
-    def check_pyb_env(self, k, qmes12):
+    def check_pyb_env(self, k, envID, qmes12):
         """Check the state of the robot to trigger events and update camera
 
         Args:
             k (int): Number of inv dynamics iterations since the start of the simulation
+            envID (int): Identifier of the current environment to be able to handle different scenarios
             qmes12 (19x1 array): the position/orientation of the trunk and angular position of actuators
 
         """
 
-        # Check if the robot is in front of the first sphere to trigger it
-        if self.flag_sphere1 and (qmes12[1, 0] >= 0.9):
-            pyb.resetBaseVelocity(self.sphereId1, linearVelocity=[3.0, 0.0, 2.0])
-            self.flag_sphere1 = False
+        if envID == 1:
+            # Check if the robot is in front of the first sphere to trigger it
+            if self.flag_sphere1 and (qmes12[1, 0] >= 0.9):
+                pyb.resetBaseVelocity(self.sphereId1, linearVelocity=[3.0, 0.0, 2.0])
+                self.flag_sphere1 = False
 
-        # Check if the robot is in front of the second sphere to trigger it
-        if self.flag_sphere2 and (qmes12[1, 0] >= 1.1):
-            pyb.resetBaseVelocity(self.sphereId2, linearVelocity=[-3.0, 0.0, 2.0])
-            self.flag_sphere2 = False
+            # Check if the robot is in front of the second sphere to trigger it
+            if self.flag_sphere2 and (qmes12[1, 0] >= 1.1):
+                pyb.resetBaseVelocity(self.sphereId2, linearVelocity=[-3.0, 0.0, 2.0])
+                self.flag_sphere2 = False
 
         # Apply perturbation
         if (k >= 1000) and (k <= 1200):

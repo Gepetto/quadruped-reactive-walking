@@ -67,7 +67,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     ########################################################################
 
     # Initialisation of the PyBullet simulator
-    pyb_sim = utils.pybullet_simulator(dt=0.001)
+    pyb_sim = utils.pybullet_simulator(envID, dt=0.001)
 
     # Force monitor to display contact forces in PyBullet with red lines
     myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
@@ -87,7 +87,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
             print("Iteration: ", k)
 
         # Process states update and joystick
-        proc.process_states(solo, k, k_mpc, pyb_sim, interface, joystick, myController, pyb_feedback)
+        proc.process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, myController, pyb_feedback)
 
         if np.isnan(interface.lC[2, 0]):
             print("NaN value for the position of the center of mass. Simulation likely crashed. Ending loop.")
@@ -112,7 +112,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
             break
 
         # Process PyBullet
-        proc.process_pybullet(pyb_sim, k, jointTorques)
+        proc.process_pybullet(pyb_sim, k, envID, jointTorques)
 
         # Call logger object to log various parameters
         logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
