@@ -77,6 +77,20 @@ class FootstepPlanner:
         # self.create_side_walking()
         # self.create_static()
 
+        # Predefined matrices for compute_footstep function
+        # rpt_gait = np.zeros((self.gait.shape[0], 12), dtype='int64')
+        self.R = np.zeros((3, 3, self.gait.shape[0]))
+        self.R[2, 2, :] = 1.0
+        """
+        Predefining sizes slows down the program for some reason...
+        self.dt_cum = np.zeros((self.gait.shape[0], ))
+        self.c = np.zeros((self.gait.shape[0], ))
+        self.s = np.zeros((self.gait.shape[0], ))
+        self.angle = np.zeros((self.gait.shape[0], ))
+        self.dx = np.zeros((self.gait.shape[0], ))
+        self.dy = np.zeros((self.gait.shape[0], ))
+        self.next_ft = np.zeros((12,))"""
+
     def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.2027682):
         """Compute the reference trajectory of the CoM for each time step of the
         predition horizon. The ouput is a matrix of size 12 by (N+1) with N the number
@@ -303,16 +317,42 @@ class FootstepPlanner:
         self.fsteps[:, 1:] = np.nan
 
         i = 1
-        dt_cum = 0
 
         rpt_gait = np.repeat(self.gait[:, 1:] == 1, 3, axis=1)
 
         # Set current position of feet for feet in stance phase
         (self.fsteps[0, 1:])[rpt_gait[0, :]] = (l_feet.ravel(order='F'))[rpt_gait[0, :]]
 
-        while (self.gait[i, 0] != 0):
+        # Get future desired position of footsteps
+        self.compute_next_footstep(v_cur, v_ref, h)
 
-            dt_cum += self.gait[i-1, 0] * self.dt
+        if reduced:  # Reduce size of support polygon
+            self.next_footstep[0:2, :] -= np.array([[0.14, 0.14, -0.14, -0.14],
+                                                    [0.12, -0.12, 0.12, -0.12]])
+
+        self.next_footstep[2, :] = self.z_contacts[0, :].copy()
+
+        # Cumulative time by adding the terms in the first column (remaining number of timesteps)
+        dt_cum = np.cumsum(self.gait[:, 0]) * self.dt
+
+        # Get future yaw angle compared to current position
+        angle = v_ref[5, 0] * dt_cum
+        c = np.cos(angle)
+        s = np.sin(angle)
+        self.R[0:2, 0:2, :] = np.array([[c, -s], [s, c]])
+
+        # Displacement following the reference velocity compared to current position
+        if v_ref[5, 0] != 0:
+            dx = (v_cur[0, 0] * np.sin(v_ref[5, 0] * dt_cum) +
+                  v_cur[1, 0] * (np.cos(v_ref[5, 0] * dt_cum) - 1)) / v_ref[5, 0]
+            dy = (v_cur[1, 0] * np.sin(v_ref[5, 0] * dt_cum) -
+                  v_cur[0, 0] * (np.cos(v_ref[5, 0] * dt_cum) - 1)) / v_ref[5, 0]
+        else:
+            dx = v_cur[0, 0] * dt_cum
+            dy = v_cur[1, 0] * dt_cum
+
+        # Update the footstep matrix depending on the different phases of the gait (swing & stance)
+        while (self.gait[i, 0] != 0):
 
             # Feet that were in stance phase and are still in stance phase do not move
             if np.any(rpt_gait[i-1, :] & rpt_gait[i, :]):
@@ -320,41 +360,15 @@ class FootstepPlanner:
                                      ] = (self.fsteps[i-1, 1:])[rpt_gait[i-1, :] & rpt_gait[i, :]]
 
             # Feet that are in swing phase are NaN whether they were in stance phase previously or not
-            if np.any(rpt_gait[i, :] == False):
-                (self.fsteps[i, 1:])[rpt_gait[i, :] == False] = np.nan * np.ones((12,))[rpt_gait[i, :] == False]
+            # Commented as self.fsteps is already filled by np.nan by default
+            """if np.any(rpt_gait[i, :] == False):
+                (self.fsteps[i, 1:])[rpt_gait[i, :] == False] = np.nan * np.ones((12,))[rpt_gait[i, :] == False]"""
 
             # Feet that were in swing phase and are now in stance phase need to be updated
             if np.any((rpt_gait[i-1, :] == False) & rpt_gait[i, :]):
 
-                # Get future desired position of footsteps
-                self.compute_next_footstep(v_cur, v_ref, h)
-
-                """if reduced:
-                    self.next_footstep[0:2, :] -= np.array([[0.0, 0.0, -0.0, -0.0],
-                                                            [0.06, -0.06, 0.06, -0.06]])"""
-                if reduced:
-                    self.next_footstep[0:2, :] -= np.array([[0.14, 0.14, -0.14, -0.14],
-                                                            [0.12, -0.12, 0.12, -0.12]])
-
-                self.next_footstep[2, :] = self.z_contacts[0, :].copy()
-
-                # Get future yaw angle compared to current position
-                angle = v_ref[5, 0] * dt_cum
-                c, s = np.cos(angle), np.sin(angle)
-                R = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
-
-                # Displacement following the reference velocity compared to current position
-                if v_ref[5, 0] != 0:
-                    dx = (v_cur[0, 0] * np.sin(v_ref[5, 0] * dt_cum) +
-                          v_cur[1, 0] * (np.cos(v_ref[5, 0] * dt_cum) - 1)) / v_ref[5, 0]
-                    dy = (v_cur[1, 0] * np.sin(v_ref[5, 0] * dt_cum) -
-                          v_cur[0, 0] * (np.cos(v_ref[5, 0] * dt_cum) - 1)) / v_ref[5, 0]
-                else:
-                    dx = v_cur[0, 0] * dt_cum
-                    dy = v_cur[1, 0] * dt_cum
-
                 # Get desired position of footstep compared to current position
-                next_ft = (np.dot(R, self.next_footstep) + np.array([[dx], [dy], [0.0]])).ravel(order='F')
+                next_ft = (np.dot(self.R[:, :, i-1], self.next_footstep) + np.array([[dx[i-1]], [dy[i-1]], [0.0]])).ravel(order='F')
                 #next_ft = (self.next_footstep).ravel(order='F')
 
                 # Assignement only to feet that have been in swing phase
