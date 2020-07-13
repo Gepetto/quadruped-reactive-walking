@@ -98,8 +98,14 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
         # Process MPC once every k_mpc iterations of TSID
         if (k % k_mpc) == 0:
-            f_applied = proc.process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper,
-                                         dt_mpc, ID_deb_lines)
+            proc.process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper,
+                             dt_mpc, ID_deb_lines)
+
+        if k == 0:
+            f_applied = mpc_wrapper.get_latest_result()
+        elif (k % k_mpc) == 10:
+            # Output of the MPC (with delay)
+            f_applied = mpc_wrapper.get_latest_result()
 
         # Process Inverse Dynamics
         time_tsid = time.time()

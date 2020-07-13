@@ -7,6 +7,7 @@ import os
 from matplotlib import pyplot as plt
 from utils import getQuaternion
 
+
 def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback):
     """Update states by retrieving information from the simulation and the gamepad
 
@@ -51,7 +52,7 @@ def test3(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, 
         interface.RPY_pyb = pin.rpy.matrixToRpy(pin.Quaternion(pyb_sim.qmes12[3:7]).toRotationMatrix())
         interface.RPY_tsid = pin.rpy.matrixToRpy(pin.Quaternion(tsid_controller.qtsid[3:7]).toRotationMatrix())
         tsid_controller.qtsid[3:7, 0:1] = np.array([pyb.getQuaternionFromEuler(np.array([interface.RPY_pyb[0], interface.RPY_pyb[1],
-                                                                                            interface.RPY_tsid[2]]))]).transpose()
+                                                                                         interface.RPY_tsid[2]]))]).transpose()
         """b = np.zeros((7, 1))
         b[3:7, 0:1] = pin.Quaternion(pin.rpy.rpyToMatrix(np.array([interface.RPY_pyb[0], interface.RPY_pyb[1],
                                                                                             interface.RPY_tsid[2]]))).coeffs()
@@ -65,23 +66,23 @@ def test3(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, 
 
 def test2(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback):
 
-        # Transform from TSID world frame to robot base frame (just rotation part)
-        interface.oMb_tsid = pin.SE3(pin.Quaternion(tsid_controller.qtsid[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
+    # Transform from TSID world frame to robot base frame (just rotation part)
+    interface.oMb_tsid = pin.SE3(pin.Quaternion(tsid_controller.qtsid[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
 
-        # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
-        if pyb_feedback:
+    # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
+    if pyb_feedback:
 
-            # Linear/angular velocity taken from PyBullet (in PyBullet world frame)
-            tsid_controller.vtsid[0:6, 0:1] = pyb_sim.vmes12[0:6, 0:1].copy()
+        # Linear/angular velocity taken from PyBullet (in PyBullet world frame)
+        tsid_controller.vtsid[0:6, 0:1] = pyb_sim.vmes12[0:6, 0:1].copy()
 
-            # Transform from PyBullet world frame to robot base frame (just rotation part)
-            interface.oMb_pyb = pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
+        # Transform from PyBullet world frame to robot base frame (just rotation part)
+        interface.oMb_pyb = pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
 
-            # Get linear and angular velocities from PyBullet world frame to robot base frame
-            tsid_controller.vtsid[0:3, 0:1] = interface.oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[0:3, 0:1]
-            tsid_controller.vtsid[3:6, 0:1] = interface.oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[3:6, 0:1]
+        # Get linear and angular velocities from PyBullet world frame to robot base frame
+        tsid_controller.vtsid[0:3, 0:1] = interface.oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[0:3, 0:1]
+        tsid_controller.vtsid[3:6, 0:1] = interface.oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[3:6, 0:1]
 
-    #return test(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback)
+    # return test(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback)
 
 
 def test(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback):
@@ -138,12 +139,29 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
         # fstep_planner.fsteps_invdyn = fstep_planner.fsteps.copy()
         # fstep_planner.gait_invdyn = fstep_planner.gait.copy()
 
-        fstep_planner.update_fsteps(k+1, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
-                                    joystick.v_ref, interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids,
-                                    joystick.reduced)
+        if (k != 0):
+            fstep_planner.update_fsteps(k, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
+                                        joystick.v_ref, interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids,
+                                        joystick.reduced)
 
         fstep_planner.fsteps_invdyn = fstep_planner.fsteps.copy()
         fstep_planner.gait_invdyn = fstep_planner.gait.copy()
+
+        fstep_planner.fsteps_mpc = fstep_planner.fsteps.copy()
+        fstep_planner.gait_mpc = fstep_planner.gait.copy()
+
+        """if (k % k_mpc) == 0:
+            # Since the MPC will output its results one gait step in the future we give it a gait matrix that is
+            # shifted one gait step in the future compared to TSID (so that the result is properly timed when we
+            # retrieve it).
+            fstep_planner.update_fsteps(0, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
+                                        joystick.v_ref, interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids,
+                                        joystick.reduced)
+            fstep_planner.fsteps_mpc = fstep_planner.fsteps.copy()
+            fstep_planner.gait_mpc = fstep_planner.gait.copy()
+
+            # Reverse the "one gait step into the future" for TSID
+            fstep_planner.gait = fstep_planner.gait_invdyn.copy()"""
 
     return 0
 
@@ -203,9 +221,9 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
     mpc_wrapper.solve(k, fstep_planner)
 
     # Output of the MPC (no delay)
-    f_applied = mpc_wrapper.get_latest_result()
+    # f_applied = mpc_wrapper.get_latest_result()
 
-    return f_applied
+    return 0  # f_applied
 
 
 def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myController,

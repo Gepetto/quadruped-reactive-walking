@@ -100,7 +100,7 @@ class MPC_Wrapper:
         if k > 1900:
             deb = 1
 
-        self.mpc.run((k/self.k_mpc), fstep_planner.xref, fstep_planner.fsteps)
+        self.mpc.run((k/self.k_mpc), fstep_planner.xref, fstep_planner.fsteps_mpc)
 
         """tmp_lC = interface.lC.copy()
         tmp_lC[2, 0] += dt * interface.lV[2, 0]
