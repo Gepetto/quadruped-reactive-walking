@@ -249,7 +249,8 @@ class controller:
         self.trunkTask = tsid.TaskSE3Equality("task-trunk", self.robot, 'base_link')
         mask = np.matrix([0.0, 0.0, 0.0, 1.0, 1.0, 0.0]).T
         self.trunkTask.setKp(np.matrix([0.0, 0.0, 0.0*kp_trunk, kp_trunk, kp_trunk, 0.0]).T)
-        self.trunkTask.setKd(np.matrix([0.0, 0.0, 0.0*2.0 * np.sqrt(kp_trunk), 2.0 * np.sqrt(kp_trunk), 2.0 * np.sqrt(kp_trunk), 0.0]).T)
+        self.trunkTask.setKd(np.matrix([0.0, 0.0, 0.0*2.0 * np.sqrt(kp_trunk), 2.0 *
+                                        np.sqrt(kp_trunk), 2.0 * np.sqrt(kp_trunk), 0.0]).T)
         self.trunkTask.useLocalFrame(False)
         self.trunkTask.setMask(mask)
 
@@ -612,6 +613,9 @@ class controller:
             self.tau = np.zeros((1, 12))
             # raise ValueError('NaN value in feedforward torque')
             return 0
+        if self.qdes[7, 0] > 10:
+            self.error = True
+            self.tau = np.zeros((1, 12))
         else:
             # Torque PD controller
             P = 3.0
