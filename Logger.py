@@ -252,13 +252,15 @@ class Logger:
                 plt.plot(self.t_range, (180/3.1415)*self.lW[i-9, :], "b", linewidth=3)
                 plt.plot(self.t_range, (180/3.1415)*self.lW_pyb[i-9, :], "g", linewidth=3)
 
-            if i in [2, 3, 4, 6, 7, 8, 9, 10, 11]:
+            if i in [2, 6, 7, 8]:
                 plt.plot(self.t_range, self.state_ref[i, :], "r", linewidth=3)
+            elif i in [3, 4, 9, 10, 11]:
+                plt.plot(self.t_range, (180/3.1415)*self.state_ref[i, :], "r", linewidth=3)
 
             plt.xlabel("Time [s]")
             plt.ylabel(lgd[i])
 
-            plt.legend([lgd[i]+" TSID", lgd[i]+" Pyb", lgd[i]+" Ref"])
+            plt.legend(["TSID", "Pyb", "Ref"])
 
             if i < 2:
                 plt.ylim([-0.07, 0.07])
