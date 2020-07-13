@@ -31,6 +31,7 @@ class Interface:
         self.ov_feet = np.zeros((3, 4))  # velocity of feet in world frame
         self.la_feet = np.zeros((3, 4))  # acceleration of feet in local frame
         self.oa_feet = np.zeros((3, 4))  # acceleration of feet in world frame
+        self.mot = np.zeros((12, 1))     # angular position of actuators
 
         # Indexes of feet frames in this order: [FL, FR, HL, HR]
         self.indexes = [10, 18, 26, 34]
