@@ -7,7 +7,7 @@ cdef class Foot_trajectory_generator:
     cdef public list lastCoeffs_x, lastCoeffs_y
     
     
-    @cython.locals(h=double, adaptative_mode=bint, den=double,
+    @cython.locals(h=double, adaptative_mode=bint,
                    Ax5=double, Ax4=double, Ax3=double, Ax2=double, Ax1=double, Ax0=double,
                    Ay5=double, Ay4=double, Ay3=double, Ay2=double, Ay1=double, Ay0=double,
                    Az6=double, Az5=double, Az4=double, Az3=double, ev=double,
