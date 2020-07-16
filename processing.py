@@ -140,7 +140,7 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
         # fstep_planner.gait_invdyn = fstep_planner.gait.copy()
 
         if (k != 0):
-            fstep_planner.update_fsteps(k, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
+            fstep_planner.update_fsteps(k+1, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
                                         joystick.v_ref, interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids,
                                         joystick.reduced)
 
@@ -273,17 +273,17 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
 
     # Retrieve the joint torques from the current active controller
     if enable_hybrid_control:
-        jointTorques = myController.control(myController.qtsid, myController.vtsid, k, solo,
-                                            interface, f_applied, fstep_planner.fsteps_invdyn,
-                                            fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb,
-                                            enable_hybrid_control, pyb_sim.qmes12, pyb_sim.vmes12
-                                            ).reshape((12, 1))
+        myController.control(myController.qtsid, myController.vtsid, k, solo,
+                             interface, f_applied, fstep_planner.fsteps_invdyn,
+                             fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb,
+                             enable_hybrid_control, pyb_sim.qmes12, pyb_sim.vmes12
+                             )
     else:
-        jointTorques = myController.control(pyb_sim.qmes12, pyb_sim.vmes12, k, solo,
-                                            interface, f_applied, fstep_planner.fsteps_invdyn,
-                                            fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
+        myController.control(pyb_sim.qmes12, pyb_sim.vmes12, k, solo,
+                             interface, f_applied, fstep_planner.fsteps_invdyn,
+                             fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
 
-    return jointTorques
+    return 0
 
 
 def process_pybullet(pyb_sim, k, envID, jointTorques):

@@ -110,7 +110,7 @@ class controller:
         self.k_mpc = k_mpc
 
         # For update_feet_tasks function
-        self.dt = 0.001  #  [s], time step
+        self.dt = 0.004  #  [s], time step
         self.t1 = T_gait * 0.5 - 0.02  # [s], duration of swing phase
 
         # Rotation matrix
@@ -313,7 +313,7 @@ class controller:
                 i_iter -= 1
             self.t_swing[i] *= self.dt * self.k_mpc
 
-            t0s.append(np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt - 0.001, 0.0)), decimals=3))
+            t0s.append(np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt - self.dt, 0.0)), decimals=3))
 
         # self.footsteps contains the target (x, y) positions for both feet in swing phase
 
@@ -486,7 +486,7 @@ class controller:
         # Refresh Gepetto Viewer
         # solo.display(self.qtsid)
 
-        return self.tau
+        return 0
 
     def update_state(self, qtsid, vtsid):
         """Update TSID's internal state.
@@ -607,6 +607,10 @@ class controller:
             self.vdes = self.vtsid + self.ades * dt
             self.qdes = pin.integrate(self.model, self.qtsid, self.vtsid * dt)
 
+        return 0
+
+    def run_PDplus(self):
+
         # Check for NaN value in the output torques (means error during solving process)
         if np.any(np.isnan(self.tau_ff)):
             self.error = True
@@ -630,8 +634,7 @@ class controller:
             t_max = 2.5
             # clip is faster than np.maximum(a_min, np.minimum(a, a_max))
             self.tau = np.clip(torques12, -t_max, t_max).flatten()
-
-        return 0
+        return self.tau
 
     def display(self, t, solo, k_simu, sequencer):
         """ To display debug spheres in Gepetto Viewer
@@ -781,4 +784,4 @@ class controller:
 # Parameters for the controller
 
 
-dt = 0.001			# controller time step
+dt = 0.004			# controller time step
