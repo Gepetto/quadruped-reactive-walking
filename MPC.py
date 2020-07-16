@@ -81,6 +81,8 @@ class MPC:
         self.S_gait = np.zeros((12*self.n_steps,))
         self.gait = np.zeros((20, 5))
 
+        self.warmxf = np.zeros((12*self.n_steps*2,))
+
     def create_matrices(self):
         """Create the constraint matrices of the MPC (M.X = N and L.X <= K)
         Create the weight matrices P and Q of the MPC solver (cost 1/2 x^T * P * X + X^T * Q)
@@ -400,10 +402,16 @@ class MPC:
 
         # Initial guess (current state + guess for forces) to warm start the solver
         initx = np.hstack((np.zeros((12 * self.n_steps,)), np.roll(f_temp, -12)))"""
-        warmx = np.roll(self.x[0:(self.xref.shape[0]*(self.xref.shape[1]-1))], -12).copy()
+        """warmx = np.roll(self.x[0:(self.xref.shape[0]*(self.xref.shape[1]-1))], -12).copy()
         warmx[-12:] = 0
         warmf = np.roll(self.x[(self.xref.shape[0]*(self.xref.shape[1]-1)):], -12).copy()
-        initx = np.hstack((warmx, warmf))
+        initx = np.hstack((warmx, warmf))"""
+
+        self.warmxf[:(12*(self.n_steps-1))] = self.x[12:(12*self.n_steps)]
+        self.warmxf[(12*(self.n_steps)):(12*(2*self.n_steps-1))] = self.x[(12*(self.n_steps+1)):]
+        self.warmxf[-12:] = self.x[(12*(self.n_steps)):(12*(self.n_steps+1))]
+
+        #print(np.array_equal(self.warmxf, initx))
 
         # Copy the "equality" part of NK on the other side of the constaint
         # since NK_inf <= A X <= NK
@@ -417,7 +425,7 @@ class MPC:
             # self.prob.warm_start(x=initx)
         else:  # Code to update the QP problem without creating it again
             self.prob.update(Ax=self.ML.data, l=self.NK_inf, u=self.NK.ravel())
-            self.prob.warm_start(x=initx)
+            self.prob.warm_start(x=self.warmxf)
 
         """if k == 0:
             self.prob.update_settings(check_termination=200)"""
