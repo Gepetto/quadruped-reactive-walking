@@ -286,6 +286,17 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
     return 0
 
 
+def process_pdp(pyb_sim, myController):
+
+    # pyb_sim.retrieve_pyb_data()
+    jointStates = pyb.getJointStates(pyb_sim.robotId, pyb_sim.revoluteJointIndices)
+    # for i_joint in range(len(pyb_sim.revoluteJointIndices)):
+    myController.qmes[7:, 0] = [state[0] for state in jointStates]
+    myController.vmes[6:, 0] = [state[1] for state in jointStates]
+
+    return (myController.run_PDplus())  # .reshape((12, 1))
+
+
 def process_pybullet(pyb_sim, k, envID, jointTorques):
     """Update the torques applied by the actuators of the quadruped and run one step of simulation
 
