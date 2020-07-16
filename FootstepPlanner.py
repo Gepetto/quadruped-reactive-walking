@@ -48,6 +48,9 @@ class FootstepPlanner:
         self.footsteps_tsid = np.zeros((3, 4))
         self.t_remaining_tsid = np.zeros((1, 4))
 
+        # To store the result of the compute_next_footstep function
+        self.next_footstep = np.zeros((3, 4))
+
         # To store the height of contacts
         self.z_contacts = np.zeros((1, 4))
 
@@ -368,7 +371,8 @@ class FootstepPlanner:
             if np.any((rpt_gait[i-1, :] == False) & rpt_gait[i, :]):
 
                 # Get desired position of footstep compared to current position
-                next_ft = (np.dot(self.R[:, :, i-1], self.next_footstep) + np.array([[dx[i-1]], [dy[i-1]], [0.0]])).ravel(order='F')
+                next_ft = (np.dot(self.R[:, :, i-1], self.next_footstep) +
+                           np.array([[dx[i-1]], [dy[i-1]], [0.0]])).ravel(order='F')
                 #next_ft = (self.next_footstep).ravel(order='F')
 
                 # Assignement only to feet that have been in swing phase
@@ -398,17 +402,18 @@ class FootstepPlanner:
 
         # Order of feet: FL, FR, HL, HR
 
-        self.next_footstep = np.zeros((3, 4))
+        # self.next_footstep = np.zeros((3, 4))
 
         # Add symmetry term
-        self.next_footstep[0:2, :] += t_stance * 0.5 * v_cur[0:2, 0:1]
+        self.next_footstep[0:2, :] = t_stance * 0.5 * v_cur[0:2, 0:1]
 
         # Add feedback term
         self.next_footstep[0:2, :] += self.k_feedback * (v_cur[0:2, 0:1] - v_ref[0:2, 0:1])
 
         # Add centrifugal term
-        cross = np.cross(v_cur[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
-        self.next_footstep[0:2, :] += 0.5 * np.sqrt(h/self.g) * cross[0:2, 0:1]
+        cross = cross3(np.array(v_cur[0:3, 0]), v_ref[3:6, 0])
+        # cross = np.cross(v_cur[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
+        self.next_footstep[0:2, :] += 0.5 * ((h/self.g)**0.5) * cross[0:2, 0:1]
 
         # Legs have a limited length so the deviation has to be limited
         (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) > self.L] = self.L
@@ -483,3 +488,10 @@ class FootstepPlanner:
             i += 1"""
 
         return 0
+
+
+def cross3(left, right):
+    """Numpy is inefficient for this"""
+    return np.array([left[1] * right[2] - left[2] * right[1],
+                     left[2] * right[0] - left[0] * right[2],
+                     left[0] * right[1] - left[1] * right[0]])
