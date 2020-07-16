@@ -614,12 +614,12 @@ class controller:
         # Check for NaN value in the output torques (means error during solving process)
         if np.any(np.isnan(self.tau_ff)):
             self.error = True
-            self.tau = np.zeros((1, 12))
+            self.tau = np.zeros((12, 1))
             # raise ValueError('NaN value in feedforward torque')
             return 0
         if self.qdes[7, 0] > 10:
             self.error = True
-            self.tau = np.zeros((1, 12))
+            self.tau = np.zeros((12, 1))
         else:
             # Torque PD controller
             P = 3.0
@@ -632,9 +632,10 @@ class controller:
 
             # Saturation to limit the maximal torque
             t_max = 2.5
-            # clip is faster than np.maximum(a_min, np.minimum(a, a_max))
-            self.tau = np.clip(torques12, -t_max, t_max).flatten()
-        return self.tau
+            torques12[torques12 > t_max] = t_max
+            torques12[torques12 < -t_max] = -t_max
+
+        return torques12
 
     def display(self, t, solo, k_simu, sequencer):
         """ To display debug spheres in Gepetto Viewer
