@@ -10,7 +10,7 @@ import Safety_controller
 import EmergencyStop_controller
 import ForceMonitor
 import processing as proc
-import MPC_Virtual
+import MPC_Wrapper
 import pybullet as pyb
 
 
@@ -33,6 +33,8 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
     # Lists to log the duration of 1 iteration of the MPC/TSID
     t_list_tsid = [0] * int(N_SIMULATION)
+    t_list_loop = [0] * int(N_SIMULATION)
+    t_list_mpc = [0] * int(N_SIMULATION)
 
     # List to store the IDs of debug lines
     ID_deb_lines = []
@@ -50,7 +52,9 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
     # Wrapper that makes the link with the solver that you want to use for the MPC
     # First argument to True to have PA's MPC, to False to have Thomas's MPC
-    mpc_wrapper = MPC_Virtual.MPC_Virtual(type_MPC, dt_mpc, fstep_planner.n_steps, k_mpc, fstep_planner.T_gait)
+    enable_multiprocessing = True
+    mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, fstep_planner.n_steps,
+                                          k_mpc, fstep_planner.T_gait, enable_multiprocessing)
 
     # Enable/Disable hybrid control
     enable_hybrid_control = True
@@ -82,6 +86,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     myEmergencyStop = EmergencyStop_controller.controller_12dof()
 
     for k in range(int(N_SIMULATION)):
+        time_loop = time.time()
 
         if (k % 1000) == 0:
             print("Iteration: ", k)
@@ -98,12 +103,15 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
         # Process MPC once every k_mpc iterations of TSID
         if (k % k_mpc) == 0:
+            time_mpc = time.time()
             proc.process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper,
                              dt_mpc, ID_deb_lines)
+            t_list_mpc[k] = time.time() - time_mpc
 
         if k == 0:
             f_applied = mpc_wrapper.get_latest_result()
-        elif (k % k_mpc) == 10:
+        # elif (k % k_mpc) == 0:
+        else:
             # Output of the MPC (with delay)
             f_applied = mpc_wrapper.get_latest_result()
 
@@ -113,16 +121,27 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
                                            myController, enable_hybrid_control)
         t_list_tsid[k] = time.time() - time_tsid  # Logging the time spent to run this iteration of inverse dynamics
 
-        if myController.error:
-            print('NaN value in feedforward torque. Ending loop.')
-            break
+        # Process PD+ (feedforward torques and feedback torques)
+        for i_step in range(4):
+            pyb_sim.retrieve_pyb_data()
+            jointStates = pyb.getJointStates(pyb_sim.robotId, pyb_sim.revoluteJointIndices)
+            for i_joint in range(len(pyb_sim.revoluteJointIndices)):
+                myController.qmes[7+i_joint] = jointStates[i_joint][0]
+                myController.vmes[6+i_joint] = jointStates[i_joint][1]
+            jointTorques = (myController.run_PDplus()).reshape((12, 1))
 
-        # Process PyBullet
-        proc.process_pybullet(pyb_sim, k, envID, jointTorques)
+            if myController.error:
+                print('NaN value in feedforward torque. Ending loop.')
+                break
+
+            # Process PyBullet
+            proc.process_pybullet(pyb_sim, k, envID, jointTorques)
 
         # Call logger object to log various parameters
-        logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
-                                  False, pyb_sim.robotId, pyb_sim.planeId, solo)
+        # logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
+        #                          False, pyb_sim.robotId, pyb_sim.planeId, solo)
+
+        t_list_loop[k] = time.time() - time_loop
 
     ####################
     # END OF MAIN LOOP #
