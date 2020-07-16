@@ -7,6 +7,16 @@ from multiprocessing import Process, Value, Array
 import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 
 
+class Dummy:
+
+    def __init__(self):
+
+        self.xref = None
+        self.fsteps = None
+
+        pass
+
+
 class MPC_Wrapper:
     """Wrapper to run FootstepPlanner + MPC on another process
 
@@ -35,7 +45,7 @@ class MPC_Wrapper:
         if multiprocessing:
             self.newData = Value('b', False)
             self.newResult = Value('b', False)
-            self.dataIn = Array('d', [0.0] * 705)
+            self.dataIn = Array('d', [0.0] * (1 + (np.int(self.n_steps)+1) * 12 + 13*20))
             self.dataOut = Array('d', [0] * 12)
             self.fsteps_future = np.zeros((20, 13))
         else:
@@ -213,13 +223,23 @@ class MPC_Wrapper:
 
                 # Create the MPC object of the parallel process during the first iteration
                 if k == 0:
-                    loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait)
+                    # loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait)
+                    if self.mpc_type:
+                        loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait)
+                    else:
+                        loop_mpc = MPC_crocoddyl.MPC_crocoddyl(self.dt, self.T_gait, 1, True)
+                        dummy_fstep_planner = Dummy()
 
                 # Run the asynchronous MPC with the data that as been retrieved
-                loop_mpc.run(k, xref, fsteps)
+                if self.mpc_type:
+                    loop_mpc.run(k, xref, fsteps)
+                else:
+                    dummy_fstep_planner.xref = xref
+                    dummy_fstep_planner.fsteps = fsteps
+                    loop_mpc.solve(k, dummy_fstep_planner)
 
                 # Store the result (desired forces) in the shared memory
-                self.dataOut[:] = loop_mpc.f_applied.tolist()
+                self.dataOut[:] = loop_mpc.get_latest_result().tolist()
 
                 # Set shared variable to true to signal that a new result is available
                 newResult.value = True
