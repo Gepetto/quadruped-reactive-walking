@@ -464,6 +464,12 @@ class MPC:
 
         return 0
 
+    def get_latest_result(self):
+        """Return the latest desired contact forces that have been computed
+        """
+
+        return self.f_applied
+
     def run(self, k, xref, fsteps):
         """Run one iteration of the whole MPC by calling all the necessary functions (data retrieval,
            update of constraint matrices, update of the solver, running the solver, retrieving result)

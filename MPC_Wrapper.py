@@ -4,6 +4,7 @@ import numpy as np
 import MPC
 import FootstepPlanner
 from multiprocessing import Process, Value, Array
+import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 
 
 class MPC_Wrapper:
@@ -17,7 +18,7 @@ class MPC_Wrapper:
         multiprocessing (bool): Enable/Disable running the MPC with another process
     """
 
-    def __init__(self, dt, n_steps, k_mpc, T_gait, multiprocessing=False):
+    def __init__(self, mpc_type, dt, n_steps, k_mpc, T_gait, multiprocessing=False):
 
         self.f_applied = np.zeros((12,))
         self.not_first_iter = False
@@ -29,6 +30,7 @@ class MPC_Wrapper:
         self.n_steps = n_steps
         self.T_gait = T_gait
 
+        self.mpc_type = mpc_type
         self.multiprocessing = multiprocessing
         if multiprocessing:
             self.newData = Value('b', False)
@@ -38,7 +40,10 @@ class MPC_Wrapper:
             self.fsteps_future = np.zeros((20, 13))
         else:
             # Create the new version of the MPC solver object
-            self.mpc = MPC.MPC(dt, n_steps, T_gait)
+            if mpc_type:
+                self.mpc = MPC.MPC(dt, n_steps, T_gait)
+            else:
+                self.mpc = MPC_crocoddyl.MPC_crocoddyl(dt, T_gait, 1, True)
 
         self.last_available_result = np.array([0.0, 0.0, 8.0] * 4)
 
@@ -77,7 +82,7 @@ class MPC_Wrapper:
                     # raise ValueError("Error: something went wrong with the MPC, result not available.")
             else:
                 # Directly retrieve desired contact force of the synchronous MPC object
-                return self.mpc.f_applied
+                return self.f_applied
         else:
             # Default forces for the first iteration
             self.not_first_iter = True
@@ -103,7 +108,12 @@ class MPC_Wrapper:
         print(joystick.v_ref.ravel())
         print(fstep_planner.fsteps)"""
 
-        self.mpc.run((k/self.k_mpc), fstep_planner.xref, fstep_planner.fsteps_mpc)
+        if self.mpc_type:
+            # OSQP MPC
+            self.mpc.run((k/self.k_mpc), fstep_planner.xref, fstep_planner.fsteps_mpc)
+        else:
+            # Crocoddyl MPC
+            self.mpc.solve(k, fstep_planner)
 
         """tmp_lC = interface.lC.copy()
         tmp_lC[2, 0] += dt * interface.lV[2, 0]
@@ -114,7 +124,7 @@ class MPC_Wrapper:
         tmp_xref """
 
         # Output of the MPC
-        self.f_applied = self.mpc.f_applied
+        self.f_applied = self.mpc.get_latest_result()
 
     def run_MPC_asynchronous(self, k, fstep_planner):
         """Run the MPC (asynchronous version) to get the desired contact forces for the feet currently in stance phase
