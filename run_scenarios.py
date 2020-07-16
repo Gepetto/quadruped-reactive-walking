@@ -18,7 +18,7 @@ N_SIMULATION = 1000  # number of simulated TSID time steps
 
 # Which MPC solver you want to use
 # True to have PA's MPC, to False to have Thomas's MPC
-type_MPC = True
+type_MPC = False
 
 # Whether PyBullet feedback is enabled or not
 pyb_feedback = True
@@ -33,28 +33,28 @@ result_loggers = []
 # Run a scenario and retrieve data thanks to the logger
 result_logger1 = run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC, pyb_feedback)
 result_loggers.append(result_logger1)
-
+quit()
 # Run a scenario and retrieve data thanks to the logger
-result_logger2 = run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC, False)
-result_loggers.append(result_logger2)
+# result_logger2 = run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC, False)
+# result_loggers.append(result_logger2)
 
 # Display what has been logged by the loggers
-#result_logger1.plot_graphs(enable_multiprocessing=False, show_block=False)
-#result_logger2.plot_graphs(enable_multiprocessing=False)
+# result_logger1.plot_graphs(enable_multiprocessing=False, show_block=False)
+# result_logger2.plot_graphs(enable_multiprocessing=False)
 
-#result_logger1.plot_state()
-#result_logger2.plot_state()
-#plt.show(block=True)
+result_logger1.plot_state()
+# result_logger2.plot_state()
+plt.show(block=True)
 
-#embed()
+# embed()
 
 ###########
 # Results #
 ###########
-
+quit()  # Logger 2 is commented so no need to compare the two scenarios
 index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
 lgd = ["Pos CoM X [m]", "Pos CoM Y [m]", "Pos CoM Z [m]", "Roll [deg]", "Pitch [deg]", "Yaw [deg]",
-        "Lin Vel CoM X [m/s]", "Lin Vel CoM Y [m/s]", "Lin Vel CoM Z [m/s]", "Ang Vel Roll [deg/s]", "Ang Vel Pitch [deg/s]", "Ang Vel Yaw [deg/s]"]
+       "Lin Vel CoM X [m/s]", "Lin Vel CoM Y [m/s]", "Lin Vel CoM Z [m/s]", "Ang Vel Roll [deg/s]", "Ang Vel Pitch [deg/s]", "Ang Vel Yaw [deg/s]"]
 plt.figure()
 for i in range(12):
     plt.subplot(3, 4, index[i])
