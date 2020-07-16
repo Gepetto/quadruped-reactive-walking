@@ -25,16 +25,22 @@ class MPC_Wrapper:
         # Number of TSID steps for 1 step of the MPC
         self.k_mpc = k_mpc
 
+        self.dt = dt
+        self.n_steps = n_steps
+        self.T_gait = T_gait
+
         self.multiprocessing = multiprocessing
         if multiprocessing:
             self.newData = Value('b', False)
             self.newResult = Value('b', False)
-            self.dataIn = Array('d', [0.0] * 328)
+            self.dataIn = Array('d', [0.0] * 705)
             self.dataOut = Array('d', [0] * 12)
             self.fsteps_future = np.zeros((20, 13))
         else:
             # Create the new version of the MPC solver object
             self.mpc = MPC.MPC(dt, n_steps, T_gait)
+
+        self.last_available_result = np.array([0.0, 0.0, 8.0] * 4)
 
     def solve(self, k, fstep_planner):
         """Call either the asynchronous MPC or the synchronous MPC depending on the value of multiprocessing during
@@ -46,9 +52,7 @@ class MPC_Wrapper:
         """
 
         if self.multiprocessing:
-            # TODO: Adapt asynchronous for lower number of parameters
-            raise("Error: Asynchronous MPC is not up to date")
-            # self.run_MPC_asynchronous(dt, n_steps, k, T_gait, joystick, fstep_planner, interface)
+            self.run_MPC_asynchronous(k, fstep_planner)
         else:
             self.run_MPC_synchronous(k, fstep_planner)
 
@@ -66,16 +70,18 @@ class MPC_Wrapper:
                 if self.newResult.value:
                     self.newResult.value = False
                     # Retrieve desired contact forces with through the memory shared with the asynchronous
-                    return self.convert_dataOut()
+                    self.last_available_result = self.convert_dataOut()
+                    return self.last_available_result
                 else:
-                    raise ValueError("Error: something went wrong with the MPC, result not available.")
+                    return self.last_available_result
+                    # raise ValueError("Error: something went wrong with the MPC, result not available.")
             else:
                 # Directly retrieve desired contact force of the synchronous MPC object
                 return self.mpc.f_applied
         else:
             # Default forces for the first iteration
             self.not_first_iter = True
-            return np.array([0.0, 0.0, 8.0] * 4)
+            return self.last_available_result
 
     def run_MPC_synchronous(self, k, fstep_planner):
         """Run the MPC (synchronous version) to get the desired contact forces for the feet currently in stance phase
@@ -97,9 +103,6 @@ class MPC_Wrapper:
         print(joystick.v_ref.ravel())
         print(fstep_planner.fsteps)"""
 
-        if k > 1900:
-            deb = 1
-
         self.mpc.run((k/self.k_mpc), fstep_planner.xref, fstep_planner.fsteps_mpc)
 
         """tmp_lC = interface.lC.copy()
@@ -113,7 +116,7 @@ class MPC_Wrapper:
         # Output of the MPC
         self.f_applied = self.mpc.f_applied
 
-    def run_MPC_asynchronous(self, dt, n_steps, k, T_gait, joystick, fstep_planner, interface):
+    def run_MPC_asynchronous(self, k, fstep_planner):
         """Run the MPC (asynchronous version) to get the desired contact forces for the feet currently in stance phase
 
         Args:
@@ -133,8 +136,7 @@ class MPC_Wrapper:
             p.start()
 
         # print("Setting Data")
-        self.compress_dataIn(dt, n_steps, k, T_gait, joystick, fstep_planner, interface)
-
+        self.compress_dataIn(k, fstep_planner)
         """print("Sending")
         print(dt, n_steps, k, T_gait)
         print(interface.lC.ravel())
@@ -169,11 +171,10 @@ class MPC_Wrapper:
                 # print("New data detected")
 
                 # Retrieve data thanks to the decompression function and reshape it
-                dt, nsteps, k, T_gait, lC, abg, lV, lW, l_feet, xref, x0, v_ref, fsteps = self.decompress_dataIn(
-                    dataIn)
+                kf, xref_1dim, fsteps_1dim = self.decompress_dataIn(dataIn)
 
                 # print("Receiving")
-                dt = dt[0]
+                """dt = dt[0]
                 nsteps = np.int(nsteps[0])
                 k = k[0]
                 T_gait = T_gait[0]
@@ -185,7 +186,11 @@ class MPC_Wrapper:
                 xref = np.reshape(xref, (12, nsteps+1))
                 x0 = np.reshape(x0, (12, 1))
                 v_ref = np.reshape(v_ref, (6, 1))
-                fsteps = np.reshape(fsteps, (20, 13))
+                fsteps = np.reshape(fsteps, (20, 13))"""
+
+                k = int(kf[0])
+                xref = np.reshape(xref_1dim, (12, self.n_steps+1))
+                fsteps = np.reshape(fsteps_1dim, (20, 13))
 
                 """print(dt, nsteps, k, T_gait)
                 print(lC.ravel())
@@ -198,11 +203,10 @@ class MPC_Wrapper:
 
                 # Create the MPC object of the parallel process during the first iteration
                 if k == 0:
-                    loop_mpc = MPC.MPC(dt, nsteps)
+                    loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait)
 
                 # Run the asynchronous MPC with the data that as been retrieved
-                loop_mpc.run((k/self.k_mpc), T_gait, lC, abg, lV, lW,
-                             l_feet, xref, x0, v_ref, fsteps)
+                loop_mpc.run(k, xref, fsteps)
 
                 # Store the result (desired forces) in the shared memory
                 self.dataOut[:] = loop_mpc.f_applied.tolist()
@@ -212,7 +216,7 @@ class MPC_Wrapper:
 
         return 0
 
-    def compress_dataIn(self, dt, n_steps, k, T_gait, joystick, fstep_planner, interface):
+    def compress_dataIn(self, k, fstep_planner):
         """Compress data in a single C-type array that belongs to the shared memory to send data from the main control
         loop to the asynchronous MPC
 
@@ -232,10 +236,8 @@ class MPC_Wrapper:
         fstep_planner.fsteps[np.isnan(fstep_planner.fsteps)] = 0.0
 
         # Compress data in the shared input array
-        self.dataIn[:] = np.concatenate([[dt, n_steps, k, T_gait], np.array(interface.lC).ravel(), np.array(interface.abg).ravel(),
-                                         np.array(interface.lV).ravel(), np.array(interface.lW).ravel(), np.array(
-                                             interface.l_feet).ravel(), fstep_planner.xref.ravel(), fstep_planner.x0.ravel(), joystick.v_ref.ravel(),
-                                         fstep_planner.fsteps.ravel()], axis=0)
+        self.dataIn[:] = np.concatenate([[(k/self.k_mpc)], fstep_planner.xref.ravel(),
+                                         fstep_planner.fsteps_mpc.ravel()], axis=0)
 
         return 0.0
 
@@ -250,7 +252,7 @@ class MPC_Wrapper:
         # print("Decompressing dataIn")
 
         # Sizes of the different variables that are stored in the C-type array
-        sizes = [0, 1, 1, 1, 1, 3, 3, 3, 3, 12, (np.int(dataIn[1])+1) * 12, 12, 6, 13*20]
+        sizes = [0, 1, (np.int(self.n_steps)+1) * 12, 13*20]
         csizes = np.cumsum(sizes)
 
         # Return decompressed variables in a list
