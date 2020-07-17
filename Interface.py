@@ -3,6 +3,7 @@
 import numpy as np
 import pinocchio as pin
 
+
 class Interface:
     """Interface between the simulation and the FootstepPlanner/MPC/TSID. Retrieve information from the simulator
        (positions, orientations, velocities) and compute different useful quantities (transforms, roll-pitch-yaw)
@@ -30,6 +31,7 @@ class Interface:
         self.ov_feet = np.zeros((3, 4))  # velocity of feet in world frame
         self.la_feet = np.zeros((3, 4))  # acceleration of feet in local frame
         self.oa_feet = np.zeros((3, 4))  # acceleration of feet in world frame
+        self.mot = np.zeros((12, 1))     # angular position of actuators
 
         # Indexes of feet frames in this order: [FL, FR, HL, HR]
         self.indexes = [10, 18, 26, 34]
@@ -70,32 +72,29 @@ class Interface:
 
         # Update Kinematics (required or automatically done by other functions?)
         pin.forwardKinematics(solo.model, solo.data, qmes12, self.vmes12_base)
-        pin.framesForwardKinematics(solo.model, solo.data, qmes12)
+        # pin.framesForwardKinematics(solo.model, solo.data, qmes12)
 
         # Get center of mass from Pinocchio
-        pin.centerOfMass(solo.model, solo.data, qmes12, self.vmes12_base)
+        pin.centerOfMass(solo.model, solo.data, qmes12, self.vmes12_base, False)
 
         # Update position/orientation of frames
         pin.updateFramePlacements(solo.model, solo.data)
 
-        pin.ccrba(solo.model, solo.data, qmes12, self.vmes12_base)
-
         # Update minimum height of feet
         # TODO: Rename mean_feet_z into min_feet_z
-        self.mean_feet_z = solo.data.oMf[self.indexes[0]].translation[2, 0]
-        """for i in self.indexes:
+        """self.mean_feet_z = solo.data.oMf[self.indexes[0]].translation[2, 0]
+        ""for i in self.indexes:
             self.mean_feet_z += solo.data.oMf[i].translation[2, 0]
-        self.mean_feet_z *= 0.25"""
+        self.mean_feet_z *= 0.25""
         for i in self.indexes[1:]:
-            self.mean_feet_z = np.min((self.mean_feet_z, solo.data.oMf[i].translation[2, 0]))
+            self.mean_feet_z = np.min((self.mean_feet_z, solo.data.oMf[i].translation[2, 0]))"""
         self.mean_feet_z = 0.0
 
         # Store position, linear velocity and angular velocity in global frame
         self.oC = solo.data.com[0]
         self.oV = solo.data.vcom[0]
         self.oW = vmes12[3:6]
-
-        pin.crba(solo.model, solo.data, qmes12)
+        self.mot = qmes12[7:, 0:1]  # angular position of actuators
 
         # Get SE3 object from world frame to base frame
         self.oMb = pin.SE3(pin.Quaternion(qmes12[3:7]), self.oC)
@@ -117,22 +116,21 @@ class Interface:
             self.l_feet[:, i:(i+1)] = self.oMl.inverse() * solo.data.oMf[j].translation
 
             # getFrameVelocity output is in the frame of the foot so a transform is required
-            self.ov_feet[:, i:(i+1)] = solo.data.oMf[j].rotation @ pin.getFrameVelocity(solo.model,
-                                                                                        solo.data, j).vector[0:3, 0:1]
-            self.lv_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.ov_feet[:, i:(i+1)]
+            # self.ov_feet[:, i:(i+1)] = solo.data.oMf[j].rotation @ pin.getFrameVelocity(solo.model, solo.data, j).vector[0:3, 0:1]
+            # self.lv_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.ov_feet[:, i:(i+1)]  # (NOT USED)
 
             # getFrameAcceleration output is in the frame of the foot so a transform is required
-            self.oa_feet[:, i:(i+1)] = solo.data.oMf[j].rotation @ pin.getFrameAcceleration(solo.model,
-                                                                                            solo.data, j).vector[0:3,
-                                                                                                                 0:1]
-            self.la_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.oa_feet[:, i:(i+1)]
+            # solo.data.oMf[j].rotation @ pin.getFrameAcceleration(solo.model, solo.data, j).vector[0:3, 0:1]
+            # Acceleration is full of zeros as we do not provide acceleration data to pin.forwardKinematics
+            # self.oa_feet[:, i:(i+1)] = 0.0
+            # self.la_feet[:, i:(i+1)] = self.oMl.rotation.transpose() @ self.oa_feet[:, i:(i+1)]  # (NOT USED)
 
         # Orientation of the base in local frame
         # Base and local frames have the same yaw orientation in world frame
         self.abg[0:2] = self.RPY[0:2]
 
-        # Position of shoulders in world frame
-        for i in range(4):
-            self.o_shoulders[:, i:(i+1)] = self.oMl * self.l_shoulders[:, i]
+        # Position of shoulders in world frame (NOT USED)
+        # for i in range(4):
+        #    self.o_shoulders[:, i:(i+1)] = self.oMl * self.l_shoulders[:, i]
 
         return 0

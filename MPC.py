@@ -25,7 +25,7 @@ class MPC:
         self.dt = dt
 
         # Mass of the robot
-        self.mass = 2.50000279 # 2.97784899
+        self.mass = 2.50000279  # 2.97784899
 
         # Inertia matrix of the robot in body frame (found in urdf)
         self.gI = np.diag([0.00578574, 0.01938108, 0.02476124]) * 2.0
@@ -80,6 +80,8 @@ class MPC:
 
         self.S_gait = np.zeros((12*self.n_steps,))
         self.gait = np.zeros((20, 5))
+
+        self.warmxf = np.zeros((12*self.n_steps*2,))
 
     def create_matrices(self):
         """Create the constraint matrices of the MPC (M.X = N and L.X <= K)
@@ -252,9 +254,9 @@ class MPC:
         P_data = 0.0 * np.ones((n_x * self.n_steps,))
 
         # Hand-tuning of parameters if you want to give more weight to specific components
-        P_data[0::12] = 0.1  # position along x
-        P_data[1::12] = 0.1  # position along y
-        P_data[2::12] = 1  # position along z
+        P_data[0::12] = 0.5  # position along x
+        P_data[1::12] = 0.5  # position along y
+        P_data[2::12] = 2  # position along z
         P_data[3::12] = 0.11  # roll
         P_data[4::12] = 0.11  # pitch
         P_data[5::12] = 0.11  # yaw
@@ -270,9 +272,9 @@ class MPC:
         P_col = np.hstack((P_col, np.arange(n_x * self.n_steps, n_x * self.n_steps * 2, 1)))
         P_data = np.hstack((P_data, 0.0*np.ones((n_x * self.n_steps * 2 - n_x * self.n_steps,))))
 
-        P_data[(n_x * self.n_steps)::3] = 1.0e-5  # force along x
-        P_data[(n_x * self.n_steps + 1)::3] = 1.0e-5  # force along y
-        P_data[(n_x * self.n_steps + 2)::3] = 1.0e-5  # force along z
+        P_data[(n_x * self.n_steps)::3] = 1.0e-4  # force along x
+        P_data[(n_x * self.n_steps + 1)::3] = 1.0e-4  # force along y
+        P_data[(n_x * self.n_steps + 2)::3] = 1.0e-4  # force along z
 
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix((P_data, (P_row, P_col)), shape=(
@@ -400,10 +402,16 @@ class MPC:
 
         # Initial guess (current state + guess for forces) to warm start the solver
         initx = np.hstack((np.zeros((12 * self.n_steps,)), np.roll(f_temp, -12)))"""
-        warmx = np.roll(self.x[0:(self.xref.shape[0]*(self.xref.shape[1]-1))], -12).copy()
+        """warmx = np.roll(self.x[0:(self.xref.shape[0]*(self.xref.shape[1]-1))], -12).copy()
         warmx[-12:] = 0
         warmf = np.roll(self.x[(self.xref.shape[0]*(self.xref.shape[1]-1)):], -12).copy()
-        initx = np.hstack((warmx, warmf))
+        initx = np.hstack((warmx, warmf))"""
+
+        self.warmxf[:(12*(self.n_steps-1))] = self.x[12:(12*self.n_steps)]
+        self.warmxf[(12*(self.n_steps)):(12*(2*self.n_steps-1))] = self.x[(12*(self.n_steps+1)):]
+        self.warmxf[-12:] = self.x[(12*(self.n_steps)):(12*(self.n_steps+1))]
+
+        #print(np.array_equal(self.warmxf, initx))
 
         # Copy the "equality" part of NK on the other side of the constaint
         # since NK_inf <= A X <= NK
@@ -412,13 +420,12 @@ class MPC:
         # Setup the solver (first iteration) then just update it
         if k == 0:  # Setup the solver with the matrices
             self.prob.setup(P=self.P, q=self.Q, A=self.ML, l=self.NK_inf, u=self.NK.ravel(), verbose=False)
-            self.prob.update_settings(eps_abs=1e-7)
-            self.prob.update_settings(eps_rel=1e-7)
+            self.prob.update_settings(eps_abs=1e-5)
+            self.prob.update_settings(eps_rel=1e-5)
             # self.prob.warm_start(x=initx)
         else:  # Code to update the QP problem without creating it again
             self.prob.update(Ax=self.ML.data, l=self.NK_inf, u=self.NK.ravel())
-            self.prob.warm_start(x=initx)
-
+            self.prob.warm_start(x=self.warmxf)
 
         """if k == 0:
             self.prob.update_settings(check_termination=200)"""
@@ -448,14 +455,20 @@ class MPC:
         # Predicted position and velocity of the robot during the next time step
         self.q_next = self.x_robot[0:6, 0:1]
         self.v_next = self.x_robot[6:12, 0:1]
-        
-        #plt.figure()
-        #plt.plot(self.x[6:self.xref.shape[0]*(self.xref.shape[1]-1)+6:12])
+
+        # plt.figure()
+        # plt.plot(self.x[6:self.xref.shape[0]*(self.xref.shape[1]-1)+6:12])
         """plt.plot(self.x[self.xref.shape[0]*(self.xref.shape[1]-1)+2::12])
         plt.plot(self.x[self.xref.shape[0]*(self.xref.shape[1]-1)+5::12])"""
-        #plt.show(block=True)
+        # plt.show(block=True)
 
         return 0
+
+    def get_latest_result(self):
+        """Return the latest desired contact forces that have been computed
+        """
+
+        return self.f_applied
 
     def run(self, k, xref, fsteps):
         """Run one iteration of the whole MPC by calling all the necessary functions (data retrieval,
@@ -643,7 +656,7 @@ class MPC:
         """
 
         # Index of the first empty line
-        index = next((idx for idx, val in np.ndenumerate(fsteps[:, 0]) if val==0.0), 0.0)[0]
+        index = next((idx for idx, val in np.ndenumerate(fsteps[:, 0]) if val == 0.0), 0.0)[0]
 
         self.gait[:, 0] = fsteps[:, 0]
 
@@ -653,11 +666,12 @@ class MPC:
 
     def check_result_mpc(self):
 
-        self.x1_eq = self.A @ self.x0 + self.ML[0:12, (12*16+0):(12*16+12)] @ np.array([self.f_applied]).transpose() + self.g
+        self.x1_eq = self.A @ self.x0 + self.ML[0:12,
+                                                (12*16+0):(12*16+12)] @ np.array([self.f_applied]).transpose() + self.g
 
         self.x1_mpc = self.x_robot[0:12, 0:1]
 
-        #print(self.x1_eq.ravel())
-        #print(self.x1_mpc.ravel())
+        # print(self.x1_eq.ravel())
+        # print(self.x1_mpc.ravel())
 
         return 0

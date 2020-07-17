@@ -2,6 +2,7 @@
 
 import numpy as np
 
+
 class FootTrajectoryGenerator:
     """A foot trajectory generator that handles the generation of a 3D trajectory
     with a 5th order polynomial to lead each foot from its location at the start of
@@ -183,7 +184,7 @@ class FootTrajectoryGenerator:
 
 class Foot_trajectory_generator(object):
     '''This class provide adaptative 3d trajectory for a foot from (x0,y0) to (x1,y1) using polynoms
-    
+
     A foot trajectory generator that handles the generation of a 3D trajectory
     with a 5th order polynomial to lead each foot from its location at the start of
     its swing phase to its final location that has been decided by the FootstepPlanner
@@ -202,10 +203,10 @@ class Foot_trajectory_generator(object):
         self.time_adaptative_disabled = time_adaptative_disabled
 
         # memory of the last coeffs
-        # ~ self.lastCoeffs_x = [0.0,0.0,0.0,0.0,0.0,0.0]
-        # ~ self.lastCoeffs_y = [0.0,0.0,0.0,0.0,0.0,0.0]
-        self.lastCoeffs = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.lastCoeffs_x = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.lastCoeffs_y = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        # self.lastCoeffs = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        #                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.x1 = 0.0
         self.y1 = 0.0
 
@@ -213,11 +214,11 @@ class Foot_trajectory_generator(object):
         #                         ddy0 = (coeff_acc_y_lin_a) * x1 + coeff_acc_y_lin_b
         # Remark : When the trajectory becomes non-adaptative coeff_acc_x_lin_a is = 0.0 and coeff_acc_y_lin_b contains the full information of the acceleration!
 
-        self.coeff_acc_x_lin_a = 0.0
-        self.coeff_acc_x_lin_b = 0.0
+        #self.coeff_acc_x_lin_a = 0.0
+        #self.coeff_acc_x_lin_b = 0.0
 
-        self.coeff_acc_y_lin_a = 0.0
-        self.coeff_acc_y_lin_b = 0.0
+        #self.coeff_acc_y_lin_a = 0.0
+        #self.coeff_acc_y_lin_b = 0.0
 
     def get_next_foot(self, x0, dx0, ddx0, y0, dy0, ddy0, x1, y1, t0, t1,  dt):
         '''how to reach a foot position (here using polynomials profiles)'''
@@ -225,21 +226,33 @@ class Foot_trajectory_generator(object):
         adaptative_mode = (t1 - t0) > self.time_adaptative_disabled
         if(adaptative_mode):
             # compute polynoms coefficients for x and y
-            # ~ Ax5=(ddx0*t0**2 - 2*ddx0*t0*t1 - 6*dx0*t0 + ddx0*t1**2 + 6*dx0*t1 + 12*x0 - 12*x1)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
-            # ~ Ax4=(30*t0*x1 - 30*t0*x0 - 30*t1*x0 + 30*t1*x1 - 2*t0**3*ddx0 - 3*t1**3*ddx0 + 14*t0**2*dx0 - 16*t1**2*dx0 + 2*t0*t1*dx0 + 4*t0*t1**2*ddx0 + t0**2*t1*ddx0)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
-            # ~ Ax3=(t0**4*ddx0 + 3*t1**4*ddx0 - 8*t0**3*dx0 + 12*t1**3*dx0 + 20*t0**2*x0 - 20*t0**2*x1 + 20*t1**2*x0 - 20*t1**2*x1 + 80*t0*t1*x0 - 80*t0*t1*x1 + 4*t0**3*t1*ddx0 + 28*t0*t1**2*dx0 - 32*t0**2*t1*dx0 - 8*t0**2*t1**2*ddx0)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
-            # ~ Ax2=-(t1**5*ddx0 + 4*t0*t1**4*ddx0 + 3*t0**4*t1*ddx0 + 36*t0*t1**3*dx0 - 24*t0**3*t1*dx0 + 60*t0*t1**2*x0 + 60*t0**2*t1*x0 - 60*t0*t1**2*x1 - 60*t0**2*t1*x1 - 8*t0**2*t1**3*ddx0 - 12*t0**2*t1**2*dx0)/(2*(t0**2 - 2*t0*t1 + t1**2)*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
-            # ~ Ax1=-(2*t1**5*dx0 - 2*t0*t1**5*ddx0 - 10*t0*t1**4*dx0 + t0**2*t1**4*ddx0 + 4*t0**3*t1**3*ddx0 - 3*t0**4*t1**2*ddx0 - 16*t0**2*t1**3*dx0 + 24*t0**3*t1**2*dx0 - 60*t0**2*t1**2*x0 + 60*t0**2*t1**2*x1)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
-            # ~ Ax0= (2*x1*t0**5 - ddx0*t0**4*t1**3 - 10*x1*t0**4*t1 + 2*ddx0*t0**3*t1**4 + 8*dx0*t0**3*t1**3 + 20*x1*t0**3*t1**2 - ddx0*t0**2*t1**5 - 10*dx0*t0**2*t1**4 - 20*x0*t0**2*t1**3 + 2*dx0*t0*t1**5 + 10*x0*t0*t1**4 - 2*x0*t1**5)/(2*(t0**2 - 2*t0*t1 + t1**2)*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ax5 = (ddx0*t0**2 - 2*ddx0*t0*t1 - 6*dx0*t0 + ddx0*t1**2 + 6*dx0*t1 + 12 *
+                   x0 - 12*x1)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ax4 = (30*t0*x1 - 30*t0*x0 - 30*t1*x0 + 30*t1*x1 - 2*t0**3*ddx0 - 3*t1**3*ddx0 + 14*t0**2*dx0 - 16*t1**2*dx0 +
+                   2*t0*t1*dx0 + 4*t0*t1**2*ddx0 + t0**2*t1*ddx0)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ax3 = (t0**4*ddx0 + 3*t1**4*ddx0 - 8*t0**3*dx0 + 12*t1**3*dx0 + 20*t0**2*x0 - 20*t0**2*x1 + 20*t1**2*x0 - 20*t1**2*x1 + 80*t0*t1*x0 - 80*t0 *
+                   t1*x1 + 4*t0**3*t1*ddx0 + 28*t0*t1**2*dx0 - 32*t0**2*t1*dx0 - 8*t0**2*t1**2*ddx0)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ax2 = -(t1**5*ddx0 + 4*t0*t1**4*ddx0 + 3*t0**4*t1*ddx0 + 36*t0*t1**3*dx0 - 24*t0**3*t1*dx0 + 60*t0*t1**2*x0 + 60*t0**2*t1*x0 - 60*t0*t1 **
+                    2*x1 - 60*t0**2*t1*x1 - 8*t0**2*t1**3*ddx0 - 12*t0**2*t1**2*dx0)/(2*(t0**2 - 2*t0*t1 + t1**2)*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ax1 = -(2*t1**5*dx0 - 2*t0*t1**5*ddx0 - 10*t0*t1**4*dx0 + t0**2*t1**4*ddx0 + 4*t0**3*t1**3*ddx0 - 3*t0**4*t1**2*ddx0 - 16*t0**2 *
+                    t1**3*dx0 + 24*t0**3*t1**2*dx0 - 60*t0**2*t1**2*x0 + 60*t0**2*t1**2*x1)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ax0 = (2*x1*t0**5 - ddx0*t0**4*t1**3 - 10*x1*t0**4*t1 + 2*ddx0*t0**3*t1**4 + 8*dx0*t0**3*t1**3 + 20*x1*t0**3*t1**2 - ddx0*t0**2*t1**5 - 10*dx0*t0 **
+                   2*t1**4 - 20*x0*t0**2*t1**3 + 2*dx0*t0*t1**5 + 10*x0*t0*t1**4 - 2*x0*t1**5)/(2*(t0**2 - 2*t0*t1 + t1**2)*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
 
-            # ~ Ay5=(ddy0*t0**2 - 2*ddy0*t0*t1 - 6*dy0*t0 + ddy0*t1**2 + 6*dy0*t1 + 12*y0 - 12*y1)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
-            # ~ Ay4=(30*t0*y1 - 30*t0*y0 - 30*t1*y0 + 30*t1*y1 - 2*t0**3*ddy0 - 3*t1**3*ddy0 + 14*t0**2*dy0 - 16*t1**2*dy0 + 2*t0*t1*dy0 + 4*t0*t1**2*ddy0 + t0**2*t1*ddy0)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
-            # ~ Ay3=(t0**4*ddy0 + 3*t1**4*ddy0 - 8*t0**3*dy0 + 12*t1**3*dy0 + 20*t0**2*y0 - 20*t0**2*y1 + 20*t1**2*y0 - 20*t1**2*y1 + 80*t0*t1*y0 - 80*t0*t1*y1 + 4*t0**3*t1*ddy0 + 28*t0*t1**2*dy0 - 32*t0**2*t1*dy0 - 8*t0**2*t1**2*ddy0)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
-            # ~ Ay2=-(t1**5*ddy0 + 4*t0*t1**4*ddy0 + 3*t0**4*t1*ddy0 + 36*t0*t1**3*dy0 - 24*t0**3*t1*dy0 + 60*t0*t1**2*y0 + 60*t0**2*t1*y0 - 60*t0*t1**2*y1 - 60*t0**2*t1*y1 - 8*t0**2*t1**3*ddy0 - 12*t0**2*t1**2*dy0)/(2*(t0**2 - 2*t0*t1 + t1**2)*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
-            # ~ Ay1=-(2*t1**5*dy0 - 2*t0*t1**5*ddy0 - 10*t0*t1**4*dy0 + t0**2*t1**4*ddy0 + 4*t0**3*t1**3*ddy0 - 3*t0**4*t1**2*ddy0 - 16*t0**2*t1**3*dy0 + 24*t0**3*t1**2*dy0 - 60*t0**2*t1**2*y0 + 60*t0**2*t1**2*y1)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
-            # ~ Ay0= (2*y1*t0**5 - ddy0*t0**4*t1**3 - 10*y1*t0**4*t1 + 2*ddy0*t0**3*t1**4 + 8*dy0*t0**3*t1**3 + 20*y1*t0**3*t1**2 - ddy0*t0**2*t1**5 - 10*dy0*t0**2*t1**4 - 20*y0*t0**2*t1**3 + 2*dy0*t0*t1**5 + 10*y0*t0*t1**4 - 2*y0*t1**5)/(2*(t0**2 - 2*t0*t1 + t1**2)*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ay5 = (ddy0*t0**2 - 2*ddy0*t0*t1 - 6*dy0*t0 + ddy0*t1**2 + 6*dy0*t1 + 12 *
+                   y0 - 12*y1)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ay4 = (30*t0*y1 - 30*t0*y0 - 30*t1*y0 + 30*t1*y1 - 2*t0**3*ddy0 - 3*t1**3*ddy0 + 14*t0**2*dy0 - 16*t1**2*dy0 +
+                   2*t0*t1*dy0 + 4*t0*t1**2*ddy0 + t0**2*t1*ddy0)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ay3 = (t0**4*ddy0 + 3*t1**4*ddy0 - 8*t0**3*dy0 + 12*t1**3*dy0 + 20*t0**2*y0 - 20*t0**2*y1 + 20*t1**2*y0 - 20*t1**2*y1 + 80*t0*t1*y0 - 80*t0 *
+                   t1*y1 + 4*t0**3*t1*ddy0 + 28*t0*t1**2*dy0 - 32*t0**2*t1*dy0 - 8*t0**2*t1**2*ddy0)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ay2 = -(t1**5*ddy0 + 4*t0*t1**4*ddy0 + 3*t0**4*t1*ddy0 + 36*t0*t1**3*dy0 - 24*t0**3*t1*dy0 + 60*t0*t1**2*y0 + 60*t0**2*t1*y0 - 60*t0*t1 **
+                    2*y1 - 60*t0**2*t1*y1 - 8*t0**2*t1**3*ddy0 - 12*t0**2*t1**2*dy0)/(2*(t0**2 - 2*t0*t1 + t1**2)*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ay1 = -(2*t1**5*dy0 - 2*t0*t1**5*ddy0 - 10*t0*t1**4*dy0 + t0**2*t1**4*ddy0 + 4*t0**3*t1**3*ddy0 - 3*t0**4*t1**2*ddy0 - 16*t0**2 *
+                    t1**3*dy0 + 24*t0**3*t1**2*dy0 - 60*t0**2*t1**2*y0 + 60*t0**2*t1**2*y1)/(2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            Ay0 = (2*y1*t0**5 - ddy0*t0**4*t1**3 - 10*y1*t0**4*t1 + 2*ddy0*t0**3*t1**4 + 8*dy0*t0**3*t1**3 + 20*y1*t0**3*t1**2 - ddy0*t0**2*t1**5 - 10*dy0*t0 **
+                   2*t1**4 - 20*y0*t0**2*t1**3 + 2*dy0*t0*t1**5 + 10*y0*t0*t1**4 - 2*y0*t1**5)/(2*(t0**2 - 2*t0*t1 + t1**2)*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
 
-            den = (2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
+            # den = (2*(t0 - t1)**2*(t0**3 - 3*t0**2*t1 + 3*t0*t1**2 - t1**3))
             # We are more interested in the expression of coefficients as linear fonction of the final position (x1,y1)
             # in fact: Ax5 = cx5*x1 + dx5
             #         Ax4 = cx4*x1 + dx4
@@ -248,7 +261,7 @@ class Foot_trajectory_generator(object):
             #         Ax1 = cx1*x1 + dx1
             #         Ax0 = cx0*x1 + dx0
             #       Same for Ay5..Ay0
-            cx5 = (-12)/den
+            """cx5 = (-12)/den
             dx5 = (ddx0*t0**2 - 2*ddx0*t0*t1 - 6*dx0*t0 + ddx0*t1**2 + 6*dx0*t1 + 12*x0)/den
 
             cx4 = (30*t0 + 30*t1)/den
@@ -292,7 +305,7 @@ class Foot_trajectory_generator(object):
 
             cy0 = (20*t0**3*t1**2 + 2*t0**5 - 10*t0**4*t1) / den
             dy0 = (- ddy0*t0**4*t1**3 + 2*ddy0*t0**3*t1**4 + 8*dy0*t0**3*t1**3 - ddy0*t0**2*t1**5 - 10 *
-                   dy0*t0**2*t1**4 - 20*y0*t0**2*t1**3 + 2*dy0*t0*t1**5 + 10*y0*t0*t1**4 - 2*y0*t1**5)/den
+                   dy0*t0**2*t1**4 - 20*y0*t0**2*t1**3 + 2*dy0*t0*t1**5 + 10*y0*t0*t1**4 - 2*y0*t1**5)/den"""
 
             # test should be zero : ok
             # ~ print Ax0 - (cx0*x1 + dx0)
@@ -302,20 +315,20 @@ class Foot_trajectory_generator(object):
             # ~ print Ax4 - (cx4*x1 + dx4)
             # ~ print Ax5 - (cx5*x1 + dx5)
 
-            # ~ self.lastCoeffs_x=[Ax5,Ax4,Ax3,Ax2,Ax1,Ax0] #save coeffs
-            # ~ self.lastCoeffs_y=[Ay5,Ay4,Ay3,Ay2,Ay1,Ay0]
+            self.lastCoeffs_x = [Ax5, Ax4, Ax3, Ax2, Ax1, Ax0]  # save coeffs
+            self.lastCoeffs_y = [Ay5, Ay4, Ay3, Ay2, Ay1, Ay0]
 
-            self.lastCoeffs = [cx5, cx4, cx3, cx2, cx1, cx0, dx5, dx4, dx3, dx2,
-                               dx1, dx0, cy5, cy4, cy3, cy2, cy1, cy0, dy5, dy4, dy3, dy2, dy1, dy0]
+            # self.lastCoeffs = [cx5, cx4, cx3, cx2, cx1, cx0, dx5, dx4, dx3, dx2,
+            #                   dx1, dx0, cy5, cy4, cy3, cy2, cy1, cy0, dy5, dy4, dy3, dy2, dy1, dy0]
 
             self.x1 = x1  # save last x1 value
             self.y1 = y1  # save last y1 value
 
         else:
-            # ~ [Ax5,Ax4,Ax3,Ax2,Ax1,Ax0] = self.lastCoeffs_x #use last coeffs
-            # ~ [Ay5,Ay4,Ay3,Ay2,Ay1,Ay0] = self.lastCoeffs_y
-            [cx5, cx4, cx3, cx2, cx1, cx0, dx5, dx4, dx3, dx2, dx1, dx0, cy5, cy4,
-                cy3, cy2, cy1, cy0, dy5, dy4, dy3, dy2, dy1, dy0] = self.lastCoeffs
+            [Ax5, Ax4, Ax3, Ax2, Ax1, Ax0] = self.lastCoeffs_x  # use last coeffs
+            [Ay5, Ay4, Ay3, Ay2, Ay1, Ay0] = self.lastCoeffs_y
+            # [cx5, cx4, cx3, cx2, cx1, cx0, dx5, dx4, dx3, dx2, dx1, dx0, cy5, cy4,
+            #    cy3, cy2, cy1, cy0, dy5, dy4, dy3, dy2, dy1, dy0] = self.lastCoeffs
 
         # coefficients for z (deterministic)
         Az6 = -h/((t1/2)**3*(t1 - t1/2)**3)
@@ -327,7 +340,7 @@ class Foot_trajectory_generator(object):
         ev = t0+dt
         x1 = self.x1
         y1 = self.y1
-        x0 = x1 * (cx0 + cx1*ev + cx2*ev**2 + cx3*ev**3 + cx4*ev**4 + cx5*ev**5) + \
+        """x0 = x1 * (cx0 + cx1*ev + cx2*ev**2 + cx3*ev**3 + cx4*ev**4 + cx5*ev**5) + \
             dx0 + dx1*ev + dx2*ev**2 + dx3*ev**3 + dx4*ev**4 + dx5*ev**5
         dx0 = x1 * (cx1 + 2*cx2*ev + 3*cx3*ev**2 + 4*cx4*ev**3 + 5*cx5*ev**4) + \
             dx1 + 2*dx2*ev + 3*dx3*ev**2 + 4*dx4*ev**3 + 5*dx5*ev**4
@@ -339,22 +352,22 @@ class Foot_trajectory_generator(object):
         dy0 = y1 * (cy1 + 2*cy2*ev + 3*cy3*ev**2 + 4*cy4*ev**3 + 5*cy5*ev**4) + \
             dy1 + 2*dy2*ev + 3*dy3*ev**2 + 4*dy4*ev**3 + 5*dy5*ev**4
         ddy0 = y1 * (2*cy2 + 3*2*cy3*ev + 4*3*cy4*ev**2 + 5*4*cy5*ev**3) + \
-            2*dy2 + 3*2*dy3*ev + 4*3*dy4*ev**2 + 5*4*dy5*ev**3
+            2*dy2 + 3*2*dy3*ev + 4*3*dy4*ev**2 + 5*4*dy5*ev**3"""
 
-        # ~ x0  =Ax0 + Ax1*ev + Ax2*ev**2 + Ax3*ev**3 + Ax4*ev**4 + Ax5*ev**5
-        # ~ dx0 =Ax1 + 2*Ax2*ev + 3*Ax3*ev**2 + 4*Ax4*ev**3 + 5*Ax5*ev**4
-        # ~ ddx0=2*Ax2 + 3*2*Ax3*ev + 4*3*Ax4*ev**2 + 5*4*Ax5*ev**3
-        # ~
-        # ~ y0  =Ay0 + Ay1*ev + Ay2*ev**2 + Ay3*ev**3 + Ay4*ev**4 + Ay5*ev**5
-        # ~ dy0 =Ay1 + 2*Ay2*ev + 3*Ay3*ev**2 + 4*Ay4*ev**3 + 5*Ay5*ev**4
-        # ~ ddy0=2*Ay2 + 3*2*Ay3*ev + 4*3*Ay4*ev**2 + 5*4*Ay5*ev**3
+        x0 = Ax0 + Ax1*ev + Ax2*ev**2 + Ax3*ev**3 + Ax4*ev**4 + Ax5*ev**5
+        dx0 = Ax1 + 2*Ax2*ev + 3*Ax3*ev**2 + 4*Ax4*ev**3 + 5*Ax5*ev**4
+        ddx0 = 2*Ax2 + 3*2*Ax3*ev + 4*3*Ax4*ev**2 + 5*4*Ax5*ev**3
+
+        y0 = Ay0 + Ay1*ev + Ay2*ev**2 + Ay3*ev**3 + Ay4*ev**4 + Ay5*ev**5
+        dy0 = Ay1 + 2*Ay2*ev + 3*Ay3*ev**2 + 4*Ay4*ev**3 + 5*Ay5*ev**4
+        ddy0 = 2*Ay2 + 3*2*Ay3*ev + 4*3*Ay4*ev**2 + 5*4*Ay5*ev**3
 
         z0 = Az3*ev**3 + Az4*ev**4 + Az5*ev**5 + Az6*ev**6
         dz0 = 3*Az3*ev**2 + 4*Az4*ev**3 + 5*Az5*ev**4 + 6*Az6*ev**5
         ddz0 = 2*3*Az3*ev + 3*4*Az4*ev**2 + 4*5*Az5*ev**3 + 5*6*Az6*ev**4
 
         # expression de ddx0 comme une fonction lineaire de x1:
-        if(adaptative_mode):
+        """if(adaptative_mode):
             self.coeff_acc_x_lin_a = 2*cx2 + 3*2*cx3*ev + 4*3*cx4*ev**2 + 5*4*cx5*ev**3
             self.coeff_acc_x_lin_b = 2*dx2 + 3*2*dx3*ev + 4*3*dx4*ev**2 + 5*4*dx5*ev**3
             self.coeff_acc_y_lin_a = 2*cy2 + 3*2*cy3*ev + 4*3*cy4*ev**2 + 5*4*cy5*ev**3
@@ -365,7 +378,7 @@ class Foot_trajectory_generator(object):
                                            cx5*ev**3) + 2*dx2 + 3*2*dx3*ev + 4*3*dx4*ev**2 + 5*4*dx5*ev**3
             self.coeff_acc_y_lin_a = 0.0
             self.coeff_acc_y_lin_b = y1 * (2*cy2 + 3*2*cy3*ev + 4*3*cy4*ev**2 + 5*4 *
-                                           cy5*ev**3) + 2*dy2 + 3*2*dy3*ev + 4*3*dy4*ev**2 + 5*4*dy5*ev**3
+                                           cy5*ev**3) + 2*dy2 + 3*2*dy3*ev + 4*3*dy4*ev**2 + 5*4*dy5*ev**3"""
 
         # get the target point (usefull for inform the MPC when we are not adaptative anymore.
         ev = t1

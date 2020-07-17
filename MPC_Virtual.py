@@ -20,7 +20,12 @@ class MPC_Virtual():
 
     def __init__(self, mpc_type, dt_mpc, n_steps, k_mpc, T_gait):
 
-        if mpc_type:
+        # Enable/Disable multiprocessing (MPC running in a parallel process)
+        enable_multiprocessing = False
+        self.solver = MPC_Wrapper.MPC_Wrapper(mpc_type, dt_mpc, n_steps, k_mpc, T_gait,
+                                              multiprocessing=enable_multiprocessing)
+
+        """if mpc_type:
 
             # Enable/Disable multiprocessing (MPC running in a parallel process)
             enable_multiprocessing = False
@@ -30,7 +35,7 @@ class MPC_Virtual():
         else:
 
             # Crocoddyl MPC
-            self.solver = MPC_crocoddyl.MPC_crocoddyl(dt_mpc, T_gait , 1 , True)  # mu = 1 & inner = True -> mu = 0.7
+            self.solver = MPC_crocoddyl.MPC_crocoddyl(dt_mpc, T_gait, 1, True)  # mu = 1 & inner = True -> mu = 0.7"""
 
         self.solve = self.solver.solve
         self.get_latest_result = self.solver.get_latest_result

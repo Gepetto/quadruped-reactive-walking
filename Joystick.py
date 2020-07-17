@@ -22,21 +22,22 @@ class Joystick:
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 0.2
-        self.VyScale = 0.4
+        self.VxScale = 0.5
+        self.VyScale = 1.0
         self.vYawScale = 0.4
 
-    def update_v_ref(self, k_loop, predefined):
+    def update_v_ref(self, k_loop, velID, predefined):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame by
         listening to a gamepad handled by an independent thread
 
         Args:
             k_loop (int): number of MPC iterations since the start of the simulation
+            velID (int): Identifier of the current velocity profile to be able to handle different scenarios
             predefined (bool): if true use hardcoded velocity ref, otherwise use gamepad
         """
 
         if predefined:
-            self.update_v_ref_predefined(k_loop)
+            self.update_v_ref_predefined(k_loop, velID)
         else:
             self.update_v_ref_gamepad(k_loop)
 
@@ -67,24 +68,107 @@ class Joystick:
 
         return 0
 
-    def update_v_ref_predefined(self, k_loop):
+    def update_v_ref_predefined(self, k_loop, velID):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame
         according to a predefined sequence
 
         Args:
             k_loop (int): number of MPC iterations since the start of the simulation
+            velID (int): Identifier of the current velocity profile to be able to handle different scenarios
         """
 
         # Moving forwards
         """if k_loop == self.k_mpc*16*3:
             self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
-        alpha = np.max([np.min([(k_loop-self.k_mpc*16*3)/3500, 1.0]), 0.0])
-        self.v_ref = np.array([[1.0*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+        if velID == 0:
+            alpha = np.max([np.min([(k_loop-self.k_mpc*16*3)/3000, 1.0]), 0.0])
+            self.v_ref = np.array([[0.3*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
-        # Turning
-        """if k_loop == self.k_mpc*16*13:
-            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
+        # Video Demo 16/06/2020
+        """V_max = 0.3
+        Rot_max = 0.2
+        if k_loop < 4000:
+            alpha = np.max([np.min([(k_loop-self.k_mpc*16*2)/3000, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+        elif k_loop < 5000:
+            alpha = np.max([np.min([(k_loop-4000)/500, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -Rot_max*alpha]]).T
+
+        elif k_loop < 6000:
+            alpha = np.max([np.min([(k_loop-5000)/500, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -Rot_max*(1.0-alpha)]]).T
+
+        elif k_loop < 8000:
+            alpha = np.max([np.min([(k_loop-6000)/2000, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max*(1-alpha), V_max*alpha, 0.0, 0.0, 0.0, 0.0]]).T
+
+        else:
+            alpha = np.max([np.min([(k_loop-8000)/1000, 1.0]), 0.0])
+            self.v_ref = np.array([[0.0, V_max*(1.0-alpha), 0.0, 0.0, 0.0, 0.0]]).T"""
+        # End Video Demo 16/06/2020
+
+        # Video Demo 24/06/2020
+        if velID == 1:
+            V_max = 0.3
+            Rot_max = 0.2
+            if k_loop < 8000:
+                alpha = np.max([np.min([(k_loop-self.k_mpc*16*2)/2000, 1.0]), 0.0])
+                self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+            elif k_loop < 12000:
+                alpha = np.max([np.min([(k_loop-8000)/4000, 1.0]), 0.0])
+                self.v_ref = np.array([[V_max*(1-alpha), -V_max*alpha, 0.0, 0.0, 0.0, 0.0]]).T
+
+            elif k_loop < 20000:
+                alpha = np.max([np.min([(k_loop-12000)/7000, 1.0]), 0.0])
+                self.v_ref = np.array([[0.0, -V_max*(1-alpha), 0.0, 0.0, 0.0, 0]]).T
+
+            elif k_loop < 22000:
+                self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+            elif k_loop < 26000:
+                alpha = np.max([np.min([(k_loop-22000)/1000, 1.0]), 0.0])
+                self.v_ref = np.array([[-V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+            elif k_loop < 33000:
+                alpha = np.max([np.min([(k_loop-26000)/4000, 1.0]), 0.0])
+                self.v_ref = np.array([[-V_max*(1-alpha), 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+            elif k_loop < 36000:
+                alpha = np.max([np.min([(k_loop-33000)/1000, 1.0]), 0.0])
+                self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, +0.3*alpha]]).T
+
+            elif k_loop < 40000:
+                alpha = np.max([np.min([(k_loop-36000)/1000, 1.0]), 0.0])
+                self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, +0.3]]).T
+
+            elif k_loop < 41000:
+                alpha = np.max([np.min([(k_loop-40000)/1000, 1.0]), 0.0])
+                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, +0.3*(1-alpha)]]).T
+
+            elif k_loop < 43000:
+                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+
+            elif k_loop < 44000:
+                alpha = np.max([np.min([(k_loop-43000)/500, 1.0]), 0.0])
+                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -0.3*alpha]]).T
+
+            else:
+                alpha = np.max([np.min([(k_loop-44000)/1450, 1.0]), 0.0])
+                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -0.3*(1-alpha)]]).T
+        # End Video Demo 24/06/2020
+
+        """if k_loop < 8000:
+            alpha = np.max([np.min([(k_loop-self.k_mpc*16*2)/2500, 1.0]), 0.0])
+            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, +0.2*alpha]]).T
+        elif k_loop < 13000:
+            alpha = np.max([np.min([(k_loop-8000)/5000, 1.0]), 0.0])
+            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, +0.2*(1-alpha)]]).T
+        else:
+            alpha = np.max([np.min([(k_loop-13000)/2000, 1.0]), 0.0])
+            self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
         """if k_loop == self.k_mpc*16*6:
             self.v_ref = np.array([[0.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
