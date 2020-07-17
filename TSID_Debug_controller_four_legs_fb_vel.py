@@ -16,12 +16,11 @@ import FootTrajectoryGenerator as ftg
 import pybullet as pyb
 import utils
 import time
-pin.switchToNumpyMatrix()
-
 
 ########################################################################
 #            Class for a PD with feed-forward Controller               #
 ########################################################################
+
 
 class controller:
     """ Inverse Dynamics controller that take into account the dynamics of the quadruped to generate
@@ -55,7 +54,7 @@ class controller:
         mu = 0.9 				# friction coefficient
         fMin = 1.0				# minimum normal force
         fMax = 25.0  			# maximum normal force
-        contactNormal = np.matrix([0., 0., 1.]).T  # direction of the normal to the contact surface
+        contactNormal = np.array([0., 0., 1.])  # direction of the normal to the contact surface
 
         # Coefficients of the posture task
         kp_posture = 10.0		# proportionnal gain of the posture task
@@ -110,7 +109,7 @@ class controller:
         self.k_mpc = k_mpc
 
         # For update_feet_tasks function
-        self.dt = 0.004  #  [s], time step
+        self.dt = 0.0010  #  [s], time step
         self.t1 = T_gait * 0.5 - 0.02  # [s], duration of swing phase
 
         # Rotation matrix
@@ -143,6 +142,10 @@ class controller:
 
         # Time since the start of the simulation
         self.t = 0.0
+
+        # Gains of the PD+
+        self.P = 3.0
+        self.D = np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
 
         ########################################################################
         #             Definition of the Model and TSID problem                 #
@@ -210,15 +213,11 @@ class controller:
 
             # Set the contact reference position
             H_ref = self.robot.framePosition(self.invdyn.data(), self.ID_feet[i])
-            H_ref.translation = np.matrix(
-                [H_ref.translation[0, 0],
-                 H_ref.translation[1, 0],
-                 0.0]).T
+            H_ref.translation = np.array([H_ref.translation[0],  H_ref.translation[1], 0.0])
             self.contacts[i].setReference(H_ref)
 
             # Regularization weight for the force tracking subtask
-            self.contacts[i].setRegularizationTaskWeightVector(
-                np.matrix([self.w_reg_f, self.w_reg_f, self.w_reg_f]).T)
+            self.contacts[i].setRegularizationTaskWeightVector(np.array([self.w_reg_f, self.w_reg_f, self.w_reg_f]))
 
             # Adding the rigid contact after the reference contact force has been set
             self.invdyn.addRigidContact(self.contacts[i], self.w_forceRef)
@@ -228,7 +227,7 @@ class controller:
         #######################
 
         self.feetTask = 4*[None]  # List to store the foot tracking tasks
-        mask = np.matrix([1.0, 1.0, 1.0, 0.0, 0.0, 0.0]).T
+        mask = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
 
         # Task definition (creating the task object)
         for i_foot in range(4):
@@ -247,10 +246,10 @@ class controller:
 
         # Task definition (creating the task object)
         self.trunkTask = tsid.TaskSE3Equality("task-trunk", self.robot, 'base_link')
-        mask = np.matrix([0.0, 0.0, 0.0, 1.0, 1.0, 0.0]).T
-        self.trunkTask.setKp(np.matrix([0.0, 0.0, 0.0*kp_trunk, kp_trunk, kp_trunk, 0.0]).T)
-        self.trunkTask.setKd(np.matrix([0.0, 0.0, 0.0*2.0 * np.sqrt(kp_trunk), 2.0 *
-                                        np.sqrt(kp_trunk), 2.0 * np.sqrt(kp_trunk), 0.0]).T)
+        mask = np.array([0.0, 0.0, 0.0, 1.0, 1.0, 0.0])
+        self.trunkTask.setKp(np.array([0.0, 0.0, 0.0*kp_trunk, kp_trunk, kp_trunk, 0.0]))
+        self.trunkTask.setKd(np.array([0.0, 0.0, 0.0*2.0 * np.sqrt(kp_trunk), 2.0 *
+                                       np.sqrt(kp_trunk), 2.0 * np.sqrt(kp_trunk), 0.0]))
         self.trunkTask.useLocalFrame(False)
         self.trunkTask.setMask(mask)
 
@@ -263,9 +262,9 @@ class controller:
         self.trunk_ref = self.robot.framePosition(self.invdyn.data(), self.ID_base)
         self.trajTrunk = tsid.TrajectorySE3Constant("traj_base_link", self.trunk_ref)
         self.sampleTrunk = self.trajTrunk.computeNext()
-        self.sampleTrunk.pos(np.matrix([0.0, 0.0, self.h_ref, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)
-        self.sampleTrunk.vel(np.matrix([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T)
-        self.sampleTrunk.acc(np.matrix([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T)
+        self.sampleTrunk.pos(np.array([0.0, 0.0, self.h_ref, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]))
+        self.sampleTrunk.vel(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        self.sampleTrunk.acc(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
         self.trunkTask.setReference(self.sampleTrunk)
 
         ##########
@@ -344,15 +343,15 @@ class controller:
             self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])
 
             # Update desired pos, vel, acc
-            self.sampleFeet[i_foot].pos(np.matrix([x0, y0, z0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]).T)
-            self.sampleFeet[i_foot].vel(np.matrix([dx0, dy0, dz0, 0.0, 0.0, 0.0]).T)
-            self.sampleFeet[i_foot].acc(np.matrix([ddx0, ddy0, ddz0, 0.0, 0.0, 0.0]).T)
+            self.sampleFeet[i_foot].pos(np.array([x0, y0, z0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]))
+            self.sampleFeet[i_foot].vel(np.array([dx0, dy0, dz0, 0.0, 0.0, 0.0]))
+            self.sampleFeet[i_foot].acc(np.array([ddx0, ddy0, ddz0, 0.0, 0.0, 0.0]))
 
             # Set reference
             self.feetTask[i_foot].setReference(self.sampleFeet[i_foot])
 
             # Update footgoal for display purpose
-            self.feetGoal[i_foot].translation = np.matrix([x0, y0, z0]).T
+            self.feetGoal[i_foot].translation = np.array([x0, y0, z0])
 
             # Display the goal position of the feet as green sphere in PyBullet
             pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
@@ -421,7 +420,7 @@ class controller:
                 footTraj = tsid.TrajectorySE3Constant("foot_traj", self.feetGoal[i_foot])
                 self.sampleFeet[i_foot] = footTraj.computeNext()
 
-                self.pos_contact[i_foot] = np.matrix([self.footsteps[0, i_foot], self.footsteps[1, i_foot], 0.0])
+                self.pos_contact[i_foot] = np.array([self.footsteps[0, i_foot], self.footsteps[1, i_foot], 0.0])
         else:
             # Here is where we will merge the data from the state estimator and the internal state of TSID
             """# Encoders (position of joints)
@@ -517,8 +516,8 @@ class controller:
         for i in range(4):
             index = next((idx for idx, val in np.ndenumerate(
                 fsteps[:, 3*i+1]) if ((not (val == 0)) and (not np.isnan(val)))), [-1])[0]
-            pos_tmp = np.array(interface.oMl * (np.array([fsteps[index, (1+i*3):(4+i*3)]]).transpose()))
-            self.footsteps[:, i] = pos_tmp[0:2, 0]
+            pos_tmp = interface.oMl * (np.array([fsteps[index, (1+i*3):(4+i*3)]]).transpose())
+            self.footsteps[:, i] = pos_tmp[0:2]
 
         return 0
 
@@ -602,10 +601,10 @@ class controller:
         # Torques, accelerations, velocities and configuration computation
         self.tau_ff = self.invdyn.getActuatorForces(self.sol)
         self.fc = self.invdyn.getContactForces(self.sol)
-        self.ades = self.invdyn.getAccelerations(self.sol)
+        self.ades = np.array([self.invdyn.getAccelerations(self.sol)]).transpose()
         if self.enable_hybrid_control:
             self.vdes = self.vtsid + self.ades * dt
-            self.qdes = pin.integrate(self.model, self.qtsid, self.vtsid * dt)
+            self.qdes = np.array(pin.integrate(self.model, self.qtsid, self.vtsid * dt))
 
         return 0
 
@@ -614,18 +613,17 @@ class controller:
         # Check for NaN value in the output torques (means error during solving process)
         if np.any(np.isnan(self.tau_ff)):
             self.error = True
-            self.tau = np.zeros((12, 1))
             # raise ValueError('NaN value in feedforward torque')
-            return 0
-        if self.qdes[7, 0] > 10:
+            return np.zeros((12, 1))
+
+        if self.qdes[7] > 10:
             self.error = True
-            self.tau = np.zeros((12, 1))
+            return np.zeros((12, 1))
         else:
             # Torque PD controller
-            P = 3.0
-            D = np.array([[1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3]]).transpose()
             if self.enable_hybrid_control:
-                self.tau_pd = P * (self.qdes[7:] - self.qmes[7:]) + np.multiply(D, (self.vdes[6:] - self.vmes[6:]))
+                self.tau_pd = self.P * (self.qdes[7:] - self.qmes[7:, 0]) + \
+                    self.D * (self.vdes[6:, 0] - self.vmes[6:, 0])
                 torques12 = self.tau_ff + self.tau_pd
             else:
                 torques12 = self.tau_ff
@@ -634,8 +632,7 @@ class controller:
             t_max = 2.5
             torques12[torques12 > t_max] = t_max
             torques12[torques12 < -t_max] = -t_max
-
-        return torques12
+            return torques12.reshape((12, 1))
 
     def display(self, t, solo, k_simu, sequencer):
         """ To display debug spheres in Gepetto Viewer
@@ -785,4 +782,4 @@ class controller:
 # Parameters for the controller
 
 
-dt = 0.004			# controller time step
+dt = 0.0010		# controller time step

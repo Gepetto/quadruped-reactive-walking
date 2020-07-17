@@ -187,7 +187,7 @@ class Logger:
         """ Store information about the state of the robot
         """
 
-        self.RPY[:, k:(k+1)] = interface.RPY[:, 0]  # roll, pitch, yaw of the base in world frame
+        self.RPY[:, k:(k+1)] = interface.RPY[:]  # roll, pitch, yaw of the base in world frame
         self.oC[:, k:(k+1)] = interface.oC[:, 0]  #  position of the CoM in world frame
         self.oV[:, k:(k+1)] = interface.oV[:, 0]  #  linear velocity of the CoM in world frame
         self.oW[:, k] = interface.oW[:, 0]  # angular velocity of the CoM in world frame
