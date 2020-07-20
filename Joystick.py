@@ -22,9 +22,9 @@ class Joystick:
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 0.5
-        self.VyScale = 1.0
-        self.vYawScale = 0.4
+        self.VxScale = 0.2
+        self.VyScale = 0.5
+        self.vYawScale = 0.8
 
     def update_v_ref(self, k_loop, velID, predefined):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame by
@@ -59,12 +59,17 @@ class Joystick:
         self.vYaw = self.gp.rightJoystickX.value * self.vYawScale
 
         if self.gp.L1Button.value:
-            self.v_ref = np.array([[0.0, 0.0, - self.vYaw * 0.25, - self.vX * 5, - self.vY * 2, 0.0]]).T
+            self.v_gp = np.array([[0.0, 0.0, - self.vYaw * 0.25, - self.vX * 5, - self.vY * 2, 0.0]]).T
         else:
-            self.v_ref = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
+            self.v_gp = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
 
         if self.gp.startButton.value == True:
             self.reduced = not self.reduced
+
+        tc = 0.04  #  cutoff frequency at 50 Hz
+        dT = 0.001  # velocity reference is updated every ms
+        alpha = dT / tc
+        self.v_ref = alpha * self.v_gp + (1-alpha) * self.v_ref
 
         return 0
 
