@@ -105,10 +105,13 @@ class Logger:
         self.cost_components = np.zeros((13, k_max_loop))
 
         # Store information about the predicted evolution of the optimization vector components
+        # Usefull to compare osqp & ddp solver
         self.n_periods = n_periods
         self.T = T_gait
         self.pred_trajectories = np.zeros((12, int(self.n_periods*T_gait/dt_mpc), int(k_max_loop/k_mpc)))
         self.pred_forces = np.zeros((12, int(self.n_periods*T_gait/dt_mpc), int(k_max_loop/k_mpc)))
+        self.fsteps = np.zeros((20,13,int(k_max_loop/k_mpc)))
+        self.xref = np.zeros((12,int(self.n_periods*T_gait/dt_mpc) + 1,int(k_max_loop/k_mpc)))
 
         # Store information about one of the tracking task
         self.pos = np.zeros((12, k_max_loop))
@@ -611,8 +614,13 @@ class Logger:
 
             self.pred_trajectories[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.get_xrobot()
             self.pred_forces[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.get_fpredicted()
-                     
 
+        return 0
+
+    def log_fstep_planner(self, k , fstep_planner) : 
+        
+        self.fsteps[:, :, int(k/self.k_mpc)] = fstep_planner.fsteps
+        self.xref[:, :, int(k/self.k_mpc)] = fstep_planner.xref
 
         return 0
 
@@ -718,6 +726,7 @@ class Logger:
         # Store information about the predicted evolution of the optimization vector components
         if not enable_multiprocessing and ((k % self.k_mpc) == 0):
             self.log_predicted_trajectories(k, mpc_wrapper)
+            self.log_fstep_planner(k ,fstep_planner )
 
         # Store information about one of the foot tracking task
         self.log_tracking_foot(k, tsid_controller, solo)
