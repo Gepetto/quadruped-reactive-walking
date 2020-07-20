@@ -108,6 +108,7 @@ class Logger:
         self.n_periods = n_periods
         self.T = T_gait
         self.pred_trajectories = np.zeros((12, int(self.n_periods*T_gait/dt_mpc), int(k_max_loop/k_mpc)))
+        self.pred_forces = np.zeros((12, int(self.n_periods*T_gait/dt_mpc), int(k_max_loop/k_mpc)))
 
         # Store information about one of the tracking task
         self.pos = np.zeros((12, k_max_loop))
@@ -222,7 +223,7 @@ class Logger:
         # Velocity control for x, y and yaw components (user input)
         # Position control for z, roll and pitch components (hardcoded default values of h_ref, 0.0 and 0.0)
         if self.type_MPC:
-            self.state_ref[0:6, k] = np.array([0.0, 0.0, mpc_wrapper.solver.mpc.h_ref, 0.0, 0.0, 0.0])
+            self.state_ref[0:6, k] = np.array([0.0, 0.0, mpc_wrapper.mpc.h_ref, 0.0, 0.0, 0.0])
         else:
             self.state_ref[0:6, k] = np.array([0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0])
         self.state_ref[6:12, k] = joystick.v_ref[:, 0]
@@ -523,7 +524,7 @@ class Logger:
 
         self.torques_ff[:, k:(k+1)] = tsid_controller.tau_ff
         self.torques_pd[:, k:(k+1)] = tsid_controller.tau_pd
-        self.torques_sent[:, k:(k+1)] = tsid_controller.tau.transpose()
+        self.torques_sent[:, k:(k+1)] = np.reshape(tsid_controller.tau ,(12,1))
 
         return 0
 
@@ -553,15 +554,15 @@ class Logger:
         """
 
         # Cost of each component of the cost function over the prediction horizon (state vector and contact forces)
-        cost = (np.diag(mpc_wrapper.solver.mpc.x) @ np.diag(mpc_wrapper.solver.mpc.P.data)
-                ) @ np.array([mpc_wrapper.solver.mpc.x]).transpose()
+        cost = (np.diag(mpc_wrapper.mpc.x) @ np.diag(mpc_wrapper.mpc.P.data)
+                ) @ np.array([mpc_wrapper.mpc.x]).transpose()
 
         # Sum components of the state vector
         for i in range(12):
-            self.cost_components[i, k:(k+1)] = np.sum(cost[i:(12*mpc_wrapper.solver.mpc.n_steps):12])
+            self.cost_components[i, k:(k+1)] = np.sum(cost[i:(12*mpc_wrapper.mpc.n_steps):12])
 
         # Sum components of the contact forces
-        self.cost_components[12, k:(k+1)] = np.sum(cost[(12*mpc_wrapper.solver.mpc.n_steps):])
+        self.cost_components[12, k:(k+1)] = np.sum(cost[(12*mpc_wrapper.mpc.n_steps):])
 
         """if k % 50 == 0:
             print(np.sum(np.power(mpc_wrapper.solver.mpc.x[6:(12*mpc_wrapper.solver.mpc.n_steps):12], 2)))
@@ -601,8 +602,17 @@ class Logger:
     def log_predicted_trajectories(self, k, mpc_wrapper):
         """ Store information about the predicted evolution of the optimization vector components
         """
+        if self.type_MPC : 
+            self.pred_trajectories[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.x_robot
+            self.pred_forces[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.x[mpc_wrapper.mpc.xref.shape[0]*(mpc_wrapper.mpc.xref.shape[1]-1):].reshape((mpc_wrapper.mpc.xref.shape[0],
+                                                                                                           mpc_wrapper.mpc.xref.shape[1]-1),
+                                                                                                           order='F')
+        else : 
 
-        self.pred_trajectories[:, :, int(k/self.k_mpc)] = mpc_wrapper.solver.mpc.x_robot
+            self.pred_trajectories[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.get_xrobot()
+            self.pred_forces[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.get_fpredicted()
+                     
+
 
         return 0
 
@@ -706,7 +716,7 @@ class Logger:
             self.log_cost_function(k, mpc_wrapper)"""
 
         # Store information about the predicted evolution of the optimization vector components
-        if self.type_MPC and not enable_multiprocessing and ((k % self.k_mpc) == 0):
+        if not enable_multiprocessing and ((k % self.k_mpc) == 0):
             self.log_predicted_trajectories(k, mpc_wrapper)
 
         # Store information about one of the foot tracking task
@@ -730,6 +740,7 @@ class Logger:
         self.plot_torques()
 
         # Plot information about the state of the robot
+        # Cost not comparable between the two solvers
         if self.type_MPC and not enable_multiprocessing:
             self.plot_cost_function()
 

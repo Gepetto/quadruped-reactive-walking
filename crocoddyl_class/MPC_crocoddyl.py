@@ -27,7 +27,10 @@ class MPC_crocoddyl:
         self.mass = 2.50000279 
 
         # Inertia matrix of the robot in body frame 
-        self.gI = np.diag([0.00578574, 0.01938108, 0.02476124])
+        # self.gI = np.diag([0.00578574, 0.01938108, 0.02476124])
+        self.gI = np.array([[3.09249e-2, -8.00101e-7, 1.865287e-5],
+                        [-8.00101e-7, 5.106100e-2, 1.245813e-4],
+                        [1.865287e-5, 1.245813e-4, 6.939757e-2]]) 
 
         # Friction coefficient
         if inner :
@@ -36,13 +39,28 @@ class MPC_crocoddyl:
             self.mu = mu
         
         # Weights Vector : States
-        self.stateWeight = np.array([1,1,150,35,30,8,20,20,15,4,4,8])
+        self.w_x = 0.1
+        self.w_y = 0.1
+        self.w_z = 1
+        self.w_roll = 0.11
+        self.w_pitch = 0.11
+        self.w_yaw = 0.11
+        self.w_vx =  2*np.sqrt(self.w_x)
+        self.w_vy =  2*np.sqrt(self.w_y)
+        self.w_vz =  2*np.sqrt(self.w_z)
+        self.w_vroll =  0.05*np.sqrt(self.w_roll)
+        self.w_vpitch =  0.05*np.sqrt(self.w_pitch)
+        self.w_vyaw =  0.05*np.sqrt(self.w_yaw)
+        self.stateWeight = np.array([self.w_x,self.w_y,self.w_z,self.w_roll,self.w_pitch,self.w_yaw,
+                                    self.w_vx,self.w_vy,self.w_vz,self.w_vroll,self.w_vpitch,self.w_vyaw])
+
+
 
         # Weight Vector : Force Norm
-        self.forceWeights = np.full(12,0.2)
+        self.forceWeights = np.full(12,0.00001)
 
         # Weight Vector : Friction cone cost
-        self.frictionWeights = 10
+        self.frictionWeights = 0.5
 
         # Max iteration ddp solver
         self.max_iteration = 4
@@ -187,9 +205,25 @@ class MPC_crocoddyl:
         return 0
 
     def get_latest_result(self):
-        """Return the desired contact forces that have been computed by the last iteration of the MPC
+        """Returns the desired contact forces that have been computed by the last iteration of the MPC
         Args:
         """
         return np.reshape(np.asarray(self.ddp.us[0])  , (12,))
+
+    def get_xrobot(self):
+        """Returns the state vectors predicted by the mpc throughout the time horizon, the initial column is deleted as it corresponds
+        initial state vector
+        Args:
+        """
+
+        return np.array(self.ddp.xs)[1:,:].transpose()
+
+    def get_fpredicted(self):
+        """Returns the force vectors command predicted by the mpc throughout the time horizon, 
+        Args:
+        """
+
+        return np.array(self.ddp.us)[:,:].transpose()[:,:]
+
     
 
