@@ -138,7 +138,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         t_list_tsid[k] = time.time() - time_tsid  # Logging the time spent to run this iteration of inverse dynamics
 
         # Process PD+ (feedforward torques and feedback torques)
-        for i_step in range(4):
+        for i_step in range(1):
 
             # Process the PD+
             jointTorques = proc.process_pdp(pyb_sim, myController)
