@@ -38,8 +38,8 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
 def test3(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback):
 
     # Retrieve state desired by TSID (position/orientation/velocity of the robot)
-    tsid_controller.qtsid[:, 0:1] = tsid_controller.qdes[:, 0].copy()  # in TSID world frame
-    tsid_controller.vtsid[:, 0:1] = tsid_controller.vdes[:, 0].copy()  # in robot base frame
+    tsid_controller.qtsid[:, 0] = tsid_controller.qdes.copy()  # in TSID world frame
+    tsid_controller.vtsid[:, 0:1] = tsid_controller.vdes.copy()  # in robot base frame
 
     # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
     if pyb_feedback:
@@ -131,7 +131,7 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
     # Initialization of the desired location of footsteps (need to run update_fsteps once)
     if (k == 0):
         fstep_planner.update_fsteps(k, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
-                                    joystick.v_ref, interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids, False)
+                                    joystick.v_ref, interface.lC[2], interface.oMl, pyb_sim.ftps_Ids, False)
 
     # Update footsteps desired location once every k_mpc iterations of TSID
     if True:  # (k % k_mpc) == 0:

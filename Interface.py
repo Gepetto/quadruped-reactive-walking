@@ -17,11 +17,11 @@ class Interface:
         self.oMb = pin.SE3.Identity()  # transform from world to base frame ("1")
         self.oMl = pin.SE3.Identity()  #  transform from world to local frame ("L")
         self.RPY = np.zeros((3, 1))  # roll, pitch, yaw of the base in world frame
-        self.oC = np.zeros((3, ))  #  position of the CoM in world frame
-        self.oV = np.zeros((3, ))  #  linear velocity of the CoM in world frame
+        self.oC = np.zeros((3, 1))  #  position of the CoM in world frame
+        self.oV = np.zeros((3, 1))  #  linear velocity of the CoM in world frame
         self.oW = np.zeros((3, 1))  # angular velocity of the CoM in world frame
-        self.lC = np.zeros((3, ))  #  position of the CoM in local frame
-        self.lV = np.zeros((3, ))  #  linear velocity of the CoM in local frame
+        self.lC = np.zeros((3, 1))  #  position of the CoM in local frame
+        self.lV = np.zeros((3, 1))  #  linear velocity of the CoM in local frame
         self.lW = np.zeros((3, 1))  #  angular velocity of the CoM in local frame
         self.lRb = np.eye(3)  # rotation matrix from the local frame to the base frame
         self.abg = np.zeros((3, 1))  # roll, pitch, yaw of the base in local frame
@@ -55,7 +55,7 @@ class Interface:
         """
 
         # Rotation matrix from the world frame to the base frame
-        self.oRb = pin.Quaternion(qmes12[3:7]).matrix()
+        self.oRb = np.array(pin.Quaternion(qmes12[3:7]).matrix())
 
         # Linear and angular velocity in base frame
         self.vmes12_base = vmes12.copy()
@@ -91,8 +91,8 @@ class Interface:
         self.mean_feet_z = 0.0
 
         # Store position, linear velocity and angular velocity in global frame
-        self.oC = solo.data.com[0]
-        self.oV = solo.data.vcom[0]
+        self.oC[:, 0] = solo.data.com[0]
+        self.oV[:, 0] = solo.data.vcom[0]
         self.oW = vmes12[3:6]
         self.mot = qmes12[7:, 0:1]  # angular position of actuators
 
@@ -101,19 +101,19 @@ class Interface:
         self.RPY = pin.rpy.matrixToRpy(self.oMb.rotation)
 
         # Get SE3 object from world frame to local frame
-        self.oMl = pin.SE3(pin.utils.rotate('z', self.RPY[2, 0]),
+        self.oMl = pin.SE3(pin.utils.rotate('z', self.RPY[2]),
                            np.array([qmes12[0, 0], qmes12[1, 0], self.mean_feet_z]))
 
         # Get position, linear velocity and angular velocity in local frame
-        self.lC = self.oMl.inverse() * self.oC
-        self.lV = self.oMl.rotation.transpose() @ self.oV
-        self.lW = self.oMl.rotation.transpose() @ self.oW
+        self.lC[:, 0] = self.oMl.inverse() * self.oC
+        self.lV[:, 0:1] = self.oMl.rotation.transpose() @ self.oV
+        self.lW[:, 0:1] = self.oMl.rotation.transpose() @ self.oW
 
         # Pos, vel and acc of feet
         for i, j in enumerate(self.indexes):
             # Position of feet in local frame
-            self.o_feet[:, i:(i+1)] = solo.data.oMf[j].translation
-            self.l_feet[:, i:(i+1)] = self.oMl.inverse() * solo.data.oMf[j].translation
+            self.o_feet[:, i] = solo.data.oMf[j].translation
+            self.l_feet[:, i] = self.oMl.inverse() * solo.data.oMf[j].translation
 
             # getFrameVelocity output is in the frame of the foot so a transform is required
             # self.ov_feet[:, i:(i+1)] = solo.data.oMf[j].rotation @ pin.getFrameVelocity(solo.model, solo.data, j).vector[0:3, 0:1]
@@ -127,7 +127,7 @@ class Interface:
 
         # Orientation of the base in local frame
         # Base and local frames have the same yaw orientation in world frame
-        self.abg[0:2] = self.RPY[0:2]
+        self.abg[0:2, 0] = self.RPY[0:2]
 
         # Position of shoulders in world frame (NOT USED)
         # for i in range(4):

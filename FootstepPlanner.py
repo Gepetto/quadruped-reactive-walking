@@ -2,6 +2,7 @@
 
 import numpy as np
 import pybullet as pyb
+import math
 
 
 class FootstepPlanner:
@@ -358,9 +359,9 @@ class FootstepPlanner:
         while (self.gait[i, 0] != 0):
 
             # Feet that were in stance phase and are still in stance phase do not move
+            A = rpt_gait[i-1, :] & rpt_gait[i, :]
             if np.any(rpt_gait[i-1, :] & rpt_gait[i, :]):
-                (self.fsteps[i, 1:])[rpt_gait[i-1, :] & rpt_gait[i, :]
-                                     ] = (self.fsteps[i-1, 1:])[rpt_gait[i-1, :] & rpt_gait[i, :]]
+                (self.fsteps[i, 1:])[A] = (self.fsteps[i-1, 1:])[A]
 
             # Feet that are in swing phase are NaN whether they were in stance phase previously or not
             # Commented as self.fsteps is already filled by np.nan by default
@@ -368,21 +369,20 @@ class FootstepPlanner:
                 (self.fsteps[i, 1:])[rpt_gait[i, :] == False] = np.nan * np.ones((12,))[rpt_gait[i, :] == False]"""
 
             # Feet that were in swing phase and are now in stance phase need to be updated
-            if np.any((rpt_gait[i-1, :] == False) & rpt_gait[i, :]):
+            A = np.logical_not(rpt_gait[i-1, :]) & rpt_gait[i, :]
+            if np.any(A):
 
                 # Get desired position of footstep compared to current position
                 next_ft = (np.dot(self.R[:, :, i-1], self.next_footstep) +
                            np.array([[dx[i-1]], [dy[i-1]], [0.0]])).ravel(order='F')
-                #next_ft = (self.next_footstep).ravel(order='F')
+                # next_ft = (self.next_footstep).ravel(order='F')
 
                 # Assignement only to feet that have been in swing phase
-                (self.fsteps[i, 1:])[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]
-                                     ] = next_ft[(rpt_gait[i-1, :] == False) & rpt_gait[i, :]]
+                (self.fsteps[i, 1:])[A] = next_ft[A]
 
             i += 1
 
-        #print(self.fsteps[0:2, 2::3])
-
+        # print(self.fsteps[0:2, 2::3])
         return 0
 
     def compute_next_footstep(self, v_cur, v_ref, h):
@@ -413,7 +413,7 @@ class FootstepPlanner:
         # Add centrifugal term
         cross = cross3(np.array(v_cur[0:3, 0]), v_ref[3:6, 0])
         # cross = np.cross(v_cur[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
-        self.next_footstep[0:2, :] += 0.5 * ((h/self.g)**0.5) * cross[0:2, 0:1]
+        self.next_footstep[0:2, :] += 0.5 * math.sqrt(h/self.g) * cross[0:2, 0:1]
 
         # Legs have a limited length so the deviation has to be limited
         (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) > self.L] = self.L
@@ -492,6 +492,6 @@ class FootstepPlanner:
 
 def cross3(left, right):
     """Numpy is inefficient for this"""
-    return np.array([left[1] * right[2] - left[2] * right[1],
-                     left[2] * right[0] - left[0] * right[2],
-                     left[0] * right[1] - left[1] * right[0]])
+    return np.array([[left[1] * right[2] - left[2] * right[1]],
+                     [left[2] * right[0] - left[0] * right[2]],
+                     [left[0] * right[1] - left[1] * right[0]]])

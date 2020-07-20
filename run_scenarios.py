@@ -13,7 +13,7 @@ dt_mpc = 0.02  # Time step of the MPC
 k_mpc = int(dt_mpc / dt)  # dt is dt_tsid, defined in the TSID controller script
 t = 0.0  # Time
 n_periods = 1  # Number of periods in the prediction horizon
-T_gait = 0.72  # Duration of one gait period
+T_gait = 0.64  # Duration of one gait period
 N_SIMULATION = 1000  # number of simulated TSID time steps
 
 # Which MPC solver you want to use

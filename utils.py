@@ -179,7 +179,7 @@ def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
 
     qu_pinocchio = np.array(solo.q0).flatten()
     qu_pinocchio[0:3] = mpc.q_w[0:3, 0]
-    qu_pinocchio[3:7] = getQuaternion(np.matrix([mpc.q_w[3:6, 0]]).T).flatten()
+    qu_pinocchio[3:7] = getQuaternion(np.array([mpc.q_w[3:6, 0]])).flatten()
     # Refresh the gepetto viewer display
     solo.display(qu_pinocchio)
 
@@ -218,12 +218,12 @@ class pybullet_simulator:
 
             mesh_scale = [1.0, 0.1, 0.02]
             visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                                fileName="cube.obj",
-                                                halfExtents=[0.5, 0.5, 0.1],
-                                                rgbaColor=[1.0, 0.0, 0.0, 1.0],
-                                                specularColor=[0.4, .4, 0],
-                                                visualFramePosition=[0.0, 0.0, 0.0],
-                                                meshScale=mesh_scale)
+                                                  fileName="cube.obj",
+                                                  halfExtents=[0.5, 0.5, 0.1],
+                                                  rgbaColor=[1.0, 0.0, 0.0, 1.0],
+                                                  specularColor=[0.4, .4, 0],
+                                                  visualFramePosition=[0.0, 0.0, 0.0],
+                                                  meshScale=mesh_scale)
 
             collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
                                                         fileName="cube.obj",
@@ -256,12 +256,12 @@ class pybullet_simulator:
 
             mesh_scale = [0.2, 0.1, 0.01]
             visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                                fileName="cube.obj",
-                                                halfExtents=[0.5, 0.5, 0.1],
-                                                rgbaColor=[0.0, 1.0, 0.0, 1.0],
-                                                specularColor=[0.4, .4, 0],
-                                                visualFramePosition=[0.0, 0.0, 0.0],
-                                                meshScale=mesh_scale)
+                                                  fileName="cube.obj",
+                                                  halfExtents=[0.5, 0.5, 0.1],
+                                                  rgbaColor=[0.0, 1.0, 0.0, 1.0],
+                                                  specularColor=[0.4, .4, 0],
+                                                  visualFramePosition=[0.0, 0.0, 0.0],
+                                                  meshScale=mesh_scale)
 
             collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
                                                         fileName="cube.obj",
@@ -279,12 +279,12 @@ class pybullet_simulator:
 
             mesh_scale = [0.05, 0.05, 0.05]
             visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                                fileName="sphere_smooth.obj",
-                                                halfExtents=[0.5, 0.5, 0.1],
-                                                rgbaColor=[1.0, 0.0, 0.0, 1.0],
-                                                specularColor=[0.4, .4, 0],
-                                                visualFramePosition=[0.0, 0.0, 0.0],
-                                                meshScale=mesh_scale)
+                                                  fileName="sphere_smooth.obj",
+                                                  halfExtents=[0.5, 0.5, 0.1],
+                                                  rgbaColor=[1.0, 0.0, 0.0, 1.0],
+                                                  specularColor=[0.4, .4, 0],
+                                                  visualFramePosition=[0.0, 0.0, 0.0],
+                                                  meshScale=mesh_scale)
 
             collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
                                                         fileName="sphere_smooth.obj",
@@ -292,18 +292,18 @@ class pybullet_simulator:
                                                         meshScale=mesh_scale)
 
             self.sphereId1 = pyb.createMultiBody(baseMass=0.3,
-                                                baseInertialFramePosition=[0, 0, 0],
-                                                baseCollisionShapeIndex=collisionShapeId,
-                                                baseVisualShapeIndex=visualShapeId,
-                                                basePosition=[-0.6, 0.9, 0.05],
-                                                useMaximalCoordinates=True)
+                                                 baseInertialFramePosition=[0, 0, 0],
+                                                 baseCollisionShapeIndex=collisionShapeId,
+                                                 baseVisualShapeIndex=visualShapeId,
+                                                 basePosition=[-0.6, 0.9, 0.05],
+                                                 useMaximalCoordinates=True)
 
             self.sphereId2 = pyb.createMultiBody(baseMass=0.3,
-                                                baseInertialFramePosition=[0, 0, 0],
-                                                baseCollisionShapeIndex=collisionShapeId,
-                                                baseVisualShapeIndex=visualShapeId,
-                                                basePosition=[0.6, 1.1, 0.05],
-                                                useMaximalCoordinates=True)
+                                                 baseInertialFramePosition=[0, 0, 0],
+                                                 baseCollisionShapeIndex=collisionShapeId,
+                                                 baseVisualShapeIndex=visualShapeId,
+                                                 basePosition=[0.6, 1.1, 0.05],
+                                                 useMaximalCoordinates=True)
 
             # Flag to launch the two spheres in the environment toward the robot
             self.flag_sphere1 = True
@@ -311,21 +311,21 @@ class pybullet_simulator:
 
         mesh_scale = [0.015, 0.015, 0.015]
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                            fileName="sphere_smooth.obj",
-                                            halfExtents=[0.5, 0.5, 0.1],
-                                            rgbaColor=[0.0, 0.0, 1.0, 1.0],
-                                            specularColor=[0.4, .4, 0],
-                                            visualFramePosition=[0.0, 0.0, 0.0],
-                                            meshScale=mesh_scale)
+                                              fileName="sphere_smooth.obj",
+                                              halfExtents=[0.5, 0.5, 0.1],
+                                              rgbaColor=[0.0, 0.0, 1.0, 1.0],
+                                              specularColor=[0.4, .4, 0],
+                                              visualFramePosition=[0.0, 0.0, 0.0],
+                                              meshScale=mesh_scale)
 
         self.ftps_Ids = np.zeros((4, 5), dtype=np.int)
         for i in range(4):
             for j in range(5):
                 self.ftps_Ids[i, j] = pyb.createMultiBody(baseMass=0.0,
-                                                        baseInertialFramePosition=[0, 0, 0],
-                                                        baseVisualShapeIndex=visualShapeId,
-                                                        basePosition=[0.0, 0.0, -0.1],
-                                                        useMaximalCoordinates=True)
+                                                          baseInertialFramePosition=[0, 0, 0],
+                                                          baseVisualShapeIndex=visualShapeId,
+                                                          basePosition=[0.0, 0.0, -0.1],
+                                                          useMaximalCoordinates=True)
 
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
                                               fileName="sphere_smooth.obj",
@@ -405,10 +405,10 @@ class pybullet_simulator:
                 self.flag_sphere2 = False
 
         # Apply perturbation
-        if (k >= 1000) and (k <= 1200):
+        """if (k >= 1000) and (k <= 1200):
             pyb.applyExternalForce(self.robotId, -1, [0.0, -0.5, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
         if k == 1201:
-            print("End external force")
+            print("End external force")"""
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
@@ -418,7 +418,7 @@ class pybullet_simulator:
         RPY = pin.rpy.matrixToRpy(oMb_tmp.rotation)
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
-        pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=(0.0*RPY[2, 0]*(180/3.1415)+45), cameraPitch=-39.9,
+        pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=(0.0*RPY[2]*(180/3.1415)+45), cameraPitch=-39.9,
                                        cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])
 
         return 0
@@ -434,9 +434,9 @@ class pybullet_simulator:
 
         # Joints configuration and velocity vector for free-flyer + 12 actuators
         self.qmes12 = np.vstack((np.array([self.baseState[0]]).T, np.array([self.baseState[1]]).T,
-                                 np.array([[self.jointStates[i_joint][0] for i_joint in range(len(self.jointStates))]]).T))
+                                 np.array([[state[0] for state in self.jointStates]]).T))
         self.vmes12 = np.vstack((np.array([self.baseVel[0]]).T, np.array([self.baseVel[1]]).T,
-                                 np.array([[self.jointStates[i_joint][1] for i_joint in range(len(self.jointStates))]]).T))
+                                 np.array([[state[1] for state in self.jointStates]]).T))
 
         """robotVirtualOrientation = pyb.getQuaternionFromEuler([0, 0, np.pi / 4])
         self.qmes12[3:7, 0] = robotVirtualOrientation"""
