@@ -39,25 +39,24 @@ class MPC_crocoddyl:
             self.mu = mu
         
         # Weights Vector : States
-        self.w_x = 0.1
-        self.w_y = 0.1
-        self.w_z = 1
-        self.w_roll = 0.11
-        self.w_pitch = 0.11
+        self.w_x = 0.2
+        self.w_y = 0.2
+        self.w_z = 2
+        self.w_roll = 0.4
+        self.w_pitch = 0.8
         self.w_yaw = 0.11
-        self.w_vx =  2*np.sqrt(self.w_x)
+        self.w_vx =  1*np.sqrt(self.w_x)
         self.w_vy =  2*np.sqrt(self.w_y)
-        self.w_vz =  2*np.sqrt(self.w_z)
+        self.w_vz =  1*np.sqrt(self.w_z)
         self.w_vroll =  0.05*np.sqrt(self.w_roll)
         self.w_vpitch =  0.05*np.sqrt(self.w_pitch)
-        self.w_vyaw =  0.05*np.sqrt(self.w_yaw)
+        self.w_vyaw =  0.03*np.sqrt(self.w_yaw)
         self.stateWeight = np.array([self.w_x,self.w_y,self.w_z,self.w_roll,self.w_pitch,self.w_yaw,
                                     self.w_vx,self.w_vy,self.w_vz,self.w_vroll,self.w_vpitch,self.w_vyaw])
 
 
-
         # Weight Vector : Force Norm
-        self.forceWeights = np.full(12,0.00001)
+        self.forceWeights = np.array(4*[0.01,0.01,0.01])
 
         # Weight Vector : Friction cone cost
         self.frictionWeights = 0.5
@@ -150,7 +149,7 @@ class MPC_crocoddyl:
         self.gait[:self.index, 1:] = 1.0 - (np.isnan(self.fsteps[:self.index, 1::3]) | (self.fsteps[:self.index, 1::3] == 0.0))
         # Replace NaN values by zeroes
         self.fsteps[np.isnan(self.fsteps)] = 0.0      
-
+      
         j = 0
         k_cum = 0
         L = []
@@ -159,15 +158,14 @@ class MPC_crocoddyl:
         # The first column of xref correspond to the current state 
         while (self.gait[j, 0] != 0):
             for i in range(k_cum, k_cum+np.int(self.gait[j, 0])):
-
                 # Update model   
                 self.ListAction[i].updateModel(np.reshape(self.fsteps[j, 1:], (3, 4), order='F') , xref[:, i+1]  , self.gait[j, 1:])
+                
 
                 
             k_cum += np.int(self.gait[j, 0])
             j += 1
 
-        
         # Update model of the terminal model
         self.terminalModel.updateModel(np.reshape(self.fsteps[j-1, 1:], (3, 4), order='F') , xref[:,-1] , self.gait[j-1, 1:])  
 
@@ -193,7 +191,7 @@ class MPC_crocoddyl:
         if self.warm_start and k != 0:            
   
             self.u_init = self.ddp.us[1:] 
-            self.u_init.append(np.repeat(self.gait[self.index-1,1:],3)*np.array([5.,0.5,0.5,5.,0.5,0.5,5.,0.5,0.5,5.,0.5,0.5]))
+            self.u_init.append(np.repeat(self.gait[self.index-1,1:],3)*np.array(4*[0.5,0.5,5.]))
        
 
             self.x_init = self.ddp.xs[2:]
@@ -224,6 +222,39 @@ class MPC_crocoddyl:
         """
 
         return np.array(self.ddp.us)[:,:].transpose()[:,:]
+    
+    def updateActionModel(self) : 
+        """Update the quadruped model with the new weights or model parameters. Useful to try new weights without modify this class
+        """
+
+        for elt in self.ListAction:
+            elt.dt = self.dt 
+            elt.mass = self.mass      
+            elt.gI = self.gI 
+            elt.mu = self.mu
+            elt.min_fz = self.min_fz
+
+            # Weights vectors
+            elt.stateWeights = self.stateWeight
+            elt.forceWeights = self.forceWeights
+            elt.frictionWeights = self.frictionWeights     
+        
+        # Model parameters of terminal node    
+        self.terminalModel.dt = self.dt 
+        self.terminalModel.mass = self.mass      
+        self.terminalModel.gI = self.gI 
+        self.terminalModel.mu = self.mu
+        self.terminalModel.min_fz = self.min_fz
+       
+        # Weights vectors of terminal node
+        self.terminalModel.stateWeights = self.stateWeight
+        self.terminalModel.forceWeights = np.zeros(12)
+        self.terminalModel.frictionWeights = 0.
+
+
+
+        return 0
+
 
     
 
