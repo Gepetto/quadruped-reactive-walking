@@ -39,11 +39,11 @@ class MPC_crocoddyl:
             self.mu = mu
         
         # Weights Vector : States
-        self.w_x = 0.2
-        self.w_y = 0.2
+        self.w_x = 0.4
+        self.w_y = 0.4
         self.w_z = 2
-        self.w_roll = 0.4
-        self.w_pitch = 0.8
+        self.w_roll = 0.9
+        self.w_pitch = 1.
         self.w_yaw = 0.11
         self.w_vx =  1*np.sqrt(self.w_x)
         self.w_vy =  2*np.sqrt(self.w_y)
