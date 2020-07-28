@@ -13,9 +13,10 @@ class MPC_crocoddyl:
         T_mpc (float): Duration of the prediction horizon
         mu (float): Friction coefficient
         inner(bool): Inside or outside approximation of the friction cone
+        linearModel(bool) : Approximation in the cross product by using desired state
     """
 
-    def __init__(self, dt = 0.02 , T_mpc = 0.32 ,  mu = 1, inner = True ):    
+    def __init__(self, dt = 0.02 , T_mpc = 0.32 ,  mu = 1, inner = True , linearModel = True):    
 
         # Time step of the solver
         self.dt = dt
@@ -84,7 +85,10 @@ class MPC_crocoddyl:
         # The same model cannot be used [model]*(T_mpc/dt) because the dynamic
         # model changes for each nodes.      
         for i in range(int(self.T_mpc/self.dt )):
-            model = quadruped_walkgen.ActionModelQuadruped()   
+            if linearModel :
+                model = quadruped_walkgen.ActionModelQuadruped()   
+            else : 
+                model = quadruped_walkgen.ActionModelQuadrupedNonLinear()   
 
             # Model parameters    
             model.dt = self.dt 
@@ -103,7 +107,10 @@ class MPC_crocoddyl:
 
 
         # Terminal Node
-        self.terminalModel = quadruped_walkgen.ActionModelQuadruped() 
+        if linearModel :
+            self.terminalModel = quadruped_walkgen.ActionModelQuadruped()   
+        else : 
+            self.terminalModel = quadruped_walkgen.ActionModelQuadrupedNonLinear() 
 
         # Model parameters of terminal node    
         self.terminalModel.dt = self.dt 
