@@ -32,7 +32,7 @@ class FootstepPlanner:
         self.g = 9.81
 
         # Value of the maximum allowed deviation due to leg length
-        self.L = 0.12
+        self.L = 0.155
 
         # The desired (x,y) position of footsteps
         # If a foot is in swing phase it is where it should land

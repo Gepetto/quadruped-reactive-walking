@@ -8,7 +8,7 @@ class Joystick:
     """Joystick-like controller that outputs the reference velocity in local frame
     """
 
-    def __init__(self, k_mpc , multi_simu = False):
+    def __init__(self, k_mpc, multi_simu=False):
 
         # Number of TSID steps for 1 step of the MPC
         self.k_mpc = k_mpc
@@ -26,8 +26,8 @@ class Joystick:
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 0.2
-        self.VyScale = 0.5
+        self.VxScale = 0.3
+        self.VyScale = 0.4
         self.vYawScale = 0.8
 
         self.Vx_ref = 0.3
@@ -45,9 +45,9 @@ class Joystick:
         """
 
         if predefined:
-            if self.multi_simu : 
-                self.update_v_ref_multi_simu(k_loop)          
-            else : 
+            if self.multi_simu:
+                self.update_v_ref_multi_simu(k_loop)
+            else:
                 self.update_v_ref_predefined(k_loop, velID)
         else:
             self.update_v_ref_gamepad(k_loop)
@@ -99,9 +99,7 @@ class Joystick:
 
         if velID == 0:
             alpha = np.max([np.min([(k_loop-self.k_mpc*16*3)/3000, 1.0]), 0.0])
-            # self.v_ref = np.array([[0.3*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-            # self.v_ref = np.array([[0.3*alpha,0.0, 0.0, 0.0, 0.0, 0.0]]).T
-            self.v_ref = np.array([[0.41*alpha,0.0, 0.0, 0.0, 0.0,-1.23*alpha]]).T
+            self.v_ref = np.array([[0.9*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         # Video Demo 16/06/2020
         """V_max = 0.3
@@ -265,17 +263,16 @@ class Joystick:
         """if k_loop == self.k_mpc*16*3:
             self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
-        beta_x = int(max( abs(self.Vx_ref)*10000 , 100.0 ))
+        beta_x = int(max(abs(self.Vx_ref)*10000, 100.0))
         alpha_x = np.max([np.min([(k_loop-self.k_mpc*16*3)/beta_x, 1.0]), 0.0])
 
-        beta_y = int(max( abs(self.Vy_ref)*10000 , 100.0 ))
+        beta_y = int(max(abs(self.Vy_ref)*10000, 100.0))
         alpha_y = np.max([np.min([(k_loop-self.k_mpc*16*3)/beta_y, 1.0]), 0.0])
 
-        beta_w = int(max( abs(self.Vw_ref)*2500 , 100.0 ))
+        beta_w = int(max(abs(self.Vw_ref)*2500, 100.0))
         alpha_w = np.max([np.min([(k_loop-self.k_mpc*16*3)/beta_w, 1.0]), 0.0])
 
         # self.v_ref = np.array([[0.3*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-        self.v_ref = np.array([[self.Vx_ref*alpha_x,self.Vy_ref*alpha_y, 0.0, 0.0, 0.0, self.Vw_ref*alpha_w]]).T
-        
-        return 0 
+        self.v_ref = np.array([[self.Vx_ref*alpha_x, self.Vy_ref*alpha_y, 0.0, 0.0, 0.0, self.Vw_ref*alpha_w]]).T
 
+        return 0

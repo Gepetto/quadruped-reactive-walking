@@ -3,6 +3,7 @@
 import numpy as np
 import pybullet as pyb
 import pinocchio as pin
+import math
 import os
 from matplotlib import pyplot as plt
 from utils import getQuaternion
@@ -111,6 +112,19 @@ def test(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, p
     # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
     if (k % k_mpc) == 0:
         joystick.update_v_ref(k, velID, predefined=True)
+
+        # Legs have a limited length so the reference velocity has to be limited
+        v_max = (4 / tsid_controller.T_gait) * 0.155
+        # math.sqrt(0.3**2 - pyb_sim.qmes12[2, 0]**2)  # (length leg - 2 cm)** 2 - h_base ** 2
+        (joystick.v_ref[0:2])[joystick.v_ref[0:2] > v_max] = v_max
+        (joystick.v_ref[0:2])[joystick.v_ref[0:2] < -v_max] = -v_max
+
+    """if (k % 500) == 0:
+        print(joystick.v_ref[0, 0], joystick.v_ref[1, 0], joystick.v_ref[5, 0])
+        print(pyb_sim.vmes12[0, 0], pyb_sim.vmes12[1, 0], pyb_sim.vmes12[5, 0])
+        print("###")"""
+    """if (k % 100) == 0:
+        print(pyb_sim.vmes12[0, 0])"""
 
     return 0
 
