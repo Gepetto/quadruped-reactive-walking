@@ -109,7 +109,7 @@ class controller:
         self.k_mpc = k_mpc
 
         # For update_feet_tasks function
-        self.dt = 0.0010  #  [s], time step
+        self.dt = 0.0020  #  [s], time step
         self.t1 = T_gait * 0.5 - 0.02  # [s], duration of swing phase
 
         # Rotation matrix
@@ -177,6 +177,22 @@ class controller:
 
         # Store a frame object to avoid creating one each time
         self.pos_foot = self.robot.framePosition(self.invdyn.data(), self.ID_feet[0])
+
+        #####################
+        # JOINT BOUNDS TASK #
+        #####################
+
+        """w_joint_bounds = 10
+
+        jointBoundsTask = tsid.TaskJointPosVelAccBounds("task-joint-bounds", self.robot, self.dt)
+        jointBoundsTask.mask(np.array([0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0]))
+        margin = 0.02
+        jointBoundsTask.setPositionBounds(np.array([0.0, 0.0, -3.1415+margin, 0.0, 0.0, -3.1415+margin,
+                                                    0.0, 0.0, margin, 0.0, 0.0, margin]),
+                                          np.array([0.0, 0.0, -margin, 0.0, 0.0, -margin,
+                                                    0.0, 0.0, 3.1415-margin, 0.0, 0.0, 3.1415-margin]))
+        if(w_joint_bounds > 0.0):
+            self.invdyn.addMotionTask(jointBoundsTask, w_joint_bounds, 0, 0.0)"""
 
         #####################
         # LEGS POSTURE TASK #
@@ -338,9 +354,9 @@ class controller:
             # z0 += self.pos_contact[i_foot][0, 2]
 
             # Store desired position, velocity and acceleration for later call to this function
-            self.goals[:, i_foot] = np.array([x0, y0, z0])
+            """self.goals[:, i_foot] = np.array([x0, y0, z0])
             self.vgoals[:, i_foot] = np.array([dx0, dy0, dz0])
-            self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])
+            self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])"""
 
             # Update desired pos, vel, acc
             self.sampleFeet[i_foot].pos(np.array([x0, y0, z0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]))
@@ -350,13 +366,13 @@ class controller:
             # Set reference
             self.feetTask[i_foot].setReference(self.sampleFeet[i_foot])
 
-            # Update footgoal for display purpose
+            """# Update footgoal for display purpose
             self.feetGoal[i_foot].translation = np.array([x0, y0, z0])
 
             # Display the goal position of the feet as green sphere in PyBullet
             pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
                                                 posObj=np.array([gx1, gy1, 0.0]),
-                                                ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
+                                                ornObj=np.array([0.0, 0.0, 0.0, 1.0]))"""
 
         return 0
 
@@ -611,6 +627,12 @@ class controller:
     def run_PDplus(self):
 
         # Check for NaN value in the output torques (means error during solving process)
+        """if np.any(np.isnan(self.tau_ff)):
+            self.tau_ff[np.isnan(self.tau_ff)] = 0.0"""
+
+        if np.max(self.vtsid) > 100:
+            debug = 1
+
         if np.any(np.isnan(self.tau_ff)):
             self.error = True
             # raise ValueError('NaN value in feedforward torque')
@@ -782,4 +804,4 @@ class controller:
 # Parameters for the controller
 
 
-dt = 0.0010		# controller time step
+dt = 0.0020		# controller time step
