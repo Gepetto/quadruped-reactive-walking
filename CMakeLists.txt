@@ -27,6 +27,7 @@ project(${PROJECT_NAME} ${PROJECT_ARGS})
 
 # Project dependencies
 set(BOOST_COMPONENTS unit_test_framework)
+ADD_PROJECT_DEPENDENCY(Eigen3 REQUIRED)
 
 if(BUILD_PYTHON_INTERFACE)
   FINDPYTHON()
@@ -40,14 +41,26 @@ SEARCH_FOR_BOOST()
 # Main Library
 set(${PROJECT_NAME}_HEADERS
   include/${PROJECT_NAME}/gepadd.hpp
+  include/${PROJECT_NAME}/MPC.hpp
+  include/osqp_folder/include/osqp.h
+  include/osqp_folder/include/cs.h
   )
 
 set(${PROJECT_NAME}_SOURCES
   src/gepadd.cpp
+  src/MPC.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
 target_include_directories(${PROJECT_NAME} PUBLIC $<INSTALL_INTERFACE:include>)
+
+TARGET_INCLUDE_DIRECTORIES(${PROJECT_NAME} SYSTEM PRIVATE ${EIGEN3_INCLUDE_DIR})
+TARGET_INCLUDE_DIRECTORIES(${PROJECT_NAME} SYSTEM INTERFACE ${EIGEN3_INCLUDE_DIR})
+
+# Find OSQP library and headers
+# find_package(osqp REQUIRED)
+# Link the OSQP shared library
+target_link_libraries(${PROJECT_NAME} PUBLIC /home/palex/Documents/Test_Cpp/example-adder/include/osqp_folder/lib/libosqp.so)
 
 if(SUFFIX_SO_VERSION)
   set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION ${PROJECT_VERSION})
