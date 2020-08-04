@@ -14,9 +14,9 @@ int main(int argc, char** argv) {
     MPC test(0.001f, 2, 0.32f);
     test.create_matrices();
     std::cout << test.gethref() << std::endl;
-    std::cout << test.getA() << std::endl;
+    /*std::cout << test.getA() << std::endl;
     std::cout << test.getML() << std::endl;
-    /*std::cout << test.getDay() << std::endl;
+    std::cout << test.getDay() << std::endl;
     std::cout << test.getMonth() << std::endl;
     std::cout << test.getYear() << std::endl;*/
 
