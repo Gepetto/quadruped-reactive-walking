@@ -67,6 +67,7 @@ private:
     Eigen::Matrix<float, Eigen::Dynamic, 1> NK_up;
     Eigen::Matrix<float, Eigen::Dynamic, 1> NK_low;
     Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> D;
+    Eigen::Matrix<int, Eigen::Dynamic, 1> i_off;
 
 public:
 
@@ -76,6 +77,9 @@ public:
     int create_ML();
     int create_NK();
     int create_weight_matrices();
+    int update_matrices(Eigen::Matrix<float, 20, 13> fsteps);
+    int update_ML(Eigen::Matrix<float, 20, 13> fsteps);
+    int update_NK();
 
     int construct_S();
     Eigen::Matrix<float, 3, 3> getSkew(Eigen::Matrix<float, 3, 1> v);

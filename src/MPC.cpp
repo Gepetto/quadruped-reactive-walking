@@ -215,7 +215,7 @@ int MPC::create_ML()
         i_tmp2.block(3*k, 0, 3, 1) = i_tmp1;
     }
 
-    Eigen::Matrix<int, Eigen::Dynamic, 1> i_off = Eigen::Matrix<int, Eigen::Dynamic, 1>::Zero(12*n_steps,1);
+    i_off = Eigen::Matrix<int, Eigen::Dynamic, 1>::Zero(12*n_steps,1);
     for (int k=1; k<12*n_steps; k++)
     {
         i_off(k, 0) = i_off(k-1, 0) + i_tmp2(k-1, 0);
@@ -327,6 +327,114 @@ int MPC::create_weight_matrices()
     P = csc_matrix(12*n_steps*2, 12*n_steps*2, size_nz_P, v_P, r_P, c_P);
 
     // Q is already created filled with zeros
+
+    return 0;
+}
+
+/*
+Update the M, N, L and K constraint matrices depending on what happened
+*/
+int MPC::update_matrices(Eigen::Matrix<float, 20, 13> fsteps)
+{
+
+    /* M need to be updated between each iteration:
+     - lever_arms changes since the robot moves
+     - I_inv changes if the reference velocity vector is modified
+     - footholds need to be enabled/disabled depending on the contact sequence */
+    update_ML(fsteps);
+
+    /* N need to be updated between each iteration:
+     - X0 changes since the robot moves
+     - Xk* changes since X0 is not the same */
+    update_NK();
+
+    // L matrix is constant
+    // K matrix is constant
+
+    return 0;
+}
+
+/*
+Update the M and L constaint matrices depending on the current state of the gait
+
+*/
+int MPC::update_ML(Eigen::Matrix<float, 20, 13> fsteps)
+{
+
+    int j = 0;
+    int k_cum = 0;
+    // Iterate over all phases of the gait
+    while (gait(j, 0) != 0)
+    {
+        for (int k=k_cum; k<(k_cum+gait(j, 0)); k++)
+        {
+            // Get inverse of the inertia matrix for time step k
+            float c = cos(xref(5, k));
+            float s = sin(xref(5, k));
+            Eigen::Matrix<float, 3, 3> R;
+            R << c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0;
+            Eigen::Matrix<float, 3, 3> R_gI = R * gI;
+            Eigen::Matrix<float, 3, 3> I_inv = R_gI.inverse(); 
+
+            // Get skew-symetric matrix for each foothold
+            Eigen::Map<Eigen::MatrixXf> fsteps_tmp((fsteps.block(j, 1, 1, 12)).data(), 3, 4);
+            lever_arms = fsteps_tmp - (xref.block(0, k, 3, 1)).replicate<1,4>();
+            for (int i=0; i<4; i++)
+            {
+                B.block(9, 3*i, 3, 3) = dt * (I_inv * getSkew(lever_arms.col(i)));
+            }
+
+            // Replace the coefficient directly in ML.data
+            int i_iter = 24 * 4 * k;
+            for (int i=0; i<12*4; i++)
+            {
+                ML->x[i_update_B[i] + i_iter] = B(i_x_B[i], i_y_B[i]);
+            }
+        }
+
+        k_cum += gait(j, 0);
+        j++;
+    }
+
+    // Construct the activation/desactivation matrix based on the current gait
+    construct_S();
+
+    // Update lines to enable/disable forces
+    int i_start = 30*n_steps-18;
+    for (int k=1; k<12*n_steps; k++)
+    {
+        ML->x[i_off(k, 0)+ i_start] = S_gait(k, 0);
+    }
+
+    return 0;
+}
+
+/*
+Update the N and K matrices involved in the MPC constraint equations M.X = N and L.X <= K
+*/
+int MPC::update_NK()
+{
+    // Matrix g is already created and not changed
+    // Fill N matrix with g matrices
+    for (int k=0; k<n_steps; k++)
+    {
+        NK_up(12*k+8, 0) = - g(8, 0); // only 8-th coeff is non zero
+    }
+
+    // Including - A*X0 in the first row of N
+    NK_up.block(0, 0, 12, 1) += A * (-x0);
+
+    // Matrix D is already created and not changed
+    // Add third term to matrix N
+    Eigen::Map<Eigen::MatrixXf> xref_col((xref.block(0, 1, 12, n_steps)).data(), 12*n_steps, 1);
+    NK_up.block(0, 0, 12*n_steps, 1) += D * xref_col;
+    
+    // Update upper bound c_float array (unrequired since Map is just pointers?)
+    Eigen::Matrix<float, Eigen::Dynamic, 1>::Map(&v_NK_up[0], NK_up.size()) = NK_up;
+
+    // Update lower bound c_float array
+    NK_low.block(0, 0, 12*n_steps*2, 1) = NK_up.block(0, 0, 12*n_steps*2, 1);
+    Eigen::Matrix<float, Eigen::Dynamic, 1>::Map(&v_NK_low[0], NK_low.size()) = NK_low;
 
     return 0;
 }
