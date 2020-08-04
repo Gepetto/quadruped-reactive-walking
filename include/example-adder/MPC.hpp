@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <limits>
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include "osqp_folder/include/osqp.h"
@@ -12,7 +13,7 @@ class MPC
 {
 private:
     float dt, mass, mu, T_gait, h_ref;
-    int n_steps, cpt;
+    int n_steps, cpt_ML, cpt_NK;
 
     Eigen::Matrix<float, 3, 3> gI;
     Eigen::Matrix<float, 6, 1> q;
@@ -20,9 +21,11 @@ private:
     Eigen::Matrix<float, 3, 4> footholds = Eigen::Matrix<float, 3, 4>::Zero();
     Eigen::Matrix<float, 3, 4> lever_arms = Eigen::Matrix<float, 3, 4>::Zero();
     Eigen::Matrix<int, 20, 5> gait = Eigen::Matrix<int, 20, 5>::Zero();
+    Eigen::Matrix<float, 12, 1> g = Eigen::Matrix<float, 12, 1>::Zero();
 
     Eigen::Matrix<float, 12, 12> A = Eigen::Matrix<float, 12, 12>::Zero();
     Eigen::Matrix<float, 12, 12> B = Eigen::Matrix<float, 12, 12>::Zero();
+    Eigen::Matrix<float, 12, 1> x0 = Eigen::Matrix<float, 12, 1>::Zero();
 
     // Matrix ML
     const static int size_nz_ML = 5000;
@@ -31,6 +34,7 @@ private:
     c_float v_ML [size_nz_ML] = {};  // non-zero values in matrix ML
     csc* ML; // Compressed Sparse Column matrix
     inline void add_to_ML(int i, int j, float v); // function to fill the triplet r/c/v
+    inline void add_to_NK(float v);
 
     // Indices that are used to udpate ML
     int i_x_B [12*4] = {};
@@ -39,7 +43,7 @@ private:
     // TODO FOR S ????
 
     // Matrix NK
-    const static int size_nz_NK = 1000;
+    const static int size_nz_NK = 5000;
     c_float v_NK [size_nz_NK] = {};  // maxtrix NK
 
     // Matrices whose size depends on the arguments sent to the constructor function
@@ -47,6 +51,9 @@ private:
     Eigen::Matrix<float, 12, Eigen::Dynamic> x;
     Eigen::Matrix<int, Eigen::Dynamic, 1> S_gait;
     Eigen::Matrix<float, Eigen::Dynamic, 1> warmxf;
+    Eigen::Matrix<float, Eigen::Dynamic, 1> NK_up;
+    Eigen::Matrix<float, Eigen::Dynamic, 1> NK_low;
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> D;
 
 public:
 

@@ -27,6 +27,15 @@ int main(int argc, char** argv) {
     m(1,1) = m(1,0) + m(0,1);
     std::cout << m << std::endl;
 
+    Eigen::MatrixXf M1(3,6);    // Column-major storage
+    M1 << 1, 2, 3,  4,  5,  6,
+          7, 8, 9, 10, 11, 12,
+          13, 14, 15, 16, 17, 18;
+    
+    Eigen::Map<Eigen::MatrixXf> M2(M1.data(), M1.size(), 1);
+    std::cout << "M2:" << std::endl << M2 << std::endl;
+
+
     return EXIT_SUCCESS;
   } else {
     std::cerr << "This program needs 2 integers" << std::endl;

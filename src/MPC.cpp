@@ -2,6 +2,7 @@
 
 MPC::MPC(float dt_in, int n_steps_in, float T_gait_in)
 {
+    std::cout << "START INIT" << std::endl;
     dt = dt_in;
     n_steps = n_steps_in;
     T_gait = T_gait_in;
@@ -14,7 +15,8 @@ MPC::MPC(float dt_in, int n_steps_in, float T_gait_in)
     // Predefined variables
     mass = 2.50000279f;
     mu = 0.9f;
-    cpt = 0;
+    cpt_ML = 0;
+    cpt_NK = 0;
 
     // Predefined matrices
     gI << 3.09249e-2f, -8.00101e-7f, 1.865287e-5f,
@@ -22,6 +24,7 @@ MPC::MPC(float dt_in, int n_steps_in, float T_gait_in)
           1.865287e-5f, 1.245813e-4f, 6.939757e-2f;
     q << 0.0f, 0.0f, 0.2027682f, 0.0f, 0.0f, 0.0f;
     h_ref = q(2, 0);
+    g(8, 0) = -9.81f * dt;
 }
  
 /*
@@ -45,10 +48,19 @@ Add a new non-zero coefficient to the ML matrix by filling the triplet r_ML / c_
 */
 inline void MPC::add_to_ML(int i, int j, float v)
 {
-    r_ML[cpt] = i; // row index
-    c_ML[cpt] = j; // column index
-    v_ML[cpt] = v; // value of coefficient
-    cpt++; // increment the counter
+    r_ML[cpt_ML] = i; // row index
+    c_ML[cpt_ML] = j; // column index
+    v_ML[cpt_ML] = v; // value of coefficient
+    cpt_ML++; // increment the counter
+}
+
+/*
+Add a new non-zero coefficient to the NK matrix
+*/
+inline void MPC::add_to_NK(float v)
+{
+    v_NK[cpt_NK] = v; // value of coefficient
+    cpt_NK++; // increment the counter
 }
 
 /*
@@ -74,7 +86,7 @@ int MPC::create_ML()
         }
         for (int i=0; i<6; i++)
         {
-            add_to_ML((k+1)*12 + i, (k*12) + i + 6, 1.0);
+            add_to_ML((k+1)*12 + i, (k*12) + i + 6, dt);
         }
     }
 
@@ -87,20 +99,23 @@ int MPC::create_ML()
             add_to_ML(12*k + 6, 12*(n_steps+k) + 0+3*i, div_tmp);
             add_to_ML(12*k + 7, 12*(n_steps+k) + 1+3*i, div_tmp);
             add_to_ML(12*k + 8, 12*(n_steps+k) + 2+3*i, div_tmp);
-            B(12*k + 6, 12*(n_steps+k) + 0+3*i) = div_tmp;
-            B(12*k + 7, 12*(n_steps+k) + 1+3*i) = div_tmp;
-            B(12*k + 8, 12*(n_steps+k) + 2+3*i) = div_tmp;
         }
         for (int i=0; i<12; i++)
         {
             add_to_ML(12*k + 9,  12*(n_steps+k) + i, 8.0);
             add_to_ML(12*k + 10, 12*(n_steps+k) + i, 8.0);
             add_to_ML(12*k + 11, 12*(n_steps+k) + i, 8.0);
-            B(12*k + 9,  12*(n_steps+k) + i) = 8.0;
-            B(12*k + 10, 12*(n_steps+k) + i) = 8.0;
-            B(12*k + 11, 12*(n_steps+k) + i) = 8.0;
         }   
     }
+    for (int i=0; i<4; i++)
+    {
+        B(6, 0+3*i) = div_tmp;
+        B(7, 1+3*i) = div_tmp;
+        B(8, 2+3*i) = div_tmp;
+        B(9,  i) = 8.0;
+        B(10, i) = 8.0;
+        B(11, i) = 8.0;
+    }  
 
     // Add lines to enable/disable forces
     for (int i=12*n_steps; i<12*n_steps*2; i++)
@@ -132,7 +147,7 @@ int MPC::create_ML()
             }
         }
     }
-
+    
     // Creation of CSC matrix
     ML = csc_matrix(12*n_steps*2 + 20*n_steps, 12*n_steps*2, size_nz_ML, 
                          v_ML, r_ML, c_ML);
@@ -189,6 +204,7 @@ int MPC::create_ML()
 
     // Update lines to enable/disable forces
     construct_S();
+    
     Eigen::Matrix<int, 3, 1> i_tmp1;
     i_tmp1 << 3 + 4, 3 + 4, 6 + 4;
     Eigen::Matrix<int, Eigen::Dynamic, 1> i_tmp2 = Eigen::Matrix<int, Eigen::Dynamic, 1>::Zero(12*n_steps,1);//i_tmp1.replicate<4,1>();
@@ -196,11 +212,12 @@ int MPC::create_ML()
     {
         i_tmp2.block(3*k, 0, 3, 1) = i_tmp1;
     }
+
     Eigen::Matrix<int, Eigen::Dynamic, 1> i_off = Eigen::Matrix<int, Eigen::Dynamic, 1>::Zero(12*n_steps,1);
     for (int k=1; k<12*n_steps; k++)
     {
-        i_off(k, 1) = i_off(k-1, 1) + i_tmp2(k-1, 1);
-        ML->x[i_off(k, 1)+ i_start] = S_gait(k, 1);
+        i_off(k, 0) = i_off(k-1, 0) + i_tmp2(k-1, 0);
+        ML->x[i_off(k, 0)+ i_start] = S_gait(k, 0);
     }
 
     return 0;
@@ -211,6 +228,50 @@ Create the N and K matrices involved in the MPC constraint equations M.X = N and
 */       
 int MPC::create_NK()
 {
+    // Create NK matrix (upper and lower bounds)
+    NK_up = Eigen::Matrix<float, Eigen::Dynamic, 1>::Zero(12*n_steps*2 + 20*n_steps, 1);
+    NK_low = Eigen::Matrix<float, Eigen::Dynamic, 1>::Zero(12*n_steps*2 + 20*n_steps, 1);
+
+    // Fill N matrix with g matrices
+    for (int k=0; k<n_steps; k++)
+    {
+        NK_up(12*k+8, 0) = - g(8, 0); // only 8-th coeff is non zero
+    }
+    
+    // Including - A*X0 in the first row of N
+    NK_up.block(0, 0, 12, 1) += A * (-x0) ;
+
+    // Create matrix D (third term of N) and put identity matrices in it
+    D = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>::Identity(12*n_steps, 12*n_steps);
+
+    // Put -A matrices in D
+    for (int k=0; k<n_steps-1; k++)
+    {   
+        for (int i=0; i<12; i++)
+        {
+            D((k+1)*12 + i, (k*12) + i) = -1.0;
+        }
+        for (int i=0; i<6; i++)
+        {
+            D((k+1)*12 + i, (k*12) + i + 6) = -dt;
+        }
+    }
+
+    // Add third term to matrix N
+    Eigen::Map<Eigen::MatrixXf> xref_col((xref.block(0, 1, 12, n_steps)).data(), 12*n_steps, 1);
+    NK_up.block(0, 0, 12*n_steps, 1) += D * xref_col;
+
+    // Lines to enable/disable forces are already initialized (0 values)
+    // Matrix K is already initialized (0 values)
+    Eigen::Matrix<float, Eigen::Dynamic, 1> inf_lower_bount = -std::numeric_limits<float>::infinity() * Eigen::Matrix<float, Eigen::Dynamic, 1>::Ones(20*n_steps, 1);
+    for (int k=0; (4+5*k)<(20*n_steps); k++)
+    {
+        inf_lower_bount(4+5*k, 0) = - 25.0;
+    }
+
+    NK_low.block(0, 0, 12*n_steps*2, 1) = NK_up.block(0, 0, 12*n_steps*2, 1);
+    NK_low.block(12*n_steps*2, 0, 20*n_steps, 1) = inf_lower_bount;
+
     return 0;
 }
 
