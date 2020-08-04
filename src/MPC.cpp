@@ -16,7 +16,7 @@ MPC::MPC(float dt_in, int n_steps_in, float T_gait_in)
     mass = 2.50000279f;
     mu = 0.9f;
     cpt_ML = 0;
-    cpt_NK = 0;
+    cpt_P = 0;
 
     // Predefined matrices
     gI << 3.09249e-2f, -8.00101e-7f, 1.865287e-5f,
@@ -55,12 +55,14 @@ inline void MPC::add_to_ML(int i, int j, float v)
 }
 
 /*
-Add a new non-zero coefficient to the NK matrix
+Add a new non-zero coefficient to the P matrix by filling the triplet r_P / c_P / v_P
 */
-inline void MPC::add_to_NK(float v)
+inline void MPC::add_to_P(int i, int j, float v)
 {
-    v_NK[cpt_NK] = v; // value of coefficient
-    cpt_NK++; // increment the counter
+    r_P[cpt_P] = i; // row index
+    c_P[cpt_P] = j; // column index
+    v_P[cpt_P] = v; // value of coefficient
+    cpt_P++; // increment the counter
 }
 
 /*
@@ -272,6 +274,15 @@ int MPC::create_NK()
     NK_low.block(0, 0, 12*n_steps*2, 1) = NK_up.block(0, 0, 12*n_steps*2, 1);
     NK_low.block(12*n_steps*2, 0, 20*n_steps, 1) = inf_lower_bount;
 
+    // Convert to c_float arrays
+    /*std::vector<c_float> vec_up(NK_up.data(), NK_up.data() + NK_up.size());
+    std::copy(vec_up.begin(), vec_up.end(), v_NK_up);
+    std::vector<c_float> vec_low(NK_low.data(), NK_low.data() + NK_low.size());
+    std::copy(vec_low.begin(), vec_low.end(), v_NK_low);*/
+
+    Eigen::Matrix<float, Eigen::Dynamic, 1>::Map(&v_NK_up[0], NK_up.size()) = NK_up;
+    Eigen::Matrix<float, Eigen::Dynamic, 1>::Map(&v_NK_low[0], NK_low.size()) = NK_low;
+
     return 0;
 }
 
@@ -281,6 +292,41 @@ Create the weight matrices P and q in the cost function x^T.P.x + x^T.q of the Q
 */
 int MPC::create_weight_matrices()
 {
+    // Number of states
+    // int n_x = 12;
+
+    // Define weights for the x-x_ref components of the optimization vector   
+    // Hand-tuning of parameters if you want to give more weight to specific components
+    float w [12] = {0.5f, 0.5f, 2.0f, 0.11f, 0.11f, 0.11f};
+    w[6] = 2.0f*sqrt(w[0]);
+    w[7] = 2.0f*sqrt(w[1]);
+    w[8] = 2.0f*sqrt(w[2]);
+    w[9] = 0.05f*sqrt(w[3]);
+    w[10] = 0.05f*sqrt(w[4]);
+    w[11] = 0.05f*sqrt(w[5]);
+    for (int k=0; k<n_steps; k++)
+    {
+        for (int i=0; i<12; i++)
+        {
+             add_to_P(12*k + i, 12*k + i, w[i]);
+        } 
+    }
+    
+    // Define weights for the force components of the optimization vector
+    for (int k=n_steps; k<(2*n_steps); k++)
+    {
+        for (int i=0; i<12; i++)
+        {
+            add_to_P(12*k + 0, 12*k + 0, 1e-4f);
+            add_to_P(12*k + 1, 12*k + 1, 1e-4f);
+            add_to_P(12*k + 2, 12*k + 2, 1e-4f);
+        } 
+    }
+
+    // Creation of CSC matrix
+    P = csc_matrix(12*n_steps*2, 12*n_steps*2, size_nz_P, v_P, r_P, c_P);
+
+    // Q is already created filled with zeros
 
     return 0;
 }

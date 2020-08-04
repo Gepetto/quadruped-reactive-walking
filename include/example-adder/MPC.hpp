@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cmath>
 #include <limits>
+#include <vector>
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include "osqp_folder/include/osqp.h"
@@ -13,7 +14,7 @@ class MPC
 {
 private:
     float dt, mass, mu, T_gait, h_ref;
-    int n_steps, cpt_ML, cpt_NK;
+    int n_steps, cpt_ML, cpt_P;
 
     Eigen::Matrix<float, 3, 3> gI;
     Eigen::Matrix<float, 6, 1> q;
@@ -34,7 +35,7 @@ private:
     c_float v_ML [size_nz_ML] = {};  // non-zero values in matrix ML
     csc* ML; // Compressed Sparse Column matrix
     inline void add_to_ML(int i, int j, float v); // function to fill the triplet r/c/v
-    inline void add_to_NK(float v);
+    inline void add_to_P(int i, int j, float v); // function to fill the triplet r/c/v
 
     // Indices that are used to udpate ML
     int i_x_B [12*4] = {};
@@ -44,7 +45,19 @@ private:
 
     // Matrix NK
     const static int size_nz_NK = 5000;
-    c_float v_NK [size_nz_NK] = {};  // maxtrix NK
+    float v_NK_up [size_nz_NK] = {};  // maxtrix NK (upper bound)
+    float v_NK_low [size_nz_NK] = {};  // maxtrix NK (lower bound)
+
+    // Matrix P
+    const static int size_nz_P = 5000;
+    c_int r_P [size_nz_P] = {}; // row indexes of non-zero values in matrix ML
+    c_int c_P [size_nz_P] = {}; // col indexes of non-zero values in matrix ML
+    c_float v_P [size_nz_P] = {};  // non-zero values in matrix ML
+    csc* P; // Compressed Sparse Column matrix
+
+    // Matrix Q
+    const static int size_nz_Q = 5000;
+    float Q [size_nz_Q] = {};  // Q is full of zeros
 
     // Matrices whose size depends on the arguments sent to the constructor function
     Eigen::Matrix<float, 12, Eigen::Dynamic> xref;
