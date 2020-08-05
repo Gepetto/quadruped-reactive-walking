@@ -1,16 +1,16 @@
 #include "example-adder/MPC.hpp"
 
-MPC::MPC(float dt_in, int n_steps_in, float T_gait_in)
+MPC::MPC(double dt_in, int n_steps_in, double T_gait_in)
 {
     std::cout << "START INIT" << std::endl;
     dt = dt_in;
     n_steps = n_steps_in;
     T_gait = T_gait_in;
 
-    xref = Eigen::Matrix<float, 12, Eigen::Dynamic>::Zero(12, 1+n_steps);
-    x = Eigen::Matrix<float, 12, Eigen::Dynamic>::Zero(12, 1+n_steps);
+    xref = Eigen::Matrix<double, 12, Eigen::Dynamic>::Zero(12, 1+n_steps);
+    x = Eigen::Matrix<double, 12, Eigen::Dynamic>::Zero(12, 1+n_steps);
     S_gait = Eigen::Matrix<int, Eigen::Dynamic, 1>::Zero(12*n_steps, 1);
-    warmxf = Eigen::Matrix<float, Eigen::Dynamic, 1>::Zero(12*n_steps*2, 1);
+    warmxf = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12*n_steps*2, 1);
 
     // Predefined variables
     mass = 2.50000279f;
@@ -46,7 +46,7 @@ int MPC::create_matrices()
 /*
 Add a new non-zero coefficient to the ML matrix by filling the triplet r_ML / c_ML / v_ML
 */
-inline void MPC::add_to_ML(int i, int j, float v)
+inline void MPC::add_to_ML(int i, int j, double v)
 {
     r_ML[cpt_ML] = i; // row index
     c_ML[cpt_ML] = j; // column index
@@ -57,7 +57,7 @@ inline void MPC::add_to_ML(int i, int j, float v)
 /*
 Add a new non-zero coefficient to the P matrix by filling the triplet r_P / c_P / v_P
 */
-inline void MPC::add_to_P(int i, int j, float v)
+inline void MPC::add_to_P(int i, int j, double v)
 {
     r_P[cpt_P] = i; // row index
     c_P[cpt_P] = j; // column index
@@ -93,7 +93,7 @@ int MPC::create_ML()
     }
 
     // Put B matrices in M
-    float div_tmp = dt / mass;
+    double div_tmp = dt / mass;
     for (int k=0; k<n_steps; k++)
     {   
         for (int i=0; i<4; i++)
@@ -141,7 +141,7 @@ int MPC::create_ML()
             int dy = 3*i;
             int a [9] = {0, 1, 2, 3, 0, 1, 2, 3, 4};
             int b [9] = {0, 0, 1, 1, 2, 2, 2, 2, 2};
-            float c [9] = {1.0, -1.0, 1.0, -1.0, -mu, -mu, -mu, -mu, -1};
+            double c [9] = {1.0, -1.0, 1.0, -1.0, -mu, -mu, -mu, -mu, -1};
             // Matrix C with top left corner at (dx, dy) in F
             for (int j=0; j<9; j++)
             {
@@ -182,15 +182,15 @@ int MPC::create_ML()
     for (int k=0; k<n_steps; k++)
     { 
         // Get inverse of the inertia matrix for time step k
-        float c = cos(xref(5, k));
-        float s = sin(xref(5, k));
-        Eigen::Matrix<float, 3, 3> R;
+        double c = cos(xref(5, k));
+        double s = sin(xref(5, k));
+        Eigen::Matrix<double, 3, 3> R;
         R << c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0;
-        Eigen::Matrix<float, 3, 3> R_gI = R * gI;
-        Eigen::Matrix<float, 3, 3> I_inv = R_gI.inverse(); 
+        Eigen::Matrix<double, 3, 3> R_gI = R * gI;
+        Eigen::Matrix<double, 3, 3> I_inv = R_gI.inverse(); 
 
         // Get skew-symetric matrix for each foothold
-        Eigen::Matrix<float, 3, 4> l_arms = footholds - (xref.block(0, k, 3, 1)).replicate<1,4>();
+        Eigen::Matrix<double, 3, 4> l_arms = footholds - (xref.block(0, k, 3, 1)).replicate<1,4>();
         for (int i=0; i<4; i++)
         {
             B.block(9, 3*i, 3, 3) = dt * (I_inv * getSkew(l_arms.col(i)));
@@ -231,8 +231,8 @@ Create the N and K matrices involved in the MPC constraint equations M.X = N and
 int MPC::create_NK()
 {
     // Create NK matrix (upper and lower bounds)
-    NK_up = Eigen::Matrix<float, Eigen::Dynamic, 1>::Zero(12*n_steps*2 + 20*n_steps, 1);
-    NK_low = Eigen::Matrix<float, Eigen::Dynamic, 1>::Zero(12*n_steps*2 + 20*n_steps, 1);
+    NK_up = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12*n_steps*2 + 20*n_steps, 1);
+    NK_low = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12*n_steps*2 + 20*n_steps, 1);
 
     // Fill N matrix with g matrices
     for (int k=0; k<n_steps; k++)
@@ -244,7 +244,7 @@ int MPC::create_NK()
     NK_up.block(0, 0, 12, 1) += A * (-x0) ;
 
     // Create matrix D (third term of N) and put identity matrices in it
-    D = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>::Identity(12*n_steps, 12*n_steps);
+    D = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>::Identity(12*n_steps, 12*n_steps);
 
     // Put -A matrices in D
     for (int k=0; k<n_steps-1; k++)
@@ -260,12 +260,12 @@ int MPC::create_NK()
     }
 
     // Add third term to matrix N
-    Eigen::Map<Eigen::MatrixXf> xref_col((xref.block(0, 1, 12, n_steps)).data(), 12*n_steps, 1);
+    Eigen::Map<Eigen::MatrixXd> xref_col((xref.block(0, 1, 12, n_steps)).data(), 12*n_steps, 1);
     NK_up.block(0, 0, 12*n_steps, 1) += D * xref_col;
 
     // Lines to enable/disable forces are already initialized (0 values)
     // Matrix K is already initialized (0 values)
-    Eigen::Matrix<float, Eigen::Dynamic, 1> inf_lower_bount = -std::numeric_limits<float>::infinity() * Eigen::Matrix<float, Eigen::Dynamic, 1>::Ones(20*n_steps, 1);
+    Eigen::Matrix<double, Eigen::Dynamic, 1> inf_lower_bount = -std::numeric_limits<double>::infinity() * Eigen::Matrix<double, Eigen::Dynamic, 1>::Ones(20*n_steps, 1);
     for (int k=0; (4+5*k)<(20*n_steps); k++)
     {
         inf_lower_bount(4+5*k, 0) = - 25.0;
@@ -274,14 +274,14 @@ int MPC::create_NK()
     NK_low.block(0, 0, 12*n_steps*2, 1) = NK_up.block(0, 0, 12*n_steps*2, 1);
     NK_low.block(12*n_steps*2, 0, 20*n_steps, 1) = inf_lower_bount;
 
-    // Convert to c_float arrays
-    /*std::vector<c_float> vec_up(NK_up.data(), NK_up.data() + NK_up.size());
+    // Convert to c_double arrays
+    /*std::vector<c_double> vec_up(NK_up.data(), NK_up.data() + NK_up.size());
     std::copy(vec_up.begin(), vec_up.end(), v_NK_up);
-    std::vector<c_float> vec_low(NK_low.data(), NK_low.data() + NK_low.size());
+    std::vector<c_double> vec_low(NK_low.data(), NK_low.data() + NK_low.size());
     std::copy(vec_low.begin(), vec_low.end(), v_NK_low);*/
 
-    Eigen::Matrix<float, Eigen::Dynamic, 1>::Map(&v_NK_up[0], NK_up.size()) = NK_up;
-    Eigen::Matrix<float, Eigen::Dynamic, 1>::Map(&v_NK_low[0], NK_low.size()) = NK_low;
+    Eigen::Matrix<double, Eigen::Dynamic, 1>::Map(&v_NK_up[0], NK_up.size()) = NK_up;
+    Eigen::Matrix<double, Eigen::Dynamic, 1>::Map(&v_NK_low[0], NK_low.size()) = NK_low;
 
     return 0;
 }
@@ -297,7 +297,7 @@ int MPC::create_weight_matrices()
 
     // Define weights for the x-x_ref components of the optimization vector   
     // Hand-tuning of parameters if you want to give more weight to specific components
-    float w [12] = {0.5f, 0.5f, 2.0f, 0.11f, 0.11f, 0.11f};
+    double w [12] = {0.5f, 0.5f, 2.0f, 0.11f, 0.11f, 0.11f};
     w[6] = 2.0f*sqrt(w[0]);
     w[7] = 2.0f*sqrt(w[1]);
     w[8] = 2.0f*sqrt(w[2]);
@@ -334,7 +334,7 @@ int MPC::create_weight_matrices()
 /*
 Update the M, N, L and K constraint matrices depending on what happened
 */
-int MPC::update_matrices(Eigen::Matrix<float, 20, 13> fsteps)
+int MPC::update_matrices(Eigen::Matrix<double, 20, 13> fsteps)
 {
 
     /* M need to be updated between each iteration:
@@ -358,7 +358,7 @@ int MPC::update_matrices(Eigen::Matrix<float, 20, 13> fsteps)
 Update the M and L constaint matrices depending on the current state of the gait
 
 */
-int MPC::update_ML(Eigen::Matrix<float, 20, 13> fsteps)
+int MPC::update_ML(Eigen::Matrix<double, 20, 13> fsteps)
 {
 
     int j = 0;
@@ -369,15 +369,15 @@ int MPC::update_ML(Eigen::Matrix<float, 20, 13> fsteps)
         for (int k=k_cum; k<(k_cum+gait(j, 0)); k++)
         {
             // Get inverse of the inertia matrix for time step k
-            float c = cos(xref(5, k));
-            float s = sin(xref(5, k));
-            Eigen::Matrix<float, 3, 3> R;
+            double c = cos(xref(5, k));
+            double s = sin(xref(5, k));
+            Eigen::Matrix<double, 3, 3> R;
             R << c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0;
-            Eigen::Matrix<float, 3, 3> R_gI = R * gI;
-            Eigen::Matrix<float, 3, 3> I_inv = R_gI.inverse(); 
+            Eigen::Matrix<double, 3, 3> R_gI = R * gI;
+            Eigen::Matrix<double, 3, 3> I_inv = R_gI.inverse(); 
 
             // Get skew-symetric matrix for each foothold
-            Eigen::Map<Eigen::MatrixXf> fsteps_tmp((fsteps.block(j, 1, 1, 12)).data(), 3, 4);
+            Eigen::Map<Eigen::MatrixXd> fsteps_tmp((fsteps.block(j, 1, 1, 12)).data(), 3, 4);
             lever_arms = fsteps_tmp - (xref.block(0, k, 3, 1)).replicate<1,4>();
             for (int i=0; i<4; i++)
             {
@@ -426,15 +426,98 @@ int MPC::update_NK()
 
     // Matrix D is already created and not changed
     // Add third term to matrix N
-    Eigen::Map<Eigen::MatrixXf> xref_col((xref.block(0, 1, 12, n_steps)).data(), 12*n_steps, 1);
+    Eigen::Map<Eigen::MatrixXd> xref_col((xref.block(0, 1, 12, n_steps)).data(), 12*n_steps, 1);
     NK_up.block(0, 0, 12*n_steps, 1) += D * xref_col;
     
-    // Update upper bound c_float array (unrequired since Map is just pointers?)
-    Eigen::Matrix<float, Eigen::Dynamic, 1>::Map(&v_NK_up[0], NK_up.size()) = NK_up;
+    // Update upper bound c_double array (unrequired since Map is just pointers?)
+    Eigen::Matrix<double, Eigen::Dynamic, 1>::Map(&v_NK_up[0], NK_up.size()) = NK_up;
 
-    // Update lower bound c_float array
+    // Update lower bound c_double array
     NK_low.block(0, 0, 12*n_steps*2, 1) = NK_up.block(0, 0, 12*n_steps*2, 1);
-    Eigen::Matrix<float, Eigen::Dynamic, 1>::Map(&v_NK_low[0], NK_low.size()) = NK_low;
+    Eigen::Matrix<double, Eigen::Dynamic, 1>::Map(&v_NK_low[0], NK_low.size()) = NK_low;
+
+    return 0;
+}
+
+/*
+Create an initial guess and call the solver to solve the QP problem
+*/
+int MPC::call_solver(int k)
+{
+    // Initial guess for forces (mass evenly supported by all legs in contact)
+    warmxf.block(0, 0, 12*(n_steps-1), 1) = x.block(12, 0, 12*(n_steps-1), 1);
+    warmxf.block(12*n_steps, 0, 12*(n_steps-1), 1) = x.block(12*(n_steps+1), 0, 12*(n_steps-1), 1);
+    warmxf.block(12*(2*n_steps-1), 0, 12, 1) = x.block(12*n_steps, 0, 12, 1);
+
+    // Setup the solver (first iteration) then just update it
+    if (k == 0)  // Setup the solver with the matrices
+    {
+        data->n = 12*n_steps*2; // number of variables
+        data->m = 12*n_steps*2 + 20*n_steps; // number of constraints
+        data->P = P;  // the upper triangular part of the quadratic cost matrix P in csc format (size n x n)
+        data->A = ML;  // linear constraints matrix A in csc format (size m x n) 
+        data->q = &Q[0]; // dense array for linear part of cost function (size n) 
+        data->l = &v_NK_low[0];  // dense array for lower bound (size m)  
+        data->u = &v_NK_up[0];  // dense array for upper bound (size m) 
+        
+        osqp_setup( &workspce, data, settings);
+        osqp_solve(workspce);
+
+        /*self.prob.setup(P=self.P, q=self.Q, A=self.ML, l=self.NK_inf, u=self.NK.ravel(), verbose=False)
+        self.prob.update_settings(eps_abs=1e-5)
+        self.prob.update_settings(eps_rel=1e-5)*/
+    }
+    else  // Code to update the QP problem without creating it again
+    {
+        /*
+        self.prob.update(Ax=self.ML.data, l=self.NK_inf, u=self.NK.ravel())
+        self.prob.warm_start(x=self.warmxf) 
+        */
+    }
+    
+    // Run the solver to solve the QP problem
+    //osqp_solve(workspce);
+    /*self.sol = self.prob.solve()
+    self.x = self.sol.x*/
+    // solution in workspce->solution->x
+
+    return 0;
+}
+
+/*
+Extract relevant information from the output of the QP solver
+*/
+int MPC::retrieve_result()
+{
+    // Retrieve the "contact forces" part of the solution of the QP problem
+    for (int k=0; k<12; k++)
+    {
+        f_applied[k] = (workspce->solution->x)[12*n_steps+k];
+    }
+
+    return 0;
+}
+
+/*
+Return the latest desired contact forces that have been computed
+*/
+double * MPC::get_latest_result()
+{
+    return &f_applied[0];
+}
+
+/*
+Run one iteration of the whole MPC by calling all the necessary functions (data retrieval,
+update of constraint matrices, update of the solver, running the solver, retrieving result)
+*/
+int MPC::run(Eigen::Matrix<double, 12, Eigen::Dynamic> xref_in, Eigen::Matrix<double, 20, 13> fsteps_in)
+{
+    // Recontruct the gait based on the computed footsteps
+    construct_gait(fsteps_in);
+
+    // Retrieve data required for the MPC
+    xref = xref_in;
+    x0 = xref_in.block(0, 0, 12, 1);
 
     return 0;
 }
@@ -442,9 +525,9 @@ int MPC::update_NK()
 /*
 Returns the skew matrix of a 3 by 1 column vector
 */
-Eigen::Matrix<float, 3, 3> MPC::getSkew(Eigen::Matrix<float, 3, 1> v)
+Eigen::Matrix<double, 3, 3> MPC::getSkew(Eigen::Matrix<double, 3, 1> v)
 {
-    Eigen::Matrix<float, 3, 3> result;
+    Eigen::Matrix<double, 3, 3> result;
     result << 0.0, -v(2, 0), v(1, 0), v(2, 0), 0.0, -v(0, 0), -v(1, 0), v(0, 0), 0.0;
     return result;
 }
@@ -477,5 +560,32 @@ int MPC::construct_S()
         i++;
     }
 
+    return 0;
+}
+
+/*
+Reconstruct the gait matrix based on the fsteps matrix since only the last one is received by the MPC
+*/
+int MPC::construct_gait(Eigen::Matrix<double, 20, 13> fsteps_in)
+{
+    // First column is identical
+    gait.col(0) = fsteps_in.col(0).cast <int> ();
+
+    int k = 0;
+    while (gait(k, 0) != 0)
+    {
+        for (int i=0; i<4; i++)
+        {
+            if (fsteps_in(k, 1+i*3) == 0.0)
+            {
+                gait(k, 1+i) = 0;
+            }
+            else
+            {
+                gait(k, 1+i) = 1;
+            }
+        }
+        k++;
+    }
     return 0;
 }
