@@ -42,11 +42,15 @@ SEARCH_FOR_BOOST()
 set(${PROJECT_NAME}_HEADERS
   include/${PROJECT_NAME}/gepadd.hpp
   include/${PROJECT_NAME}/MPC.hpp
-  include/osqp_folder/include/osqp.h
-  include/osqp_folder/include/cs.h
+  include/other/st_to_cc.hpp
+  #include/osqp_folder/include/osqp_configure.h
+  #include/osqp_folder/include/osqp.h
+  #include/osqp_folder/include/cs.h
+  #include/osqp_folder/include/util.h
   )
 
 set(${PROJECT_NAME}_SOURCES
+  src/st_to_cc.cpp
   src/gepadd.cpp
   src/MPC.cpp
   )
@@ -60,11 +64,21 @@ TARGET_INCLUDE_DIRECTORIES(${PROJECT_NAME} SYSTEM INTERFACE ${EIGEN3_INCLUDE_DIR
 # Find OSQP library and headers
 # find_package(osqp REQUIRED)
 # Link the OSQP shared library
-target_link_libraries(${PROJECT_NAME} PUBLIC /home/palex/Documents/Test_Cpp/example-adder/include/osqp_folder/lib/libosqp.so)
+# target_link_libraries(${PROJECT_NAME} PUBLIC /home/palex/Documents/Test_Cpp/example-adder/include/osqp_folder/lib/libosqp.so)
+# target_link_libraries(${PROJECT_NAME} PUBLIC /home/palex/libc/st_to_cc.o)
+
+# Find OSQP library and headers
+find_package(osqp REQUIRED)
+
+# Link the OSQP shared library
+target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqp)
 
 if(SUFFIX_SO_VERSION)
   set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION ${PROJECT_VERSION})
 endif()
+
+# target_compile_options(${PROJECT_NAME} PUBLIC PRINTING)
+# target_compile_definitions(${PROJECT_NAME} PUBLIC PRINTING)
 
 # Main Executable
 add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/main.cpp)
