@@ -9,17 +9,15 @@ namespace bp = boost::python;
 template <typename MPC>
 struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC> > {
 
-  // call macro for all ContactPhase methods that can be overloaded
-  // BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(isConsistent_overloads, ContactPhase::isConsistent, 0, 1)
-
   template <class PyClass>
   void visit(PyClass& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
-        .def(bp::init<double, int, double>(bp::args("dt_in", "n_steps_in", "T_gait_in"), "Constructor."))
+        .def(bp::init<double, int, double>(bp::args("dt_in", "n_steps_in", "T_gait_in"),
+             "Constructor with parameters."))
         
         // Run MPC from Python
         .def("run_python", &MPC::run_python,
-             bp::args("xref_in", "fsteps_in"),
+             bp::args("num_iter", "xref_in", "fsteps_in"),
              "Run MPC from Python.\n");
   }
 
@@ -28,8 +26,6 @@ struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC> > {
         .def(MPCPythonVisitor<MPC>());
 
     ENABLE_SPECIFIC_MATRIX_TYPE(matXd);
-    //ENABLE_SPECIFIC_MATRIX_TYPE(typeXREF);
-    //ENABLE_SPECIFIC_MATRIX_TYPE(typeFSTEPS);
   }
 
 };

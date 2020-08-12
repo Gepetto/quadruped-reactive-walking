@@ -59,23 +59,15 @@ set(${PROJECT_NAME}_SOURCES
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
 target_include_directories(${PROJECT_NAME} PUBLIC $<INSTALL_INTERFACE:include>)
 
+# Include Eigen3 directories
 TARGET_INCLUDE_DIRECTORIES(${PROJECT_NAME} SYSTEM PRIVATE ${EIGEN3_INCLUDE_DIR})
 TARGET_INCLUDE_DIRECTORIES(${PROJECT_NAME} SYSTEM INTERFACE ${EIGEN3_INCLUDE_DIR})
-
-# Find OSQP library and headers
-# find_package(osqp REQUIRED)
-# Link the OSQP shared library
-# target_link_libraries(${PROJECT_NAME} PUBLIC /home/palex/Documents/Test_Cpp/example-adder/include/osqp_folder/lib/libosqp.so)
-# target_link_libraries(${PROJECT_NAME} PUBLIC /home/palex/libc/st_to_cc.o)
-
-#target_link_libraries(${PROJECT_NAME} PUBLIC )
-#target_include_directories(${PROJECT_NAME} PUBLIC /opt/openrobots/lib/libeigenpy.so)
 
 # Find OSQP library and headers
 find_package(osqp REQUIRED)
 
 # Link the OSQP shared library
-target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqp eigenpy::eigenpy)
+target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqp)
 
 if(SUFFIX_SO_VERSION)
   set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION ${PROJECT_VERSION})

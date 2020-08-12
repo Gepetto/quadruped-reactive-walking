@@ -744,7 +744,7 @@ double * MPC::get_x_next()
 /*
 Run function with arrays as input for compatibility between Python and C++
 */
-void MPC::run_python(MPC& self, const matXd& xref_py , const matXd& fsteps_py)
+void MPC::run_python(int num_iter, const matXd& xref_py , const matXd& fsteps_py)
 {
 
     printf("Trigger bindings \n");
@@ -758,7 +758,7 @@ void MPC::run_python(MPC& self, const matXd& xref_py , const matXd& fsteps_py)
 Run one iteration of the whole MPC by calling all the necessary functions (data retrieval,
 update of constraint matrices, update of the solver, running the solver, retrieving result)
 */
-int MPC::ron(int num_iter, Eigen::Matrix<double, 12, Eigen::Dynamic> xref_in, Eigen::Matrix<double, 20, 13> fsteps_in)
+int MPC::run(int num_iter, Eigen::Matrix<double, 12, Eigen::Dynamic> xref_in, Eigen::Matrix<double, 20, 13> fsteps_in)
 {
     // Recontruct the gait based on the computed footsteps
     std::cout << "Recontruct gait" << std::endl;
@@ -903,7 +903,3 @@ void MPC::my_print_csc_matrix(csc *M, const char *name)
     }
   }
 }
-
-/*void exposeMPC() {
-    MPCPythonVisitor<MPC>::expose();
-}*/

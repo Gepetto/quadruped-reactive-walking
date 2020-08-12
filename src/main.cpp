@@ -13,10 +13,10 @@ int main(int argc, char** argv) {
     std::cout << gepetto::example::add(a, b) << std::endl;
 
     Eigen::Matrix<double, 20, 13> test_fsteps = Eigen::Matrix<double, 20, 13>::Zero();
-    test_fsteps.row(0) << 15, 0.19, 0.15, 0.0,  0.0,   0.0, 0.0,   0.0,  0.0, 0.0, -0.19, -0.15, 0.0;
-    test_fsteps.row(1) << 1,  0.19, 0.15, 0.0, 0.19, -0.15, 0.0, -0.19, 0.15, 0.0, -0.19, -0.15, 0.0;
-    test_fsteps.row(2) << 15,  0.0,  0.0, 0.0, 0.19, -0.15, 0.0, -0.19, 0.15, 0.0,   0.0,   0.0, 0.0;
-    test_fsteps.row(3) << 1,  0.19, 0.15, 0.0, 0.19, -0.15, 0.0, -0.19, 0.15, 0.0, -0.19, -0.15, 0.0;
+    test_fsteps.row(0) << 15, 0.19, 0.15, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.19, -0.15, 0.0;
+    test_fsteps.row(1) << 1, 0.19, 0.15, 0.0, 0.19, -0.15, 0.0, -0.19, 0.15, 0.0, -0.19, -0.15, 0.0;
+    test_fsteps.row(2) << 15, 0.0, 0.0, 0.0, 0.19, -0.15, 0.0, -0.19, 0.15, 0.0, 0.0, 0.0, 0.0;
+    test_fsteps.row(3) << 1, 0.19, 0.15, 0.0, 0.19, -0.15, 0.0, -0.19, 0.15, 0.0, -0.19, -0.15, 0.0;
 
     Eigen::Matrix<double, 12, Eigen::Dynamic> test_xref = Eigen::Matrix<double, 12, Eigen::Dynamic>::Zero(12, 33);
     test_xref.row(2) = 0.17 * Eigen::Matrix<double, 1, Eigen::Dynamic>::Ones(1, 33);
@@ -50,12 +50,9 @@ int main(int argc, char** argv) {
     M1 << 1, 2, 3,  4,  5,  6,
           7, 8, 9, 10, 11, 12,
           13, 14, 15, 16, 17, 18;
-    
+
     Eigen::Map<Eigen::MatrixXf> M2(M1.data(), M1.size(), 1);
     std::cout << "M2:" << std::endl << M2 << std::endl;*/
-
-
-
 
     return EXIT_SUCCESS;
   } else {
