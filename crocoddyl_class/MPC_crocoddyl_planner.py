@@ -97,14 +97,18 @@ class MPC_crocoddyl_planner():
         self.x_init = []
         self.u_init = []       
 
-        # Weights on the shoulder term : term 1 
-        self.shoulderWeights = np.array(4*[0.01,0.5])
+        # Weights on the shoulder term : term 1
+        self.shoulderWeights = np.array(4*[0.25,0.3])
+
+        # symmetry & centrifugal term in foot position heuristic
+        self.centrifugal_term = False
+        self.symmetry_term = False
 
         # Weight on the step command
-        self.stepWeights = np.full(4,0.8)
+        self.stepWeights = np.full(4,0.8)        
 
         # Weights on the previous position predicted : term 2 
-        self.lastPositionWeights = np.full(8,1)
+        self.lastPositionWeights = np.full(8,1.)
 
         # When the the foot reaches 10% of the flying phase, the optimisation of the foot 
         # positions stops by setting the "lastPositionWeight" on. 
@@ -152,8 +156,8 @@ class MPC_crocoddyl_planner():
         self.updateProblem( k , xref , l_feet )
 
         # Solve problem
-        self.ddp.solve([] , [], self.max_iteration )
-
+        self.ddp.solve(self.x_init,self.u_init, self.max_iteration)        
+        
         # Get the results
         self.get_fsteps()
 
@@ -203,23 +207,34 @@ class MPC_crocoddyl_planner():
         # Iterate over all phases of the gait
         # The first column of xref correspond to the current state 
         # Gap introduced to take into account the Step model (more nodes than gait phases )
-        gap = 1 
+        self.x_init = []
+        self.u_init = []
+        gap = 1
         while (self.gait[j, 0] != 0):
             
             for i in range(k_cum, k_cum+np.int(self.gait[j, 0])):
 
                 if self.ListAction[i].__class__.__name__ == "ActionModelQuadrupedStep" :
+                    self.x_init.append(np.zeros(20))
+                    self.u_init.append(np.zeros(4))
                     if i == 0 : 
                         self.ListAction[i].updateModel(np.reshape(self.l_fsteps, (3, 4), order='F') , xref[:, i+gap]  , self.gait[0, 1:] - self.gait_old[0, 1:])
+                        
                     else : 
                         self.ListAction[i].updateModel(np.reshape(self.l_fsteps, (3, 4), order='F') , xref[:, i+gap]  , self.gait[j, 1:] - self.gait[j-1, 1:])
 
                     self.ListAction[i+1].updateModel(np.reshape(self.l_fsteps, (3, 4), order='F') , xref[:, i+gap]  , self.gait[j, 1:])
+                    self.x_init.append(np.zeros(20))
+                    self.u_init.append(np.zeros(12))
                     k_cum +=  1
                     gap -= 1
+                    # self.ListAction[i+1].shoulderWeights = 2*np.array(4*[0.25,0.3])
                     
                 else : 
-                    self.ListAction[i].updateModel(np.reshape(self.l_fsteps, (3, 4), order='F') , xref[:, i+gap]  , self.gait[j, 1:])
+                    self.ListAction[i].updateModel(np.reshape(self.l_fsteps, (3, 4), order='F') , xref[:, i+gap]  , self.gait[j, 1:])                    
+                    self.x_init.append(np.zeros(20))
+                    self.u_init.append(np.zeros(12))
+
             k_cum += np.int(self.gait[j, 0])
             j += 1 
 
@@ -230,7 +245,8 @@ class MPC_crocoddyl_planner():
         
         # # Update model of the terminal model
         self.terminalModel.updateModel(np.reshape(self.fsteps[j-1, 1:], (3, 4), order='F') , xref[:,-1] , self.gait[j-1, 1:])
-
+        self.x_init.append(np.zeros(20))
+     
         # Shooting problem
         self.problem = crocoddyl.ShootingProblem(np.zeros(20),  self.ListAction, self.terminalModel)
 
@@ -269,6 +285,8 @@ class MPC_crocoddyl_planner():
         # will be set when needed
         model.lastPositionWeights = np.full(8,0.0)
         model.shoulderWeights = self.shoulderWeights
+        model.symmetry_term = self.symmetry_term
+        model.centrifugal_term = self.centrifugal_term
 
         return 0
     
@@ -278,6 +296,8 @@ class MPC_crocoddyl_planner():
         model.shoulderWeights =  self.shoulderWeights
         model.stateWeights =  self.stateWeights
         model.stepWeights = self.stepWeights
+        model.symmetry_term = self.symmetry_term
+        model.centrifugal_term = self.centrifugal_term
         return 0
 
     def create_List_model(self):
@@ -406,6 +426,7 @@ class MPC_crocoddyl_planner():
 
         #reset to 0 the weight lastPosition
         model.lastPositionWeights = np.full(8,0.0)
+        # model.shoulderWeights = np.full(8,0.0)
         self.ListAction.append(model)
 
         return 0
@@ -436,7 +457,7 @@ class MPC_crocoddyl_planner():
             else : 
                 gap += 1
             k = k + 1  
-
+      
         ########################################
         # Compute fsteps using the state vector
         ########################################
