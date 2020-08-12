@@ -71,7 +71,7 @@ mem_time = time.time() - start_time
 # Logger of the results
 pathIn = "crocoddyl_eval/test_4/log_eval/"
 print("Saving logs...")
-np.save(pathIn +  "results_wyaw_all_false.npy" , np.array(res) )
+np.save(pathIn +  "results_wyaw_all_true.npy" , np.array(res) )
 
 # ###########################
 # # New simulation with osqp, 
@@ -123,6 +123,6 @@ print("Temps d execution ddp vy: %s secondes ---" % (time.time() - start_time))
 # Logger of the results
 pathIn = "crocoddyl_eval/test_4/log_eval/"
 print("Saving logs...")
-np.save(pathIn +  "results_vy_all_false.npy" , np.array(res2) )
+np.save(pathIn +  "results_vy_all_true.npy" , np.array(res2) )
 
 quit()
