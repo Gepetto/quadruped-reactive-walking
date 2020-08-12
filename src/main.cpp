@@ -21,21 +21,18 @@ int main(int argc, char** argv) {
     Eigen::Matrix<double, 12, Eigen::Dynamic> test_xref = Eigen::Matrix<double, 12, Eigen::Dynamic>::Zero(12, 33);
     test_xref.row(2) = 0.17 * Eigen::Matrix<double, 1, Eigen::Dynamic>::Ones(1, 33);
 
-    MPC test(0.02f, 32, 0.64f);
+    /*MPC test(0.02f, 32, 0.64f);
     test.run(0, test_xref, test_fsteps);
     double * result;
     result = test.get_latest_result();
-    /*for (int i = 0; i < 12; i++)
-    {
-      std::cout << *(result+i) << ", ";
-    }*/
+
     test_fsteps(0, 0) = 14;
     test_fsteps.row(4) = test_fsteps.row(0);
     test_fsteps(4, 0) = 1;
 
     test.run(1, test_xref, test_fsteps);
 
-    std::cout << test.gethref() << std::endl;
+    std::cout << test.gethref() << std::endl;*/
     /*std::cout << test.getA() << std::endl;
     std::cout << test.getML() << std::endl;
     std::cout << test.getDay() << std::endl;

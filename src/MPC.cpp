@@ -32,7 +32,12 @@ MPC::MPC(double dt_in, int n_steps_in, double T_gait_in)
 
     std::cout << settings->adaptive_rho_fraction << std::endl;
 }
- 
+
+MPC::MPC()
+{
+    MPC(0.02, 32, 0.64);
+}
+
 /*
 Create the constraint matrices of the MPC (M.X = N and L.X <= K)
 Create the weight matrices P and Q of the MPC solver (cost 1/2 x^T * P * X + X^T * Q)
@@ -735,11 +740,25 @@ double * MPC::get_x_next()
     return x_next;
 }
 
+
+/*
+Run function with arrays as input for compatibility between Python and C++
+*/
+void MPC::run_python(MPC& self, const matXd& xref_py , const matXd& fsteps_py)
+{
+
+    printf("Trigger bindings \n");
+    printf("xref: %f %f %f \n", xref_py(0, 0), xref_py(1, 0), xref_py(2, 0));
+    printf("fsteps: %f %f %f \n", fsteps_py(0, 0), fsteps_py(1, 0), fsteps_py(2, 0));
+
+    return;
+}
+
 /*
 Run one iteration of the whole MPC by calling all the necessary functions (data retrieval,
 update of constraint matrices, update of the solver, running the solver, retrieving result)
 */
-int MPC::run(int num_iter, Eigen::Matrix<double, 12, Eigen::Dynamic> xref_in, Eigen::Matrix<double, 20, 13> fsteps_in)
+int MPC::ron(int num_iter, Eigen::Matrix<double, 12, Eigen::Dynamic> xref_in, Eigen::Matrix<double, 20, 13> fsteps_in)
 {
     // Recontruct the gait based on the computed footsteps
     std::cout << "Recontruct gait" << std::endl;
@@ -877,10 +896,14 @@ void MPC::my_print_csc_matrix(csc *M, const char *name)
             //std::cout << M->i[i] << " " << j << " " << M->x[k++] << std::endl;
             int a = (int)M->i[i];
             int b = (int)j;
-            float c = M->x[k++];
+            double c = M->x[k++];
             if ((a >= 12*n_steps) && (a<12*n_steps+24) && (b >= 12*n_steps) && (b < 12*n_steps*2)){
             c_print("\t%3u [%3u,%3u] = %.3g\n", k-1, a, b-12*n_steps, c);}
       }
     }
   }
 }
+
+/*void exposeMPC() {
+    MPCPythonVisitor<MPC>::expose();
+}*/

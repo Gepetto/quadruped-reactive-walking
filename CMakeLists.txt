@@ -31,6 +31,7 @@ ADD_PROJECT_DEPENDENCY(Eigen3 REQUIRED)
 
 if(BUILD_PYTHON_INTERFACE)
   FINDPYTHON()
+  ADD_PROJECT_DEPENDENCY(eigenpy REQUIRED)
   string(REGEX REPLACE "-" "_" PY_NAME ${PROJECT_NAME})
   set(${PY_NAME}_INSTALL_DIR ${PYTHON_SITELIB}/${PY_NAME})
   set(BOOST_COMPONENTS ${BOOST_COMPONENTS} python)
@@ -67,11 +68,14 @@ TARGET_INCLUDE_DIRECTORIES(${PROJECT_NAME} SYSTEM INTERFACE ${EIGEN3_INCLUDE_DIR
 # target_link_libraries(${PROJECT_NAME} PUBLIC /home/palex/Documents/Test_Cpp/example-adder/include/osqp_folder/lib/libosqp.so)
 # target_link_libraries(${PROJECT_NAME} PUBLIC /home/palex/libc/st_to_cc.o)
 
+#target_link_libraries(${PROJECT_NAME} PUBLIC )
+#target_include_directories(${PROJECT_NAME} PUBLIC /opt/openrobots/lib/libeigenpy.so)
+
 # Find OSQP library and headers
 find_package(osqp REQUIRED)
 
 # Link the OSQP shared library
-target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqp)
+target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqp eigenpy::eigenpy)
 
 if(SUFFIX_SO_VERSION)
   set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION ${PROJECT_VERSION})

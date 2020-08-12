@@ -13,6 +13,16 @@
 #include "osqp_folder/include/util.h"
 #include "osqp_folder/include/osqp_configure.h"
 #include "other/st_to_cc.hpp"
+
+#include "example-adder/gepadd.hpp"
+//#include <eigenpy/eigenpy.hpp>
+//#include <boost/python/suite/indexing/map_indexing_suite.hpp>
+//#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+
+typedef Eigen::Matrix<double, 12, Eigen::Dynamic> typeXREF;
+typedef Eigen::Matrix<double, 20, 13> typeFSTEPS;
+typedef Eigen::MatrixXd matXd;
+
 class MPC
 {
 private:
@@ -84,6 +94,7 @@ private:
 
 public:
 
+    MPC();
     MPC(double dt_in, int n_steps_in, double T_gait_in);
 
     int create_matrices();
@@ -97,7 +108,7 @@ public:
     int retrieve_result();
     double * get_latest_result();
     double * get_x_next();
-    int run(int num_iter, Eigen::Matrix<double, 12, Eigen::Dynamic> xref_in, Eigen::Matrix<double, 20, 13> fsteps_in);
+    int ron(int num_iter, Eigen::Matrix<double, 12, Eigen::Dynamic> xref_in, Eigen::Matrix<double, 20, 13> fsteps_in);
     
     Eigen::Matrix<double, 3, 3> getSkew(Eigen::Matrix<double, 3, 1> v);
     int construct_S();
@@ -106,6 +117,11 @@ public:
     // Accessor
     double gethref() { return h_ref; }
     void my_print_csc_matrix(csc *M, const char *name);
+
+    // Bindings
+    // int run_python(int num_iter, float xref_py [], float fsteps_py []);
+    void run_python(MPC& self, const matXd& xref_py , const matXd& fsteps_py);
+
 
     //Eigen::Matrix<double, 12, 12> getA() { return A; }
     //Eigen::MatrixXf getML() { return ML; }
@@ -117,5 +133,35 @@ public:
 };
 // Eigen::Matrix<double, 1, 2> get_projection_on_border(Eigen::Matrix<double,1,2>  robot, Eigen::Matrix<double, 1, 6> data_closest, double const& angle);
 
+
+/*namespace bp = boost::python;
+
+template <typename MPC>
+struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC> > {
+
+  // call macro for all ContactPhase methods that can be overloaded
+  // BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(isConsistent_overloads, ContactPhase::isConsistent, 0, 1)
+
+  template <class PyClass>
+  void visit(PyClass& cl) const {
+    cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+        .def(bp::init<double, int, double>(bp::args("dt_in", "n_steps_in", "T_gait_in"), "Constructor."))
+        
+        // Run MPC from Python
+        .def("run_python", &MPC::run_python,
+             bp::args("xref_in", "fsteps_in"),
+             "Run MPC from Python.\n");
+  }
+
+  static void expose() {
+    bp::class_<MPC>("MPC", bp::no_init)
+        .def(MPCPythonVisitor<MPC>());
+
+    ENABLE_SPECIFIC_MATRIX_TYPE(matXd);
+    //ENABLE_SPECIFIC_MATRIX_TYPE(typeXREF);
+    //ENABLE_SPECIFIC_MATRIX_TYPE(typeFSTEPS);
+  }
+
+};*/
 
 #endif // MPC_H_INCLUDED
