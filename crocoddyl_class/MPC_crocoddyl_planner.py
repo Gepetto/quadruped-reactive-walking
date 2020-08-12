@@ -101,8 +101,8 @@ class MPC_crocoddyl_planner():
         self.shoulderWeights = np.array(4*[0.25,0.3])
 
         # symmetry & centrifugal term in foot position heuristic
-        self.centrifugal_term = False
-        self.symmetry_term = False
+        self.centrifugal_term = True
+        self.symmetry_term = True
 
         # Weight on the step command
         self.stepWeights = np.full(4,0.8)        
