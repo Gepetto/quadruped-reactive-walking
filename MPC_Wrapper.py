@@ -53,7 +53,7 @@ class MPC_Wrapper:
             if mpc_type:
                 self.mpc = MPC.MPC(dt, n_steps, T_gait)
             else:
-                self.mpc = MPC_crocoddyl.MPC_crocoddyl(dt, T_gait, 1, True)
+                self.mpc = MPC_crocoddyl.MPC_crocoddyl(dt, T_gait, 1, True, False)
 
         self.last_available_result = np.array([0.0, 0.0, 8.0] * 4)
 
