@@ -424,7 +424,10 @@ class MPC:
             self.prob.update_settings(eps_rel=1e-5)
             # self.prob.warm_start(x=initx)
         else:  # Code to update the QP problem without creating it again
-            self.prob.update(Ax=self.ML.data, l=self.NK_inf, u=self.NK.ravel())
+            try : 
+                self.prob.update(Ax=self.ML.data, l=self.NK_inf, u=self.NK.ravel())
+            except ValueError:
+                print("Bound Problem")
             self.prob.warm_start(x=self.warmxf)
 
         """if k == 0:
