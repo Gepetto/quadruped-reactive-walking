@@ -109,7 +109,7 @@ class controller:
         self.k_mpc = k_mpc
 
         # For update_feet_tasks function
-        self.dt = 0.0020  #  [s], time step
+        self.dt = 0.0010  #  [s], time step
         self.t1 = T_gait * 0.5 - 0.02  # [s], duration of swing phase
 
         # Rotation matrix
@@ -804,4 +804,4 @@ class controller:
 # Parameters for the controller
 
 
-dt = 0.0020		# controller time step
+dt = 0.0010		# controller time step

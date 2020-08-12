@@ -1,7 +1,8 @@
 # coding: utf8
 
 import numpy as np
-import MPC
+import MPC as MPCos
+import libexample_adder as MPC
 import FootstepPlanner
 from multiprocessing import Process, Value, Array
 import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
@@ -52,6 +53,7 @@ class MPC_Wrapper:
             # Create the new version of the MPC solver object
             if mpc_type:
                 self.mpc = MPC.MPC(dt, n_steps, T_gait)
+                self.mpcos = MPCos.MPC(dt, n_steps, T_gait)
             else:
                 self.mpc = MPC_crocoddyl.MPC_crocoddyl( dt = dt, T_mpc =  T_gait, mu = 0.9, inner = False, linearModel = True , n_period = int((dt * n_steps)/T_gait) )
 
@@ -120,7 +122,9 @@ class MPC_Wrapper:
 
         if self.mpc_type:
             # OSQP MPC
-            self.mpc.run((k/self.k_mpc), fstep_planner.xref, fstep_planner.fsteps_mpc)
+            fstep_planner.fsteps_mpc[np.isnan(fstep_planner.fsteps_mpc)] = 0.0
+            self.mpc.run(np.int(k/self.k_mpc), fstep_planner.xref.copy(), fstep_planner.fsteps_mpc.copy())
+            self.mpcos.run(np.int(k/self.k_mpc), fstep_planner.xref.copy(), fstep_planner.fsteps_mpc.copy())
         else:
             # Crocoddyl MPC
             self.mpc.solve(k, fstep_planner)
@@ -135,6 +139,13 @@ class MPC_Wrapper:
 
         # Output of the MPC
         self.f_applied = self.mpc.get_latest_result()
+        self.f_appliedos = self.mpcos.get_latest_result()
+
+        print("MPC C++:")
+        print(self.f_applied)
+        print("MPC Python:")
+        print(self.f_appliedos)
+        print("###########")
 
     def run_MPC_asynchronous(self, k, fstep_planner):
         """Run the MPC (asynchronous version) to get the desired contact forces for the feet currently in stance phase
@@ -232,6 +243,7 @@ class MPC_Wrapper:
 
                 # Run the asynchronous MPC with the data that as been retrieved
                 if self.mpc_type:
+                    #fsteps[np.isnan(fsteps)] = 0.0
                     loop_mpc.run(k, xref, fsteps)
                 else:
                     dummy_fstep_planner.xref = xref

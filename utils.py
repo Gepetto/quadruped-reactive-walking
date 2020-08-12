@@ -202,7 +202,7 @@ class pybullet_simulator:
     def __init__(self, envID, dt=0.001):
 
         # Start the client for PyBullet
-        physicsClient = pyb.connect(pyb.DIRECT)
+        physicsClient = pyb.connect(pyb.GUI)
         # p.GUI for graphical version
         # p.DIRECT for non-graphical version
 
