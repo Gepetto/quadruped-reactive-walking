@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
     std::cout << "The sum of " << a << " and " << b << " is: ";
     std::cout << gepetto::example::add(a, b) << std::endl;
 
-    Eigen::Matrix<double, 20, 13> test_fsteps = Eigen::Matrix<double, 20, 13>::Zero();
+    Eigen::MatrixXd test_fsteps = Eigen::MatrixXd::Zero(20, 13);
     test_fsteps.row(0) << 15, 0.19, 0.15, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.19, -0.15, 0.0;
     test_fsteps.row(1) << 1, 0.19, 0.15, 0.0, 0.19, -0.15, 0.0, -0.19, 0.15, 0.0, -0.19, -0.15, 0.0;
     test_fsteps.row(2) << 15, 0.0, 0.0, 0.0, 0.19, -0.15, 0.0, -0.19, 0.15, 0.0, 0.0, 0.0, 0.0;
@@ -21,9 +21,9 @@ int main(int argc, char** argv) {
     Eigen::Matrix<double, 12, Eigen::Dynamic> test_xref = Eigen::Matrix<double, 12, Eigen::Dynamic>::Zero(12, 33);
     test_xref.row(2) = 0.17 * Eigen::Matrix<double, 1, Eigen::Dynamic>::Ones(1, 33);
 
-    /*MPC test(0.02f, 32, 0.64f);
+    MPC test(0.02f, 32, 0.64f);
     test.run(0, test_xref, test_fsteps);
-    double * result;
+    /*double * result;
     result = test.get_latest_result();
 
     test_fsteps(0, 0) = 14;

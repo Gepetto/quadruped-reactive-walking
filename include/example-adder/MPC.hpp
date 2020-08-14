@@ -2,6 +2,8 @@
 #define MPC_H_INCLUDED
 
 #include <iostream>
+#include <fstream>
+#include <string>
 #include <cmath>
 #include <limits>
 #include <vector>
@@ -34,7 +36,7 @@ class MPC {
   Eigen::Matrix<double, 12, 12> B = Eigen::Matrix<double, 12, 12>::Zero();
   Eigen::Matrix<double, 12, 1> x0 = Eigen::Matrix<double, 12, 1>::Zero();
   double x_next[12] = {};
-  double f_applied[12] = {};
+  Eigen::MatrixXd f_applied = Eigen::MatrixXd::Zero(1, 12);
 
   // Matrix ML
   const static int size_nz_ML = 5000;
@@ -93,22 +95,29 @@ class MPC {
   int create_ML();
   int create_NK();
   int create_weight_matrices();
-  int update_matrices(Eigen::Matrix<double, 20, 13> fsteps);
-  int update_ML(Eigen::Matrix<double, 20, 13> fsteps);
+  int update_matrices(Eigen::MatrixXd fsteps);
+  int update_ML(Eigen::MatrixXd fsteps);
   int update_NK();
   int call_solver(int);
   int retrieve_result();
-  double *get_latest_result();
   double *get_x_next();
-  int run(int num_iter, Eigen::Matrix<double, 12, Eigen::Dynamic> xref_in, Eigen::Matrix<double, 20, 13> fsteps_in);
+  int run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in);
 
   Eigen::Matrix<double, 3, 3> getSkew(Eigen::Matrix<double, 3, 1> v);
   int construct_S();
-  int construct_gait(Eigen::Matrix<double, 20, 13> fsteps_in);
+  int construct_gait(Eigen::MatrixXd fsteps_in);
 
-  // Accessor
+  // Getters
+  Eigen::MatrixXd get_latest_result();
+  Eigen::MatrixXd get_gait();
+  Eigen::MatrixXd get_Sgait();
+
+
+  // Utils
   double gethref() { return h_ref; }
   void my_print_csc_matrix(csc *M, const char *name);
+  void save_csc_matrix(csc *M, std::string filename);
+  void save_dns_matrix(double *M, int size, std::string filename);
 
   // Bindings
   void run_python(int num_iter, const matXd &xref_py, const matXd &fsteps_py);
