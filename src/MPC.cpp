@@ -1,7 +1,7 @@
 #include "example-adder/MPC.hpp"
 
 MPC::MPC(double dt_in, int n_steps_in, double T_gait_in) {
-  std::cout << "START INIT" << std::endl;
+  // std::cout << "START INIT" << std::endl;
   dt = dt_in;
   n_steps = n_steps_in;
   T_gait = T_gait_in;
@@ -21,15 +21,13 @@ MPC::MPC(double dt_in, int n_steps_in, double T_gait_in) {
   footholds << 0.19, 0.19, -0.19, -0.19, 0.15005, -0.15005, 0.15005, -0.15005, 0.0, 0.0, 0.0, 0.0;
   gI << 3.09249e-2, -8.00101e-7, 1.865287e-5, -8.00101e-7, 5.106100e-2, 1.245813e-4, 1.865287e-5, 1.245813e-4,
       6.939757e-2;
-  std::cout << gI << std::endl;
+  // std::cout << gI << std::endl;
   q << 0.0f, 0.0f, 0.2027682f, 0.0f, 0.0f, 0.0f;
   h_ref = q(2, 0);
   g(8, 0) = -9.81f * dt;
-  std::cout << "END INIT" << std::endl;
+  // std::cout << "END INIT" << std::endl;
 
   osqp_set_default_settings(settings);
-
-  std::cout << settings->adaptive_rho_fraction << std::endl;
 }
 
 MPC::MPC() { MPC(0.02, 32, 0.64); }
@@ -40,15 +38,15 @@ Create the weight matrices P and Q of the MPC solver (cost 1/2 x^T * P * X + X^T
 */
 int MPC::create_matrices() {
   // Create the constraint matrices
-  std::cout << "ML -- " << std::endl;
+  // std::cout << "ML -- " << std::endl;
   create_ML();
-  std::cout << "NK -- " << std::endl;
+  // std::cout << "NK -- " << std::endl;
   create_NK();
 
   // Create the weight matrices
-  std::cout << "Weights -- " << std::endl;
+  // std::cout << "Weights -- " << std::endl;
   create_weight_matrices();
-  std::cout << "END" << std::endl;
+  // std::cout << "END" << std::endl;
 
   return 0;
 }
@@ -162,17 +160,17 @@ int MPC::create_ML() {
     }
   }
 
-  for (int k = 0; k < 10; k++) {
+  /*for (int k = 0; k < 10; k++) {
     std::cout << r_ML[k] << " " << c_ML[k] << " " << v_ML[k] << std::endl;
   }
-  std::cout << cpt_ML << std::endl;
+  std::cout << cpt_ML << std::endl;*/
 
-  for (int k = 0; k < 5000; k++) {
+  /*for (int k = 0; k < 5000; k++) {
     if ((r_ML[k] == 1) && (c_ML[k] == 1)) {
       std::cout << "Detect: " << r_ML[k] << " " << c_ML[k] << " " << v_ML[k] << " at " << k << std::endl;
     }
   }
-  std::cout << "###" << std::endl;
+  std::cout << "###" << std::endl;*/
 
   // Creation of CSC matrix
   int *icc;                                  // row indices
@@ -190,7 +188,7 @@ int MPC::create_ML() {
 
   st_header_print(i_min, i_max, j_min, j_max, m, n, nst);
 
-  std::cout << ncc << std::endl;
+  // std::cout << ncc << std::endl;
 
   // Get the CC indices.
   icc = (int *)malloc(ncc * sizeof(int));
@@ -283,10 +281,10 @@ int MPC::create_ML() {
       ML->x[i_update_B[j] + i_iter] = B(i_x_B[j], i_y_B[j]);
     }
   }
-  std::cout << "Hore" << std::endl;
+
   // Update lines to enable/disable forces
   construct_S();
-  std::cout << "Hare" << std::endl;
+
   Eigen::Matrix<int, 3, 1> i_tmp1;
   i_tmp1 << 3 + 4, 3 + 4, 6 + 4;
   Eigen::Matrix<int, Eigen::Dynamic, 1> i_tmp2 =
@@ -294,7 +292,7 @@ int MPC::create_ML() {
   for (int k = 0; k < 4 * n_steps; k++) {
     i_tmp2.block(3 * k, 0, 3, 1) = i_tmp1;
   }
-  std::cout << "Here" << std::endl;
+
   i_off = Eigen::Matrix<int, Eigen::Dynamic, 1>::Zero(12 * n_steps, 1);
   i_off(0, 0) = 4;
   for (int k = 1; k < 12 * n_steps; k++) {
@@ -306,8 +304,6 @@ int MPC::create_ML() {
     ML->x[i_off(k, 0) + i_start] = S_gait(k, 0);
     // if (k<12) {std::cout << i_off(k, 0) + i_start<< std::endl;}
   }
-
-  std::cout << "Hure" << std::endl;
 
   // double * dense_ML = csc_to_dns(ML);
   /*char a = 'M';
@@ -454,7 +450,7 @@ int MPC::create_weight_matrices() {
   int ncc = st_to_cc_size(nst, r_P, c_P);  // number of CC values
   int m = 12 * n_steps * 2;                // number of rows
   int n = 12 * n_steps * 2;                // number of columns
-  std::cout << cpt_P << std::endl;
+  //std::cout << cpt_P << std::endl;
 
   // Get the CC indices.
   icc = (int *)malloc(ncc * sizeof(int));
@@ -535,11 +531,17 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
       // footholds = footholds_tmp.reshaped(3, 4);
       Eigen::Map<Eigen::MatrixXd> footholds_bis(footholds_tmp.data(), 3, 4);
       // std::cout << "fsteps_tmp" << std::endl;
-      // std::cout << footholds_bis << std::endl;
-      lever_arms = footholds - (xref.block(0, k, 3, 1)).replicate<1, 4>();
+
+      lever_arms = footholds_bis - (xref.block(0, k, 3, 1)).replicate<1, 4>();
       for (int i = 0; i < 4; i++) {
         B.block(9, 3 * i, 3, 3) = dt * (I_inv * getSkew(lever_arms.col(i)));
       }
+
+      /*if (j == 0) {
+        std::cout << "footholds" << std::endl << footholds_bis << std::endl;
+        std::cout << "I_inv" << std::endl << I_inv << std::endl;
+        std::cout << "lever_arms" << std::endl << lever_arms << std::endl;
+      }*/
 
       // Replace the coefficient directly in ML.data
       int i_iter = 24 * 4 * k;
@@ -620,11 +622,11 @@ int MPC::call_solver(int k) {
     data->l = &v_NK_low[0];  // dense array for lower bound (size m)
     data->u = &v_NK_up[0];   // dense array for upper bound (size m)
 
-    save_csc_matrix(ML, "ML");
+    /*save_csc_matrix(ML, "ML");
     save_csc_matrix(P, "P");
     save_dns_matrix(Q, 12 * n_steps * 2, "Q");
     save_dns_matrix(v_NK_low, 12 * n_steps * 2 + 20 * n_steps, "l");
-    save_dns_matrix(v_NK_up, 12 * n_steps * 2 + 20 * n_steps, "u");
+    save_dns_matrix(v_NK_up, 12 * n_steps * 2 + 20 * n_steps, "u");*/
 
     // settings->rho = 0.1f;
     // settings->sigma = 1e-6f;
@@ -642,7 +644,7 @@ int MPC::call_solver(int k) {
     settings->adaptive_rho_tolerance = (float)5.0;
     settings->adaptive_rho_fraction = (float)0.7;
     osqp_setup(&workspce, data, settings);
-    std::cout << "End Stting" << std::endl;
+  
 
     /*self.prob.setup(P=self.P, q=self.Q, A=self.ML, l=self.NK_inf, u=self.NK.ravel(), verbose=False)
     self.prob.update_settings(eps_abs=1e-5)
@@ -746,12 +748,12 @@ int MPC::run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd
   }
 
   // Create an initial guess and call the solver to solve the QP problem
-  //std::cout << "call_solver" << std::endl;
+  // std::cout << "call_solver" << std::endl;
   call_solver(num_iter);
   // std::cout << "Finished" << std::endl;
 
   // Extract relevant information from the output of the QP solver
-  //std::cout << "retrieve_result" << std::endl;
+  // std::cout << "retrieve_result" << std::endl;
   retrieve_result();
   // std::cout << "Finished" << std::endl;
 
@@ -921,17 +923,17 @@ void MPC::save_dns_matrix(double *M, int size, std::string filename) {
 }
 
 Eigen::MatrixXd MPC::get_gait() {
-  //Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(20, 5);
-  //tmp.block(0, 0, 20, 5) = gait.block(0, 0, 20, 5);
+  // Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(20, 5);
+  // tmp.block(0, 0, 20, 5) = gait.block(0, 0, 20, 5);
   Eigen::MatrixXd tmp;
-  tmp = gait.cast <double> ();
+  tmp = gait.cast<double>();
   return tmp;
 }
 
 Eigen::MatrixXd MPC::get_Sgait() {
-  //Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(12 * n_steps, 1);
-  //tmp.col(0) = S_gait.col(0);
+  // Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(12 * n_steps, 1);
+  // tmp.col(0) = S_gait.col(0);
   Eigen::MatrixXd tmp;
-  tmp = S_gait.cast <double> ();
+  tmp = S_gait.cast<double>();
   return tmp;
 }
