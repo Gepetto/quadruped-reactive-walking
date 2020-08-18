@@ -38,6 +38,7 @@ class Interface:
 
         # Average height of feet in local frame
         self.mean_feet_z = 0.0
+        self.offset_z = 0.0
 
         # Projection of shoulders on the ground in local and world frame
         self.l_shoulders = np.array([[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005,
@@ -81,13 +82,17 @@ class Interface:
         pin.updateFramePlacements(solo.model, solo.data)
 
         # Update minimum height of feet
+        """self.offset_z = solo.data.oMf[10].translation[2]
+        for i in [18, 26, 34]:
+            self.offset_z = np.min((self.offset_z, solo.data.oMf[i].translation[2]))"""
+
         # TODO: Rename mean_feet_z into min_feet_z
-        """self.mean_feet_z = solo.data.oMf[self.indexes[0]].translation[2, 0]
+        """ self.mean_feet_z = solo.data.oMf[self.indexes[0]].translation[2]
         ""for i in self.indexes:
             self.mean_feet_z += solo.data.oMf[i].translation[2, 0]
         self.mean_feet_z *= 0.25""
         for i in self.indexes[1:]:
-            self.mean_feet_z = np.min((self.mean_feet_z, solo.data.oMf[i].translation[2, 0]))"""
+            self.mean_feet_z = np.min((self.mean_feet_z, solo.data.oMf[i].translation[2]))"""
         self.mean_feet_z = 0.0
 
         # Store position, linear velocity and angular velocity in global frame

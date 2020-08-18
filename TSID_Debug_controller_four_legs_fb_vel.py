@@ -7,15 +7,11 @@
 #                                                                      #
 ########################################################################
 
-from matplotlib import pyplot as plt
 import pinocchio as pin
 import numpy as np
 import numpy.matlib as matlib
 import tsid
 import FootTrajectoryGenerator as ftg
-import pybullet as pyb
-import utils
-import time
 
 ########################################################################
 #            Class for a PD with feed-forward Controller               #
@@ -109,7 +105,7 @@ class controller:
         self.k_mpc = k_mpc
 
         # For update_feet_tasks function
-        self.dt = 0.0010  #  [s], time step
+        self.dt = 0.0020  #  [s], time step
         self.t1 = T_gait * 0.5 - 0.02  # [s], duration of swing phase
 
         # Rotation matrix
@@ -143,9 +139,9 @@ class controller:
         # Time since the start of the simulation
         self.t = 0.0
 
-        # Gains of the PD+
-        self.P = 3.0
-        self.D = np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+        # Gains of the PD+
+        self.P = 0.33 * 3.0
+        self.D = 0.33 * np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
 
         ########################################################################
         #             Definition of the Model and TSID problem                 #
@@ -349,9 +345,8 @@ class controller:
                     self.footsteps[0, i_foot], self.footsteps[1, i_foot], t0s[i],  self.t_swing[i_foot], self.dt)
                 self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
 
-            # Take into account vertical offset of Pybullet
-            z0 += interface.mean_feet_z
-            # z0 += self.pos_contact[i_foot][0, 2]
+            # Take into account vertical drift in TSID world
+            # z0 += interface.offset_z
 
             # Store desired position, velocity and acceleration for later call to this function
             """self.goals[:, i_foot] = np.array([x0, y0, z0])
@@ -635,10 +630,11 @@ class controller:
 
         if np.any(np.isnan(self.tau_ff)):
             self.error = True
-            # raise ValueError('NaN value in feedforward torque')
+            print('NaN value in feedforward torque. Switching to safety controller.')
             return np.zeros((12, 1))
 
         if self.qdes[7] > 10:
+            print('Abnormal angular values. Switching to safety controller.')
             self.error = True
             return np.zeros((12, 1))
         else:
@@ -646,15 +642,23 @@ class controller:
             if self.enable_hybrid_control:
                 self.tau_pd = self.P * (self.qdes[7:] - self.qmes[7:, 0]) + \
                     self.D * (self.vdes[6:, 0] - self.vmes[6:, 0])
-                torques12 = self.tau_ff + self.tau_pd
+                self.torques12 = self.tau_ff + self.tau_pd
             else:
-                torques12 = self.tau_ff
+                self.torques12 = self.tau_ff
 
             # Saturation to limit the maximal torque
             t_max = 2.5
-            torques12[torques12 > t_max] = t_max
-            torques12[torques12 < -t_max] = -t_max
-            return torques12.reshape((12, 1))
+            self.torques12[self.torques12 > t_max] = t_max
+            self.torques12[self.torques12 < -t_max] = -t_max
+            cpt = 0
+            for i in (self.torques12[:] == 2.5):
+                if i:
+                    cpt += 1
+            if cpt >= 2:
+                self.error = True
+                print('Several torques at saturation. Switching to safety controller.')
+                return np.zeros((12, 1))
+            return self.torques12.reshape((12, 1))
 
     def display(self, t, solo, k_simu, sequencer):
         """ To display debug spheres in Gepetto Viewer
@@ -804,4 +808,4 @@ class controller:
 # Parameters for the controller
 
 
-dt = 0.0010		# controller time step
+dt = 0.0020		# controller time step

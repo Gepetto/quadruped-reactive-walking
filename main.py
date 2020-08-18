@@ -52,7 +52,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
     # Wrapper that makes the link with the solver that you want to use for the MPC
     # First argument to True to have PA's MPC, to False to have Thomas's MPC
-    enable_multiprocessing = False
+    enable_multiprocessing = True
     mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, fstep_planner.n_steps,
                                           k_mpc, fstep_planner.T_gait, enable_multiprocessing)
 
@@ -71,7 +71,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     ########################################################################
 
     # Initialisation of the PyBullet simulator
-    pyb_sim = utils.pybullet_simulator(envID, dt=0.001)
+    pyb_sim = utils.pybullet_simulator(envID, dt=dt)
 
     # Force monitor to display contact forces in PyBullet with red lines
     myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
@@ -87,6 +87,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
     tic = time.time()
     for k in range(int(N_SIMULATION)):
+
         time_loop = time.time()
 
         """if (k % 1000) == 0:
@@ -104,11 +105,10 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
         # Process MPC once every k_mpc iterations of TSID
         if (k % k_mpc) == 0:
-            # print("###")
-            time_mpc = time.time()
+            # time_mpc = time.time()
             proc.process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper,
                              dt_mpc, ID_deb_lines)
-            t_list_mpc[k] = time.time() - time_mpc
+            # t_list_mpc[k] = time.time() - time_mpc
 
         if k == 0:
             f_applied = mpc_wrapper.get_latest_result()
@@ -118,23 +118,31 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
             f_applied = mpc_wrapper.get_latest_result()
 
         # Process Inverse Dynamics
-        time_tsid = time.time()
-        jointTorques = proc.process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner,
-                                           myController, enable_hybrid_control)
-        t_list_tsid[k] = time.time() - time_tsid  # Logging the time spent to run this iteration of inverse dynamics
+        # time_tsid = time.time()
+        # If nothing wrong happened yet in TSID controller
+        if not myController.error:
+            jointTorques = proc.process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner,
+                                            myController, enable_hybrid_control)
+            # t_list_tsid[k] = time.time() - time_tsid  # Logging the time spent to run this iteration of inverse dynamics
 
-        # Process PD+ (feedforward torques and feedback torques)
-        for i_step in range(1):
-
-            # Process the PD+
+            # Process PD+ (feedforward torques and feedback torques)
             jointTorques = proc.process_pdp(pyb_sim, myController)
 
-            if myController.error:
-                print('NaN value in feedforward torque. Ending loop.')
-                break
-            t_list_loop[k] = time.time() - time_loop
-            # Process PyBullet
-            proc.process_pybullet(pyb_sim, k, envID, jointTorques)
+        # If something wrong happened in TSID controller we stick to a security controller
+        if myController.error:
+            # D controller to slow down the legs
+            D = 0.1
+            jointTorques = D * (- pyb_sim.vmes12[6:, 0])
+
+            # Saturation to limit the maximal torque
+            t_max = 1.0
+            jointTorques[jointTorques > t_max] = t_max
+            jointTorques[jointTorques < -t_max] = -t_max
+
+        t_list_loop[k] = time.time() - time_loop
+
+        # Process PyBullet
+        proc.process_pybullet(pyb_sim, k, envID, jointTorques)
 
         # Call logger object to log various parameters
         # logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
@@ -145,12 +153,12 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     ####################
 
     print("Computation duration: ", time.time()-tic)
-    print("Simulated duration: ", N_SIMULATION*0.001)
+    print("Simulated duration: ", N_SIMULATION*dt)
     print("Max loop time: ", np.max(t_list_loop[10:]))
     print("END")
 
     plt.figure()
-    plt.plot(t_list_mpc[1:], 'k+')
+    plt.plot(t_list_loop[1:], 'k+')
     plt.title("Time for state update + footstep planner + MPC communication + Inv Dyn + PD+")
     plt.show(block=True)
 

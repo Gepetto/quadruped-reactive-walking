@@ -99,7 +99,7 @@ class Joystick:
 
         if velID == 0:
             alpha = np.max([np.min([(k_loop-self.k_mpc*16*3)/3000, 1.0]), 0.0])
-            self.v_ref = np.array([[0.9*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+            self.v_ref = np.array([[0.35*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         # Video Demo 16/06/2020
         """V_max = 0.3

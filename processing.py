@@ -42,6 +42,9 @@ def test3(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, 
     tsid_controller.qtsid[:, 0] = tsid_controller.qdes.copy()  # in TSID world frame
     tsid_controller.vtsid[:, 0:1] = tsid_controller.vdes.copy()  # in robot base frame
 
+    # Take into account vertical drift in TSID world
+    # tsid_controller.qtsid[2, 0] -= interface.offset_z
+
     # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
     if pyb_feedback:
         # Orientation is roll/pitch of PyBullet and Yaw of TSID

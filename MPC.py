@@ -339,12 +339,12 @@ class MPC:
             for k in range(k_cum, k_cum+np.int(self.gait[j, 0])):
                 # Get inverse of the inertia matrix for time step k
                 R = np.array([[c[k], -s[k], 0], [s[k], c[k], 0], [0, 0, 1.0]])
-                I_inv = np.linalg.inv(np.dot(R, self.gI))
+                self.I_inv = np.linalg.inv(np.dot(R, self.gI))
 
                 # Get skew-symetric matrix for each foothold
                 self.lever_arms = np.reshape(fsteps[j, 1:], (3, 4), order='F') - self.xref[0:3, k:(k+1)]
                 for i in range(4):
-                    self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils.getSkew(self.lever_arms[:, i]))
+                    self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(self.I_inv, utils.getSkew(self.lever_arms[:, i]))
 
                 # Replace the coefficient directly in ML.data
                 i_iter = 24 * 4 * k
@@ -420,8 +420,28 @@ class MPC:
         # Setup the solver (first iteration) then just update it
         if k == 0:  # Setup the solver with the matrices
             self.prob.setup(P=self.P, q=self.Q, A=self.ML, l=self.NK_inf, u=self.NK.ravel(), verbose=False)
+            """self.prob.update_settings(rho=0.1)"""
+            #self.prob.update_settings(sigma=1e-6)
+            """self.prob.update_settings(max_iter=4000)"""
             self.prob.update_settings(eps_abs=1e-5)
             self.prob.update_settings(eps_rel=1e-5)
+            #self.prob.update_settings(eps_prim_inf=1e-4)
+            #self.prob.update_settings(eps_dual_inf=1e-4)
+            """self.prob.update_settings(alpha=1.6)"""
+            #self.prob.update_settings(linsys_solver="qdldl")
+            """self.prob.update_settings(delta=1e-6)
+            self.prob.update_settings(polish=False)
+            self.prob.update_settings(polish_refine_iter=3)
+            self.prob.update_settings(verbose=True)
+            self.prob.update_settings(scaled_termination=False)
+            self.prob.update_settings(check_termination=25)"""
+            #self.prob.update_settings(warm_start=True)
+            #self.prob.update_settings(scaling=10)
+            #self.prob.update_settings(adaptive_rho=True)
+            #self.prob.update_settings(adaptive_rho_interval=0)
+            #self.prob.update_settings(adaptive_rho_tolerance=5)
+            #self.prob.update_settings(adaptive_rho_fraction=0.4)
+            #self.prob.update_settings(time_limit=0)
             # self.prob.warm_start(x=initx)
         else:  # Code to update the QP problem without creating it again
             try : 
