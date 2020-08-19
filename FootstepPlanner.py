@@ -16,7 +16,7 @@ class FootstepPlanner:
         T_gait (float): Duration of one gait period
     """
 
-    def __init__(self, dt, n_periods, T_gait):
+    def __init__(self, dt, n_periods, T_gait, on_solo8):
 
         # Feedback gain for the feedback term of the planner
         self.k_feedback = 0.03
@@ -33,6 +33,9 @@ class FootstepPlanner:
 
         # Value of the maximum allowed deviation due to leg length
         self.L = 0.155
+
+        # Whether we are working on solo8 or not
+        self.on_solo8 = on_solo8
 
         # The desired (x,y) position of footsteps
         # If a foot is in swing phase it is where it should land
@@ -418,6 +421,10 @@ class FootstepPlanner:
         # Legs have a limited length so the deviation has to be limited
         (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) > self.L] = self.L
         (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) < (-self.L)] = -self.L
+
+        # solo8: no degree of freedom along Y for footsteps
+        if self.on_solo8:
+            self.next_footstep[1, :] = 0.0
 
         # Add shoulders
         self.next_footstep[0:2, :] += self.shoulders

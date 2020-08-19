@@ -29,67 +29,37 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
         # Stored in pyb_sim.qmes12 and pyb_sim.vmes12 (quantities in PyBullet world frame)
         pyb_sim.retrieve_pyb_data()
 
-        test3(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback)
+        # Retrieve state desired by TSID (position/orientation/velocity of the robot)
+        tsid_controller.qtsid[:, 0] = tsid_controller.qdes.copy()  # in TSID world frame
+        tsid_controller.vtsid[:, 0:1] = tsid_controller.vdes.copy()  # in robot base frame
 
-        test2(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback)
+        # Take into account vertical drift in TSID world
+        # tsid_controller.qtsid[2, 0] -= interface.offset_z
 
-    return test(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback)
+        # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
+        if pyb_feedback:
+            # Orientation is roll/pitch of PyBullet and Yaw of TSID
+            interface.RPY_pyb = pin.rpy.matrixToRpy(pin.Quaternion(pyb_sim.qmes12[3:7]).toRotationMatrix())
+            interface.RPY_tsid = pin.rpy.matrixToRpy(pin.Quaternion(tsid_controller.qtsid[3:7]).toRotationMatrix())
+            tsid_controller.qtsid[3:7, 0:1] = np.array([pyb.getQuaternionFromEuler(np.array([interface.RPY_pyb[0],
+                                                                                             interface.RPY_pyb[1],
+                                                                                             interface.RPY_tsid[2]]))]).transpose()
 
+        # Transform from TSID world frame to robot base frame (just rotation part)
+        interface.oMb_tsid = pin.SE3(pin.Quaternion(tsid_controller.qtsid[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
 
-def test3(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback):
+        # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
+        if pyb_feedback:
 
-    # Retrieve state desired by TSID (position/orientation/velocity of the robot)
-    tsid_controller.qtsid[:, 0] = tsid_controller.qdes.copy()  # in TSID world frame
-    tsid_controller.vtsid[:, 0:1] = tsid_controller.vdes.copy()  # in robot base frame
+            # Linear/angular velocity taken from PyBullet (in PyBullet world frame)
+            tsid_controller.vtsid[0:6, 0:1] = pyb_sim.vmes12[0:6, 0:1].copy()
 
-    # Take into account vertical drift in TSID world
-    # tsid_controller.qtsid[2, 0] -= interface.offset_z
+            # Transform from PyBullet world frame to robot base frame (just rotation part)
+            interface.oMb_pyb = pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
 
-    # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
-    if pyb_feedback:
-        # Orientation is roll/pitch of PyBullet and Yaw of TSID
-        """RPY_pyb = pin.rpy.matrixToRpy((pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7]),
-                                                np.array([0.0, 0.0, 0.0]))).rotation)
-        RPY_tsid = pin.rpy.matrixToRpy((pin.SE3(pin.Quaternion(tsid_controller.qtsid[3:7]),
-                                                np.array([0.0, 0.0, 0.0]))).rotation)"""
-
-        interface.RPY_pyb = pin.rpy.matrixToRpy(pin.Quaternion(pyb_sim.qmes12[3:7]).toRotationMatrix())
-        interface.RPY_tsid = pin.rpy.matrixToRpy(pin.Quaternion(tsid_controller.qtsid[3:7]).toRotationMatrix())
-        tsid_controller.qtsid[3:7, 0:1] = np.array([pyb.getQuaternionFromEuler(np.array([interface.RPY_pyb[0], interface.RPY_pyb[1],
-                                                                                         interface.RPY_tsid[2]]))]).transpose()
-        """b = np.zeros((7, 1))
-        b[3:7, 0:1] = pin.Quaternion(pin.rpy.rpyToMatrix(np.array([interface.RPY_pyb[0], interface.RPY_pyb[1],
-                                                                                            interface.RPY_tsid[2]]))).coeffs()
-        a=1"""
-        """tsid_controller.qtsid[3:7, 0:1] = pin.Quaternion(pin.rpy.rpyToMatrix(np.matrix([interface.RPY_pyb[0, 0], interface.RPY_pyb[1, 0],
-                                                                                            interface.RPY_tsid[2, 0]]).T)).coeffs()"""
-        """tsid_controller.qtsid[3:7, 0:1] = getQuaternion(np.array([[interface.RPY_pyb[0]],
-                                                                  [interface.RPY_pyb[1]],
-                                                                  [interface.RPY_tsid[2]]]))"""
-
-
-def test2(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback):
-
-    # Transform from TSID world frame to robot base frame (just rotation part)
-    interface.oMb_tsid = pin.SE3(pin.Quaternion(tsid_controller.qtsid[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
-
-    # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
-    if pyb_feedback:
-
-        # Linear/angular velocity taken from PyBullet (in PyBullet world frame)
-        tsid_controller.vtsid[0:6, 0:1] = pyb_sim.vmes12[0:6, 0:1].copy()
-
-        # Transform from PyBullet world frame to robot base frame (just rotation part)
-        interface.oMb_pyb = pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
-
-        # Get linear and angular velocities from PyBullet world frame to robot base frame
-        tsid_controller.vtsid[0:3, 0:1] = interface.oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[0:3, 0:1]
-        tsid_controller.vtsid[3:6, 0:1] = interface.oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[3:6, 0:1]
-
-    # return test(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback)
-
-
-def test(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback):
+            # Get linear and angular velocities from PyBullet world frame to robot base frame
+            tsid_controller.vtsid[0:3, 0:1] = interface.oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[0:3, 0:1]
+            tsid_controller.vtsid[3:6, 0:1] = interface.oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[3:6, 0:1]
 
     # Algorithm needs the velocity of the robot in world frame
     if k == 0:
@@ -122,15 +92,7 @@ def test(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, p
         (joystick.v_ref[0:2])[joystick.v_ref[0:2] > v_max] = v_max
         (joystick.v_ref[0:2])[joystick.v_ref[0:2] < -v_max] = -v_max
 
-    """if (k % 500) == 0:
-        print(joystick.v_ref[0, 0], joystick.v_ref[1, 0], joystick.v_ref[5, 0])
-        print(pyb_sim.vmes12[0, 0], pyb_sim.vmes12[1, 0], pyb_sim.vmes12[5, 0])
-        print("###")"""
-    """if (k % 100) == 0:
-        print(pyb_sim.vmes12[0, 0])"""
-
     return 0
-
 
 def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_planner):
     """Update desired location of footsteps depending on the current state of the robot

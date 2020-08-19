@@ -30,7 +30,7 @@ class controller:
             T_gait (float): duration of one gait period
     """
 
-    def __init__(self, N_simulation, k_mpc, n_periods, T_gait):
+    def __init__(self, N_simulation, k_mpc, n_periods, T_gait, on_solo8):
 
         self.q_ref = np.array([[0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0, 1.0,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
@@ -42,6 +42,9 @@ class controller:
 
         self.error = False
         self.verbose = True
+
+        # Whether we are working on solo8 or not
+        self.on_solo8 = on_solo8
 
         # List with the names of all feet frames
         self.foot_frames = ['FL_FOOT', 'FR_FOOT', 'HL_FOOT', 'HR_FOOT']
@@ -196,8 +199,11 @@ class controller:
 
         # Task definition (creating the task object)
         self.postureTask = tsid.TaskJointPosture("task-posture", self.robot)
-        self.postureTask.setKp(kp_posture * matlib.ones(self.robot.nv-6).T)  # Proportional gain
-        self.postureTask.setKd(2.0 * np.sqrt(kp_posture) * matlib.ones(self.robot.nv-6).T)  # Derivative gain
+        kp_posture_arr = kp_block * np.ones((self.robot.nv-6, 1))
+        if self.on_solo8:
+            kp_posture_arr[0::3] = 5000  # solo8: block shoulder joints
+        self.postureTask.setKp(kp_posture_arr)  # Proportional gain
+        self.postureTask.setKd(2.0 * np.sqrt(kp_posture_arr))  # Derivative gain
 
         # Add the task to the HQP with weight = w_posture, priority level = 1 (not real constraint)
         # and a transition duration = 0.0
@@ -617,6 +623,10 @@ class controller:
             self.vdes = self.vtsid + self.ades * dt
             self.qdes = np.array(pin.integrate(self.model, self.qtsid, self.vtsid * dt))
 
+            # solo8: block shoulder joints
+            if self.on_solo8:
+                self.qdes[7::3] = 0.0
+                self.vdes[6::3] = 0.0
         return 0
 
     def run_PDplus(self):

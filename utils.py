@@ -137,7 +137,7 @@ def init_viewer(enable_viewer):
     return solo
 
 
-def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC):
+def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC, on_solo8):
     """ Create several objects that are used in the control loop
 
     Args:
@@ -148,13 +148,14 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC
         n_periods (int): number of gait periods in the prediction horizon
         T_gait (float): duration of one gait period
         type_MPC (bool): which MPC you want to use (PA's or Thomas')
+        on_solo8 (bool): whether we are working on solo8 or not
     """
 
     # Create Joystick object
     joystick = Joystick.Joystick(k_mpc)
 
     # Create footstep planner object
-    fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, n_periods, T_gait)
+    fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, n_periods, T_gait, on_solo8)
 
     # Create logger object
     logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc, n_periods, T_gait, type_MPC)
@@ -199,7 +200,7 @@ def getSkew(a):
 
 class pybullet_simulator:
 
-    def __init__(self, envID, dt=0.001):
+    def __init__(self, envID, use_flat_plane, dt=0.001):
 
         # Start the client for PyBullet
         physicsClient = pyb.connect(pyb.GUI)
@@ -208,11 +209,40 @@ class pybullet_simulator:
 
         # Load horizontal plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
-        self.planeId = pyb.loadURDF("plane.urdf")
+
+        if use_flat_plane:
+            self.planeId = pyb.loadURDF("plane.urdf")  # Flat plane
+        else:
+            import random
+            random.seed(42)
+            # p.configureDebugVisualizer(p.COV_ENABLE_RENDERING,0)
+            heightPerturbationRange = 0.05
+
+            numHeightfieldRows = 256
+            numHeightfieldColumns = 256
+            heightfieldData = [0]*numHeightfieldRows*numHeightfieldColumns
+            for j in range(int(numHeightfieldColumns/2)):
+                for i in range(int(numHeightfieldRows/2)):
+                    height = random.uniform(0, heightPerturbationRange)  # uniform distribution
+                    heightfieldData[2*i+2*j*numHeightfieldRows] = height
+                    heightfieldData[2*i+1+2*j*numHeightfieldRows] = height
+                    heightfieldData[2*i+(2*j+1)*numHeightfieldRows] = height
+                    heightfieldData[2*i+1+(2*j+1)*numHeightfieldRows] = height
+
+            terrainShape = pyb.createCollisionShape(shapeType=pyb.GEOM_HEIGHTFIELD, meshScale=[.05, .05, 1],
+                                                    heightfieldTextureScaling=(numHeightfieldRows-1)/2,
+                                                    heightfieldData=heightfieldData,
+                                                    numHeightfieldRows=numHeightfieldRows,
+                                                    numHeightfieldColumns=numHeightfieldColumns)
+            self.planeId = pyb.createMultiBody(0, terrainShape)
+            pyb.resetBasePositionAndOrientation(self.planeId, [0, 0, 0], [0, 0, 0, 1])
+            pyb.changeVisualShape(self.planeId, -1, rgbaColor=[1, 1, 1, 1])
+
+        # Add stairs with platform and bridge
         # self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")#,
-        #basePosition=[-1.25, 3.5, -0.1],
+        # basePosition=[-1.25, 3.5, -0.1],
         # baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))
-        #pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)
+        # pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)
 
         if envID == 1:
 
@@ -405,10 +435,16 @@ class pybullet_simulator:
                 self.flag_sphere2 = False
 
         # Apply perturbation
-        """if (k >= 1000) and (k <= 1200):
-            pyb.applyExternalForce(self.robotId, -1, [0.0, -0.5, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
-        if k == 1201:
-            print("End external force")"""
+        # if (k >= 800) and (k <= 1000):
+        #    pyb.applyExternalForce(self.robotId, -1, [+0.0, +5.5, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+        if (k >= 4000) and (k <= 4200):
+            pyb.applyExternalForce(self.robotId, -1, [+1.0, +0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+        if (k >= 8000) and (k <= 8200):
+            pyb.applyExternalForce(self.robotId, -1, [-1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+        if (k >= 10000) and (k <= 10200):
+            pyb.applyExternalForce(self.robotId, -1, [+1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
+        if (k >= 14000) and (k <= 14200):
+            pyb.applyExternalForce(self.robotId, -1, [-1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)  
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
@@ -440,5 +476,11 @@ class pybullet_simulator:
 
         """robotVirtualOrientation = pyb.getQuaternionFromEuler([0, 0, np.pi / 4])
         self.qmes12[3:7, 0] = robotVirtualOrientation"""
+
+        # Add uncertainty to feedback from PyBullet to mimic imperfect measurements
+        """tmp = np.array([pyb.getQuaternionFromEuler(pin.rpy.matrixToRpy(pin.Quaternion(self.qmes12[3:7, 0:1]).toRotationMatrix())
+                       + np.random.normal(0, 0.03, (3,)))])
+        self.qmes12[3:7, 0] = tmp[0, :]
+        self.vmes12[0:6, 0] += np.random.normal(0, 0.01, (6,))"""
 
         return 0
