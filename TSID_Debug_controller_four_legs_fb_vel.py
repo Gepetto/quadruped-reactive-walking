@@ -199,7 +199,7 @@ class controller:
 
         # Task definition (creating the task object)
         self.postureTask = tsid.TaskJointPosture("task-posture", self.robot)
-        kp_posture_arr = kp_block * np.ones((self.robot.nv-6, 1))
+        kp_posture_arr = kp_posture * np.ones((self.robot.nv-6, 1))
         if self.on_solo8:
             kp_posture_arr[0::3] = 5000  # solo8: block shoulder joints
         self.postureTask.setKp(kp_posture_arr)  # Proportional gain
