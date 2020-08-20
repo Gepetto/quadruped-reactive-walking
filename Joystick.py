@@ -84,6 +84,28 @@ class Joystick:
 
         return 0
 
+    def handle_v_switch(self, k):
+
+        i = 1
+        while (i < self.k_switch.shape[0]) and (self.k_switch[i] <= k):
+            i += 1
+        if (i != self.k_switch.shape[0]):
+            self.apply_velocity_change(k, i)
+
+    def apply_velocity_change(self, k, i):
+        """Change the velocity reference sent to the robot
+        4-th order polynomial: zero force and force velocity at start and end
+        (bell-like force trajectory)
+        """
+
+        ev = k - self.k_switch[i-1]
+        t1 = self.k_switch[i] - self.k_switch[i-1]
+        A3 = 2 * (self.v_switch[:, (i-1):i] - self.v_switch[:, i:(i+1)]) / t1**3
+        A2 = (-3/2) * t1 * A3
+        self.v_ref = self.v_switch[:, (i-1):i] + A2*ev**2 + A3*ev**3
+
+        return 0
+
     def update_v_ref_predefined(self, k_loop, velID):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame
         according to a predefined sequence
@@ -98,8 +120,15 @@ class Joystick:
             self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
         if velID == 0:
-            alpha = np.max([np.min([(k_loop-self.k_mpc*16*3)/3000, 1.0]), 0.0])
-            self.v_ref = np.array([[0.35*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+            if (k_loop == 0):
+                self.k_switch = np.array([0, 1000, 4000])
+                self.v_switch = np.array([[0.0, 0.0, 0.25],
+                                          [0.0, 0.0,  0.0],
+                                          [0.0, 0.0,  0.0],
+                                          [0.0, 0.0,  0.0],
+                                          [0.0, 0.0,  0.0],
+                                          [0.0, 0.0,  0.0]])
+            self.handle_v_switch(k_loop)
 
         # Video Demo 16/06/2020
         """V_max = 0.3
