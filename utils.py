@@ -435,16 +435,10 @@ class pybullet_simulator:
                 self.flag_sphere2 = False
 
         # Apply perturbation
-        # if (k >= 800) and (k <= 1000):
-        #    pyb.applyExternalForce(self.robotId, -1, [+0.0, +5.5, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
-        if (k >= 4000) and (k <= 4200):
-            pyb.applyExternalForce(self.robotId, -1, [+1.0, +0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
-        if (k >= 8000) and (k <= 8200):
-            pyb.applyExternalForce(self.robotId, -1, [-1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
-        if (k >= 10000) and (k <= 10200):
-            pyb.applyExternalForce(self.robotId, -1, [+1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)
-        if (k >= 14000) and (k <= 14200):
-            pyb.applyExternalForce(self.robotId, -1, [-1.0, 0.0, 0.0], [0.0, 0.0, 0.0], pyb.LINK_FRAME)  
+        self.apply_external_force(k,  4000, 400, np.array([0.0, 2.0, 0.0]), np.zeros((3,)))
+        self.apply_external_force(k,  8000, 400, np.array([0.0, -2.0, 0.0]), np.zeros((3,)))
+        self.apply_external_force(k, 12000, 400, np.array([2.0, 0.0, 0.0]), np.zeros((3,)))
+        self.apply_external_force(k, 16000, 400, np.array([-2.0, 0.0, 0.0]), np.zeros((3,)))
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
@@ -484,3 +478,22 @@ class pybullet_simulator:
         self.vmes12[0:6, 0] += np.random.normal(0, 0.01, (6,))"""
 
         return 0
+
+    def apply_external_force(self, k, start, duration, F, M):
+        """Apply an external force/momentum to the robot
+        4-th order polynomial: zero force and force velocity at start and end
+        (bell-like force trajectory)
+        """
+
+        if ((k < start) or (k > (start+duration))):
+            return 0.0
+
+        ev = k - start
+        t1 = duration
+        A4 = 16 / (t1**4)
+        A3 = - 2 * t1 * A4
+        A2 = t1**2 * A4
+        alpha = A2*ev**2 + A3*ev**3 + A4*ev**4
+        pyb.applyExternalForce(self.robotId, -1, alpha*F, alpha*M, pyb.LINK_FRAME)
+
+        return 0.0
