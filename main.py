@@ -53,7 +53,7 @@ class SimulatorLoop(Loop):
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
-        self.enable_multiprocessing = True
+        self.enable_multiprocessing = False
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, self.fstep_planner.n_steps,
                                                    k_mpc, self.fstep_planner.T_gait, self.enable_multiprocessing)
 
@@ -167,8 +167,6 @@ class SimulatorLoop(Loop):
         # logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
         #                         False, pyb_sim.robotId, pyb_sim.planeId, solo)
 
-        
-
 
 def run_scenarioo(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC, pyb_feedback):
 
@@ -203,7 +201,7 @@ def run_scenarioo(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATIO
 
 
 def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC, pyb_feedback,
-                 on_solo8, use_flat_plane):
+                 on_solo8, use_flat_plane, predefined_vel):
 
     ########################################################################
     #                        Parameters definition                         #
@@ -227,6 +225,9 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     t_list_tsid = [0] * int(N_SIMULATION)
     t_list_loop = [0] * int(N_SIMULATION)
 
+    # Init joint torques to correct shape
+    jointTorques = np.zeros((12, 1))
+
     # List to store the IDs of debug lines
     ID_deb_lines = []
 
@@ -239,7 +240,8 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
     # Create Joystick, FootstepPlanner, Logger and Interface objects
     joystick, fstep_planner, logger, interface = utils.init_objects(
-        dt, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC, on_solo8)
+        dt, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC, on_solo8,
+        predefined_vel)
 
     # Wrapper that makes the link with the solver that you want to use for the MPC
     # First argument to True to have PA's MPC, to False to have Thomas's MPC
@@ -271,10 +273,8 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     #                             Simulator                                #
     ########################################################################
 
-    # Define the default controller as well as emergency and safety controller
+    # Define the default controller
     myController = controller(int(N_SIMULATION), k_mpc, n_periods, T_gait, on_solo8)
-    mySafetyController = Safety_controller.controller_12dof()
-    myEmergencyStop = EmergencyStop_controller.controller_12dof()
 
     tic = time.time()
     for k in range(int(N_SIMULATION)):
@@ -283,6 +283,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
         """if (k % 1000) == 0:
             print("Iteration: ", k)"""
+        #print("###")
 
         # Process states update and joystick
         proc.process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, myController, pyb_feedback)
@@ -314,27 +315,42 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
         t_mpc = time.time()
 
+        #print(f_applied.ravel())
+
         # Process Inverse Dynamics
         # time_tsid = time.time()
         # If nothing wrong happened yet in TSID controller
         if not myController.error:
-            jointTorques = proc.process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner,
-                                            myController, enable_hybrid_control)
+            proc.process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner,
+                                myController, enable_hybrid_control)
             # t_list_tsid[k] = time.time() - time_tsid  # Logging the time spent to run this iteration of inverse dynamics
 
             # Process PD+ (feedforward torques and feedback torques)
-            jointTorques = proc.process_pdp(pyb_sim, myController)
+            jointTorques[:, 0] = proc.process_pdp(pyb_sim, myController)
 
         # If something wrong happened in TSID controller we stick to a security controller
         if myController.error:
             # D controller to slow down the legs
             D = 0.1
-            jointTorques = D * (- pyb_sim.vmes12[6:, 0])
+            jointTorques[:, 0] = D * (- pyb_sim.vmes12[6:, 0])
 
             # Saturation to limit the maximal torque
             t_max = 1.0
             jointTorques[jointTorques > t_max] = t_max
             jointTorques[jointTorques < -t_max] = -t_max
+
+            if np.max(np.abs(pyb_sim.vmes12[6:, 0])) < 0.1:
+                print("Trigger get back to default pos")
+                # pyb_sim.get_to_default_position(pyb_sim.straight_standing)
+                pyb_sim.get_to_default_position(np.array([[0.0, np.pi/2, np.pi,
+                                                           0.0, np.pi/2, np.pi,
+                                                           0.0, -np.pi/2, np.pi,
+                                                           0.0, -np.pi/2, np.pi]]).transpose())
+
+        #print(jointTorques.ravel())
+        """if myController.error:
+            pyb.disconnect()
+            quit()"""
 
         t_tsid = time.time()
 
@@ -348,8 +364,11 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         proc.process_pybullet(pyb_sim, k, envID, jointTorques)
 
         # Call logger object to log various parameters
-        # logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
-        #                         False, pyb_sim.robotId, pyb_sim.planeId, solo)
+        logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
+                                  False, pyb_sim.robotId, pyb_sim.planeId, solo)
+
+        """if k >= 1000:
+            time.sleep(0.1)"""
 
         while (time.time() - time_loop) < 0.002:
             pass

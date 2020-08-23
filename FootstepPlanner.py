@@ -98,7 +98,7 @@ class FootstepPlanner:
         self.dy = np.zeros((self.gait.shape[0], ))
         self.next_ft = np.zeros((12,))"""
 
-    def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.2027682):
+    def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.2027682, predefined=True):
         """Compute the reference trajectory of the CoM for each time step of the
         predition horizon. The ouput is a matrix of size 12 by (N+1) with N the number
         of time steps in the gait cycle (T_gait/dt) and 12 the position, orientation,
@@ -114,6 +114,7 @@ class FootstepPlanner:
             lW (3x0 array): angular velocity of the trunk in local frame
             v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
             h_ref (float): reference height for the trunk
+            predefined (bool): if we are using a predefined reference velocity (True) or a joystick (False)
         """
 
         # Update x and y velocities taking into account the rotation of the base over the prediction horizon
@@ -157,28 +158,32 @@ class FootstepPlanner:
         if (np.abs(v_ref[2, 0]) > step) and (self.flag_rotation_command != 1):
             self.flag_rotation_command = 1
 
-        # State machine
-        if (np.abs(v_ref[2, 0]) > step) and (self.flag_rotation_command == 1):  # Command with joystick
-            self.h_rotation_command += v_ref[2, 0] * self.dt
-            self.xref[2, 1:] = self.h_rotation_command
-            self.xref[8, 1:] = v_ref[2, 0]
+        if not predefined:  # If using joystick
+            # State machine
+            if (np.abs(v_ref[2, 0]) > step) and (self.flag_rotation_command == 1):  # Command with joystick
+                self.h_rotation_command += v_ref[2, 0] * self.dt
+                self.xref[2, 1:] = self.h_rotation_command
+                self.xref[8, 1:] = v_ref[2, 0]
 
-            self.flag_rotation_command = 1
-        elif (np.abs(v_ref[2, 0]) < step) and (self.flag_rotation_command == 1):  # No command with joystick
-            self.xref[8, 1:] = 0.0
-            self.xref[9, 1:] = 0.0
-            self.xref[10, 1:] = 0.0
-            self.flag_rotation_command = 2
-        elif self.flag_rotation_command == 0:  # Starting state of state machine
+                self.flag_rotation_command = 1
+            elif (np.abs(v_ref[2, 0]) < step) and (self.flag_rotation_command == 1):  # No command with joystick
+                self.xref[8, 1:] = 0.0
+                self.xref[9, 1:] = 0.0
+                self.xref[10, 1:] = 0.0
+                self.flag_rotation_command = 2
+            elif self.flag_rotation_command == 0:  # Starting state of state machine
+                self.xref[2, 1:] = h_ref
+                self.xref[8, 1:] = 0.0
+
+            if self.flag_rotation_command != 0:
+                # Applying command to pitch and roll components
+                self.xref[3, 1:] = self.xref[3, 0].copy() + v_ref[3, 0].copy() * to
+                self.xref[4, 1:] = self.xref[4, 0].copy() + v_ref[4, 0].copy() * to
+                self.xref[9, 1:] = v_ref[3, 0].copy()
+                self.xref[10, 1:] = v_ref[4, 0].copy()
+        else:
             self.xref[2, 1:] = h_ref
             self.xref[8, 1:] = 0.0
-
-        if self.flag_rotation_command != 0:
-            # Applying command to pitch and roll components
-            self.xref[3, 1:] = self.xref[3, 0].copy() + v_ref[3, 0].copy() * to
-            self.xref[4, 1:] = self.xref[4, 0].copy() + v_ref[4, 0].copy() * to
-            self.xref[9, 1:] = v_ref[3, 0].copy()
-            self.xref[10, 1:] = v_ref[4, 0].copy()
 
         # Current state vector of the robot
         self.x0 = self.xref[:, 0:1]

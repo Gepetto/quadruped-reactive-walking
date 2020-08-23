@@ -12,6 +12,8 @@ import pybullet as pyb  # Pybullet server
 import pybullet_data
 import pinocchio as pin
 
+import time as time
+
 ##########################
 # ROTATION MATRIX TO RPY #
 ##########################
@@ -137,7 +139,8 @@ def init_viewer(enable_viewer):
     return solo
 
 
-def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC, on_solo8):
+def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC, on_solo8,
+                 predefined):
     """ Create several objects that are used in the control loop
 
     Args:
@@ -149,10 +152,11 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC
         T_gait (float): duration of one gait period
         type_MPC (bool): which MPC you want to use (PA's or Thomas')
         on_solo8 (bool): whether we are working on solo8 or not
+        predefined (bool): if we are using a predefined reference velocity (True) or a joystick (False)
     """
 
     # Create Joystick object
-    joystick = Joystick.Joystick(k_mpc)
+    joystick = Joystick.Joystick(k_mpc, predefined)
 
     # Create footstep planner object
     fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, n_periods, T_gait, on_solo8)
@@ -218,8 +222,8 @@ class pybullet_simulator:
             # p.configureDebugVisualizer(p.COV_ENABLE_RENDERING,0)
             heightPerturbationRange = 0.05
 
-            numHeightfieldRows = 256
-            numHeightfieldColumns = 256
+            numHeightfieldRows = 256*2
+            numHeightfieldColumns = 256*2
             heightfieldData = [0]*numHeightfieldRows*numHeightfieldColumns
             for j in range(int(numHeightfieldColumns/2)):
                 for i in range(int(numHeightfieldRows/2)):
@@ -395,8 +399,8 @@ class pybullet_simulator:
                                       forces=[0.0 for m in self.revoluteJointIndices])
 
         # Initialize the robot in a specific configuration
-        straight_standing = np.array([[0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()
-        pyb.resetJointStatesMultiDof(self.robotId, self.revoluteJointIndices, straight_standing)  # q0[7:])
+        self.straight_standing = np.array([[0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()
+        pyb.resetJointStatesMultiDof(self.robotId, self.revoluteJointIndices, self.straight_standing)  # q0[7:])
 
         # Enable torque control for revolute joints
         jointTorques = [0.0 for m in self.revoluteJointIndices]
@@ -435,10 +439,11 @@ class pybullet_simulator:
                 self.flag_sphere2 = False
 
         # Apply perturbation
-        self.apply_external_force(k,  4000, 400, np.array([0.0, 2.0, 0.0]), np.zeros((3,)))
+        self.apply_external_force(k,  1000, 400, np.array([0.0, 6.0, 0.0]), np.zeros((3,)))
+        """self.apply_external_force(k,  4000, 400, np.array([0.0, 2.0, 0.0]), np.zeros((3,)))
         self.apply_external_force(k,  8000, 400, np.array([0.0, -2.0, 0.0]), np.zeros((3,)))
         self.apply_external_force(k, 12000, 400, np.array([2.0, 0.0, 0.0]), np.zeros((3,)))
-        self.apply_external_force(k, 16000, 400, np.array([-2.0, 0.0, 0.0]), np.zeros((3,)))
+        self.apply_external_force(k, 16000, 400, np.array([-2.0, 0.0, 0.0]), np.zeros((3,)))"""
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
@@ -497,3 +502,57 @@ class pybullet_simulator:
         pyb.applyExternalForce(self.robotId, -1, alpha*F, alpha*M, pyb.LINK_FRAME)
 
         return 0.0
+
+    def get_to_default_position(self, qtarget):
+
+        qmes = np.zeros((12, 1))
+        vmes = np.zeros((12, 1))
+
+        # Retrieve angular position and velocity of actuators
+        jointStates = pyb.getJointStates(self.robotId, self.revoluteJointIndices)
+        qmes[:, 0] = [state[0] for state in jointStates]
+        vmes[:, 0] = [state[1] for state in jointStates]
+
+        # Create trajectory
+        dt_traj = 0.002
+        t1 = 4.0  # seconds
+        cpt = 0
+
+        # PD settings
+        P = 0.33 * 3.0
+        D = 0.33 * np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+
+        while True or np.max(np.abs(qtarget - qmes)) > 0.1:
+
+            time_loop = time.time()
+
+            # Retrieve angular position and velocity of actuators
+            jointStates = pyb.getJointStates(self.robotId, self.revoluteJointIndices)
+            qmes[:, 0] = [state[0] for state in jointStates]
+            vmes[:, 0] = [state[1] for state in jointStates]
+
+            # Torque PD controller
+            if (cpt * dt_traj < t1):
+                ev = dt_traj * cpt
+                A3 = 2 * (qmes - qtarget) / t1**3
+                A2 = (-3/2) * t1 * A3
+                qdes = qmes + A2*ev**2 + A3*ev**3
+            jointTorques = P * (qdes - qmes)  # + D * (self.vdes[6:, 0] - self.vmes[6:, 0])
+
+            # Saturation to limit the maximal torque
+            t_max = 2.5
+            jointTorques[jointTorques > t_max] = t_max
+            jointTorques[jointTorques < -t_max] = -t_max
+
+            # Set control torque for all joints
+            pyb.setJointMotorControlArray(self.robotId, self.revoluteJointIndices,
+                                          controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
+
+            # Compute one step of simulation
+            pyb.stepSimulation()
+
+            # Increment loop counter
+            cpt += 1
+
+            while (time.time() - time_loop) < dt_traj:
+                pass

@@ -12,6 +12,7 @@ import numpy as np
 import numpy.matlib as matlib
 import tsid
 import FootTrajectoryGenerator as ftg
+import time as time
 
 ########################################################################
 #            Class for a PD with feed-forward Controller               #
@@ -55,12 +56,16 @@ class controller:
         fMax = 25.0  			# maximum normal force
         contactNormal = np.array([0., 0., 1.])  # direction of the normal to the contact surface
 
+        # Coefficients of the torque limit task
+        tau_bound = 2.5
+        w_torque_bounds = 10.0
+
         # Coefficients of the posture task
         kp_posture = 10.0		# proportionnal gain of the posture task
         w_posture = 1.0         # weight of the posture task
 
         # Coefficients of the contact tasks
-        kp_contact = 100.0         # proportionnal gain for the contacts
+        kp_contact = 10.0         # proportionnal gain for the contacts
         self.w_forceRef = 1000.0  # weight of the forces regularization
         self.w_reg_f = 50.0
 
@@ -97,7 +102,7 @@ class controller:
         self.memory_contacts = self.shoulders.copy()
 
         # Foot trajectory generator
-        max_height_feet = 0.05
+        max_height_feet = 0.07
         t_lock_before_touchdown = 0.1
         self.ftgs = [ftg.Foot_trajectory_generator(max_height_feet, t_lock_before_touchdown) for i in range(4)]
 
@@ -135,6 +140,7 @@ class controller:
         self.t_swing = np.zeros((4, ))  # Total duration of current swing phase for each foot
 
         self.contacts_order = [0, 1, 2, 3]
+        self.i_end_gait = -1
 
         # Parameter to enable/disable hybrid control
         self.enable_hybrid_control = False
@@ -285,6 +291,20 @@ class controller:
         self.sampleTrunk.acc(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
         self.trunkTask.setReference(self.sampleTrunk)
 
+        #####################
+        # TORQUE BOUNDS TASK #
+        #####################
+
+        """self.tmp_tau_maxo = self.model.effortLimit[-self.robot.na:]
+        self.tmp_tau_mino = -self.tmp_tau_maxo
+        actuationBoundsTask = tsid.TaskActuationBounds("task-actuation-bounds", self.robot)
+        #actuationBoundsTask.setBounds(-tau_bound * np.ones((self.robot.na, )),
+        #                              tau_bound * np.ones((self.robot.na, )))
+        actuationBoundsTask.mask(np.ones((self.robot.na,)))
+        actuationBoundsTask.setBounds(self.tmp_tau_mino, self.tmp_tau_maxo)
+        if(w_torque_bounds > 0.0):
+            self.invdyn.addActuationTask(actuationBoundsTask, w_torque_bounds, 0, 0.0)"""
+
         ##########
         # SOLVER #
         ##########
@@ -307,32 +327,62 @@ class controller:
             ftps_Ids_deb (list): IDs of debug spheres in PyBullet
         """
 
-        # Indexes of feet in swing phase
-        feet = np.where(gait[0, 1:] == 0)[0]
-        if len(feet) == 0:  # If no foot in swing phase
-            return 0
+        t_proc_start = time.time()
 
-        t0s = []
-        for i in feet:  # For each foot in swing phase get remaining duration of the swing phase
-            # Index of the line containing the next stance phase
-            index = next((idx for idx, val in np.ndenumerate(gait[:, 1+i]) if (((val == 1)))), [-1])[0]
-            remaining_iterations = np.cumsum(gait[:index, 0])[-1] * self.k_mpc - ((k_loop+1) % self.k_mpc)
+        if ((k_loop % self.k_mpc) == 0):
 
-            # Compute total duration of current swing phase
-            i_iter = 1
-            self.t_swing[i] = gait[0, 0]
-            while gait[i_iter, 1+i] == 0:
-                self.t_swing[i] += gait[i_iter, 0]
-                i_iter += 1
-            i_iter = -1
-            while gait[i_iter, 1+i] == 0:
-                self.t_swing[i] += gait[i_iter, 0]
-                i_iter -= 1
-            self.t_swing[i] *= self.dt * self.k_mpc
+            # Indexes of feet in swing phase
+            self.feet = np.where(gait[0, 1:] == 0)[0]
+            if len(self.feet) == 0:  # If no foot in swing phase
+                return 0
 
-            t0s.append(np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt - self.dt, 0.0)), decimals=3))
+            # i_end_gait should point to the latest non-zero line
+            if (gait[self.i_end_gait, 0] == 0):
+                self.i_end_gait -= 1
+                while (gait[self.i_end_gait, 0] == 0):
+                    self.i_end_gait -= 1
+            else:
+                while (gait[self.i_end_gait+1, 0] != 0):
+                    self.i_end_gait += 1
 
-        # self.footsteps contains the target (x, y) positions for both feet in swing phase
+            self.t0s = []
+            for i in self.feet:  # For each foot in swing phase get remaining duration of the swing phase
+                # Index of the line containing the next stance phase
+                # index = next((idx for idx, val in np.ndenumerate(gait[:, 1+i]) if (((val == 1)))), [-1])[0]
+                # remaining_iterations = np.cumsum(gait[:index, 0])[-1] * self.k_mpc - ((k_loop+1) % self.k_mpc)
+
+                # Compute total duration of current swing phase
+                i_iter = 1
+                self.t_swing[i] = gait[0, 0]
+                while gait[i_iter, 1+i] == 0:
+                    self.t_swing[i] += gait[i_iter, 0]
+                    i_iter += 1
+
+                remaining_iterations = self.t_swing[i] * self.k_mpc - ((k_loop+1) % self.k_mpc)
+
+                i_iter = self.i_end_gait
+                while gait[i_iter, 1+i] == 0:
+                    self.t_swing[i] += gait[i_iter, 0]
+                    i_iter -= 1
+                self.t_swing[i] *= self.dt * self.k_mpc
+
+                self.t0s.append(np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt - self.dt, 0.0)), decimals=3))
+
+            # self.footsteps contains the target (x, y) positions for both feet in swing phase
+
+        else:
+            if len(self.feet) == 0:  # If no foot in swing phase
+                return 0
+
+            for i in range(len(self.feet)):
+                self.t0s[i] = np.round(np.max((self.t0s[i] - self.dt, 0.0)), decimals=3)
+
+
+        t_proc = time.time() - t_proc_start
+        self.sub_test(self.feet, self.t0s, interface)
+        return t_proc
+
+    def sub_test(self, feet, t0s, interface):
 
         for i in range(len(feet)):
             i_foot = feet[i]
@@ -405,6 +455,8 @@ class controller:
                                robot (for hybrid control)
         """
 
+        t_start = time.time()
+
         self.f_applied = f_applied
 
         # If hybrid control is turned on/off the CoM task needs to be turned on/off too
@@ -461,6 +513,8 @@ class controller:
             # Update internal state of TSID for the current interation
             self.update_state(qtsid, vtsid)
 
+        t_update_state = time.time()
+
         #####################
         # FOOTSTEPS PLANNER #
         #####################
@@ -471,6 +525,8 @@ class controller:
         # Update the desired position of footholds thanks to the footstep planner
         self.update_footsteps(interface, fsteps)
 
+        t_update_fstep = time.time()
+
         ######################################
         # UPDATE REFERENCE OF CONTACT FORCES #
         ######################################
@@ -478,12 +534,16 @@ class controller:
         # Update the contact force tracking tasks to follow the forces computed by the MPC
         self.update_ref_forces(interface)
 
+        t_update_f = time.time()
+
         ################
         # UPDATE TASKS #
         ################
 
         # Enable/disable contact and 3D tracking tasks depending on the state of the feet (swing or stance phase)
-        self.update_tasks(k_simu, k_loop, looping, interface, gait, ftps_Ids_deb)
+        b = self.update_tasks(k_simu, k_loop, looping, interface, gait, ftps_Ids_deb)
+
+        t_update_t = time.time()
 
         ###############
         # HQP PROBLEM #
@@ -495,12 +555,26 @@ class controller:
         # Time incrementation
         self.t += dt
 
+        t_solver = time.time()
+
         ###########
         # DISPLAY #
         ###########
 
         # Refresh Gepetto Viewer
         # solo.display(self.qtsid)
+
+        """if True or(t_solver - t_start) > 0.0004:
+            print("###")
+            print("k_simu: ", k_simu)
+            print("State: ", t_update_state - t_start)
+            print("Fsteps: ", t_update_fstep - t_update_state)
+            print("Forces: ", t_update_f - t_update_fstep)
+            print("Tasks: ", t_update_t - t_update_f)
+            print("with proc time of: ", b)
+            print("Solver: ", t_solver - t_update_t)"""
+        """else:
+            print("with proc time of: ", b)"""
 
         return 0
 
@@ -564,7 +638,7 @@ class controller:
         """
 
         # Update the foot tracking tasks
-        self.update_feet_tasks(k_loop, gait, looping, interface, ftps_Ids_deb)
+        b = self.update_feet_tasks(k_loop, gait, looping, interface, ftps_Ids_deb)
 
         # Index of the first blank line in the gait matrix
         index = next((idx for idx, val in np.ndenumerate(gait[:, 0]) if (((val == 0)))), [-1])[0]
@@ -602,7 +676,7 @@ class controller:
                     # Disable foot tracking task
                     self.invdyn.removeTask("foot_track_" + str(i_foot), 0.0)
 
-        return 0
+        return b
 
     def solve_HQP_problem(self, t):
         """ Solve the QP problem by calling TSID's solver
@@ -619,7 +693,14 @@ class controller:
         self.tau_ff = self.invdyn.getActuatorForces(self.sol)
         self.fc = self.invdyn.getContactForces(self.sol)
         self.ades = np.array([self.invdyn.getAccelerations(self.sol)]).transpose()
+
+        """print(self.tau_ff.ravel())
+        print(self.fc.ravel())
+        print(self.ades.ravel())"""
+
         if self.enable_hybrid_control:
+            """self.ades[self.ades > 100] = 100
+            self.ades[self.ades < -100] = -100"""
             self.vdes = self.vtsid + self.ades * dt
             self.qdes = np.array(pin.integrate(self.model, self.qtsid, self.vtsid * dt))
 
@@ -641,12 +722,12 @@ class controller:
         if np.any(np.isnan(self.tau_ff)):
             self.error = True
             print('NaN value in feedforward torque. Switching to safety controller.')
-            return np.zeros((12, 1))
+            return np.zeros((12, ))
 
         if self.qdes[7] > 10:
             print('Abnormal angular values. Switching to safety controller.')
             self.error = True
-            return np.zeros((12, 1))
+            return np.zeros((12, ))
         else:
             # Torque PD controller
             if self.enable_hybrid_control:
@@ -664,11 +745,11 @@ class controller:
             for i in (self.torques12[:] == 2.5):
                 if i:
                     cpt += 1
-            if cpt >= 2:
+            if cpt >= 4:
                 self.error = True
                 print('Several torques at saturation. Switching to safety controller.')
-                return np.zeros((12, 1))
-            return self.torques12.reshape((12, 1))
+                return np.zeros((12, ))
+            return self.torques12
 
     def display(self, t, solo, k_simu, sequencer):
         """ To display debug spheres in Gepetto Viewer

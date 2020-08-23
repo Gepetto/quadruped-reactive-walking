@@ -84,7 +84,7 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
 
     # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
     if (k % k_mpc) == 0:
-        joystick.update_v_ref(k, velID, predefined=True)
+        joystick.update_v_ref(k, velID)
 
         # Legs have a limited length so the reference velocity has to be limited
         v_max = (4 / tsid_controller.T_gait) * 0.155
@@ -93,6 +93,7 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
         (joystick.v_ref[0:2])[joystick.v_ref[0:2] < -v_max] = -v_max
 
     return 0
+
 
 def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_planner):
     """Update desired location of footsteps depending on the current state of the robot
@@ -161,7 +162,7 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
     """
 
     # Debug lines
-    if len(ID_deb_lines) == 0:
+    """if len(ID_deb_lines) == 0:
         for i_line in range(4):
             start = interface.oMl * np.array([[interface.l_shoulders[0, i_line],
                                                interface.l_shoulders[1, i_line], 0.01]]).transpose()
@@ -178,11 +179,12 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
                                              interface.l_shoulders[1, i_line], 0.01]]).transpose()
             lineID = pyb.addUserDebugLine(np.array(start).ravel().tolist(), np.array(end).ravel().tolist(),
                                           lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8,
-                                          replaceItemUniqueId=ID_deb_lines[i_line])
+                                          replaceItemUniqueId=ID_deb_lines[i_line])"""
 
     # Get the reference trajectory over the prediction horizon
     fstep_planner.getRefStates((k/k_mpc), fstep_planner.T_gait, interface.lC, interface.abg,
-                               interface.lV, interface.lW, joystick.v_ref, h_ref=0.2027682)
+                               interface.lV, interface.lW, joystick.v_ref, h_ref=0.2027682,
+                               predefined=joystick.predefined)
 
     """if k > 0:
         if np.abs(mpc_wrapper.mpc.x_robot[7, 0] - interface.lV[1, 0]) > 0.00001:

@@ -8,7 +8,7 @@ class Joystick:
     """Joystick-like controller that outputs the reference velocity in local frame
     """
 
-    def __init__(self, k_mpc, multi_simu=False):
+    def __init__(self, k_mpc, predefined, multi_simu=False):
 
         # Number of TSID steps for 1 step of the MPC
         self.k_mpc = k_mpc
@@ -22,6 +22,9 @@ class Joystick:
         # Used to launch multiple simulations
         self.multi_simu = multi_simu
 
+        # If we are using a predefined reference velocity (True) or a joystick (False)
+        self.predefined = predefined
+
         # Joystick variables (linear and angular velocity and their scaling for the joystick)
         self.vX = 0.
         self.vY = 0.
@@ -34,17 +37,16 @@ class Joystick:
         self.Vy_ref = 0.0
         self.Vw_ref = 0.0
 
-    def update_v_ref(self, k_loop, velID, predefined):
+    def update_v_ref(self, k_loop, velID):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame by
         listening to a gamepad handled by an independent thread
 
         Args:
             k_loop (int): number of MPC iterations since the start of the simulation
             velID (int): Identifier of the current velocity profile to be able to handle different scenarios
-            predefined (bool): if true use hardcoded velocity ref, otherwise use gamepad
         """
 
-        if predefined:
+        if self.predefined:
             if self.multi_simu:
                 self.update_v_ref_multi_simu(k_loop)
             else:
@@ -121,13 +123,13 @@ class Joystick:
 
         if velID == 0:
             if (k_loop == 0):
-                self.k_switch = np.array([0, 1000, 4000])
-                self.v_switch = np.array([[0.0, 0.0, 0.25],
-                                          [0.0, 0.0,  0.0],
-                                          [0.0, 0.0,  0.0],
-                                          [0.0, 0.0,  0.0],
-                                          [0.0, 0.0,  0.0],
-                                          [0.0, 0.0,  0.0]])
+                self.k_switch = np.array([0, 1000, 4000, 7000, 10000, 13000])
+                self.v_switch = np.array([[0.0, 0.0, 0.25, 0.45, 0.65, 0.75],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0]])
             self.handle_v_switch(k_loop)
 
         # Video Demo 16/06/2020

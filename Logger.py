@@ -231,10 +231,10 @@ class Logger:
         # Reference state vector in local frame
         # Velocity control for x, y and yaw components (user input)
         # Position control for z, roll and pitch components (hardcoded default values of h_ref, 0.0 and 0.0)
-        if self.type_MPC:
-            self.state_ref[0:6, k] = np.array([0.0, 0.0, mpc_wrapper.mpc.h_ref, 0.0, 0.0, 0.0])
-        else:
-            self.state_ref[0:6, k] = np.array([0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0])
+        #if self.type_MPC:
+        #    self.state_ref[0:6, k] = np.array([0.0, 0.0, mpc_wrapper.mpc.h_ref, 0.0, 0.0, 0.0])
+        #else:
+        self.state_ref[0:6, k] = np.array([0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0])
         self.state_ref[6:12, k] = joystick.v_ref[:, 0]
 
         return 0
@@ -533,7 +533,7 @@ class Logger:
 
         self.torques_ff[:, k:(k+1)] =  np.reshape(tsid_controller.tau_ff ,(12,1))
         self.torques_pd[:, k:(k+1)] = np.reshape(tsid_controller.tau_pd ,(12,1))
-        self.torques_sent[:, k:(k+1)] = np.reshape(tsid_controller.tau ,(12,1))
+        self.torques_sent[:, k:(k+1)] = np.reshape(tsid_controller.torques12 ,(12,1))
 
         return 0
 
@@ -731,7 +731,7 @@ class Logger:
 
         # Store information about the predicted evolution of the optimization vector components
         if not enable_multiprocessing and ((k % self.k_mpc) == 0):
-            self.log_predicted_trajectories(k, mpc_wrapper)
+            # self.log_predicted_trajectories(k, mpc_wrapper)
             self.log_fstep_planner(k ,fstep_planner )
 
         # Store information about one of the foot tracking task
