@@ -366,7 +366,8 @@ class controller:
                     i_iter -= 1
                 self.t_swing[i] *= self.dt * self.k_mpc
 
-                self.t0s.append(np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt - self.dt, 0.0)), decimals=3))
+                self.t0s.append(
+                    np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt - self.dt, 0.0)), decimals=3))
 
             # self.footsteps contains the target (x, y) positions for both feet in swing phase
 
@@ -375,8 +376,7 @@ class controller:
                 return 0
 
             for i in range(len(self.feet)):
-                self.t0s[i] = np.round(np.max((self.t0s[i] - self.dt, 0.0)), decimals=3)
-
+                self.t0s[i] = np.round(np.max((self.t0s[i] + self.dt, 0.0)), decimals=3)
 
         t_proc = time.time() - t_proc_start
         self.sub_test(self.feet, self.t0s, interface)
@@ -405,9 +405,9 @@ class controller:
             # z0 += interface.offset_z
 
             # Store desired position, velocity and acceleration for later call to this function
-            """self.goals[:, i_foot] = np.array([x0, y0, z0])
+            self.goals[:, i_foot] = np.array([x0, y0, z0])
             self.vgoals[:, i_foot] = np.array([dx0, dy0, dz0])
-            self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])"""
+            self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])
 
             # Update desired pos, vel, acc
             self.sampleFeet[i_foot].pos(np.array([x0, y0, z0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]))
