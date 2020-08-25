@@ -110,8 +110,8 @@ class Logger:
         self.T = T_gait
         self.pred_trajectories = np.zeros((12, int(self.n_periods*T_gait/dt_mpc), int(k_max_loop/k_mpc)))
         self.pred_forces = np.zeros((12, int(self.n_periods*T_gait/dt_mpc), int(k_max_loop/k_mpc)))
-        self.fsteps = np.zeros((20,13,int(k_max_loop/k_mpc)))
-        self.xref = np.zeros((12,int(self.n_periods*T_gait/dt_mpc) + 1,int(k_max_loop/k_mpc)))
+        self.fsteps = np.zeros((20, 13, int(k_max_loop/k_mpc)))
+        self.xref = np.zeros((12, int(self.n_periods*T_gait/dt_mpc) + 1, int(k_max_loop/k_mpc)))
 
         # Store information about one of the tracking task
         self.pos = np.zeros((12, k_max_loop))
@@ -196,13 +196,13 @@ class Logger:
         """ Store information about the state of the robot
         """
 
-        self.RPY[:, k:(k+1)] = np.reshape(interface.RPY[:],(3,1))  # roll, pitch, yaw of the base in world frame
-        self.oC[:, k:(k+1)] = np.reshape(interface.oC[:, 0],(3,1))  #  position of the CoM in world frame
-        self.oV[:, k:(k+1)] = np.reshape(interface.oV[:, 0],(3,1))  #  linear velocity of the CoM in world frame
+        self.RPY[:, k:(k+1)] = np.reshape(interface.RPY[:], (3, 1))  # roll, pitch, yaw of the base in world frame
+        self.oC[:, k:(k+1)] = np.reshape(interface.oC[:, 0], (3, 1))  #  position of the CoM in world frame
+        self.oV[:, k:(k+1)] = np.reshape(interface.oV[:, 0], (3, 1))  #  linear velocity of the CoM in world frame
         self.oW[:, k] = interface.oW[:, 0]  # angular velocity of the CoM in world frame
-        self.lC[:, k:(k+1)] = np.reshape(interface.lC[:, 0],(3,1))  #  position of the CoM in local frame
-        self.lV[:, k:(k+1)] = np.reshape(interface.lV[:, 0],(3,1))  #  linear velocity of the CoM in local frame
-        self.lW[:, k:(k+1)] = np.reshape(interface.lW[:, 0],(3,1))  #  angular velocity of the CoM in local frame
+        self.lC[:, k:(k+1)] = np.reshape(interface.lC[:, 0], (3, 1))  #  position of the CoM in local frame
+        self.lV[:, k:(k+1)] = np.reshape(interface.lV[:, 0], (3, 1))  #  linear velocity of the CoM in local frame
+        self.lW[:, k:(k+1)] = np.reshape(interface.lW[:, 0], (3, 1))  #  angular velocity of the CoM in local frame
         self.mot[:, k:(k+1)] = interface.mot[:, 0:1]
         self.Vmot[:, k:(k+1)] = interface.vmes12_base[6:, 0:1]
 
@@ -216,24 +216,24 @@ class Logger:
         pin.centerOfMass(solo.model, solo.data, pyb_sim.qmes12, vmes12_base)
 
         self.RPY_pyb[:, k:(k+1)] = np.reshape(pin.rpy.matrixToRpy((pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7]),
-                                                                np.array([0.0, 0.0, 0.0]))).rotation),(3,1))
+                                                                           np.array([0.0, 0.0, 0.0]))).rotation), (3, 1))
         oMl = pin.SE3(pin.utils.rotate('z', self.RPY_pyb[2, k]),
                       np.array([pyb_sim.qmes12[0, 0], pyb_sim.qmes12[1, 0], interface.mean_feet_z]))
 
         # Store data about PyBullet simulation
-        self.lC_pyb[:, k:(k+1)] = np.reshape(oMl.inverse() * solo.data.com[0],(3,1))
+        self.lC_pyb[:, k:(k+1)] = np.reshape(oMl.inverse() * solo.data.com[0], (3, 1))
         #self.RPY_pyb[2, k:(k+1)] = 0.0
         self.mot_pyb[:, k:(k+1)] = pyb_sim.qmes12[7:, 0:1]
-        self.lV_pyb[:, k:(k+1)] = np.reshape(oMl.rotation.transpose() @ solo.data.vcom[0],(3,1))
-        self.lW_pyb[:, k:(k+1)] = np.reshape(oMl.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1],(3,1))
+        self.lV_pyb[:, k:(k+1)] = np.reshape(oMl.rotation.transpose() @ solo.data.vcom[0], (3, 1))
+        self.lW_pyb[:, k:(k+1)] = np.reshape(oMl.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1], (3, 1))
         self.Vmot_pyb[:, k:(k+1)] = pyb_sim.vmes12[6:, 0:1]
 
         # Reference state vector in local frame
         # Velocity control for x, y and yaw components (user input)
         # Position control for z, roll and pitch components (hardcoded default values of h_ref, 0.0 and 0.0)
-        #if self.type_MPC:
+        # if self.type_MPC:
         #    self.state_ref[0:6, k] = np.array([0.0, 0.0, mpc_wrapper.mpc.h_ref, 0.0, 0.0, 0.0])
-        #else:
+        # else:
         self.state_ref[0:6, k] = np.array([0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0])
         self.state_ref[6:12, k] = joystick.v_ref[:, 0]
 
@@ -428,11 +428,11 @@ class Logger:
         # Contact forces desired by MPC (transformed into world frame)
         for f in range(4):
             self.forces_mpc[3*f:(3*(f+1)), k:(k+1)] = np.reshape((interface.oMl.rotation @
-                                                       tsid_controller.f_applied[3*f:3*(f+1)]).T,(3,1))
+                                                                  tsid_controller.f_applied[3*f:3*(f+1)]).T, (3, 1))
 
         # Contact forces desired by TSID (world frame)
         for i, j in enumerate(tsid_controller.contacts_order):
-            self.forces_tsid[(3*j):(3*(j+1)), k:(k+1)] = np.reshape( tsid_controller.fc[(3*i):(3*(i+1))] ,(3,1))
+            self.forces_tsid[(3*j):(3*(j+1)), k:(k+1)] = np.reshape(tsid_controller.fc[(3*i):(3*(i+1))], (3, 1))
 
         # Contact forces applied in PyBullet
         contactPoints_FL = pyb.getContactPoints(robotId, planeId, linkIndexA=3)  # Front left  foot
@@ -531,9 +531,9 @@ class Logger:
         """ Store information about torques
         """
 
-        self.torques_ff[:, k:(k+1)] =  np.reshape(tsid_controller.tau_ff ,(12,1))
-        self.torques_pd[:, k:(k+1)] = np.reshape(tsid_controller.tau_pd ,(12,1))
-        self.torques_sent[:, k:(k+1)] = np.reshape(tsid_controller.torques12 ,(12,1))
+        self.torques_ff[:, k:(k+1)] = np.reshape(tsid_controller.tau_ff, (12, 1))
+        self.torques_pd[:, k:(k+1)] = np.reshape(tsid_controller.tau_pd, (12, 1))
+        self.torques_sent[:, k:(k+1)] = np.reshape(tsid_controller.torques12, (12, 1))
 
         return 0
 
@@ -611,24 +611,45 @@ class Logger:
     def log_predicted_trajectories(self, k, mpc_wrapper):
         """ Store information about the predicted evolution of the optimization vector components
         """
-        if self.type_MPC : 
+        if self.type_MPC:
             self.pred_trajectories[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.x_robot
             self.pred_forces[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.x[mpc_wrapper.mpc.xref.shape[0]*(mpc_wrapper.mpc.xref.shape[1]-1):].reshape((mpc_wrapper.mpc.xref.shape[0],
-                                                                                                           mpc_wrapper.mpc.xref.shape[1]-1),
-                                                                                                           order='F')
-        else : 
+                                                                                                                                                     mpc_wrapper.mpc.xref.shape[1]-1),
+                                                                                                                                                    order='F')
+        else:
 
             self.pred_trajectories[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.get_xrobot()
             self.pred_forces[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.get_fpredicted()
 
         return 0
 
-    def log_fstep_planner(self, k , fstep_planner) : 
-        
+    def log_fstep_planner(self, k, fstep_planner):
+
         self.fsteps[:, :, int(k/self.k_mpc)] = fstep_planner.fsteps
         self.xref[:, :, int(k/self.k_mpc)] = fstep_planner.xref
 
         return 0
+
+    def plot_fstep_planner(self):
+        """ Plot information about the footstep planner
+        """
+
+        self.fsteps[np.isnan(self.fsteps)] = 0.0
+        index = [1, 3, 2, 4]
+        lgd = ["X FL", "Y FR", "X FR", "Y FR"]
+        plt.figure()
+        for i in range(4):
+            plt.subplot(2, 2, index[i])
+            if i < 2:
+                plt.plot(self.t_range[::int(self.dt_mpc/self.dt)],
+                         self.fsteps[0, i+1, :], color='k', linewidth=2, marker='x')
+            else:
+                plt.plot(self.t_range[::int(self.dt_mpc/self.dt)],
+                         self.fsteps[0, i-2+3+1, :], color='k', linewidth=2, marker='x')
+
+            plt.xlabel("Time [s]")
+            plt.ylabel(lgd[i])
+        plt.suptitle("Foostep planner output for FL and FR feet")
 
     def plot_predicted_trajectories(self):
         """ Plot information about the predicted evolution of the optimization vector components
@@ -669,15 +690,15 @@ class Logger:
         """ Store information about one of the foot tracking task
         """
 
-        self.pos[:, k:(k+1)] = np.reshape(tsid_controller.feetTask[1].position,(12,1))
-        self.pos_ref[:, k:(k+1)] = np.reshape(tsid_controller.feetTask[1].position_ref,(12,1))
-        self.pos_err[:, k:(k+1)] = np.reshape(tsid_controller.feetTask[1].position_error, (3,1))
+        self.pos[:, k:(k+1)] = np.reshape(tsid_controller.feetTask[1].position, (12, 1))
+        self.pos_ref[:, k:(k+1)] = np.reshape(tsid_controller.feetTask[1].position_ref, (12, 1))
+        self.pos_err[:, k:(k+1)] = np.reshape(tsid_controller.feetTask[1].position_error, (3, 1))
         self.vel[0:3, k:(k+1)] = np.reshape((solo.data.oMi[solo.model.frames[18].parent].act(solo.model.frames[18].placement)
-                                  ).rotation @ tsid_controller.feetTask[1].velocity[0:3] , (3,1))
+                                             ).rotation @ tsid_controller.feetTask[1].velocity[0:3], (3, 1))
         self.vel[3:6, k:(k+1)] = np.reshape((solo.data.oMi[solo.model.frames[18].parent].act(solo.model.frames[18].placement)
-                                  ).rotation @ tsid_controller.feetTask[1].velocity[3:6] , (3,1))
-        self.vel_ref[:, k:(k+1)] = np.reshape(tsid_controller.feetTask[1].velocity_ref , (6,1))
-        self.vel_err[:, k:(k+1)] = np.reshape(tsid_controller.feetTask[1].velocity_error , (3,1))
+                                             ).rotation @ tsid_controller.feetTask[1].velocity[3:6], (3, 1))
+        self.vel_ref[:, k:(k+1)] = np.reshape(tsid_controller.feetTask[1].velocity_ref, (6, 1))
+        self.vel_err[:, k:(k+1)] = np.reshape(tsid_controller.feetTask[1].velocity_error, (3, 1))
 
         return 0
 
@@ -732,7 +753,7 @@ class Logger:
         # Store information about the predicted evolution of the optimization vector components
         if not enable_multiprocessing and ((k % self.k_mpc) == 0):
             # self.log_predicted_trajectories(k, mpc_wrapper)
-            self.log_fstep_planner(k ,fstep_planner )
+            self.log_fstep_planner(k, fstep_planner)
 
         # Store information about one of the foot tracking task
         self.log_tracking_foot(k, tsid_controller, solo)
