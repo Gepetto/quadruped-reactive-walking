@@ -16,7 +16,7 @@ class MPC_crocoddyl:
         linearModel(bool) : Approximation in the cross product by using desired state
     """
 
-    def __init__(self, dt = 0.02 , T_mpc = 0.32 ,  mu = 1, inner = True , linearModel = True):    
+    def __init__(self, dt = 0.02 , T_mpc = 0.32 ,  mu = 1, inner = True , linearModel = True , n_period = 1):    
 
         # Time step of the solver
         self.dt = dt
@@ -38,20 +38,21 @@ class MPC_crocoddyl:
             self.mu = (1/np.sqrt(2))*mu
         else:
             self.mu = mu
-        
-        # Weights Vector : States
-        self.w_x = 0.4
-        self.w_y = 0.4
-        self.w_z = 2
-        self.w_roll = 0.9
-        self.w_pitch = 1.
-        self.w_yaw = 0.11
-        self.w_vx =  1*np.sqrt(self.w_x)
-        self.w_vy =  2*np.sqrt(self.w_y)
-        self.w_vz =  1*np.sqrt(self.w_z)
-        self.w_vroll =  0.05*np.sqrt(self.w_roll)
-        self.w_vpitch =  0.05*np.sqrt(self.w_pitch)
-        self.w_vyaw =  0.03*np.sqrt(self.w_yaw)
+
+        # Gain from OSQP MPC
+        self.w_x = np.sqrt(0.5)
+        self.w_y = np.sqrt(0.5)
+        self.w_z = np.sqrt(2.)
+        self.w_roll = np.sqrt(0.11)
+        self.w_pitch = np.sqrt(0.11)
+        self.w_yaw = np.sqrt(0.11)
+        self.w_vx =  np.sqrt(2.*np.sqrt(0.5))
+        self.w_vy =  np.sqrt(2.*np.sqrt(0.5))
+        self.w_vz =  np.sqrt(2.*np.sqrt(2.))
+        self.w_vroll =  np.sqrt(0.05*np.sqrt(0.11))
+        self.w_vpitch =  np.sqrt(0.05*np.sqrt(0.11))
+        self.w_vyaw =  np.sqrt(0.05*np.sqrt(0.11))
+
         self.stateWeight = np.array([self.w_x,self.w_y,self.w_z,self.w_roll,self.w_pitch,self.w_yaw,
                                     self.w_vx,self.w_vy,self.w_vz,self.w_vroll,self.w_vpitch,self.w_vyaw])
 
@@ -60,10 +61,10 @@ class MPC_crocoddyl:
         self.forceWeights = np.array(4*[0.01,0.01,0.01])
 
         # Weight Vector : Friction cone cost
-        self.frictionWeights = 0.5
+        self.frictionWeights = 1.0
 
         # Max iteration ddp solver
-        self.max_iteration = 4
+        self.max_iteration = 50
 
         # Warm Start for the solver
         self.warm_start =  True
@@ -75,6 +76,10 @@ class MPC_crocoddyl:
         self.gait = np.zeros((20, 5))
         self.index = 0
 
+        # Weight on the shoulder term : 
+        self.shoulderWeights = 10.
+        self.shoulder_hlim = 0.24
+
         # Position of the feet
         self.fsteps = np.full((20, 13), np.nan)
 
@@ -83,13 +88,13 @@ class MPC_crocoddyl:
 
         # Initialisation of the List model using ActionQuadrupedModel()  
         # The same model cannot be used [model]*(T_mpc/dt) because the dynamic
-        # model changes for each nodes.      
-        for i in range(int(self.T_mpc/self.dt )):
+        # model changes for each nodes.  
+        for i in range(int(self.T_mpc/self.dt )*n_period):
             if linearModel :
                 model = quadruped_walkgen.ActionModelQuadruped()   
             else : 
                 model = quadruped_walkgen.ActionModelQuadrupedNonLinear()   
-
+                
             # Model parameters    
             model.dt = self.dt 
             model.mass = self.mass      
@@ -101,6 +106,9 @@ class MPC_crocoddyl:
             model.stateWeights = self.stateWeight
             model.forceWeights = self.forceWeights
             model.frictionWeights = self.frictionWeights     
+            #shoulder term : 
+            model.shoulderWeights = self.shoulderWeights
+            model.shoulder_hlim = self.shoulder_hlim            
 
             # Add model to the list of model
             self.ListAction.append(model)
@@ -110,7 +118,7 @@ class MPC_crocoddyl:
         if linearModel :
             self.terminalModel = quadruped_walkgen.ActionModelQuadruped()   
         else : 
-            self.terminalModel = quadruped_walkgen.ActionModelQuadrupedNonLinear() 
+            self.terminalModel = quadruped_walkgen.ActionModelQuadrupedNonLinear()             
 
         # Model parameters of terminal node    
         self.terminalModel.dt = self.dt 
@@ -118,6 +126,8 @@ class MPC_crocoddyl:
         self.terminalModel.gI = self.gI 
         self.terminalModel.mu = self.mu
         self.terminalModel.min_fz = self.min_fz
+        self.terminalModel.shoulderWeights = self.shoulderWeights
+        self.terminalModel.shoulder_hlim = self.shoulder_hlim
        
         # Weights vectors of terminal node
         self.terminalModel.stateWeights = self.stateWeight
@@ -166,9 +176,7 @@ class MPC_crocoddyl:
         while (self.gait[j, 0] != 0):
             for i in range(k_cum, k_cum+np.int(self.gait[j, 0])):
                 # Update model   
-                self.ListAction[i].updateModel(np.reshape(self.fsteps[j, 1:], (3, 4), order='F') , xref[:, i+1]  , self.gait[j, 1:])
-                
-
+                self.ListAction[i].updateModel(np.reshape(self.fsteps[j, 1:], (3, 4), order='F') , xref[:, i]  , self.gait[j, 1:])           
                 
             k_cum += np.int(self.gait[j, 0])
             j += 1
@@ -245,6 +253,10 @@ class MPC_crocoddyl:
             elt.stateWeights = self.stateWeight
             elt.forceWeights = self.forceWeights
             elt.frictionWeights = self.frictionWeights     
+           
+            #shoulder term : 
+            elt.shoulderWeights = self.shoulderWeights
+            elt.shoulder_hlim = self.shoulder_hlim
         
         # Model parameters of terminal node    
         self.terminalModel.dt = self.dt 
@@ -258,7 +270,9 @@ class MPC_crocoddyl:
         self.terminalModel.forceWeights = np.zeros(12)
         self.terminalModel.frictionWeights = 0.
 
-
+        #shoulder term : 
+        self.terminalModel.shoulderWeights = self.shoulderWeights
+        self.terminalModel.shoulder_hlim = self.shoulder_hlim       
 
         return 0
 
