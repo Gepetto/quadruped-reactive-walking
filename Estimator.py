@@ -1,6 +1,8 @@
 # coding: utf8
 
 import numpy as np
+import pinocchio as pin
+import pybullet as pyb
 
 
 class Estimator:
@@ -18,67 +20,128 @@ class Estimator:
 
         # Sample frequency
         self.dt = dt
-        self.k = 2 / self.dt  # Gain of bilinear transform
 
-        # Cut frequency of the high-pass filter for the acceleration data of the IMU
-        self.f_HP = 50
-        self.tau_HP = 1 / (2 * np.pi * self.f_HP)
+        # Cut frequency (fc should be < than 1/dt)
+        self.fc = 250
+
+        # Filter coefficient (0 < alpha < 1)
+        self.alpha = 1.0  # self.dt * self.fc
 
         # IMU data
-        # Linear acceleration (gravity debiased)
-        # Angular velocity (gyroscopes)
-        # Angular position (estimation of IMU)
-        self.IMU_data = np.zeros((12, 1))  # Current data
-        self.IMU_data_prev = np.zeros((12, 1))  # Data of the previous time step
+        self.IMU_lin_acc = np.zeros((3, ))  # Linear acceleration (gravity debiased)
+        self.IMU_ang_vel = np.zeros((3, ))  # Angular velocity (gyroscopes)
+        self.IMU_ang_pos = np.zeros((4, ))  # Angular position (estimation of IMU)
 
         # Forward Kinematics data
-        # Linear velocity and position
-        # Angular velocity and position
-        self.FK_data = np.zeros((12, 1))  # Current data
-        self.FK_data_prev = np.zeros((12, 1))  # Data of the previous time step
+        self.FK_lin_vel = np.zeros((3, ))  # Linear velocity
+        # self.FK_ang_vel = np.zeros((3, ))  # Angular velocity
+        # self.FK_ang_pos = np.zeros((3, ))  # Angular position
 
         # Filtered quantities (output)
-        self.filt_data_IMU = np.zeros((12, 1))  # Filtered data (for IMU)
-        self.filt_data_FK = np.zeros((12, 1))  # Filtered data (for FK)
-        self.filt_data = np.zeros((12, 1))  # Sum of both filtered data
+        # self.filt_data = np.zeros((12, ))  # Sum of both filtered data
+        self.filt_lin_vel = np.zeros((3, ))  # Linear velocity
+        self.filt_ang_vel = np.zeros((3, ))  # Angular velocity
+        self.filt_ang_pos = np.zeros((4, ))  # Angular position
 
-    def get_data_IMU(self):
+        # Various matrices
+        self.q_FK = np.zeros((19, 1))
+        self.q_FK[:7, 0] = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+        self.v_FK = np.zeros((18, 1))
+        self.indexes = [10, 18, 26, 34]  #  Indexes of feet frames
+        self.actuators_pos = np.zeros((12, ))
+        self.actuators_vel = np.zeros((12, ))
 
-        return 0
+        self.prev = np.zeros((3, ))
 
-    def get_data_FK(self):
-
-        return 0
-
-    def filter_linear_vel(self):
-        """Run the complementary filter to get the estimated linear velocity
+    def get_data_IMU(self, robotId):
+        """Get data from the IMU (linear acceleration, angular velocity and position)
         """
 
-        # Filtered data of IMU for the linear velocity using the debiased linear acceleration IMU data
-        self.filt_data_IMU[6:9, 0] = ((1 - self.k * self.tau_HP) / (1 + self.k * self.tau_HP)) * self.filt_data_IMU[6:9, 0] \
-            + (self.tau_HP / (1 + self.k * self.tau_HP)) * (self.IMU_data[6:9, 0] + self.IMU_data_prev[6:9, 0])
+        baseState = pyb.getBasePositionAndOrientation(robotId)  # Position and orientation of the trunk
+        baseVel = pyb.getBaseVelocity(robotId)  # Velocity of the trunk
 
-        # Filtered data of FK for the linear velocity using the linear velocity FK data
-        self.filt_data_FK[6:9, 0] = ((1 - self.k * self.tau_HP) / (1 + self.k * self.tau_HP)) * self.filt_data_FK[6:9, 0] \
-            + (1 / (1 + self.k * self.tau_HP)) * (self.FK_data[6:9, 0] + self.FK_data_prev[6:9, 0])
-
-        # Filtered linear velocity
-        self.filt_data[6:9, 0] = self.filt_data_IMU[6:9, 0] + self.filt_data_FK[6:9, 0]
+        self.IMU_lin_acc[:] = (np.array(baseVel[0]) - self.prev) / self.dt
+        self.prev[:] = np.array(baseVel[0])
+        self.IMU_ang_vel[:] = np.array(baseVel[1])
+        self.IMU_ang_pos[:] = np.array(baseState[1])
 
         return 0
 
-    def run_filter(self):
+    def get_data_FK(self, feet_status):
+        """Get data from the forward kinematics (linear velocity, angular velocity and position)
+        """
+
+        # Update estimator FK model
+        self.q_FK[7:, 0] = self.actuators_pos
+        self.v_FK[6:, 0] = self.actuators_vel
+        pin.forwardKinematics(self.model, self.data, self.q_FK, self.v_FK)
+
+        # Get estimated velocity from updated model
+        cpt = 0
+        vel_est = np.zeros((3, ))
+        for i in (np.where(feet_status == 1))[0]:
+            vel_estimated_baseframe = self.BaseVelocityFromKinAndIMU(self.indexes[i])
+            cpt += 1
+            vel_est += vel_estimated_baseframe[:, 0]
+        self.FK_lin_vel = vel_est / cpt
+
+        return 0
+
+    def run_filter(self, k, feet_status, robotId, data=None, model=None):
+        """Run the complementary filter to get the filtered quantities
+        """
+
+        # TSID needs to run at least once
+        if k == 0:
+            return 0
+
+        # Retrieve model during first run
+        if k == 1:
+            self.data = data
+            self.model = model
+
+        # Update IMU data
+        self.get_data_IMU(robotId)
+
+        # Update FK data
+        self.get_data_FK(feet_status)
 
         # Angular position
-        self.filt_data[3:6, 0] = self.alpha * self.IMU_ang_pos \
-            + (1 - self.alpha) * self.FK_data[3:6, 0]
+        """self.filt_data[3:6] = self.alpha * self.IMU_ang_pos \
+            + (1 - self.alpha) * self.FK_ang_pos"""
+        self.filt_ang_pos[:] = self.IMU_ang_pos
 
         # Linear velocity
-        self.filt_data[6:9, 0] = self.alpha * (self.filt_data[6:9, 0] + self.IMU_lin_acc * self.dt) \
-            + (1 - self.alpha) * self.FK_data[6:9, 0]
+        self.filt_lin_vel[:] = self.alpha * (self.filt_lin_vel[:] + self.IMU_lin_acc * self.dt) \
+            + (1 - self.alpha) * self.FK_lin_vel
 
         # Angular velocity
-        self.filt_data[9:12, 0] = self.alpha * self.IMU_ang_vel \
-            + (1 - self.alpha) * self.FK_data[9:12, 0]
+        """self.filt_data[9:12] = self.alpha * self.IMU_ang_vel \
+            + (1 - self.alpha) * self.FK_ang_vel"""
+        self.filt_ang_vel[:] = self.IMU_ang_vel
 
         return 0
+
+    def cross3(self, left, right):
+        """Numpy is inefficient for this"""
+        return np.array([[left[1] * right[2] - left[2] * right[1]],
+                         [left[2] * right[0] - left[0] * right[2]],
+                         [left[0] * right[1] - left[1] * right[0]]])
+
+    def BaseVelocityFromKinAndIMU(self, contactFrameId):
+
+        frameVelocity = pin.getFrameVelocity(self.model, self.data, contactFrameId, pin.ReferenceFrame.LOCAL)
+        framePlacement = pin.updateFramePlacement(self.model, self.data, contactFrameId)
+
+        # Angular velocity of the base wrt the world in the base frame (Gyroscope)
+        _1w01 = self.IMU_ang_vel.reshape((3, 1))
+        # Linear velocity of the foot wrt the base in the base frame
+        _Fv1F = frameVelocity.linear
+        # Level arm between the base and the foot
+        _1F = framePlacement.translation
+        # Orientation of the foot wrt the base
+        _1RF = framePlacement.rotation
+        # Linear velocity of the base from wrt world in the base frame
+        _1v01 = self.cross3(_1F.ravel(), _1w01.ravel()) - (_1RF @ _Fv1F.reshape((3, 1)))
+
+        return _1v01
