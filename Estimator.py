@@ -9,11 +9,7 @@ class Estimator:
     """State estimator with a complementary filter
 
     Args:
-        dt (float): Time step of the MPC
-        n_steps (int): Number of time steps in one gait cycle
-        k_mpc (int): Number of inv dyn time step for one iteration of the MPC
-        T_gait (float): Duration of one period of gait
-        multiprocessing (bool): Enable/Disable running the MPC with another process
+        dt (float): Time step of the estimator update
     """
 
     def __init__(self, dt):
@@ -22,10 +18,10 @@ class Estimator:
         self.dt = dt
 
         # Cut frequency (fc should be < than 1/dt)
-        self.fc = 250
+        self.fc = 350
 
         # Filter coefficient (0 < alpha < 1)
-        self.alpha = 1.0  # self.dt * self.fc
+        self.alpha = self.dt * self.fc
 
         # IMU data
         self.IMU_lin_acc = np.zeros((3, ))  # Linear acceleration (gravity debiased)
@@ -67,8 +63,23 @@ class Estimator:
 
         return 0
 
+    def get_data_joints(self, robotId):
+        """Get the angular position and velocity of the 12 DoF
+        """
+
+        revoluteJointIndices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
+        jointStates = pyb.getJointStates(robotId, revoluteJointIndices)  # State of all joints
+
+        self.actuators_pos[:] = np.array([state[0] for state in jointStates])
+        self.actuators_vel[:] = np.array([state[1] for state in jointStates])
+
+        return 0
+
     def get_data_FK(self, feet_status):
         """Get data from the forward kinematics (linear velocity, angular velocity and position)
+
+        Args:
+            feet_status (4x0 numpy array): Current contact state of feet
         """
 
         # Update estimator FK model
@@ -89,6 +100,10 @@ class Estimator:
 
     def run_filter(self, k, feet_status, robotId, data=None, model=None):
         """Run the complementary filter to get the filtered quantities
+
+        Args:
+            k (int): Number of inv dynamics iterations since the start of the simulation
+            feet_status (4x0 numpy array): Current contact state of feet
         """
 
         # TSID needs to run at least once
@@ -102,6 +117,9 @@ class Estimator:
 
         # Update IMU data
         self.get_data_IMU(robotId)
+
+        # Update joints data
+        self.get_data_joints(robotId)
 
         # Update FK data
         self.get_data_FK(feet_status)
@@ -123,12 +141,23 @@ class Estimator:
         return 0
 
     def cross3(self, left, right):
-        """Numpy is inefficient for this"""
+        """Numpy is inefficient for this
+
+        Args:
+            left (3x0 array): left term of the cross product
+            right (3x0 array): right term of the cross product
+        """
         return np.array([[left[1] * right[2] - left[2] * right[1]],
                          [left[2] * right[0] - left[0] * right[2]],
                          [left[0] * right[1] - left[1] * right[0]]])
 
     def BaseVelocityFromKinAndIMU(self, contactFrameId):
+        """Estimate the velocity of the base with forward kinematics using a contact point
+        that is supposed immobile in world frame
+
+        Args:
+            contactFrameId (int): ID of the contact point frame (foot frame)
+        """
 
         frameVelocity = pin.getFrameVelocity(self.model, self.data, contactFrameId, pin.ReferenceFrame.LOCAL)
         framePlacement = pin.updateFramePlacement(self.model, self.data, contactFrameId)
