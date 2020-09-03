@@ -48,6 +48,7 @@ class MPC_Wrapper:
             self.dataIn = Array('d', [0.0] * (1 + (np.int(self.n_steps)+1) * 12 + 13*20))
             self.dataOut = Array('d', [0] * 12)
             self.fsteps_future = np.zeros((20, 13))
+            self.running = Value('b', True)
         else:
             # Create the new version of the MPC solver object
             if mpc_type:
@@ -153,7 +154,7 @@ class MPC_Wrapper:
         # If this is the first iteration, creation of the parallel process
         if (k == 0):
             p = Process(target=self.create_MPC_asynchronous, args=(
-                self.newData, self.newResult, self.dataIn, self.dataOut))
+                self.newData, self.newResult, self.dataIn, self.dataOut, self.running))
             p.start()
 
         # print("Setting Data")
@@ -172,7 +173,7 @@ class MPC_Wrapper:
 
         return 0
 
-    def create_MPC_asynchronous(self, newData, newResult, dataIn, dataOut):
+    def create_MPC_asynchronous(self, newData, newResult, dataIn, dataOut, running):
         """Parallel process with an infinite loop that run the asynchronous MPC
 
         Args:
@@ -180,10 +181,11 @@ class MPC_Wrapper:
             newResult (Value): shared variable that is true if a new result is available, false otherwise
             dataIn (Array): shared array that contains the data the asynchronous MPC will use as inputs
             dataOut (Array): shared array that contains the result of the asynchronous MPC
+            running (Value): shared variable to stop the infinite loop when set to False
         """
 
         # print("Entering infinite loop")
-        while True:
+        while running.value:
             # Checking if new data is available to trigger the asynchronous MPC
             if newData.value:
 
@@ -323,5 +325,13 @@ class MPC_Wrapper:
         else:
             self.fsteps_future = np.roll(self.fsteps_future, -1, axis=0)
             self.fsteps_future[-1, :] = np.zeros((13, ))
+
+        return 0
+
+    def stop_parallel_loop(self):
+        """Stop the infinite loop in the parallel process to properly close the simulation
+        """
+
+        self.running.value = False
 
         return 0
