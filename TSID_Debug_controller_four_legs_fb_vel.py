@@ -19,13 +19,6 @@ import time as time
 ########################################################################
 
 
-def cross3(left, right):
-    """Numpy is inefficient for this"""
-    return np.array([[left[1] * right[2] - left[2] * right[1]],
-                     [left[2] * right[0] - left[0] * right[2]],
-                     [left[0] * right[1] - left[1] * right[0]]])
-
-
 class controller:
     """ Inverse Dynamics controller that take into account the dynamics of the quadruped to generate
         actuator torques to apply on the ground the contact forces computed by the MPC (for feet in stance
@@ -133,10 +126,6 @@ class controller:
         # Torques sent to the robot
         self.torques12 = np.zeros((12, 1))
         self.tau = np.zeros((12, ))
-
-        self.log_v_truth = np.zeros((3, N_simulation))
-        self.log_v_est = np.zeros((3, 4, N_simulation))
-        self.log_Fv1F = np.zeros((3, 4, N_simulation))
 
         self.ID_base = None  # ID of base link
         self.ID_feet = [None] * 4  # ID of feet links
@@ -562,36 +551,6 @@ class controller:
 
         t_update_t = time.time()
 
-        #########################
-        # TEST STATE ESTIMATION #
-        #########################
-
-        """indexes = [10, 18, 26, 34]
-        q_tmp = self.qtsid.copy()
-        q_tmp[:7, 0] = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
-        v_tmp = self.vtsid.copy()
-        v_tmp[:6, 0] = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        self.dato = self.invdyn.data()
-        pin.forwardKinematics(self.model, self.dato, q_tmp, v_tmp)
-        gyr = self.vtsid[3:6, 0:1]
-        # print("## Ground truth velocity ##")
-        #print(self.vtsid[0:3, 0:1].ravel())
-        self.log_v_truth[:, k_simu] = self.vtsid[0:3, 0]
-        # print("## Estimated velocity ##")
-
-        cpt = 0
-        vel_est = np.zeros((3, ))
-        for i in (np.where(gait[0, 1:] == 1))[0]:
-            vel_estimated_baseframe, _Fv1F = self.BaseVelocityFromKinAndIMU(q_tmp, v_tmp, gyr, indexes[i])
-            # print(vel_estimated_baseframe.ravel())
-            # vel_estimated_worldframe = self.oMb * vel_estimated_baseframe
-            self.log_v_est[:, i, k_simu] = vel_estimated_baseframe[0:3, 0]
-            self.log_Fv1F[:, i, k_simu] = _Fv1F[0:3]
-
-            cpt += 1
-            vel_est += vel_estimated_baseframe[:, 0]
-        vel_est /= cpt"""
-
         ###############
         # HQP PROBLEM #
         ###############
@@ -797,30 +756,6 @@ class controller:
                 print('Several torques at saturation. Switching to safety controller.')
                 return np.zeros((12, ))
             return self.torques12
-
-    def BaseVelocityFromKinAndIMU(self, q, v, gyr, contactFrameId):
-        # frameVelocity = self.robot.frameVelocity(q, v, contactFrameId, update_kinematics=False)
-        # framePlacement = self.robot.framePlacement(q, contactFrameId, update_kinematics=False)
-
-        # frameVelocity = self.robot.frameVelocity(self.invdyn.data(), contactFrameId)
-        # framePlacement = self.robot.framePosition(self.invdyn.data(), contactFrameId)
-
-        frameVelocity = pin.getFrameVelocity(self.model, self.dato, contactFrameId, pin.ReferenceFrame.LOCAL)
-        framePlacement = pin.updateFramePlacement(self.model, self.dato, contactFrameId)
-
-        # Angular velocity of the base wrt the world in the base frame (Gyroscope)
-        _1w01 = gyr
-        # Linear velocity of the foot wrt the base in the base frame
-        _Fv1F = frameVelocity.linear
-        # Level arm between the base and the foot
-        _1F = framePlacement.translation
-        # Orientation of the foot wrt the base
-        _1RF = framePlacement.rotation
-        # Linear velocity of the base from wrt world in the base frame
-        #_1v01 = np.cross(_1F.A1 , _1w01) - (_1RF * _Fv1F).A1
-        _1v01 = cross3(_1F.ravel(), _1w01.ravel()) - (_1RF @ _Fv1F.reshape((3, 1)))
-
-        return _1v01, _Fv1F
 
     def display(self, t, solo, k_simu, sequencer):
         """ To display debug spheres in Gepetto Viewer
