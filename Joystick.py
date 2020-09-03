@@ -30,7 +30,7 @@ class Joystick:
         self.vY = 0.
         self.vYaw = 0.
         self.VxScale = 0.3
-        self.VyScale = 0.4
+        self.VyScale = 0.3
         self.vYawScale = 0.8
 
         self.Vx_ref = 0.3
@@ -80,7 +80,7 @@ class Joystick:
             self.reduced = not self.reduced
 
         tc = 0.04  #  cutoff frequency at 50 Hz
-        dT = 0.001  # velocity reference is updated every ms
+        dT = 0.002  # velocity reference is updated every ms
         alpha = dT / tc
         self.v_ref = alpha * self.v_gp + (1-alpha) * self.v_ref
 
@@ -124,7 +124,7 @@ class Joystick:
         if velID == 0:
             if (k_loop == 0):
                 self.k_switch = np.array([0, 1000, 4000, 7000, 10000, 13000])
-                self.v_switch = np.array([[0.0, 0.0, 0.25, 0.45, 0.65, 0.75],
+                self.v_switch = np.array([[0.0, 0.0, 0.25, 0.45, 0.65, 0.7],
                                           [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
                                           [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
                                           [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
@@ -156,8 +156,26 @@ class Joystick:
             self.v_ref = np.array([[0.0, V_max*(1.0-alpha), 0.0, 0.0, 0.0, 0.0]]).T"""
         # End Video Demo 16/06/2020
 
-        # Video Demo 24/06/2020
         if velID == 1:
+            if (k_loop == 0):
+                V_max = 0.5
+                self.k_switch = np.array([0, 1000, 3000, 8000, 12000, 16000, 20000, 22000,
+                                          23000, 26000, 30000, 33000, 34000, 40000, 41000, 43000,
+                                          44000, 45000])
+                self.v_switch = np.zeros((6, self.k_switch.shape[0]))
+                self.v_switch[0, :] = np.array([0.0, 0.0, V_max, V_max, 0.0, 0.0, 0.0,
+                                                0.0, -V_max, -V_max, 0.0, 0.0, 0.0, V_max, V_max, V_max,
+                                                V_max, V_max])
+                self.v_switch[1, :] = np.array([0.0, 0.0,  0.0, 0.0, -V_max, -V_max, 0.0,
+                                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                0.0, 0.0])
+                self.v_switch[5, :] = np.array([0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                0.0, 0.0, 0.0, 0.0, 0.3, 0.3, 0.0, 0.0,
+                                                -0.3, 0.0])
+            self.handle_v_switch(k_loop)
+
+        # Video Demo 24/06/2020
+        if velID == 2:
             V_max = 0.3
             Rot_max = 0.2
             if k_loop < 8000:
