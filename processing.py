@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 from utils import getQuaternion
 
 
-def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, pyb_feedback):
+def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, estimator, pyb_feedback):
     """Update states by retrieving information from the simulation and the gamepad
 
     Args:
@@ -21,6 +21,7 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
         interface (object): Interface object of the control loop
         joystick (object): Interface with the gamepad
         tsid_controller (object): Inverse dynamics controller
+        estimator (object): Estimator object which estimates the state of the robot
         pyb_feedback (bool): Whether PyBullet feedback is enabled or not
     """
 
@@ -28,6 +29,9 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
         # Retrieve data from the simulation (position/orientation/velocity of the robot)
         # Stored in pyb_sim.qmes12 and pyb_sim.vmes12 (quantities in PyBullet world frame)
         pyb_sim.retrieve_pyb_data()
+        pyb_sim.qmes12[3:7, 0] = estimator.filt_ang_pos
+        pyb_sim.vmes12[0:3, 0] = estimator.filt_lin_vel
+        pyb_sim.vmes12[3:6, 0] = estimator.filt_ang_vel
 
         # Retrieve state desired by TSID (position/orientation/velocity of the robot)
         tsid_controller.qtsid[:, 0] = tsid_controller.qdes.copy()  # in TSID world frame
@@ -112,6 +116,24 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
     if (k == 0):
         fstep_planner.update_fsteps(k, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
                                     joystick.v_ref, interface.lC[2], interface.oMl, pyb_sim.ftps_Ids, False)
+
+    """import pybullet as pyb
+    for j in range(4):
+        pos_tmp = np.array([interface.o_feet[:, j]]).transpose()
+        pyb.resetBasePositionAndOrientation(pyb_sim.ftps_Ids[j, 0],
+                                            posObj=pos_tmp,
+                                            ornObj=np.array([0.0, 0.0, 0.0, 1.0]))"""
+
+    """for i in range(4):
+        a = interface.o_feet[:, i:(i+1)]
+        b = interface.l_feet[:, i:(i+1)]
+        c = interface.oMl.inverse() * interface.o_feet[:, i:(i+1)]
+        d = interface.oMl * interface.l_feet[:, i:(i+1)]
+        print("### ", i, " ###")
+        print("o_feet: ", a.ravel())
+        print("o_feet: ", b.ravel())
+        print("oMl-1 * o_feet: ", c.ravel())
+        print("oMl * l_feet: ", d.ravel())"""
 
     # Update footsteps desired location once every k_mpc iterations of TSID
     if True:  # (k % k_mpc) == 0:

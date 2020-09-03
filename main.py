@@ -20,6 +20,7 @@ class SimulatorLoop(Loop):
     """
     Class used to call pybullet at a given frequency
     """
+
     def __init__(self, period, t_max, envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC, pyb_feedback):
         """
         Constructor
@@ -41,14 +42,14 @@ class SimulatorLoop(Loop):
         self.ID_deb_lines = []
 
         # Enable/Disable Gepetto viewer
-        self.enable_gepetto_viewer = True
+        self.enable_gepetto_viewer = False
 
         # Which MPC solver you want to use
         # True to have PA's MPC, to False to have Thomas's MPC
         """type_MPC = True"""
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
-        self.joystick, self.fstep_planner, self.logger, self.interface = utils.init_objects(
+        self.joystick, self.fstep_planner, self.logger, self.interface, self.estimator = utils.init_objects(
             dt, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC)
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
@@ -135,7 +136,7 @@ class SimulatorLoop(Loop):
         # If nothing wrong happened yet in TSID controller
         if not self.myController.error:
             self.jointTorques = proc.process_invdyn(self.solo, self.k, self.f_applied, self.pyb_sim, self.interface,
-                                               self.fstep_planner, self.myController, self.enable_hybrid_control)
+                                                    self.fstep_planner, self.myController, self.enable_hybrid_control)
             # t_list_tsid[k] = time.time() - time_tsid  # Logging the time spent to run this iteration of inverse dynamics
 
             # Process PD+ (feedforward torques and feedback torques)
@@ -219,6 +220,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     time_error = False
 
     # Lists to log the duration of 1 iteration of the MPC/TSID
+    t_list_filter = [0] * int(N_SIMULATION)
     t_list_states = [0] * int(N_SIMULATION)
     t_list_fsteps = [0] * int(N_SIMULATION)
     t_list_mpc = [0] * int(N_SIMULATION)
@@ -239,7 +241,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     """type_MPC = True"""
 
     # Create Joystick, FootstepPlanner, Logger and Interface objects
-    joystick, fstep_planner, logger, interface = utils.init_objects(
+    joystick, fstep_planner, logger, interface, estimator = utils.init_objects(
         dt, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC, on_solo8,
         predefined_vel)
 
@@ -283,10 +285,19 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
         """if (k % 1000) == 0:
             print("Iteration: ", k)"""
-        #print("###")
+        # print("###")
+
+        # Process estimator
+        if k == 1:
+            estimator.run_filter(k, fstep_planner.gait[0, 1:], pyb_sim.robotId,
+                                 myController.invdyn.data(), myController.model)
+        else:
+            estimator.run_filter(k, fstep_planner.gait[0, 1:], pyb_sim.robotId)
+
+        t_filter = time.time()
 
         # Process states update and joystick
-        proc.process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, myController, pyb_feedback)
+        proc.process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, myController, estimator, pyb_feedback)
 
         t_states = time.time()
 
@@ -315,7 +326,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
         t_mpc = time.time()
 
-        #print(f_applied.ravel())
+        # print(f_applied.ravel())
 
         # Process Inverse Dynamics
         # time_tsid = time.time()
@@ -339,22 +350,27 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
             jointTorques[jointTorques > t_max] = t_max
             jointTorques[jointTorques < -t_max] = -t_max
 
-            if np.max(np.abs(pyb_sim.vmes12[6:, 0])) < 0.1:
+            """if np.max(np.abs(pyb_sim.vmes12[6:, 0])) < 0.1:
                 print("Trigger get back to default pos")
                 # pyb_sim.get_to_default_position(pyb_sim.straight_standing)
                 pyb_sim.get_to_default_position(np.array([[0.0, np.pi/2, np.pi,
                                                            0.0, np.pi/2, np.pi,
                                                            0.0, -np.pi/2, np.pi,
-                                                           0.0, -np.pi/2, np.pi]]).transpose())
+                                                           0.0, -np.pi/2, np.pi]]).transpose())"""
+            """pyb_sim.get_to_default_position(np.array([[0, 0.8, -1.6,
+                                                       0, 0.8, -1.6,
+                                                       0, -0.8, 1.6,
+                                                       0, -0.8, 1.6]]).transpose())"""
 
-        #print(jointTorques.ravel())
+        # print(jointTorques.ravel())
         """if myController.error:
             pyb.disconnect()
             quit()"""
 
         t_tsid = time.time()
 
-        t_list_states[k] = t_states - time_loop
+        t_list_filter[k] = t_filter - time_loop
+        t_list_states[k] = t_states - t_filter
         t_list_fsteps[k] = t_fsteps - t_states
         t_list_mpc[k] = t_mpc - t_fsteps
         t_list_tsid[k] = t_tsid - t_mpc
@@ -364,9 +380,12 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         proc.process_pybullet(pyb_sim, k, envID, jointTorques)
 
         # Call logger object to log various parameters
-        logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
-                                  False, pyb_sim.robotId, pyb_sim.planeId, solo)
-
+        # logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
+        #                          False, pyb_sim.robotId, pyb_sim.planeId, solo)
+        # logger.log_state(k, pyb_sim, joystick, interface, mpc_wrapper, solo)
+        # logger.log_footsteps(k, interface, myController)
+        # logger.log_fstep_planner(k, fstep_planner)
+        # logger.log_tracking_foot(k, myController, solo)
         """if k >= 1000:
             time.sleep(0.1)"""
 
@@ -382,9 +401,15 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     print("Computation duration: ", tac-tic)
     print("Simulated duration: ", N_SIMULATION*dt)
     print("Max loop time: ", np.max(t_list_loop[10:]))
+
+    if enable_multiprocessing:
+        print("Stopping parallel process")
+        mpc_wrapper.stop_parallel_loop()
+
     print("END")
 
     plt.figure()
+    plt.plot(t_list_filter[1:], '+', color="orange")
     plt.plot(t_list_states[1:], 'r+')
     plt.plot(t_list_fsteps[1:], 'g+')
     plt.plot(t_list_mpc[1:], 'b+')
@@ -394,6 +419,37 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     plt.show(block=True)
 
     pyb.disconnect()
+
+    """NN = myController.log_v_est.shape[2]
+    avg = np.zeros((3, NN))
+    for m in range(NN):
+        tmp_cpt = 0
+        tmp_sum = np.zeros((3, 1))
+        for j in range(4):
+            if np.any(np.abs(myController.log_v_est[:, j, m]) > 1e-2):
+                tmp_cpt += 1
+                tmp_sum[:, 0] = tmp_sum[:, 0] + myController.log_v_est[:, j, m].ravel()
+        if tmp_cpt > 0:
+            avg[:, m:(m+1)] = tmp_sum / tmp_cpt
+
+    plt.figure()
+    for i in range(3):
+        plt.subplot(3, 1, i+1)
+        for j in range(4):
+            plt.plot(myController.log_v_est[i, j, :], linewidth=3)
+            # plt.plot(-myController.log_Fv1F[i, j, :], linewidth=3, linestyle="--")
+        plt.plot(myController.log_v_truth[i, :], "k", linewidth=3, linestyle="--")
+        plt.plot(avg[i, :], color="rebeccapurple", linewidth=3, linestyle="--")
+        plt.legend(["FL", "FR", "HL", "HR", "Truth"])
+    plt.suptitle("Estimation of the velocity of the base")
+
+    plt.figure()
+    for i in range(3):
+        plt.subplot(3, 1, i+1)
+        for j in range(4):
+            plt.plot(logger.feet_vel[i, j, :], linewidth=3)
+    plt.suptitle("Velocity of feet over time")
+    plt.show(block=True)"""
 
     return logger
 

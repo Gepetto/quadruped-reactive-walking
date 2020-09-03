@@ -7,6 +7,7 @@ import Joystick
 import FootstepPlanner
 import Logger
 import Interface
+import Estimator
 
 import pybullet as pyb  # Pybullet server
 import pybullet_data
@@ -167,7 +168,10 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC
     # Create Interface object
     interface = Interface.Interface()
 
-    return joystick, fstep_planner, logger, interface
+    # Create Estimator object
+    estimator = Estimator.Estimator(dt_tsid)
+
+    return joystick, fstep_planner, logger, interface, estimator
 
 
 def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
@@ -207,7 +211,7 @@ class pybullet_simulator:
     def __init__(self, envID, use_flat_plane, dt=0.001):
 
         # Start the client for PyBullet
-        physicsClient = pyb.connect(pyb.GUI)
+        physicsClient = pyb.connect(pyb.DIRECT)
         # p.GUI for graphical version
         # p.DIRECT for non-graphical version
 
@@ -218,20 +222,23 @@ class pybullet_simulator:
             self.planeId = pyb.loadURDF("plane.urdf")  # Flat plane
         else:
             import random
-            random.seed(42)
+            random.seed(41)
             # p.configureDebugVisualizer(p.COV_ENABLE_RENDERING,0)
             heightPerturbationRange = 0.05
 
             numHeightfieldRows = 256*2
             numHeightfieldColumns = 256*2
             heightfieldData = [0]*numHeightfieldRows*numHeightfieldColumns
+            height_prev = 0.0
             for j in range(int(numHeightfieldColumns/2)):
                 for i in range(int(numHeightfieldRows/2)):
                     height = random.uniform(0, heightPerturbationRange)  # uniform distribution
-                    heightfieldData[2*i+2*j*numHeightfieldRows] = height
+                    # height = 0.25*np.sin(2*np.pi*(i-128)/46)
+                    heightfieldData[2*i+2*j*numHeightfieldRows] = (height + height_prev) * 0.5
                     heightfieldData[2*i+1+2*j*numHeightfieldRows] = height
-                    heightfieldData[2*i+(2*j+1)*numHeightfieldRows] = height
+                    heightfieldData[2*i+(2*j+1)*numHeightfieldRows] = (height + height_prev) * 0.5
                     heightfieldData[2*i+1+(2*j+1)*numHeightfieldRows] = height
+                    height_prev = height
 
             terrainShape = pyb.createCollisionShape(shapeType=pyb.GEOM_HEIGHTFIELD, meshScale=[.05, .05, 1],
                                                     heightfieldTextureScaling=(numHeightfieldRows-1)/2,
@@ -242,13 +249,18 @@ class pybullet_simulator:
             pyb.resetBasePositionAndOrientation(self.planeId, [0, 0, 0], [0, 0, 0, 1])
             pyb.changeVisualShape(self.planeId, -1, rgbaColor=[1, 1, 1, 1])
 
-        # Add stairs with platform and bridge
-        # self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")#,
-        # basePosition=[-1.25, 3.5, -0.1],
-        # baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))
-        # pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)
+        """self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf",
+                                     basePosition=[0.0, 0.0, -0.3],
+                                     baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 0.0]))
+        pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)"""
 
         if envID == 1:
+
+            # Add stairs with platform and bridge
+            """self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")  # ,
+            basePosition = [-1.25, 3.5, -0.1],
+            baseOrientation = pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415])
+            pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)"""
 
             mesh_scale = [1.0, 0.1, 0.02]
             visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
@@ -311,7 +323,7 @@ class pybullet_simulator:
                                             useMaximalCoordinates=True)
                 pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
-            mesh_scale = [0.05, 0.05, 0.05]
+            mesh_scale = [0.1, 0.1, 0.1]
             visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
                                                   fileName="sphere_smooth.obj",
                                                   halfExtents=[0.5, 0.5, 0.1],
@@ -329,14 +341,14 @@ class pybullet_simulator:
                                                  baseInertialFramePosition=[0, 0, 0],
                                                  baseCollisionShapeIndex=collisionShapeId,
                                                  baseVisualShapeIndex=visualShapeId,
-                                                 basePosition=[-0.6, 0.9, 0.05],
+                                                 basePosition=[-0.6, 0.9, 0.1],
                                                  useMaximalCoordinates=True)
 
             self.sphereId2 = pyb.createMultiBody(baseMass=0.3,
                                                  baseInertialFramePosition=[0, 0, 0],
                                                  baseCollisionShapeIndex=collisionShapeId,
                                                  baseVisualShapeIndex=visualShapeId,
-                                                 basePosition=[0.6, 1.1, 0.05],
+                                                 basePosition=[0.6, 1.1, 0.1],
                                                  useMaximalCoordinates=True)
 
             # Flag to launch the two spheres in the environment toward the robot
@@ -430,16 +442,16 @@ class pybullet_simulator:
         if envID == 1:
             # Check if the robot is in front of the first sphere to trigger it
             if self.flag_sphere1 and (qmes12[1, 0] >= 0.9):
-                pyb.resetBaseVelocity(self.sphereId1, linearVelocity=[3.0, 0.0, 2.0])
+                pyb.resetBaseVelocity(self.sphereId1, linearVelocity=[2.5, 0.0, 2.0])
                 self.flag_sphere1 = False
 
             # Check if the robot is in front of the second sphere to trigger it
             if self.flag_sphere2 and (qmes12[1, 0] >= 1.1):
-                pyb.resetBaseVelocity(self.sphereId2, linearVelocity=[-3.0, 0.0, 2.0])
+                pyb.resetBaseVelocity(self.sphereId2, linearVelocity=[-2.5, 0.0, 2.0])
                 self.flag_sphere2 = False
 
         # Apply perturbation
-        self.apply_external_force(k,  1000, 400, np.array([0.0, 6.0, 0.0]), np.zeros((3,)))
+        # self.apply_external_force(k,  1000, 400, np.array([0.0, 6.0, 0.0]), np.zeros((3,)))
         """self.apply_external_force(k,  4000, 400, np.array([0.0, 2.0, 0.0]), np.zeros((3,)))
         self.apply_external_force(k,  8000, 400, np.array([0.0, -2.0, 0.0]), np.zeros((3,)))
         self.apply_external_force(k, 12000, 400, np.array([2.0, 0.0, 0.0]), np.zeros((3,)))
@@ -454,7 +466,7 @@ class pybullet_simulator:
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=(0.0*RPY[2]*(180/3.1415)+45), cameraPitch=-39.9,
-                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])
+                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])  # qmes12[2, 0]-0.2])
 
         return 0
 
@@ -519,8 +531,8 @@ class pybullet_simulator:
         cpt = 0
 
         # PD settings
-        P = 0.33 * 3.0
-        D = 0.33 * np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+        P = 1.0 * 3.0
+        D = 0.05 * np.array([[1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3]]).transpose()
 
         while True or np.max(np.abs(qtarget - qmes)) > 0.1:
 
@@ -536,8 +548,9 @@ class pybullet_simulator:
                 ev = dt_traj * cpt
                 A3 = 2 * (qmes - qtarget) / t1**3
                 A2 = (-3/2) * t1 * A3
-                qdes = qmes + A2*ev**2 + A3*ev**3
-            jointTorques = P * (qdes - qmes)  # + D * (self.vdes[6:, 0] - self.vmes[6:, 0])
+                qdes = qmes + A2*(ev**2) + A3*(ev**3)
+                vdes = 2*A2*ev + 3*A3*(ev**2)
+            jointTorques = P * (qdes - qmes) + D * (vdes - vmes)
 
             # Saturation to limit the maximal torque
             t_max = 2.5
