@@ -27,7 +27,7 @@ pyb_feedback = True
 on_solo8 = False
 
 # If True the ground is flat, otherwise it has bumps
-use_flat_plane = False
+use_flat_plane = True
 
 # If we are using a predefined reference velocity (True) or a joystick (False)
 predefined_vel = True
@@ -52,13 +52,15 @@ result_loggers.append(result_logger1)
 # result_logger1.plot_graphs(enable_multiprocessing=False, show_block=False)
 # result_logger2.plot_graphs(enable_multiprocessing=False)
 
-result_logger1.plot_state()
+# result_logger1.plot_state()
+# result_logger1.plot_footsteps()
 
-result_logger1.plot_footsteps()
+# result_logger1.plot_fstep_planner()
+# result_logger1.plot_tracking_foot()
 # result_logger1.plot_forces()
 # result_logger1.plot_torques()
 # result_logger2.plot_state()
-plt.show(block=True)
+# plt.show(block=True)
 quit()
 # embed()
 
