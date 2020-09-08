@@ -12,7 +12,6 @@ import numpy as np
 import numpy.matlib as matlib
 import tsid
 import FootTrajectoryGenerator as ftg
-import time as time
 
 ########################################################################
 #            Class for a PD with feed-forward Controller               #
@@ -57,8 +56,8 @@ class controller:
         contactNormal = np.array([0., 0., 1.])  # direction of the normal to the contact surface
 
         # Coefficients of the torque limit task
-        tau_bound = 2.5
-        w_torque_bounds = 10.0
+        # tau_bound = 2.5
+        # w_torque_bounds = 10.0
 
         # Coefficients of the posture task
         kp_posture = 10.0		# proportionnal gain of the posture task
@@ -78,19 +77,6 @@ class controller:
         w_trunk = 100
 
         # Arrays to store logs
-        k_max_loop = N_simulation
-        self.f_pos = np.zeros((4, k_max_loop, 3))
-        self.f_vel = np.zeros((4, k_max_loop, 3))
-        self.f_acc = np.zeros((4, k_max_loop, 3))
-        self.f_pos_ref = np.zeros((4, k_max_loop, 3))
-        self.f_vel_ref = np.zeros((4, k_max_loop, 3))
-        self.f_acc_ref = np.zeros((4, k_max_loop, 3))
-        self.b_pos = np.zeros((k_max_loop, 6))
-        self.b_vel = np.zeros((k_max_loop, 6))
-        self.com_pos = np.zeros((k_max_loop, 3))
-        self.com_pos_ref = np.zeros((k_max_loop, 3))
-        self.c_forces = np.zeros((4, k_max_loop, 3))
-        self.h_ref_feet = np.zeros((k_max_loop, ))
         self.goals = np.zeros((3, 4))
         self.vgoals = np.zeros((3, 4))
         self.agoals = np.zeros((3, 4))
@@ -327,8 +313,6 @@ class controller:
             ftps_Ids_deb (list): IDs of debug spheres in PyBullet
         """
 
-        t_proc_start = time.time()
-
         if ((k_loop % self.k_mpc) == 0):
 
             # Indexes of feet in swing phase
@@ -378,9 +362,8 @@ class controller:
             for i in range(len(self.feet)):
                 self.t0s[i] = np.round(np.max((self.t0s[i] + self.dt, 0.0)), decimals=3)
 
-        t_proc = time.time() - t_proc_start
         self.sub_test(self.feet, self.t0s, interface, ftps_Ids_deb)
-        return t_proc
+        return 0
 
     def sub_test(self, feet, t0s, interface, ftps_Ids_deb):
 
@@ -438,7 +421,8 @@ class controller:
     ####################################################################
 
     def control(self, qtsid, vtsid, k_simu, solo, interface, f_applied, fsteps, gait,
-                ftps_Ids_deb, enable_hybrid_control=False, qmes=None, vmes=None, qmpc=None, vmpc=None):
+                ftps_Ids_deb, enable_hybrid_control=False, enable_gepetto_viewer=False,
+                qmes=None, vmes=None, qmpc=None, vmpc=None):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
 
@@ -455,13 +439,12 @@ class controller:
                                  columns). For feet currently touching the ground the desired position is where they
                                  currently are.
             enable_hybrid_control (bool): whether hybrid control is enabled or not
+            enable_gepetto_viewer (bool): whether the gepetto viewer is enabled or not (to update it if it is)
             qmes (19x1 array): the position/orientation of the trunk and angular position of actuators of the real
                                robot (for hybrid control)
             vmes (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators of the real
                                robot (for hybrid control)
         """
-
-        t_start = time.time()
 
         self.f_applied = f_applied
 
@@ -519,8 +502,6 @@ class controller:
             # Update internal state of TSID for the current interation
             self.update_state(qtsid, vtsid)
 
-        t_update_state = time.time()
-
         #####################
         # FOOTSTEPS PLANNER #
         #####################
@@ -531,8 +512,6 @@ class controller:
         # Update the desired position of footholds thanks to the footstep planner
         self.update_footsteps(interface, fsteps)
 
-        t_update_fstep = time.time()
-
         ######################################
         # UPDATE REFERENCE OF CONTACT FORCES #
         ######################################
@@ -540,16 +519,12 @@ class controller:
         # Update the contact force tracking tasks to follow the forces computed by the MPC
         self.update_ref_forces(interface)
 
-        t_update_f = time.time()
-
         ################
         # UPDATE TASKS #
         ################
 
         # Enable/disable contact and 3D tracking tasks depending on the state of the feet (swing or stance phase)
-        b = self.update_tasks(k_simu, k_loop, looping, interface, gait, ftps_Ids_deb)
-
-        t_update_t = time.time()
+        self.update_tasks(k_simu, k_loop, looping, interface, gait, ftps_Ids_deb)
 
         ###############
         # HQP PROBLEM #
@@ -561,26 +536,13 @@ class controller:
         # Time incrementation
         self.t += dt
 
-        t_solver = time.time()
-
         ###########
         # DISPLAY #
         ###########
 
         # Refresh Gepetto Viewer
-        # solo.display(self.qtsid)
-
-        """if True or(t_solver - t_start) > 0.0004:
-            print("###")
-            print("k_simu: ", k_simu)
-            print("State: ", t_update_state - t_start)
-            print("Fsteps: ", t_update_fstep - t_update_state)
-            print("Forces: ", t_update_f - t_update_fstep)
-            print("Tasks: ", t_update_t - t_update_f)
-            print("with proc time of: ", b)
-            print("Solver: ", t_solver - t_update_t)"""
-        """else:
-            print("with proc time of: ", b)"""
+        if enable_gepetto_viewer:
+            solo.display(self.qtsid)
 
         return 0
 
@@ -644,7 +606,7 @@ class controller:
         """
 
         # Update the foot tracking tasks
-        b = self.update_feet_tasks(k_loop, gait, looping, interface, ftps_Ids_deb)
+        self.update_feet_tasks(k_loop, gait, looping, interface, ftps_Ids_deb)
 
         # Index of the first blank line in the gait matrix
         index = next((idx for idx, val in np.ndenumerate(gait[:, 0]) if (((val == 0)))), [-1])[0]
@@ -682,7 +644,7 @@ class controller:
                     # Disable foot tracking task
                     self.invdyn.removeTask("foot_track_" + str(i_foot), 0.0)
 
-        return b
+        return 0
 
     def solve_HQP_problem(self, t):
         """ Solve the QP problem by calling TSID's solver
@@ -721,9 +683,6 @@ class controller:
         # Check for NaN value in the output torques (means error during solving process)
         """if np.any(np.isnan(self.tau_ff)):
             self.tau_ff[np.isnan(self.tau_ff)] = 0.0"""
-
-        if np.max(self.vtsid) > 100:
-            debug = 1
 
         if np.any(np.isnan(self.tau_ff)):
             self.error = True
@@ -771,7 +730,7 @@ class controller:
                     "world/sphere"+str(i)+"_target", (self.feetGoal[i].translation[0, 0],
                                                       self.feetGoal[i].translation[1, 0],
                                                       self.feetGoal[i].translation[2, 0], 1., 0., 0., 0.))
-                # print("Foothold " + str(i) + " : " + self.feetGoal[i].translation.transpose())
+                # print("Foothold " + str(i) + " : " + self.feetGoal[i].translation.transpose())
 
             # Display current 3D positions of footholds with magenta spheres (gepetto gui)
             rgbt = [1.0, 0.0, 1.0, 0.5]
@@ -825,7 +784,8 @@ class controller:
                         solo.viewer.gui.setCurvePoints("world/force_curve"+str(i_foot),
                                                        [[self.memory_contacts[0, i_foot],
                                                          self.memory_contacts[1, i_foot], 0.0],
-                                                        [self.memory_contacts[0, i_foot] + Kreduce * self.fc[3*cpt_foot+0, 0],
+                                                        [self.memory_contacts[0, i_foot]
+                                                         + Kreduce * self.fc[3*cpt_foot+0, 0],
                                                          self.memory_contacts[1, i_foot] +
                                                          Kreduce * self.fc[3*cpt_foot+1, 0],
                                                          Kreduce * self.fc[3*cpt_foot+2, 0]]])
@@ -860,47 +820,6 @@ class controller:
             if k_simu % 1 == 0:
                 solo.viewer.gui.refresh()
                 solo.display(self.qtsid)
-
-    def log(self, t, solo, k_simu, sequencer, interface):
-        """ To log various quantities
-        Not used anymore since logging is done by the Logger object
-        """
-
-        self.h_ref_feet[k_simu] = interface.mean_feet_z
-
-        # Log pos, vel, acc of the flying foot
-        for i_foot in range(4):
-            self.f_pos_ref[i_foot, k_simu:(k_simu+1), :] = self.sampleFeet[i_foot].pos()[0:3].transpose()
-            self.f_vel_ref[i_foot, k_simu:(k_simu+1), :] = self.sampleFeet[i_foot].vel()[0:3].transpose()
-            self.f_acc_ref[i_foot, k_simu:(k_simu+1), :] = self.sampleFeet[i_foot].acc()[0:3].transpose()
-
-            pos = self.robot.framePosition(self.invdyn.data(), self.ID_feet[i_foot])
-            vel = self.robot.frameVelocityWorldOriented(
-                self.invdyn.data(), self.ID_feet[i_foot])
-            acc = self.robot.frameAccelerationWorldOriented(
-                self.invdyn.data(), self.ID_feet[i_foot])
-            self.f_pos[i_foot, k_simu:(k_simu+1), :] = interface.o_feet[:, i_foot]  # pos.translation[0:3].transpose()
-            self.f_vel[i_foot, k_simu:(k_simu+1), :] = vel.vector[0:3].transpose()
-            self.f_acc[i_foot, k_simu:(k_simu+1), :] = acc.vector[0:3].transpose()
-
-        c_f = np.zeros((3, 4))
-        for i, j in enumerate(np.where(sequencer.S[0, :] == 1)[0]):
-            c_f[:, j:(j+1)] = self.fc[(3*i):(3*(i+1))]
-        self.c_forces[:, k_simu, :] = c_f.transpose()  #  self.fc.reshape((4, 3))
-
-        # Log position of the base
-        pos_trunk = self.robot.framePosition(self.invdyn.data(), self.ID_base)
-        self.b_pos[k_simu:(k_simu+1), 0:3] = pos_trunk.translation[0:3].transpose()
-        vel_trunk = self.robot.frameVelocityWorldOriented(self.invdyn.data(), self.ID_base)
-        self.b_vel[k_simu:(k_simu+1), 0:3] = vel_trunk.vector[0:3].transpose()
-
-        # Log position and reference of the CoM
-        com_ref = self.robot.com(self.invdyn.data())
-        self.trajCom = tsid.TrajectoryEuclidianConstant("traj_com", com_ref)
-        sample_com = self.trajCom.computeNext()
-
-        self.com_pos_ref[k_simu:(k_simu+1), 0:3] = sample_com.pos().transpose()
-        self.com_pos[k_simu:(k_simu+1), 0:3] = self.robot.com(self.invdyn.data()).transpose()
 
 
 # Parameters for the controller

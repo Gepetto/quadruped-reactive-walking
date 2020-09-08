@@ -3,10 +3,6 @@
 import numpy as np
 import pybullet as pyb
 import pinocchio as pin
-import math
-import os
-from matplotlib import pyplot as plt
-from utils import getQuaternion
 
 
 def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, estimator, pyb_feedback):
@@ -49,7 +45,8 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
             interface.RPY_tsid = pin.rpy.matrixToRpy(pin.Quaternion(tsid_controller.qtsid[3:7]).toRotationMatrix())
             tsid_controller.qtsid[3:7, 0:1] = np.array([pyb.getQuaternionFromEuler(np.array([interface.RPY_pyb[0],
                                                                                              interface.RPY_pyb[1],
-                                                                                             interface.RPY_tsid[2]]))]).transpose()
+                                                                                             interface.RPY_tsid[2]]))]
+                                                       ).transpose()
 
         # Transform from TSID world frame to robot base frame (just rotation part)
         interface.oMb_tsid = pin.SE3(pin.Quaternion(tsid_controller.qtsid[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
@@ -234,7 +231,7 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
 
 
 def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myController,
-                   enable_hybrid_control):
+                   enable_hybrid_control, enable_gepetto_viewer):
     """Update and run the whole body inverse dynamics using information coming from the MPC and the footstep planner
 
     Args:
@@ -247,6 +244,7 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
         fstep_planner (object): Footsteps planner object
         myController (object): Inverse Dynamics controller
         enable_hybrid_control (bool): whether hybrid control is enabled or not
+        enable_gepetto_viewer (bool): whether the gepetto viewer is enabled or not (to update it if it is)
     """
 
     # Check if an error occured
@@ -283,7 +281,8 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
         myController.control(myController.qtsid, myController.vtsid, k, solo,
                              interface, f_applied, fstep_planner.fsteps_invdyn,
                              fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb,
-                             enable_hybrid_control, pyb_sim.qmes12, pyb_sim.vmes12
+                             enable_hybrid_control, enable_gepetto_viewer,
+                             pyb_sim.qmes12, pyb_sim.vmes12
                              )
     else:
         myController.control(pyb_sim.qmes12, pyb_sim.vmes12, k, solo,
@@ -330,7 +329,10 @@ def process_pybullet(pyb_sim, k, envID, velID, jointTorques):
 
     # Save PyBullet camera frame
     # You have to process them with something like FFMPEG to create a video
-    """step = 10
+    """
+    import os
+    from matplotlib import pyplot as plt
+    step = 10
     if (k % step) == 0:
         if (k % 1000):
             print(k)

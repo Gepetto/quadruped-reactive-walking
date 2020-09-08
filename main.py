@@ -1,12 +1,10 @@
 # coding: utf8
 
 import numpy as np
-import matplotlib.pylab as plt
 import utils
 import time
 
 from TSID_Debug_controller_four_legs_fb_vel import controller, dt
-import ForceMonitor
 import processing as proc
 import MPC_Wrapper
 import pybullet as pyb
@@ -84,7 +82,8 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     pyb_sim = utils.pybullet_simulator(envID, use_flat_plane, enable_pyb_GUI, dt=dt)
 
     # Force monitor to display contact forces in PyBullet with red lines
-    myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
+    # import ForceMonitor
+    # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
     ########################################################################
     #                             Simulator                                #
@@ -135,7 +134,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         # If nothing wrong happened yet in TSID controller
         if not myController.error:
             proc.process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner,
-                                myController, enable_hybrid_control)
+                                myController, enable_hybrid_control, enable_gepetto_viewer)
 
             # Process PD+ (feedforward torques and feedback torques)
             jointTorques[:, 0] = proc.process_pdp(pyb_sim, myController)
@@ -195,7 +194,9 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     print("END")
 
     # Plot processing duration of each step of the control loop
-    """plt.figure()
+    """
+    import matplotlib.pylab as plt
+    plt.figure()
     plt.plot(t_list_filter[1:], '+', color="orange")
     plt.plot(t_list_states[1:], 'r+')
     plt.plot(t_list_fsteps[1:], 'g+')

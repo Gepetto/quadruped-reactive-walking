@@ -2,7 +2,6 @@
 
 import numpy as np
 import libexample_adder as MPC
-import FootstepPlanner
 from multiprocessing import Process, Value, Array
 import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 

@@ -216,13 +216,14 @@ class Logger:
         pin.centerOfMass(solo.model, solo.data, pyb_sim.qmes12, vmes12_base)
 
         self.RPY_pyb[:, k:(k+1)] = np.reshape(pin.rpy.matrixToRpy((pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7]),
-                                                                           np.array([0.0, 0.0, 0.0]))).rotation), (3, 1))
+                                                                           np.array([0.0, 0.0, 0.0]))).rotation),
+                                              (3, 1))
         oMl = pin.SE3(pin.utils.rotate('z', self.RPY_pyb[2, k]),
                       np.array([pyb_sim.qmes12[0, 0], pyb_sim.qmes12[1, 0], interface.mean_feet_z]))
 
         # Store data about PyBullet simulation
         self.lC_pyb[:, k:(k+1)] = np.reshape(oMl.inverse() * solo.data.com[0], (3, 1))
-        #self.RPY_pyb[2, k:(k+1)] = 0.0
+        # self.RPY_pyb[2, k:(k+1)] = 0.0
         self.mot_pyb[:, k:(k+1)] = pyb_sim.qmes12[7:, 0:1]
         self.lV_pyb[:, k:(k+1)] = np.reshape(oMl.rotation.transpose() @ solo.data.vcom[0], (3, 1))
         self.lW_pyb[:, k:(k+1)] = np.reshape(oMl.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1], (3, 1))
@@ -245,7 +246,8 @@ class Logger:
 
         index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
         lgd = ["Pos CoM X [m]", "Pos CoM Y [m]", "Pos CoM Z [m]", "Roll [deg]", "Pitch [deg]", "Yaw [deg]",
-               "Lin Vel CoM X [m/s]", "Lin Vel CoM Y [m/s]", "Lin Vel CoM Z [m/s]", "Ang Vel Roll [deg/s]", "Ang Vel Pitch [deg/s]", "Ang Vel Yaw [deg/s]"]
+               "Lin Vel CoM X [m/s]", "Lin Vel CoM Y [m/s]", "Lin Vel CoM Z [m/s]", "Ang Vel Roll [deg/s]",
+               "Ang Vel Pitch [deg/s]", "Ang Vel Yaw [deg/s]"]
         plt.figure()
         for i in range(12):
             plt.subplot(3, 4, index[i])
@@ -490,8 +492,8 @@ class Logger:
             plt.xlabel("Time [s]")
             plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)])
 
-            plt.legend([h1, h2, h3], [lgd1[i % 3]+" "+lgd2[int(i/3)], lgd1[i %
-                                                                           3]+" "+lgd2[int(i/3)], lgd1[i % 3]+" "+lgd2[int(i/3)]])
+            plt.legend([h1, h2, h3], [lgd1[i % 3]+" "+lgd2[int(i/3)], lgd1[i % 3]+" "+lgd2[int(i/3)],
+                                      lgd1[i % 3]+" "+lgd2[int(i/3)]])
 
             if (i % 3) == 2:
                 plt.ylim([-1.0, 20.0])

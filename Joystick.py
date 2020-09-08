@@ -76,7 +76,7 @@ class Joystick:
         else:
             self.v_gp = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
 
-        if self.gp.startButton.value == True:
+        if self.gp.startButton.value:
             self.reduced = not self.reduced
 
         tc = 0.04  #  cutoff frequency at 50 Hz
@@ -210,7 +210,7 @@ class Joystick:
         # Video Demo 24/06/2020
         if velID == 2:
             V_max = 0.3
-            Rot_max = 0.2
+            Rot_max = 0.3
             if k_loop < 8000:
                 alpha = np.max([np.min([(k_loop-self.k_mpc*16*2)/2000, 1.0]), 0.0])
                 self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
@@ -236,26 +236,26 @@ class Joystick:
 
             elif k_loop < 36000:
                 alpha = np.max([np.min([(k_loop-33000)/1000, 1.0]), 0.0])
-                self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, +0.3*alpha]]).T
+                self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, Rot_max*alpha]]).T
 
             elif k_loop < 40000:
                 alpha = np.max([np.min([(k_loop-36000)/1000, 1.0]), 0.0])
-                self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, +0.3]]).T
+                self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, Rot_max]]).T
 
             elif k_loop < 41000:
                 alpha = np.max([np.min([(k_loop-40000)/1000, 1.0]), 0.0])
-                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, +0.3*(1-alpha)]]).T
+                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, Rot_max*(1-alpha)]]).T
 
             elif k_loop < 43000:
                 self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
             elif k_loop < 44000:
                 alpha = np.max([np.min([(k_loop-43000)/500, 1.0]), 0.0])
-                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -0.3*alpha]]).T
+                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -Rot_max*alpha]]).T
 
             else:
                 alpha = np.max([np.min([(k_loop-44000)/1450, 1.0]), 0.0])
-                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -0.3*(1-alpha)]]).T
+                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -Rot_max*(1-alpha)]]).T
         # End Video Demo 24/06/2020
 
         """if k_loop < 8000:
