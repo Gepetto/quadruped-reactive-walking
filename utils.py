@@ -27,8 +27,8 @@ import time as time
 def isRotationMatrix(R):
     Rt = np.transpose(R)
     shouldBeIdentity = np.dot(Rt, R)
-    I = np.identity(3, dtype=R.dtype)
-    n = np.linalg.norm(I - shouldBeIdentity)
+    Id = np.identity(3, dtype=R.dtype)
+    n = np.linalg.norm(Id - shouldBeIdentity)
     return n < 1e-6
 
 
@@ -212,9 +212,9 @@ class pybullet_simulator:
 
         # Start the client for PyBullet
         if enable_pyb_GUI:
-            physicsClient = pyb.connect(pyb.GUI)
+            pyb.connect(pyb.GUI)
         else:
-            physicsClient = pyb.connect(pyb.DIRECT)
+            pyb.connect(pyb.DIRECT)
         # p.GUI for graphical version
         # p.DIRECT for non-graphical version
 
@@ -409,7 +409,8 @@ class pybullet_simulator:
 
         # Disable default motor control for revolute joints
         self.revoluteJointIndices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
-        pyb.setJointMotorControlArray(self.robotId, jointIndices=self.revoluteJointIndices, controlMode=pyb.VELOCITY_CONTROL,
+        pyb.setJointMotorControlArray(self.robotId, jointIndices=self.revoluteJointIndices,
+                                      controlMode=pyb.VELOCITY_CONTROL,
                                       targetVelocities=[0.0 for m in self.revoluteJointIndices],
                                       forces=[0.0 for m in self.revoluteJointIndices])
 
@@ -474,7 +475,7 @@ class pybullet_simulator:
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=(0.0*RPY[2]*(180/3.1415)+45), cameraPitch=-39.9,
-                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])  # qmes12[2, 0]-0.2])
+                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])
 
         return 0
 
@@ -497,8 +498,9 @@ class pybullet_simulator:
         self.qmes12[3:7, 0] = robotVirtualOrientation"""
 
         # Add uncertainty to feedback from PyBullet to mimic imperfect measurements
-        """tmp = np.array([pyb.getQuaternionFromEuler(pin.rpy.matrixToRpy(pin.Quaternion(self.qmes12[3:7, 0:1]).toRotationMatrix())
-                       + np.random.normal(0, 0.03, (3,)))])
+        """tmp = np.array([pyb.getQuaternionFromEuler(pin.rpy.matrixToRpy(
+            pin.Quaternion(self.qmes12[3:7, 0:1]).toRotationMatrix())
+            + np.random.normal(0, 0.03, (3,)))])
         self.qmes12[3:7, 0] = tmp[0, :]
         self.vmes12[0:6, 0] += np.random.normal(0, 0.01, (6,))"""
 
@@ -508,6 +510,13 @@ class pybullet_simulator:
         """Apply an external force/momentum to the robot
         4-th order polynomial: zero force and force velocity at start and end
         (bell-like force trajectory)
+
+        Args:
+            k (int): numero of the current iteration of the simulation
+            start (int): numero of the iteration for which the force should start to be applied
+            duration (int): number of iterations the force should last
+            F (3x array): components of the force in PyBullet world frame
+            M (3x array): components of the force momentum in PyBullet world frame
         """
 
         if ((k < start) or (k > (start+duration))):
@@ -526,6 +535,13 @@ class pybullet_simulator:
         return 0.0
 
     def get_to_default_position(self, qtarget):
+        """Controler that tries to get the robot back to a default angular positions
+        of its 12 actuators using polynomials to generate trajectories and a a PD controler
+        to make the actuators follow them
+
+        Args:
+            qtarget (12x1 array): the target position for the 12 actuators
+        """
 
         qmes = np.zeros((12, 1))
         vmes = np.zeros((12, 1))

@@ -1,20 +1,24 @@
 # coding: utf8
 
-import numpy as np
+# import numpy as np
 import matplotlib.pylab as plt
-from TSID_Debug_controller_four_legs_fb_vel import controller, dt
-from main import run_scenario, run_scenarioo
-from IPython import embed
+from TSID_Debug_controller_four_legs_fb_vel import dt
+from main import run_scenario
+# from IPython import embed
 
-envID = 0
-velID = 3
+################################
+# PARAMETERS OF THE SIMULATION #
+################################
+
+envID = 0  #  Identifier of the environment to choose in which one the simulation will happen
+velID = 5  #  Identifier of the reference velocity profile to choose which one will be sent to the robot
 
 dt_mpc = 0.02  # Time step of the MPC
 k_mpc = int(dt_mpc / dt)  # dt is dt_tsid, defined in the TSID controller script
 t = 0.0  # Time
 n_periods = 1  # Number of periods in the prediction horizon
 T_gait = 0.64  # Duration of one gait period
-N_SIMULATION = 10000  # number of simulated TSID time steps
+N_SIMULATION = 3000  # number of simulated TSID time steps
 
 # Which MPC solver you want to use
 # True to have PA's MPC, to False to have Thomas's MPC
@@ -27,13 +31,13 @@ pyb_feedback = True
 on_solo8 = False
 
 # If True the ground is flat, otherwise it has bumps
-use_flat_plane = True
+use_flat_plane = False
 
 # If we are using a predefined reference velocity (True) or a joystick (False)
 predefined_vel = True
 
 # Enable or disable PyBullet GUI
-enable_pyb_GUI = False
+enable_pyb_GUI = True
 
 #################
 # RUN SCENARIOS #
@@ -55,15 +59,16 @@ result_loggers.append(result_logger1)
 # result_logger1.plot_graphs(enable_multiprocessing=False, show_block=False)
 # result_logger2.plot_graphs(enable_multiprocessing=False)
 
-# result_logger1.plot_state()
+# Only plot some graphs for debug purpose
+result_logger1.plot_state()
 # result_logger1.plot_footsteps()
-
 # result_logger1.plot_fstep_planner()
 # result_logger1.plot_tracking_foot()
-# result_logger1.plot_forces()
+result_logger1.plot_forces()
 # result_logger1.plot_torques()
 # result_logger2.plot_state()
-# plt.show(block=True)
+plt.show(block=True)
+
 quit()
 # embed()
 
@@ -73,7 +78,8 @@ quit()
 quit()  # Logger 2 is commented so no need to compare the two scenarios
 index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
 lgd = ["Pos CoM X [m]", "Pos CoM Y [m]", "Pos CoM Z [m]", "Roll [deg]", "Pitch [deg]", "Yaw [deg]",
-       "Lin Vel CoM X [m/s]", "Lin Vel CoM Y [m/s]", "Lin Vel CoM Z [m/s]", "Ang Vel Roll [deg/s]", "Ang Vel Pitch [deg/s]", "Ang Vel Yaw [deg/s]"]
+       "Lin Vel CoM X [m/s]", "Lin Vel CoM Y [m/s]", "Lin Vel CoM Z [m/s]", "Ang Vel Roll [deg/s]",
+       "Ang Vel Pitch [deg/s]", "Ang Vel Yaw [deg/s]"]
 plt.figure()
 for i in range(12):
     plt.subplot(3, 4, index[i])

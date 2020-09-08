@@ -174,7 +174,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         # logger.log_tracking_foot(k, myController, solo)
 
         # Wait a bit to have simulated time = real time
-        while (time.time() - time_loop) < 0.002:
+        while (time.time() - time_loop) < dt:
             pass
 
     ####################
