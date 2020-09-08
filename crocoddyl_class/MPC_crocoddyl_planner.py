@@ -21,7 +21,7 @@ class MPC_crocoddyl_planner():
         inner(bool): Inside or outside approximation of the friction cone
     """
 
-    def __init__(self, dt = 0.02 , T_mpc = 0.32 ,  mu = 1, inner = True  , warm_start = False , min_fz = 0.0):    
+    def __init__(self, dt = 0.02 , T_mpc = 0.32 ,  mu = 1, inner = True  , warm_start = False , min_fz = 0.0 , n_periods = 1):    
 
         # Time step of the solver
         self.dt = dt
@@ -30,7 +30,7 @@ class MPC_crocoddyl_planner():
         self.T_mpc = T_mpc
 
         # Number of period : not used yet
-        self.n_periods = 1
+        self.n_periods = n_periods
 
         # Mass of the robot 
         self.mass = 2.50000279 
@@ -56,7 +56,7 @@ class MPC_crocoddyl_planner():
         self.w_roll = 0.9
         self.w_pitch = 1.
         self.w_yaw = 0.4
-        self.w_vx =  1*np.sqrt(self.w_x)
+        self.w_vx =  1.5*np.sqrt(self.w_x)
         self.w_vy =  2*np.sqrt(self.w_y)
         self.w_vz =  1*np.sqrt(self.w_z)
         self.w_vroll =  0.05*np.sqrt(self.w_roll)
@@ -98,7 +98,7 @@ class MPC_crocoddyl_planner():
         self.u_init = []       
 
         # Weights on the shoulder term : term 1
-        self.shoulderWeights = np.array(4*[0.25,0.3])
+        self.shoulderWeights = np.array(4*[0.3,0.4])
 
         # symmetry & centrifugal term in foot position heuristic
         self.centrifugal_term = True
@@ -108,7 +108,7 @@ class MPC_crocoddyl_planner():
         self.stepWeights = np.full(4,0.8)        
 
         # Weights on the previous position predicted : term 2 
-        self.lastPositionWeights = np.full(8,1.)
+        self.lastPositionWeights = np.full(8,2.)
 
         # When the the foot reaches 10% of the flying phase, the optimisation of the foot 
         # positions stops by setting the "lastPositionWeight" on. 
@@ -122,9 +122,10 @@ class MPC_crocoddyl_planner():
 
         # Preticted position of feet computed by previous cycle, it will be used with
         # the self.lastPositionWeights weight.
-        # The world position of foot can be used with interface.oMl ...
+        self.oMl = pin.SE3.Identity()  #  transform from world to local frame ("L")
+
         self.l_fsteps = np.zeros((3,4))   
-        # self.o_fsteps = np.zeros((3,4))   
+        self.o_fsteps = np.zeros((3,4))   
         
         # Shooting problem
         self.problem = None
@@ -133,17 +134,13 @@ class MPC_crocoddyl_planner():
         self.ddp = None
 
         # Xs results without the actionStepModel
-        self.Xs = np.zeros((20,int(T_mpc/dt)))
-        self.Us = np.zeros((12,int(T_mpc/dt)))
+        self.Xs = np.zeros((20,int(T_mpc/dt)*n_periods))
+        # self.Us = np.zeros((12,int(T_mpc/dt)))
 
         # Initial foot location (local frame, X,Y plan)
-        self.p0 = [ 0.1946,0.14695, 0.1946,-0.14695, -0.1946,   0.14695 ,-0.1946,  -0.14695]
+        self.p0 = [ 0.1946,0.15005, 0.1946,-0.15005, -0.1946,   0.15005 ,-0.1946,  -0.15005]
 
-        # Create gait matrix
-        self.create_walking_trot()
-        self.gait_old = self.gait    
-
-    def solve(self, k, xref , l_feet):
+    def solve(self, k, xref , l_feet ,  oMl = pin.SE3.Identity()):
         """ Solve the MPC problem 
 
         Args:
@@ -153,7 +150,7 @@ class MPC_crocoddyl_planner():
         """ 
 
         # Update the dynamic depending on the predicted feet position
-        self.updateProblem( k , xref , l_feet )
+        self.updateProblem( k , xref , l_feet , oMl)
 
         # Solve problem
         self.ddp.solve(self.x_init,self.u_init, self.max_iteration)        
@@ -163,16 +160,16 @@ class MPC_crocoddyl_planner():
 
         return 0
 
-    def updateProblem(self,k,xref , l_feet ):
+    def updateProblem(self,k,xref , l_feet , oMl = pin.SE3.Identity()):
         """Update the dynamic of the model list according to the predicted position of the feet, 
         and the desired state. 
 
         Args:
         """
-        # self.oMl = mpc_interface.oMl
+        self.oMl = oMl
         # position of foot predicted by previous gait cycle in world frame
-        # for i in range(4):
-        #     self.l_fsteps[:,i] = self.oMl.inverse() * self.o_fsteps[:,i] 
+        for i in range(4):
+            self.l_fsteps[:,i] = self.oMl.inverse() * self.o_fsteps[:,i] 
     
         if k > 0:            
             # Move one step further in the gait 
@@ -194,6 +191,9 @@ class MPC_crocoddyl_planner():
                 p0 +=  np.repeat(self.gait[0,1:],2)*l_feet[0:2,:].reshape(8, order = 'F')
        
         else : 
+            # Create gait matrix
+            self.create_walking_trot()
+            self.gait_old = self.gait 
             # First step : create the list of model
             self.create_List_model()
             # According to the current footstepplanner, the walk start on the next phase
@@ -209,7 +209,7 @@ class MPC_crocoddyl_planner():
         # Gap introduced to take into account the Step model (more nodes than gait phases )
         self.x_init = []
         self.u_init = []
-        gap = 1
+        gap = 0
         while (self.gait[j, 0] != 0):
             
             for i in range(k_cum, k_cum+np.int(self.gait[j, 0])):
@@ -426,7 +426,6 @@ class MPC_crocoddyl_planner():
 
         #reset to 0 the weight lastPosition
         model.lastPositionWeights = np.full(8,0.0)
-        # model.shoulderWeights = np.full(8,0.0)
         self.ListAction.append(model)
 
         return 0
@@ -484,12 +483,8 @@ class MPC_crocoddyl_planner():
 
         for i in range(4):
             index = next((idx for idx, val in np.ndenumerate(self.fsteps[:, 3*i+1]) if ((not (val==0)) and (not np.isnan(val)))), [-1])[0]
-            #print(str(i) + ": ", (np.array([fsteps[index, (1+1+i*3):(3+i*3)]]).ravel()))
-            # pos_tmp = np.reshape(np.array(self.oMl * (np.array([self.fsteps[index, (1+i*3):(4+i*3)]]).transpose())) , (3,1) )
-            pos_tmp = np.reshape( np.array([self.fsteps[index, (1+i*3):(4+i*3)]]).transpose() , (3,1) )            
-            self.l_fsteps[:2,i] = pos_tmp[0:2, 0]
-            # pos_tmp = np.reshape(np.array(self.oMl * (np.array([self.fsteps[index, (1+i*3):(4+i*3)]]).transpose())) , (3,1) )
-            # self.o_fsteps[:2, i] = pos_tmp[0:2, 0]
+            pos_tmp = np.reshape(np.array(self.oMl * (np.array([self.fsteps[index, (1+i*3):(4+i*3)]]).transpose())) , (3,1) )
+            self.o_fsteps[:2, i] = pos_tmp[0:2, 0]
 
         return self.fsteps
 
