@@ -130,7 +130,7 @@ class Interface:
         self.abg[0:2, 0] = self.RPY[0:2]
 
         # Position of shoulders in world frame (NOT USED)
-        # for i in range(4):
-        #    self.o_shoulders[:, i:(i+1)] = self.oMl * self.l_shoulders[:, i]
+        for i in range(4):
+           self.o_shoulders[:, i] = self.oMl * self.l_shoulders[:, i]
 
         return 0
