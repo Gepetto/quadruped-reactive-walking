@@ -377,12 +377,13 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         t_list_loop[k] = time.time() - time_loop
 
         # Process PyBullet
-        proc.process_pybullet(pyb_sim, k, envID, jointTorques)
+        proc.process_pybullet(pyb_sim, k, envID, velID, jointTorques)
 
         # Call logger object to log various parameters
         # logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
         #                          False, pyb_sim.robotId, pyb_sim.planeId, solo)
-        # logger.log_state(k, pyb_sim, joystick, interface, mpc_wrapper, solo)
+        logger.log_state(k, pyb_sim, joystick, interface, mpc_wrapper, solo)
+        logger.log_forces(k, interface, myController, pyb_sim.robotId, pyb_sim.planeId)
         # logger.log_footsteps(k, interface, myController)
         # logger.log_fstep_planner(k, fstep_planner)
         # logger.log_tracking_foot(k, myController, solo)
@@ -420,7 +421,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
     pyb.disconnect()
 
-    NN = estimator.log_v_est.shape[2]
+    """NN = estimator.log_v_est.shape[2]
     avg = np.zeros((3, NN))
     for m in range(NN):
         tmp_cpt = 0
@@ -434,7 +435,10 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
     plt.figure()
     for i in range(3):
-        plt.subplot(3, 1, i+1)
+        if i == 0:
+            ax0 = plt.subplot(3, 1, i+1)
+        else:
+            plt.subplot(3, 1, i+1, sharex=ax0)
         for j in range(4):
             plt.plot(estimator.log_v_est[i, j, :], linewidth=3)
             # plt.plot(-myController.log_Fv1F[i, j, :], linewidth=3, linestyle="--")
@@ -442,8 +446,8 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         plt.plot(estimator.log_v_truth[i, :], "k", linewidth=3, linestyle="--")
         plt.plot(estimator.log_filt_lin_vel[i, :], color="darkgoldenrod", linewidth=3, linestyle="--")
         plt.legend(["FL", "FR", "HL", "HR", "Avg", "Truth", "Filtered"])
-        plt.xlim([2000, 8000])
-    plt.suptitle("Estimation of the linear velocity of the trunk (in base frame)")
+        # plt.xlim([14000, 15000])
+    plt.suptitle("Estimation of the linear velocity of the trunk (in base frame)")"""
 
     """plt.figure()
     for i in range(3):
@@ -460,7 +464,8 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         for j in range(4):
             plt.plot(logger.feet_vel[i, j, :], linewidth=3)
     plt.suptitle("Velocity of feet over time")"""
-    plt.show(block=True)
+
+    # plt.show(block=True)
 
     return logger
 

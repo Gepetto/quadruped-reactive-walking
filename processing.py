@@ -29,7 +29,7 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
         # Retrieve data from the simulation (position/orientation/velocity of the robot)
         # Stored in pyb_sim.qmes12 and pyb_sim.vmes12 (quantities in PyBullet world frame)
         pyb_sim.retrieve_pyb_data()
-        estimator.log_v_truth[:, estimator.k_log] = tsid_controller.vtsid[0:3, 0]
+        estimator.log_v_truth[:, estimator.k_log] = estimator.b_baseVel.ravel()
         pyb_sim.qmes12[0:3, 0] = estimator.cheat_lin_pos
         pyb_sim.qmes12[3:7, 0] = estimator.quat_oMb
         pyb_sim.vmes12[0:3, 0] = (estimator.oMb.rotation @ np.array([estimator.filt_lin_vel]).transpose()).ravel()
@@ -93,10 +93,10 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
         joystick.update_v_ref(k, velID)
 
         # Legs have a limited length so the reference velocity has to be limited
-        v_max = (4 / tsid_controller.T_gait) * 0.155
+        # v_max = (4 / tsid_controller.T_gait) * 0.155
         # math.sqrt(0.3**2 - pyb_sim.qmes12[2, 0]**2)  # (length leg - 2 cm)** 2 - h_base ** 2
-        (joystick.v_ref[0:2])[joystick.v_ref[0:2] > v_max] = v_max
-        (joystick.v_ref[0:2])[joystick.v_ref[0:2] < -v_max] = -v_max
+        # (joystick.v_ref[0:2])[joystick.v_ref[0:2] > v_max] = v_max
+        # (joystick.v_ref[0:2])[joystick.v_ref[0:2] < -v_max] = -v_max
 
     return 0
 
@@ -304,18 +304,19 @@ def process_pdp(pyb_sim, myController):
     return (myController.run_PDplus())  # .reshape((12, 1))
 
 
-def process_pybullet(pyb_sim, k, envID, jointTorques):
+def process_pybullet(pyb_sim, k, envID, velID, jointTorques):
     """Update the torques applied by the actuators of the quadruped and run one step of simulation
 
     Args:
         pyb_sim (object): PyBullet simulation
         k (int): Number of inv dynamics iterations since the start of the simulation
         envID (int): Identifier of the current environment to be able to handle different scenarios
+        velID (int): Identifier of the current velocity profile to be able to handle different scenarios
         jointTorques (12x1 array): Reference torques for the actuators
     """
 
     # Check the state of the robot to trigger events and update the simulator camera
-    pyb_sim.check_pyb_env(k, envID, pyb_sim.qmes12)
+    pyb_sim.check_pyb_env(k, envID, velID, pyb_sim.qmes12)
 
     # Set control torque for all joints
     pyb.setJointMotorControlArray(pyb_sim.robotId, pyb_sim.revoluteJointIndices,

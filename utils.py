@@ -432,12 +432,13 @@ class pybullet_simulator:
         pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=-50, cameraPitch=-35,
                                        cameraTargetPosition=[0.0, 0.6, 0.0])
 
-    def check_pyb_env(self, k, envID, qmes12):
+    def check_pyb_env(self, k, envID, velID, qmes12):
         """Check the state of the robot to trigger events and update camera
 
         Args:
             k (int): Number of inv dynamics iterations since the start of the simulation
             envID (int): Identifier of the current environment to be able to handle different scenarios
+            velID (int): Identifier of the current velocity profile to be able to handle different scenarios
             qmes12 (19x1 array): the position/orientation of the trunk and angular position of actuators
 
         """
@@ -459,6 +460,10 @@ class pybullet_simulator:
         self.apply_external_force(k,  8000, 400, np.array([0.0, -2.0, 0.0]), np.zeros((3,)))
         self.apply_external_force(k, 12000, 400, np.array([2.0, 0.0, 0.0]), np.zeros((3,)))
         self.apply_external_force(k, 16000, 400, np.array([-2.0, 0.0, 0.0]), np.zeros((3,)))"""
+
+        if velID == 4:
+            self.apply_external_force(k, 4250, 500, np.array([0.0, 0.0, -3.0]), np.zeros((3,)))
+            self.apply_external_force(k, 5250, 500, np.array([-3.0, 0.0, 0.0]), np.zeros((3,)))
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
@@ -507,6 +512,8 @@ class pybullet_simulator:
 
         if ((k < start) or (k > (start+duration))):
             return 0.0
+        if k == start:
+            print("Applying [", F[0], ", ", F[1], ", ", F[2], "]")
 
         ev = k - start
         t1 = duration

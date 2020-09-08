@@ -18,7 +18,7 @@ class Estimator:
         self.dt = dt
 
         # Cut frequency (fc should be < than 1/dt)
-        self.fc = 400
+        self.fc = 500
 
         # Filter coefficient (0 < alpha < 1)
         self.alpha = self.dt * self.fc
@@ -89,9 +89,12 @@ class Estimator:
         self.cheat_lin_pos = np.array(baseState[0])
 
         # Linear acceleration of the trunk (PyBullet base frame)
-        tmp = (self.oMb.rotation.transpose() @ np.array([baseVel[0]]).transpose()).ravel()
-        self.IMU_lin_acc[:] = (tmp.ravel() - self.prev) / self.dt
-        self.prev[:] = tmp.ravel()
+        self.b_baseVel = (self.oMb.rotation.transpose() @ np.array([baseVel[0]]).transpose()).ravel()
+        self.IMU_lin_acc[:] = (self.b_baseVel.ravel() - self.prev) / self.dt
+        """    + (self.k_log / 10000) * np.ones((3, )) \
+            + np.sin(2 * np.pi * self.k_log / 1000) \
+            + np.random.normal(loc=0.0, scale=0.05 * np.max(np.abs(self.IMU_lin_acc[:])), size=(3,))"""
+        self.prev[:] = self.b_baseVel.ravel()
 
         # Angular velocity of the trunk (PyBullet base frame)
         self.IMU_ang_vel[:] = (self.oMb.rotation.transpose() @ np.array([baseVel[1]]).transpose()).ravel()
