@@ -14,21 +14,29 @@ import pybullet as pyb
 
 def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC, pyb_feedback,
                  on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI):
+    """Function that runs a simulation scenario based on a reference velocity profile, an environment and
+    various parameters to define the gait
+
+    Args:
+        envID (int): identifier of the current environment to be able to handle different scenarios
+        velID (int): identifier of the current velocity profile to be able to handle different scenarios
+        dt_mpc (float): time step of the MPC
+        k_mpc (int): number of iterations of inverse dynamics for one iteration of the MPC
+        t (float): time of the simulation
+        n_periods (int): number of gait periods in the prediction horizon of the MPC
+        T_gait (float): duration of one gait period in seconds
+        N_SIMULATION (int): number of iterations of inverse dynamics during the simulation
+        type_mpc (bool): True to have PA's MPC, False to have Thomas's MPC
+        pyb_feedback (bool): whether PyBullet feedback is enabled or not
+        on_solo8 (bool): whether we are working on solo8 or not
+        use_flat_plane (bool): to use either a flat ground or a rough ground
+        predefined_vel (bool): to use either a predefined velocity profile or a gamepad
+        enable_pyb_GUI (bool): to display PyBullet GUI or not
+    """
 
     ########################################################################
     #                        Parameters definition                         #
     ########################################################################
-    """# Time step
-    dt_mpc = 0.02
-    k_mpc = int(dt_mpc / dt)  # dt is dt_tsid, defined in the TSID controller script
-    t = 0.0  # Time
-    n_periods = 1  # Number of periods in the prediction horizon
-    T_gait = 0.48  # Duration of one gait period
-    # Simulation parameters
-    N_SIMULATION = 1000  # number of time steps simulated"""
-
-    # Initialize the error for the simulation time
-    time_error = False
 
     # Lists to log the duration of 1 iteration of the MPC/TSID
     t_list_filter = [0] * int(N_SIMULATION)
@@ -46,10 +54,6 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
     # Enable/Disable Gepetto viewer
     enable_gepetto_viewer = False
-
-    # Which MPC solver you want to use
-    # True to have PA's MPC, to False to have Thomas's MPC
-    """type_MPC = True"""
 
     # Create Joystick, FootstepPlanner, Logger and Interface objects
     joystick, fstep_planner, logger, interface, estimator = utils.init_objects(
@@ -92,25 +96,21 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     tic = time.time()
     for k in range(int(N_SIMULATION)):
 
-        time_loop = time.time()
+        time_loop = time.time()  # To analyze the time taken by each step
 
-        """if (k % 1000) == 0:
-            print("Iteration: ", k)"""
-        # print("###")
-
-        # Process estimator
+        # Process state estimator
         if k == 1:
             estimator.run_filter(k, fstep_planner.gait[0, 1:], pyb_sim.robotId,
                                  myController.invdyn.data(), myController.model)
         else:
             estimator.run_filter(k, fstep_planner.gait[0, 1:], pyb_sim.robotId)
 
-        t_filter = time.time()
+        t_filter = time.time()  # To analyze the time taken by each step
 
-        # Process states update and joystick
+        # Process state update and joystick
         proc.process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, myController, estimator, pyb_feedback)
 
-        t_states = time.time()
+        t_states = time.time()  # To analyze the time taken by each step
 
         if np.isnan(interface.lC[2]):
             print("NaN value for the position of the center of mass. Simulation likely crashed. Ending loop.")
@@ -119,33 +119,23 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         # Process footstep planner
         proc.process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_planner)
 
-        t_fsteps = time.time()
+        t_fsteps = time.time()  # To analyze the time taken by each step
 
         # Process MPC once every k_mpc iterations of TSID
         if (k % k_mpc) == 0:
-            # time_mpc = time.time()
             proc.process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper,
                              dt_mpc, ID_deb_lines)
-            # t_list_mpc[k] = time.time() - time_mpc
 
-        if k == 0:
-            f_applied = mpc_wrapper.get_latest_result()
-        # elif (k % k_mpc) == 0:
-        else:
-            # Output of the MPC (with delay)
-            f_applied = mpc_wrapper.get_latest_result()
+        # Check if the MPC has outputted a new result
+        f_applied = mpc_wrapper.get_latest_result()
 
-        t_mpc = time.time()
-
-        # print(f_applied.ravel())
+        t_mpc = time.time()  # To analyze the time taken by each step
 
         # Process Inverse Dynamics
-        # time_tsid = time.time()
         # If nothing wrong happened yet in TSID controller
         if not myController.error:
             proc.process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner,
                                 myController, enable_hybrid_control)
-            # t_list_tsid[k] = time.time() - time_tsid  # Logging the time spent to run this iteration of inverse dynamics
 
             # Process PD+ (feedforward torques and feedback torques)
             jointTorques[:, 0] = proc.process_pdp(pyb_sim, myController)
@@ -161,25 +151,9 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
             jointTorques[jointTorques > t_max] = t_max
             jointTorques[jointTorques < -t_max] = -t_max
 
-            """if np.max(np.abs(pyb_sim.vmes12[6:, 0])) < 0.1:
-                print("Trigger get back to default pos")
-                # pyb_sim.get_to_default_position(pyb_sim.straight_standing)
-                pyb_sim.get_to_default_position(np.array([[0.0, np.pi/2, np.pi,
-                                                           0.0, np.pi/2, np.pi,
-                                                           0.0, -np.pi/2, np.pi,
-                                                           0.0, -np.pi/2, np.pi]]).transpose())"""
-            """pyb_sim.get_to_default_position(np.array([[0, 0.8, -1.6,
-                                                       0, 0.8, -1.6,
-                                                       0, -0.8, 1.6,
-                                                       0, -0.8, 1.6]]).transpose())"""
+        t_tsid = time.time()  # To analyze the time taken by each step
 
-        # print(jointTorques.ravel())
-        """if myController.error:
-            pyb.disconnect()
-            quit()"""
-
-        t_tsid = time.time()
-
+        # Compute processing duration of each step
         t_list_filter[k] = t_filter - time_loop
         t_list_states[k] = t_states - t_filter
         t_list_fsteps[k] = t_fsteps - t_states
@@ -198,9 +172,8 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         # logger.log_footsteps(k, interface, myController)
         # logger.log_fstep_planner(k, fstep_planner)
         # logger.log_tracking_foot(k, myController, solo)
-        """if k >= 1000:
-            time.sleep(0.1)"""
 
+        # Wait a bit to have simulated time = real time
         while (time.time() - time_loop) < 0.002:
             pass
 
@@ -209,17 +182,19 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     ####################
 
     tac = time.time()
-    print("Average: ", (tac-tic)/N_SIMULATION)
+    print("Average computation time of one iteration: ", (tac-tic)/N_SIMULATION)
     print("Computation duration: ", tac-tic)
     print("Simulated duration: ", N_SIMULATION*dt)
     print("Max loop time: ", np.max(t_list_loop[10:]))
 
+    # Close the parallel process if it is running
     if enable_multiprocessing:
         print("Stopping parallel process")
         mpc_wrapper.stop_parallel_loop()
 
     print("END")
 
+    # Plot processing duration of each step of the control loop
     """plt.figure()
     plt.plot(t_list_filter[1:], '+', color="orange")
     plt.plot(t_list_states[1:], 'r+')
@@ -230,64 +205,10 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     plt.title("Time for state update + footstep planner + MPC communication + Inv Dyn + PD+")
     plt.show(block=True)"""
 
+    # Disconnect the PyBullet server (also close the GUI)
     pyb.disconnect()
 
-    """NN = estimator.log_v_est.shape[2]
-    avg = np.zeros((3, NN))
-    for m in range(NN):
-        tmp_cpt = 0
-        tmp_sum = np.zeros((3, 1))
-        for j in range(4):
-            if np.any(np.abs(estimator.log_v_est[:, j, m]) > 1e-2):
-                tmp_cpt += 1
-                tmp_sum[:, 0] = tmp_sum[:, 0] + estimator.log_v_est[:, j, m].ravel()
-        if tmp_cpt > 0:
-            avg[:, m:(m+1)] = tmp_sum / tmp_cpt
-
-    plt.figure()
-    for i in range(3):
-        if i == 0:
-            ax0 = plt.subplot(3, 1, i+1)
-        else:
-            plt.subplot(3, 1, i+1, sharex=ax0)
-        for j in range(4):
-            plt.plot(estimator.log_v_est[i, j, :], linewidth=3)
-            # plt.plot(-myController.log_Fv1F[i, j, :], linewidth=3, linestyle="--")
-        plt.plot(avg[i, :], color="rebeccapurple", linewidth=3, linestyle="--")
-        plt.plot(estimator.log_v_truth[i, :], "k", linewidth=3, linestyle="--")
-        plt.plot(estimator.log_filt_lin_vel[i, :], color="darkgoldenrod", linewidth=3, linestyle="--")
-        plt.legend(["FL", "FR", "HL", "HR", "Avg", "Truth", "Filtered"])
-        # plt.xlim([14000, 15000])
-    plt.suptitle("Estimation of the linear velocity of the trunk (in base frame)")"""
-
-    """plt.figure()
-    for i in range(3):
-        plt.subplot(3, 1, i+1)
-        plt.plot(estimator.log_filt_lin_vel[i, :], color="red", linewidth=3)
-        plt.plot(estimator.log_filt_lin_vel_bis[i, :], color="forestgreen", linewidth=3)
-        plt.plot(estimator.rotated_FK[i, :], color="blue", linewidth=3)
-        plt.legend(["alpha = 1.0", "alpha = 450/500"])
-    plt.suptitle("Estimation of the velocity of the base")"""
-
-    """plt.figure()
-    for i in range(3):
-        plt.subplot(3, 1, i+1)
-        for j in range(4):
-            plt.plot(logger.feet_vel[i, j, :], linewidth=3)
-    plt.suptitle("Velocity of feet over time")"""
-
-    # plt.show(block=True)
+    # Plot graphs of the state estimator
+    estimator.plot_graphs()
 
     return logger
-
-
-"""# Display what has been logged by the logger
-logger.plot_graphs(enable_multiprocessing=False)
-
-quit()
-
-# Display duration of MPC block and Inverse Dynamics block
-plt.figure()
-plt.plot(t_list_tsid, 'k+')
-plt.title("Time TSID")
-plt.show(block=True)"""

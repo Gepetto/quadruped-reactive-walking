@@ -3,6 +3,7 @@
 import numpy as np
 import pinocchio as pin
 import pybullet as pyb
+from matplotlib import pyplot as plt
 
 
 class Estimator:
@@ -50,8 +51,8 @@ class Estimator:
         # Logging
         self.log_v_truth = np.zeros((3, N_simulation))
         self.log_v_est = np.zeros((3, 4, N_simulation))
-        #self.log_Fv1F = np.zeros((3, 4, N_simulation))
-        #self.log_alpha = np.zeros((3, N_simulation))
+        # self.log_Fv1F = np.zeros((3, 4, N_simulation))
+        # self.log_alpha = np.zeros((3, N_simulation))
 
         self.log_filt_lin_vel = np.zeros((3, N_simulation))
         self.log_filt_lin_vel_bis = np.zeros((3, N_simulation))
@@ -235,3 +236,53 @@ class Estimator:
         _1v01 = self.cross3(_1F.ravel(), _1w01.ravel()) - (_1RF @ _Fv1F.reshape((3, 1)))
 
         return _1v01
+
+    def plot_graphs(self):
+
+        NN = self.log_v_est.shape[2]
+        avg = np.zeros((3, NN))
+        for m in range(NN):
+            tmp_cpt = 0
+            tmp_sum = np.zeros((3, 1))
+            for j in range(4):
+                if np.any(np.abs(self.log_v_est[:, j, m]) > 1e-2):
+                    tmp_cpt += 1
+                    tmp_sum[:, 0] = tmp_sum[:, 0] + self.log_v_est[:, j, m].ravel()
+            if tmp_cpt > 0:
+                avg[:, m:(m+1)] = tmp_sum / tmp_cpt
+
+        plt.figure()
+        for i in range(3):
+            if i == 0:
+                ax0 = plt.subplot(3, 1, i+1)
+            else:
+                plt.subplot(3, 1, i+1, sharex=ax0)
+            for j in range(4):
+                plt.plot(self.log_v_est[i, j, :], linewidth=3)
+                # plt.plot(-myController.log_Fv1F[i, j, :], linewidth=3, linestyle="--")
+            plt.plot(avg[i, :], color="rebeccapurple", linewidth=3, linestyle="--")
+            plt.plot(self.log_v_truth[i, :], "k", linewidth=3, linestyle="--")
+            plt.plot(self.log_filt_lin_vel[i, :], color="darkgoldenrod", linewidth=3, linestyle="--")
+            plt.legend(["FL", "FR", "HL", "HR", "Avg", "Truth", "Filtered"])
+            # plt.xlim([14000, 15000])
+        plt.suptitle("Estimation of the linear velocity of the trunk (in base frame)")
+
+        """plt.figure()
+        for i in range(3):
+            plt.subplot(3, 1, i+1)
+            plt.plot(self.log_filt_lin_vel[i, :], color="red", linewidth=3)
+            plt.plot(self.log_filt_lin_vel_bis[i, :], color="forestgreen", linewidth=3)
+            plt.plot(self.rotated_FK[i, :], color="blue", linewidth=3)
+            plt.legend(["alpha = 1.0", "alpha = 450/500"])
+        plt.suptitle("Estimation of the velocity of the base")"""
+
+        """plt.figure()
+        for i in range(3):
+            plt.subplot(3, 1, i+1)
+            for j in range(4):
+                plt.plot(logger.feet_vel[i, j, :], linewidth=3)
+        plt.suptitle("Velocity of feet over time")"""
+
+        plt.show(block=True)
+
+        return 0

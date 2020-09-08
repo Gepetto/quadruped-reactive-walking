@@ -21,6 +21,7 @@ class MPC_Wrapper:
     """Wrapper to run FootstepPlanner + MPC on another process
 
     Args:
+        mpc_type (bool): True to have PA's MPC, False to have Thomas's MPC
         dt (float): Time step of the MPC
         n_steps (int): Number of time steps in one gait cycle
         k_mpc (int): Number of inv dyn time step for one iteration of the MPC
