@@ -7,7 +7,7 @@ from main import run_scenario, run_scenarioo
 from IPython import embed
 
 envID = 0
-velID = 0
+velID = 3
 
 dt_mpc = 0.02  # Time step of the MPC
 k_mpc = int(dt_mpc / dt)  # dt is dt_tsid, defined in the TSID controller script
@@ -32,6 +32,9 @@ use_flat_plane = True
 # If we are using a predefined reference velocity (True) or a joystick (False)
 predefined_vel = True
 
+# Enable or disable PyBullet GUI
+enable_pyb_GUI = False
+
 #################
 # RUN SCENARIOS #
 #################
@@ -41,7 +44,7 @@ result_loggers = []
 
 # Run a scenario and retrieve data thanks to the logger
 result_logger1 = run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
-                              pyb_feedback, on_solo8, use_flat_plane, predefined_vel)
+                              pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
 result_loggers.append(result_logger1)
 
 # Run a scenario and retrieve data thanks to the logger

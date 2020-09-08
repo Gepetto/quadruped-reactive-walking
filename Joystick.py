@@ -121,6 +121,17 @@ class Joystick:
         """if k_loop == self.k_mpc*16*3:
             self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
 
+        if velID == 3:
+            if (k_loop == 0):
+                self.k_switch = np.array([0, 1000, 2000, 7000, 9000, 15000])
+                self.v_switch = np.array([[0.0, 0.0,  0.0, 0.3, 0.3, 0.3],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.3, 0.0, 0.0, 0.0]])
+            self.handle_v_switch(k_loop)
+
         if velID == 0:
             if (k_loop == 0):
                 self.k_switch = np.array([0, 1000, 4000, 7000, 10000, 13000])

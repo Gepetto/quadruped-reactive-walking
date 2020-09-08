@@ -12,13 +12,13 @@ class Estimator:
         dt (float): Time step of the estimator update
     """
 
-    def __init__(self, dt):
+    def __init__(self, dt, N_simulation):
 
         # Sample frequency
         self.dt = dt
 
         # Cut frequency (fc should be < than 1/dt)
-        self.fc = 350
+        self.fc = 400
 
         # Filter coefficient (0 < alpha < 1)
         self.alpha = self.dt * self.fc
@@ -47,19 +47,58 @@ class Estimator:
         self.actuators_pos = np.zeros((12, ))
         self.actuators_vel = np.zeros((12, ))
 
+        # Logging
+        self.log_v_truth = np.zeros((3, N_simulation))
+        self.log_v_est = np.zeros((3, 4, N_simulation))
+        #self.log_Fv1F = np.zeros((3, 4, N_simulation))
+        #self.log_alpha = np.zeros((3, N_simulation))
+
+        self.log_filt_lin_vel = np.zeros((3, N_simulation))
+        self.log_filt_lin_vel_bis = np.zeros((3, N_simulation))
+        self.rotated_FK = np.zeros((3, N_simulation))
+
+        self.k_log = 0
+
         self.prev = np.zeros((3, ))
 
     def get_data_IMU(self, robotId):
         """Get data from the IMU (linear acceleration, angular velocity and position)
         """
 
-        baseState = pyb.getBasePositionAndOrientation(robotId)  # Position and orientation of the trunk
-        baseVel = pyb.getBaseVelocity(robotId)  # Velocity of the trunk
+        # Position and orientation of the trunk (PyBullet world frame)
+        baseState = pyb.getBasePositionAndOrientation(robotId)
 
-        self.IMU_lin_acc[:] = (np.array(baseVel[0]) - self.prev) / self.dt
-        self.prev[:] = np.array(baseVel[0])
-        self.IMU_ang_vel[:] = np.array(baseVel[1])
-        self.IMU_ang_pos[:] = np.array(baseState[1])
+        # Linear and angular velocity of the trunk (PyBullet world frame)
+        baseVel = pyb.getBaseVelocity(robotId)
+
+        # Transform from world frame to base frame in PyBullet world
+        self.quat_oMb = np.array(baseState[1])
+        rot_oMb = pin.Quaternion(np.array([baseState[1]]).transpose()).toRotationMatrix()
+        self.oMb = pin.SE3(rot_oMb, np.array([baseState[0]]).transpose())
+
+        # Get roll pitch yaw orientation in PyBullet world then remove yaw component
+        # self.oMb = pin.SE3(pin.Quaternion(np.array([baseState[1]]).transpose()).toRotationMatrix(), np.zeros((3, 1)))
+        """RPY_pyb = pin.rpy.matrixToRpy(pin.Quaternion(np.array([baseState[1]]).transpose()).toRotationMatrix())
+        self.IMU_ang_pos[:] = np.array(pyb.getQuaternionFromEuler(np.array([RPY_pyb[0],
+                                                                            RPY_pyb[1],
+                                                                            0.0])))
+        rot = pin.SE3(pin.utils.rotate('z', RPY_pyb[2]), np.zeros((3, 1)))
+        tmp = rot.rotation.transpose() @ np.array([baseVel[0]]).transpose()"""
+
+        # Position of the trunk (PyBullet world frame)
+        self.cheat_lin_pos = np.array(baseState[0])
+
+        # Linear acceleration of the trunk (PyBullet base frame)
+        tmp = (self.oMb.rotation.transpose() @ np.array([baseVel[0]]).transpose()).ravel()
+        self.IMU_lin_acc[:] = (tmp.ravel() - self.prev) / self.dt
+        self.prev[:] = tmp.ravel()
+
+        # Angular velocity of the trunk (PyBullet base frame)
+        self.IMU_ang_vel[:] = (self.oMb.rotation.transpose() @ np.array([baseVel[1]]).transpose()).ravel()
+
+        # Angular position of the trunk (PyBullet local frame)
+        RPY_pyb = pin.rpy.matrixToRpy(rot_oMb)
+        self.IMU_ang_pos[:] = np.array(pyb.getQuaternionFromEuler(np.array([RPY_pyb[0], RPY_pyb[1], 0.0])))
 
         return 0
 
@@ -83,8 +122,11 @@ class Estimator:
         """
 
         # Update estimator FK model
-        self.q_FK[7:, 0] = self.actuators_pos
-        self.v_FK[6:, 0] = self.actuators_vel
+        self.q_FK[7:, 0] = self.actuators_pos  # Position of actuators
+        self.v_FK[6:, 0] = self.actuators_vel  # Velocity of actuators
+        # self.v_FK[0:3, 0] = self.filt_lin_vel[:]  #  Linear velocity of base (in base frame)
+        # self.v_FK[3:6, 0] = self.filt_ang_vel[:]  #  Angular velocity of base (in base frame)
+
         pin.forwardKinematics(self.model, self.data, self.q_FK, self.v_FK)
 
         # Get estimated velocity from updated model
@@ -92,9 +134,15 @@ class Estimator:
         vel_est = np.zeros((3, ))
         for i in (np.where(feet_status == 1))[0]:
             vel_estimated_baseframe = self.BaseVelocityFromKinAndIMU(self.indexes[i])
+
+            self.log_v_est[:, i, self.k_log] = vel_estimated_baseframe[0:3, 0]
+            # self.log_Fv1F[:, i, self.k_log] = _Fv1F[0:3]
+
             cpt += 1
             vel_est += vel_estimated_baseframe[:, 0]
         self.FK_lin_vel = vel_est / cpt
+
+        self.k_log += 1
 
         return 0
 
@@ -124,16 +172,26 @@ class Estimator:
         # Update FK data
         self.get_data_FK(feet_status)
 
-        # Angular position
+        # Angular position of the trunk (PyBullet local frame)
         """self.filt_data[3:6] = self.alpha * self.IMU_ang_pos \
             + (1 - self.alpha) * self.FK_ang_pos"""
         self.filt_ang_pos[:] = self.IMU_ang_pos
 
-        # Linear velocity
+        # Linear velocity of the trunk (PyBullet base frame)
         self.filt_lin_vel[:] = self.alpha * (self.filt_lin_vel[:] + self.IMU_lin_acc * self.dt) \
             + (1 - self.alpha) * self.FK_lin_vel
 
-        # Angular velocity
+        self.log_filt_lin_vel[:, self.k_log] = self.filt_lin_vel[:]
+        """beta = 475 / 500
+        self.log_filt_lin_vel_bis[:, self.k_log] = beta * (self.filt_lin_vel[:] + self.IMU_lin_acc * self.dt) \
+            + (1 - beta) * (self.oMb.rotation @ np.array([self.FK_lin_vel]).transpose()).ravel()
+        self.rotated_FK[:, self.k_log] = (self.oMb.rotation @ np.array([self.FK_lin_vel]).transpose()).ravel()
+
+        tmp = (self.filt_lin_vel[:] + self.IMU_lin_acc * self.dt)
+        self.log_alpha[:, self.k_log] = beta * (self.oMb.rotation.transpose() @ np.array([tmp]).transpose()).ravel() \
+            + (1 - beta) * (np.array([self.FK_lin_vel]).transpose()).ravel()"""
+
+        # Angular velocity of the trunk (PyBullet base frame)
         """self.filt_data[9:12] = self.alpha * self.IMU_ang_vel \
             + (1 - self.alpha) * self.FK_ang_vel"""
         self.filt_ang_vel[:] = self.IMU_ang_vel

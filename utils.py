@@ -168,8 +168,8 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC
     # Create Interface object
     interface = Interface.Interface()
 
-    # Create Estimator object
-    estimator = Estimator.Estimator(dt_tsid)
+    # Create Estimator object
+    estimator = Estimator.Estimator(dt_tsid, k_max_loop)
 
     return joystick, fstep_planner, logger, interface, estimator
 
@@ -208,10 +208,13 @@ def getSkew(a):
 
 class pybullet_simulator:
 
-    def __init__(self, envID, use_flat_plane, dt=0.001):
+    def __init__(self, envID, use_flat_plane, enable_pyb_GUI, dt=0.001):
 
         # Start the client for PyBullet
-        physicsClient = pyb.connect(pyb.DIRECT)
+        if enable_pyb_GUI:
+            physicsClient = pyb.connect(pyb.GUI)
+        else:
+            physicsClient = pyb.connect(pyb.DIRECT)
         # p.GUI for graphical version
         # p.DIRECT for non-graphical version
 
@@ -337,14 +340,14 @@ class pybullet_simulator:
                                                         collisionFramePosition=[0.0, 0.0, 0.0],
                                                         meshScale=mesh_scale)
 
-            self.sphereId1 = pyb.createMultiBody(baseMass=0.3,
+            self.sphereId1 = pyb.createMultiBody(baseMass=0.4,
                                                  baseInertialFramePosition=[0, 0, 0],
                                                  baseCollisionShapeIndex=collisionShapeId,
                                                  baseVisualShapeIndex=visualShapeId,
                                                  basePosition=[-0.6, 0.9, 0.1],
                                                  useMaximalCoordinates=True)
 
-            self.sphereId2 = pyb.createMultiBody(baseMass=0.3,
+            self.sphereId2 = pyb.createMultiBody(baseMass=0.4,
                                                  baseInertialFramePosition=[0, 0, 0],
                                                  baseCollisionShapeIndex=collisionShapeId,
                                                  baseVisualShapeIndex=visualShapeId,

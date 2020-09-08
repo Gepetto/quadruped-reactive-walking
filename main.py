@@ -202,7 +202,7 @@ def run_scenarioo(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATIO
 
 
 def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC, pyb_feedback,
-                 on_solo8, use_flat_plane, predefined_vel):
+                 on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI):
 
     ########################################################################
     #                        Parameters definition                         #
@@ -234,7 +234,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     ID_deb_lines = []
 
     # Enable/Disable Gepetto viewer
-    enable_gepetto_viewer = True
+    enable_gepetto_viewer = False
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -266,7 +266,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     ########################################################################
 
     # Initialisation of the PyBullet simulator
-    pyb_sim = utils.pybullet_simulator(envID, use_flat_plane, dt=dt)
+    pyb_sim = utils.pybullet_simulator(envID, use_flat_plane, enable_pyb_GUI, dt=dt)
 
     # Force monitor to display contact forces in PyBullet with red lines
     myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
@@ -408,7 +408,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
     print("END")
 
-    plt.figure()
+    """plt.figure()
     plt.plot(t_list_filter[1:], '+', color="orange")
     plt.plot(t_list_states[1:], 'r+')
     plt.plot(t_list_fsteps[1:], 'g+')
@@ -416,19 +416,19 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     plt.plot(t_list_tsid[1:], '+', color="violet")
     plt.plot(t_list_loop[1:], 'k+')
     plt.title("Time for state update + footstep planner + MPC communication + Inv Dyn + PD+")
-    plt.show(block=True)
+    plt.show(block=True)"""
 
     pyb.disconnect()
 
-    """NN = myController.log_v_est.shape[2]
+    NN = estimator.log_v_est.shape[2]
     avg = np.zeros((3, NN))
     for m in range(NN):
         tmp_cpt = 0
         tmp_sum = np.zeros((3, 1))
         for j in range(4):
-            if np.any(np.abs(myController.log_v_est[:, j, m]) > 1e-2):
+            if np.any(np.abs(estimator.log_v_est[:, j, m]) > 1e-2):
                 tmp_cpt += 1
-                tmp_sum[:, 0] = tmp_sum[:, 0] + myController.log_v_est[:, j, m].ravel()
+                tmp_sum[:, 0] = tmp_sum[:, 0] + estimator.log_v_est[:, j, m].ravel()
         if tmp_cpt > 0:
             avg[:, m:(m+1)] = tmp_sum / tmp_cpt
 
@@ -436,20 +436,31 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     for i in range(3):
         plt.subplot(3, 1, i+1)
         for j in range(4):
-            plt.plot(myController.log_v_est[i, j, :], linewidth=3)
+            plt.plot(estimator.log_v_est[i, j, :], linewidth=3)
             # plt.plot(-myController.log_Fv1F[i, j, :], linewidth=3, linestyle="--")
-        plt.plot(myController.log_v_truth[i, :], "k", linewidth=3, linestyle="--")
         plt.plot(avg[i, :], color="rebeccapurple", linewidth=3, linestyle="--")
-        plt.legend(["FL", "FR", "HL", "HR", "Truth"])
-    plt.suptitle("Estimation of the velocity of the base")
+        plt.plot(estimator.log_v_truth[i, :], "k", linewidth=3, linestyle="--")
+        plt.plot(estimator.log_filt_lin_vel[i, :], color="darkgoldenrod", linewidth=3, linestyle="--")
+        plt.legend(["FL", "FR", "HL", "HR", "Avg", "Truth", "Filtered"])
+        plt.xlim([2000, 8000])
+    plt.suptitle("Estimation of the linear velocity of the trunk (in base frame)")
 
-    plt.figure()
+    """plt.figure()
+    for i in range(3):
+        plt.subplot(3, 1, i+1)
+        plt.plot(estimator.log_filt_lin_vel[i, :], color="red", linewidth=3)
+        plt.plot(estimator.log_filt_lin_vel_bis[i, :], color="forestgreen", linewidth=3)
+        plt.plot(estimator.rotated_FK[i, :], color="blue", linewidth=3)
+        plt.legend(["alpha = 1.0", "alpha = 450/500"])
+    plt.suptitle("Estimation of the velocity of the base")"""
+
+    """plt.figure()
     for i in range(3):
         plt.subplot(3, 1, i+1)
         for j in range(4):
             plt.plot(logger.feet_vel[i, j, :], linewidth=3)
-    plt.suptitle("Velocity of feet over time")
-    plt.show(block=True)"""
+    plt.suptitle("Velocity of feet over time")"""
+    plt.show(block=True)
 
     return logger
 

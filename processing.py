@@ -29,9 +29,11 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
         # Retrieve data from the simulation (position/orientation/velocity of the robot)
         # Stored in pyb_sim.qmes12 and pyb_sim.vmes12 (quantities in PyBullet world frame)
         pyb_sim.retrieve_pyb_data()
-        pyb_sim.qmes12[3:7, 0] = estimator.filt_ang_pos
-        pyb_sim.vmes12[0:3, 0] = estimator.filt_lin_vel
-        pyb_sim.vmes12[3:6, 0] = estimator.filt_ang_vel
+        estimator.log_v_truth[:, estimator.k_log] = tsid_controller.vtsid[0:3, 0]
+        pyb_sim.qmes12[0:3, 0] = estimator.cheat_lin_pos
+        pyb_sim.qmes12[3:7, 0] = estimator.quat_oMb
+        pyb_sim.vmes12[0:3, 0] = (estimator.oMb.rotation @ np.array([estimator.filt_lin_vel]).transpose()).ravel()
+        pyb_sim.vmes12[3:6, 0] = (estimator.oMb.rotation @ np.array([estimator.filt_ang_vel]).transpose()).ravel()
 
         # Retrieve state desired by TSID (position/orientation/velocity of the robot)
         tsid_controller.qtsid[:, 0] = tsid_controller.qdes.copy()  # in TSID world frame
