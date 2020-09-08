@@ -64,13 +64,14 @@ class MPC_crocoddyl:
         self.frictionWeights = 1.0
 
         # Max iteration ddp solver
-        self.max_iteration = 50
+        self.max_iteration = 10
 
         # Warm Start for the solver
         self.warm_start =  True
 
         # Minimum normal force (N)
         self.min_fz = 0.2
+        self.max_fz = 25
 
         # Gait matrix
         self.gait = np.zeros((20, 5))
@@ -78,7 +79,7 @@ class MPC_crocoddyl:
 
         # Weight on the shoulder term : 
         self.shoulderWeights = 10.
-        self.shoulder_hlim = 0.24
+        self.shoulder_hlim = 0.22
 
         # Position of the feet
         self.fsteps = np.full((20, 13), np.nan)
@@ -101,6 +102,7 @@ class MPC_crocoddyl:
             model.gI = self.gI 
             model.mu = self.mu
             model.min_fz = self.min_fz
+            model.max_fz = self.max_fz
 
             # Weights vectors
             model.stateWeights = self.stateWeight
@@ -248,6 +250,7 @@ class MPC_crocoddyl:
             elt.gI = self.gI 
             elt.mu = self.mu
             elt.min_fz = self.min_fz
+            elt.max_fz = self.max_fz
 
             # Weights vectors
             elt.stateWeights = self.stateWeight
