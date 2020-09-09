@@ -47,13 +47,12 @@ logger_ddp  = run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_
 # Create footstep planner object
 fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, n_periods, T_gait)
 
-mpc_wrapper_ddp = MPC_crocoddyl.MPC_crocoddyl(dt_mpc, T_gait, 1, True)
-
+mpc_wrapper_ddp = MPC_crocoddyl.MPC_crocoddyl(dt_mpc, T_gait, 1,  inner = True , linearModel = False)
 
 a = 1
 b = -1 
 
-N_trial = 1
+N_trial = 10
 
 
 epsilon = 10e-6

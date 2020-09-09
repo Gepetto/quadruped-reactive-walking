@@ -121,6 +121,9 @@ class Logger:
         self.vel_ref = np.zeros((6, k_max_loop))
         self.vel_err = np.zeros((3, k_max_loop))
 
+        # Store information about shoulder position
+        self.o_shoulders = np.zeros((3, 4,k_max_loop))
+
     def log_footsteps(self, k, interface, tsid_controller):
         """ Store current and desired position, velocity and acceleration of feet over time
         """
@@ -131,6 +134,9 @@ class Logger:
         self.feet_pos_target[:, :, k] = tsid_controller.goals.copy()
         self.feet_vel_target[:, :, k] = tsid_controller.vgoals.copy()
         self.feet_acc_target[:, :, k] = tsid_controller.agoals.copy()
+
+        #  Shoulder position in world frame
+        self.o_shoulders[:, :, k] = interface.o_shoulders
 
         return 0
 

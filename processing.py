@@ -218,8 +218,10 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
         print("###")"""
     # Run the MPC to get the reference forces and the next predicted state
     # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
-    mpc_wrapper.solve(k, fstep_planner)
-
+    try : 
+        mpc_wrapper.solve(k, fstep_planner)
+    except ValueError:
+        print("MPC Problem")
     # Output of the MPC (no delay)
     # f_applied = mpc_wrapper.get_latest_result()
 
@@ -281,7 +283,7 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
     else:
         myController.control(pyb_sim.qmes12, pyb_sim.vmes12, k, solo,
                              interface, f_applied, fstep_planner.fsteps_invdyn,
-                             fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb).reshape((12, 1))
+                             fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb)  #.reshape((12, 1))
 
     return 0
 
