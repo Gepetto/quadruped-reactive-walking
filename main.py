@@ -60,7 +60,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
     # Wrapper that makes the link with the solver that you want to use for the MPC
     # First argument to True to have PA's MPC, to False to have Thomas's MPC
-    enable_multiprocessing = True
+    enable_multiprocessing = False
     mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, fstep_planner.n_steps,
                                           k_mpc, fstep_planner.T_gait, enable_multiprocessing)
 
@@ -125,8 +125,13 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
             proc.process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper,
                              dt_mpc, ID_deb_lines)
 
-        # Check if the MPC has outputted a new result
-        f_applied = mpc_wrapper.get_latest_result()
+        # Retrieve reference contact forces
+        if enable_multiprocessing or (k == 0):
+            # Check if the MPC has outputted a new result
+            f_applied = mpc_wrapper.get_latest_result()
+        else:
+            if (k % k_mpc) == 2:  # Mimic a 4 ms delay
+                f_applied = mpc_wrapper.get_latest_result()
 
         t_mpc = time.time()  # To analyze the time taken by each step
 

@@ -121,8 +121,9 @@ class MPC_Wrapper:
 
         if self.mpc_type:
             # OSQP MPC
+            # Replace NaN values by 0.0
             fstep_planner.fsteps_mpc[np.isnan(fstep_planner.fsteps_mpc)] = 0.0
-            self.mpc.run(np.int(k/self.k_mpc)-1, fstep_planner.xref.copy(), fstep_planner.fsteps_mpc.copy())
+            self.mpc.run(np.int(k), fstep_planner.xref.copy(), fstep_planner.fsteps_mpc.copy())
         else:
             # Crocoddyl MPC
             self.mpc.solve(k, fstep_planner)
