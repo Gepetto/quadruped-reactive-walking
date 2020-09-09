@@ -120,12 +120,12 @@ class MPC_crocoddyl_planner():
         # Index of the control cycle to start the "stopping optimisation"
         self.start_stop_optim = 20
 
-        # Preticted position of feet computed by previous cycle, it will be used with
+        # Predicted position of feet computed by previous cycle, it will be used with
         # the self.lastPositionWeights weight.
         self.oMl = pin.SE3.Identity()  #  transform from world to local frame ("L")
 
         self.l_fsteps = np.zeros((3,4))   
-        self.o_fsteps = np.zeros((3,4))   
+        self.o_fsteps = np.zeros((3,4))
         
         # Shooting problem
         self.problem = None
@@ -166,6 +166,7 @@ class MPC_crocoddyl_planner():
 
         Args:
         """
+
         self.oMl = oMl
         # position of foot predicted by previous gait cycle in world frame
         for i in range(4):
@@ -191,9 +192,11 @@ class MPC_crocoddyl_planner():
                 p0 +=  np.repeat(self.gait[0,1:],2)*l_feet[0:2,:].reshape(8, order = 'F')
        
         else : 
+
             # Create gait matrix
             self.create_walking_trot()
             self.gait_old = self.gait 
+ 
             # First step : create the list of model
             self.create_List_model()
             # According to the current footstepplanner, the walk start on the next phase
@@ -210,11 +213,13 @@ class MPC_crocoddyl_planner():
         self.x_init = []
         self.u_init = []
         gap = 0
+
         while (self.gait[j, 0] != 0):
             
             for i in range(k_cum, k_cum+np.int(self.gait[j, 0])):
 
                 if self.ListAction[i].__class__.__name__ == "ActionModelQuadrupedStep" :
+
                     self.x_init.append(np.zeros(20))
                     self.u_init.append(np.zeros(4))
                     if i == 0 : 
@@ -224,6 +229,7 @@ class MPC_crocoddyl_planner():
                         self.ListAction[i].updateModel(np.reshape(self.l_fsteps, (3, 4), order='F') , xref[:, i+gap]  , self.gait[j, 1:] - self.gait[j-1, 1:])
 
                     self.ListAction[i+1].updateModel(np.reshape(self.l_fsteps, (3, 4), order='F') , xref[:, i+gap]  , self.gait[j, 1:])
+
                     self.x_init.append(np.zeros(20))
                     self.u_init.append(np.zeros(12))
                     k_cum +=  1
@@ -246,7 +252,7 @@ class MPC_crocoddyl_planner():
         # # Update model of the terminal model
         self.terminalModel.updateModel(np.reshape(self.fsteps[j-1, 1:], (3, 4), order='F') , xref[:,-1] , self.gait[j-1, 1:])
         self.x_init.append(np.zeros(20))
-     
+
         # Shooting problem
         self.problem = crocoddyl.ShootingProblem(np.zeros(20),  self.ListAction, self.terminalModel)
 
@@ -298,6 +304,7 @@ class MPC_crocoddyl_planner():
         model.stepWeights = self.stepWeights
         model.symmetry_term = self.symmetry_term
         model.centrifugal_term = self.centrifugal_term
+
         return 0
 
     def create_List_model(self):
@@ -456,7 +463,7 @@ class MPC_crocoddyl_planner():
             else : 
                 gap += 1
             k = k + 1  
-      
+
         ########################################
         # Compute fsteps using the state vector
         ########################################

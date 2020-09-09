@@ -16,7 +16,7 @@ class MPC_crocoddyl:
         linearModel(bool) : Approximation in the cross product by using desired state
     """
 
-    def __init__(self, dt = 0.02 , T_mpc = 0.32 ,  mu = 1, inner = True , linearModel = True , n_period = 1):    
+    def __init__(self, dt = 0.02 , T_mpc = 0.32 ,  mu = 1, inner = True , linearModel = True , n_period = 1):
 
         # Time step of the solver
         self.dt = dt
@@ -95,7 +95,7 @@ class MPC_crocoddyl:
                 model = quadruped_walkgen.ActionModelQuadruped()   
             else : 
                 model = quadruped_walkgen.ActionModelQuadrupedNonLinear()   
-                
+
             # Model parameters    
             model.dt = self.dt 
             model.mass = self.mass      
@@ -120,7 +120,7 @@ class MPC_crocoddyl:
         if linearModel :
             self.terminalModel = quadruped_walkgen.ActionModelQuadruped()   
         else : 
-            self.terminalModel = quadruped_walkgen.ActionModelQuadrupedNonLinear()             
+            self.terminalModel = quadruped_walkgen.ActionModelQuadrupedNonLinear()
 
         # Model parameters of terminal node    
         self.terminalModel.dt = self.dt 
