@@ -116,23 +116,13 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
         fstep_planner.update_fsteps(k, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
                                     joystick.v_ref, interface.lC[2], interface.oMl, pyb_sim.ftps_Ids, False)
 
+    # Update position of debug spheres
     """import pybullet as pyb
     for j in range(4):
         pos_tmp = np.array([interface.o_feet[:, j]]).transpose()
         pyb.resetBasePositionAndOrientation(pyb_sim.ftps_Ids[j, 0],
                                             posObj=pos_tmp,
                                             ornObj=np.array([0.0, 0.0, 0.0, 1.0]))"""
-
-    """for i in range(4):
-        a = interface.o_feet[:, i:(i+1)]
-        b = interface.l_feet[:, i:(i+1)]
-        c = interface.oMl.inverse() * interface.o_feet[:, i:(i+1)]
-        d = interface.oMl * interface.l_feet[:, i:(i+1)]
-        print("### ", i, " ###")
-        print("o_feet: ", a.ravel())
-        print("o_feet: ", b.ravel())
-        print("oMl-1 * o_feet: ", c.ravel())
-        print("oMl * l_feet: ", d.ravel())"""
 
     # Update footsteps desired location once every k_mpc iterations of TSID
     if True:  # (k % k_mpc) == 0:
@@ -182,22 +172,17 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
         ID_deb_lines (list): IDs of lines in PyBullet for debug purpose
     """
 
-    # Debug lines
-    """if len(ID_deb_lines) == 0:
-        for i_line in range(4):
-            start = interface.oMl * np.array([[interface.l_shoulders[0, i_line],
-                                               interface.l_shoulders[1, i_line], 0.01]]).transpose()
-            end = interface.oMl * np.array([[interface.l_shoulders[0, i_line] + 0.4,
-                                             interface.l_shoulders[1, i_line], 0.01]]).transpose()
+    # Debug lines to better visualizer the forward direction of the robot and the vertical of the shoulders
+    """for i_line in range(4):
+        start = interface.oMl * np.array([[interface.l_shoulders[0, i_line],
+                                           interface.l_shoulders[1, i_line], 0.01]]).transpose()
+        end = interface.oMl * np.array([[interface.l_shoulders[0, i_line] + 0.4,
+                                         interface.l_shoulders[1, i_line], 0.01]]).transpose()
+        if len(ID_deb_lines) < 4:  # Create the lines
             lineID = pyb.addUserDebugLine(np.array(start).ravel().tolist(), np.array(end).ravel().tolist(),
                                           lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8)
             ID_deb_lines.append(lineID)
-    else:
-        for i_line in range(4):
-            start = interface.oMl * np.array([[interface.l_shoulders[0, i_line],
-                                               interface.l_shoulders[1, i_line], 0.01]]).transpose()
-            end = interface.oMl * np.array([[interface.l_shoulders[0, i_line] + 0.4,
-                                             interface.l_shoulders[1, i_line], 0.01]]).transpose()
+        else:  # Update the lines
             lineID = pyb.addUserDebugLine(np.array(start).ravel().tolist(), np.array(end).ravel().tolist(),
                                           lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8,
                                           replaceItemUniqueId=ID_deb_lines[i_line])"""
@@ -207,27 +192,14 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
                                interface.lV, interface.lW, joystick.v_ref, h_ref=0.2027682,
                                predefined=joystick.predefined)
 
-    """if k > 0:
-        if np.abs(mpc_wrapper.mpc.x_robot[7, 0] - interface.lV[1, 0]) > 0.00001:
-            debug = 1"""
-
-    # Output of the MPC (with delay)
-    # f_applied = mpc_wrapper.get_latest_result()
-
-    """if k > 0:
-        print(mpc_wrapper.mpc.x_robot[0:6, 0] - fstep_planner.x0[0:6].ravel())
-        print(mpc_wrapper.mpc.x_robot[6:12, 0] - fstep_planner.x0[6:12].ravel())
-        print("###")"""
     # Run the MPC to get the reference forces and the next predicted state
     # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
-    try : 
+    try:
         mpc_wrapper.solve(k, fstep_planner)
     except ValueError:
         print("MPC Problem")
-    # Output of the MPC (no delay)
-    # f_applied = mpc_wrapper.get_latest_result()
 
-    return 0  # f_applied
+    return 0
 
 
 def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myController,
@@ -246,18 +218,6 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
         enable_hybrid_control (bool): whether hybrid control is enabled or not
         enable_gepetto_viewer (bool): whether the gepetto viewer is enabled or not (to update it if it is)
     """
-
-    # Check if an error occured
-    # If the limit bounds are reached, controller is switched to a pure derivative controller
-    """if(myController.error):
-        print("Safety bounds reached. Switch to a safety controller")
-        myController = mySafetyController"""
-
-    # If the simulation time is too long, controller is switched to a zero torques controller
-    """time_error = time_error or (time.time()-time_start > 0.01)
-    if (time_error):
-        print("Computation time lasted to long. Switch to a zero torque control")
-        myController = myEmergencyStop"""
 
     #####################################
     # Get torques with inverse dynamics #
@@ -287,31 +247,37 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
     else:
         myController.control(pyb_sim.qmes12, pyb_sim.vmes12, k, solo,
                              interface, f_applied, fstep_planner.fsteps_invdyn,
-                             fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb)  #.reshape((12, 1))
+                             fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb)  # .reshape((12, 1))
 
     return 0
 
 
-def process_pdp(pyb_sim, myController):
+def process_pdp(pyb_sim, myController, estimator):
+    """Compute the output of the PD+ controller by comparing the current angular position
+    and velocities of actuators with the desired ones
+    It returns the desired torques that should be sent to the drivers of the actuators
 
-    # pyb_sim.retrieve_pyb_data()
-    jointStates = pyb.getJointStates(pyb_sim.robotId, pyb_sim.revoluteJointIndices)
-    # for i_joint in range(len(pyb_sim.revoluteJointIndices)):
-    myController.qmes[7:, 0] = [state[0] for state in jointStates]
-    myController.vmes[6:, 0] = [state[1] for state in jointStates]
+    Args:
+        pyb_sim (object): Wrapper of the PyBullet simulator
+        myController (object): Inverse Dynamics controller
+        estimator (object): state estimator object
+    """
 
-    return (myController.run_PDplus())  # .reshape((12, 1))
+    myController.qmes[7:, 0] = estimator.actuators_pos[:]
+    myController.vmes[6:, 0] = estimator.actuators_vel[:]
+
+    return myController.run_PDplus()
 
 
 def process_pybullet(pyb_sim, k, envID, velID, jointTorques):
     """Update the torques applied by the actuators of the quadruped and run one step of simulation
 
     Args:
-        pyb_sim (object): PyBullet simulation
-        k (int): Number of inv dynamics iterations since the start of the simulation
-        envID (int): Identifier of the current environment to be able to handle different scenarios
-        velID (int): Identifier of the current velocity profile to be able to handle different scenarios
-        jointTorques (12x1 array): Reference torques for the actuators
+        pyb_sim(object): PyBullet simulation
+        k(int): Number of inv dynamics iterations since the start of the simulation
+        envID(int): Identifier of the current environment to be able to handle different scenarios
+        velID(int): Identifier of the current velocity profile to be able to handle different scenarios
+        jointTorques(12x1 array): Reference torques for the actuators
     """
 
     # Check the state of the robot to trigger events and update the simulator camera

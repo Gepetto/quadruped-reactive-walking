@@ -28,6 +28,7 @@ class controller:
             k_mpc (int): number of tsid iterations for one iteration of the mpc
             n_periods (int): number of gait periods in the prediction horizon
             T_gait (float): duration of one gait period
+            on_solo8 (bool): if we are working on solo8 (True) or solo12 (False)
     """
 
     def __init__(self, N_simulation, k_mpc, n_periods, T_gait, on_solo8):

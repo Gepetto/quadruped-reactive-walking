@@ -6,12 +6,12 @@ import gamepadClient as gC
 
 class Joystick:
     """Joystick-like controller that outputs the reference velocity in local frame
+
+    Args:
+        predefined (bool): use either a predefined velocity profile (True) or a gamepad (False)
     """
 
-    def __init__(self, k_mpc, predefined, multi_simu=False):
-
-        # Number of TSID steps for 1 step of the MPC
-        self.k_mpc = k_mpc
+    def __init__(self, predefined, multi_simu=False):
 
         # Reference velocity in local frame
         self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
@@ -42,7 +42,7 @@ class Joystick:
         listening to a gamepad handled by an independent thread
 
         Args:
-            k_loop (int): number of MPC iterations since the start of the simulation
+            k_loop (int): numero of the current iteration
             velID (int): Identifier of the current velocity profile to be able to handle different scenarios
         """
 
@@ -61,24 +61,28 @@ class Joystick:
         listening to a gamepad handled by an independent thread
 
         Args:
-            k_loop (int): number of MPC iterations since the start of the simulation
+            k_loop (int): numero of the current iteration
         """
 
+        # Create the gamepad client
         if k_loop == 0:
             self.gp = gC.GamepadClient()
 
+        # Get the velocity command based on the position of joysticks
         self.vX = self.gp.leftJoystickX.value * self.VxScale
         self.vY = self.gp.leftJoystickY.value * self.VyScale
         self.vYaw = self.gp.rightJoystickX.value * self.vYawScale
 
-        if self.gp.L1Button.value:
+        if self.gp.L1Button.value:  # If L1 is pressed the orientation of the base is controlled
             self.v_gp = np.array([[0.0, 0.0, - self.vYaw * 0.25, - self.vX * 5, - self.vY * 2, 0.0]]).T
-        else:
+        else:  # Otherwise the Vx, Vy, Vyaw is controlled
             self.v_gp = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
 
+        # Reduce the size of the support polygon by pressing Start
         if self.gp.startButton.value:
             self.reduced = not self.reduced
 
+        # Low pass filter to slow down the changes of velocity when moving the joysticks
         tc = 0.04  #  cutoff frequency at 50 Hz
         dT = 0.002  # velocity reference is updated every ms
         alpha = dT / tc
@@ -87,6 +91,11 @@ class Joystick:
         return 0
 
     def handle_v_switch(self, k):
+        """Handle the change of reference velocity according to the chosen predefined velocity profile
+
+        Args:
+            k (int): numero of the current iteration
+        """
 
         i = 1
         while (i < self.k_switch.shape[0]) and (self.k_switch[i] <= k):
@@ -98,6 +107,10 @@ class Joystick:
         """Change the velocity reference sent to the robot
         4-th order polynomial: zero force and force velocity at start and end
         (bell-like force trajectory)
+
+        Args:
+            k (int): numero of the current iteration
+            i (int): numero of the active phase of the reference velocity profile
         """
 
         ev = k - self.k_switch[i-1]
@@ -113,46 +126,9 @@ class Joystick:
         according to a predefined sequence
 
         Args:
-            k_loop (int): number of MPC iterations since the start of the simulation
-            velID (int): Identifier of the current velocity profile to be able to handle different scenarios
+            k_loop (int): numero of the current iteration
+            velID (int): identifier of the current velocity profile to be able to handle different scenarios
         """
-
-        # Moving forwards
-        """if k_loop == self.k_mpc*16*3:
-            self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
-
-        if velID == 5:
-            if (k_loop == 0):
-                self.k_switch = np.array([0, 1000, 6000, 8000, 12000])
-                self.v_switch = np.array([[0.0, 0.0,  0.3, 0.3, 0.3],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.4, 0.4]])
-            self.handle_v_switch(k_loop)
-
-        if velID == 4:
-            if (k_loop == 0):
-                self.k_switch = np.array([0, 1000, 3000, 7000, 9000, 30000])
-                self.v_switch = np.array([[0.0, 0.0,  0.6, 0.6, 0.6, 0.6],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.4, 0.4]])
-            self.handle_v_switch(k_loop)
-
-        if velID == 3:
-            if (k_loop == 0):
-                self.k_switch = np.array([0, 1000, 2000, 7000, 26000, 30000])
-                self.v_switch = np.array([[0.0, 0.0,  0.0, 0.3, 0.3, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.3, 0.0, 0.0, 0.0]])
-            self.handle_v_switch(k_loop)
 
         if velID == 0:
             if (k_loop == 0):
@@ -163,33 +139,7 @@ class Joystick:
                                           [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
                                           [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
                                           [0.0, 0.0,  0.0, 0.0, 0.0, 0.0]])
-            self.handle_v_switch(k_loop)
-
-        # Video Demo 16/06/2020
-        """V_max = 0.3
-        Rot_max = 0.2
-        if k_loop < 4000:
-            alpha = np.max([np.min([(k_loop-self.k_mpc*16*2)/3000, 1.0]), 0.0])
-            self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        elif k_loop < 5000:
-            alpha = np.max([np.min([(k_loop-4000)/500, 1.0]), 0.0])
-            self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -Rot_max*alpha]]).T
-
-        elif k_loop < 6000:
-            alpha = np.max([np.min([(k_loop-5000)/500, 1.0]), 0.0])
-            self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -Rot_max*(1.0-alpha)]]).T
-
-        elif k_loop < 8000:
-            alpha = np.max([np.min([(k_loop-6000)/2000, 1.0]), 0.0])
-            self.v_ref = np.array([[V_max*(1-alpha), V_max*alpha, 0.0, 0.0, 0.0, 0.0]]).T
-
-        else:
-            alpha = np.max([np.min([(k_loop-8000)/1000, 1.0]), 0.0])
-            self.v_ref = np.array([[0.0, V_max*(1.0-alpha), 0.0, 0.0, 0.0, 0.0]]).T"""
-        # End Video Demo 16/06/2020
-
-        if velID == 1:
+        elif velID == 1:
             if (k_loop == 0):
                 V_max = 0.5
                 self.k_switch = np.array([0, 1000, 3000, 8000, 12000, 16000, 20000, 22000,
@@ -205,131 +155,43 @@ class Joystick:
                 self.v_switch[5, :] = np.array([0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                                 0.0, 0.0, 0.0, 0.0, 0.3, 0.3, 0.0, 0.0,
                                                 -0.3, 0.0])
-            self.handle_v_switch(k_loop)
+        elif velID == 2:
+            self.k_switch = np.array([0, 1000])
+            self.v_switch = np.array([[0.0, 0.0],
+                                      [0.0, 0.0],
+                                      [0.0, 0.0],
+                                      [0.0, 0.0],
+                                      [0.0, 0.0],
+                                      [0.0, 0.0]])
+        elif velID == 3:
+            if (k_loop == 0):
+                self.k_switch = np.array([0, 1000, 2000, 7000, 26000, 30000])
+                self.v_switch = np.array([[0.0, 0.0,  0.0, 0.3, 0.3, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.3, 0.0, 0.0, 0.0]])
+        elif velID == 4:
+            if (k_loop == 0):
+                self.k_switch = np.array([0, 1000, 3000, 7000, 9000, 30000])
+                self.v_switch = np.array([[0.0, 0.0,  0.6, 0.6, 0.6, 0.6],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.4, 0.4]])
+        elif velID == 5:
+            if (k_loop == 0):
+                self.k_switch = np.array([0, 1000, 6000, 8000, 12000])
+                self.v_switch = np.array([[0.0, 0.0,  0.3, 0.3, 0.3],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.4, 0.4]])
 
-        # Video Demo 24/06/2020
-        if velID == 2:
-            V_max = 0.3
-            Rot_max = 0.3
-            if k_loop < 8000:
-                alpha = np.max([np.min([(k_loop-self.k_mpc*16*2)/2000, 1.0]), 0.0])
-                self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-            elif k_loop < 12000:
-                alpha = np.max([np.min([(k_loop-8000)/4000, 1.0]), 0.0])
-                self.v_ref = np.array([[V_max*(1-alpha), -V_max*alpha, 0.0, 0.0, 0.0, 0.0]]).T
-
-            elif k_loop < 20000:
-                alpha = np.max([np.min([(k_loop-12000)/7000, 1.0]), 0.0])
-                self.v_ref = np.array([[0.0, -V_max*(1-alpha), 0.0, 0.0, 0.0, 0]]).T
-
-            elif k_loop < 22000:
-                self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-            elif k_loop < 26000:
-                alpha = np.max([np.min([(k_loop-22000)/1000, 1.0]), 0.0])
-                self.v_ref = np.array([[-V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-            elif k_loop < 33000:
-                alpha = np.max([np.min([(k_loop-26000)/4000, 1.0]), 0.0])
-                self.v_ref = np.array([[-V_max*(1-alpha), 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-            elif k_loop < 36000:
-                alpha = np.max([np.min([(k_loop-33000)/1000, 1.0]), 0.0])
-                self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, Rot_max*alpha]]).T
-
-            elif k_loop < 40000:
-                alpha = np.max([np.min([(k_loop-36000)/1000, 1.0]), 0.0])
-                self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, Rot_max]]).T
-
-            elif k_loop < 41000:
-                alpha = np.max([np.min([(k_loop-40000)/1000, 1.0]), 0.0])
-                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, Rot_max*(1-alpha)]]).T
-
-            elif k_loop < 43000:
-                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-            elif k_loop < 44000:
-                alpha = np.max([np.min([(k_loop-43000)/500, 1.0]), 0.0])
-                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -Rot_max*alpha]]).T
-
-            else:
-                alpha = np.max([np.min([(k_loop-44000)/1450, 1.0]), 0.0])
-                self.v_ref = np.array([[V_max, 0.0, 0.0, 0.0, 0.0, -Rot_max*(1-alpha)]]).T
-        # End Video Demo 24/06/2020
-
-        """if k_loop < 8000:
-            alpha = np.max([np.min([(k_loop-self.k_mpc*16*2)/2500, 1.0]), 0.0])
-            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, +0.2*alpha]]).T
-        elif k_loop < 13000:
-            alpha = np.max([np.min([(k_loop-8000)/5000, 1.0]), 0.0])
-            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, +0.2*(1-alpha)]]).T
-        else:
-            alpha = np.max([np.min([(k_loop-13000)/2000, 1.0]), 0.0])
-            self.v_ref = np.array([[V_max*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
-
-        """if k_loop == self.k_mpc*16*6:
-            self.v_ref = np.array([[0.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        if k_loop == self.k_mpc*16*8:
-            self.v_ref = np.array([[0.6, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        if k_loop == self.k_mpc*16*11+20*8:
-            self.v_ref = np.array([[0.9, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        if k_loop == self.k_mpc*16*12:
-            self.v_ref = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        if k_loop == self.k_mpc*16*14:
-            self.v_ref = np.array([[1.2, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        if k_loop == self.k_mpc*16*15:
-            self.v_ref = np.array([[1.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        if k_loop == self.k_mpc*16*16:
-            self.v_ref = np.array([[1.4, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        if k_loop == self.k_mpc*16*17:
-            self.v_ref = np.array([[1.5, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        if k_loop == self.k_mpc*16*18:
-            self.v_ref = np.array([[1.7, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        if k_loop == self.k_mpc*16*19:
-            self.v_ref = np.array([[1.9, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
-
-        """# Turning
-        if k_loop == 4000:
-            self.v_ref = np.array([[0.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        # Turning
-        if k_loop == 6000:
-            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
-
-        """# Moving forwards
-        if k_loop == 200:
-            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.4]]).T
-
-        # Turning
-        if k_loop == 4200:
-            self.v_ref = np.array([[0.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T"""
-
-        # Moving forwards
-        """if k_loop == 16000:
-            self.v_ref = np.array([[0.3, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        # Stoping
-        if k_loop == 35000:
-            self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-
-        # Sideways
-        if k_loop == 45000:
-            self.v_ref = np.array([[0.0, 0.1, 0.0, 0.0, 0.0, 0.0]]).T
-
-        # Sideways + Turning
-        if k_loop == 55000:
-            self.v_ref = np.array([[0.0, 0.1, 0.0, 0.0, 0.0, 0.2]]).T"""
-
+        self.handle_v_switch(k_loop)
         return 0
 
     def update_v_ref_multi_simu(self, k_loop):

@@ -137,7 +137,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
                                 myController, enable_hybrid_control, enable_gepetto_viewer)
 
             # Process PD+ (feedforward torques and feedback torques)
-            jointTorques[:, 0] = proc.process_pdp(pyb_sim, myController)
+            jointTorques[:, 0] = proc.process_pdp(pyb_sim, myController, estimator)
 
         # If something wrong happened in TSID controller we stick to a security controller
         if myController.error:

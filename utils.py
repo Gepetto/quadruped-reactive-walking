@@ -118,6 +118,12 @@ def quaternionToRPY(quat):
 
 
 def init_viewer(enable_viewer):
+    """Load the solo model and initialize the Gepetto viewer if it is enabled
+
+    Args:
+        enable_viewer (bool): if the Gepetto viewer is enabled or not
+    """
+
     # loadSolo(False) to load solo12
     # loadSolo(True) to load solo8
     solo = robots_loader.loadSolo(False)
@@ -142,7 +148,7 @@ def init_viewer(enable_viewer):
 
 def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC, on_solo8,
                  predefined):
-    """ Create several objects that are used in the control loop
+    """Create several objects that are used in the control loop
 
     Args:
         dt_tsid (float): time step of TSID
@@ -157,7 +163,7 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC
     """
 
     # Create Joystick object
-    joystick = Joystick.Joystick(k_mpc, predefined)
+    joystick = Joystick.Joystick(predefined)
 
     # Create footstep planner object
     fstep_planner = FootstepPlanner.FootstepPlanner(dt_mpc, n_periods, T_gait, on_solo8)
@@ -175,6 +181,16 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC
 
 
 def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
+    """Update various objects in the Gepetto viewer: the Solo robot as well as debug spheres
+
+    Args:
+        k (int): current iteration of the simulation
+        sequencer (object): ContactSequencer object
+        fstep_planner (object): FootstepPlanner object
+        ftraj_gen (object): FootTrajectoryGenerator object
+        mpc (object): MpcSolver object
+    """
+
     # Display non-locked target footholds with green spheres (gepetto gui)
     fstep_planner.update_viewer(solo.viewer, (k == 0))
 
@@ -207,6 +223,15 @@ def getSkew(a):
 
 
 class pybullet_simulator:
+    """Wrapper for the PyBullet simulator to initialize the simulation, interact with it
+    and use various utility functions
+
+    Args:
+        envID (int): identifier of the current environment to be able to handle different scenarios
+        use_flat_plane (bool): to use either a flat ground or a rough ground
+        enable_pyb_GUI (bool): to display PyBullet GUI or not
+        dt (float): time step of the inverse dynamics
+    """
 
     def __init__(self, envID, use_flat_plane, enable_pyb_GUI, dt=0.001):
 
@@ -221,6 +246,7 @@ class pybullet_simulator:
         # Load horizontal plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
 
+        # Either use a flat ground or a rough terrain
         if use_flat_plane:
             self.planeId = pyb.loadURDF("plane.urdf")  # Flat plane
         else:
@@ -236,13 +262,14 @@ class pybullet_simulator:
             for j in range(int(numHeightfieldColumns/2)):
                 for i in range(int(numHeightfieldRows/2)):
                     height = random.uniform(0, heightPerturbationRange)  # uniform distribution
-                    # height = 0.25*np.sin(2*np.pi*(i-128)/46)
+                    # height = 0.25*np.sin(2*np.pi*(i-128)/46)  # sinus pattern
                     heightfieldData[2*i+2*j*numHeightfieldRows] = (height + height_prev) * 0.5
                     heightfieldData[2*i+1+2*j*numHeightfieldRows] = height
                     heightfieldData[2*i+(2*j+1)*numHeightfieldRows] = (height + height_prev) * 0.5
                     heightfieldData[2*i+1+(2*j+1)*numHeightfieldRows] = height
                     height_prev = height
 
+            # Create the collision shape based on the height field
             terrainShape = pyb.createCollisionShape(shapeType=pyb.GEOM_HEIGHTFIELD, meshScale=[.05, .05, 1],
                                                     heightfieldTextureScaling=(numHeightfieldRows-1)/2,
                                                     heightfieldData=heightfieldData,
@@ -252,11 +279,6 @@ class pybullet_simulator:
             pyb.resetBasePositionAndOrientation(self.planeId, [0, 0, 0], [0, 0, 0, 1])
             pyb.changeVisualShape(self.planeId, -1, rgbaColor=[1, 1, 1, 1])
 
-        """self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf",
-                                     basePosition=[0.0, 0.0, -0.3],
-                                     baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 0.0]))
-        pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)"""
-
         if envID == 1:
 
             # Add stairs with platform and bridge
@@ -265,6 +287,7 @@ class pybullet_simulator:
             baseOrientation = pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415])
             pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)"""
 
+            # Create the red steps to act as small perturbations
             mesh_scale = [1.0, 0.1, 0.02]
             visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
                                                   fileName="cube.obj",
@@ -303,6 +326,7 @@ class pybullet_simulator:
                                         useMaximalCoordinates=True)
             pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
+            # Create the green steps to act as bigger perturbations
             mesh_scale = [0.2, 0.1, 0.01]
             visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
                                                   fileName="cube.obj",
@@ -326,6 +350,7 @@ class pybullet_simulator:
                                             useMaximalCoordinates=True)
                 pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
+            # Create sphere obstacles that will be thrown toward the quadruped
             mesh_scale = [0.1, 0.1, 0.1]
             visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
                                                   fileName="sphere_smooth.obj",
@@ -358,6 +383,7 @@ class pybullet_simulator:
             self.flag_sphere1 = True
             self.flag_sphere2 = True
 
+        # Create blue spheres without collision box for debug purpose
         mesh_scale = [0.015, 0.015, 0.015]
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
                                               fileName="sphere_smooth.obj",
@@ -376,6 +402,7 @@ class pybullet_simulator:
                                                           basePosition=[0.0, 0.0, -0.1],
                                                           useMaximalCoordinates=True)
 
+        # Create green spheres without collision box for debug purpose
         visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
                                               fileName="sphere_smooth.obj",
                                               halfExtents=[0.5, 0.5, 0.1],
@@ -444,6 +471,7 @@ class pybullet_simulator:
 
         """
 
+        # If spheres are loaded
         if envID == 1:
             # Check if the robot is in front of the first sphere to trigger it
             if self.flag_sphere1 and (qmes12[1, 0] >= 0.9):
@@ -455,21 +483,16 @@ class pybullet_simulator:
                 pyb.resetBaseVelocity(self.sphereId2, linearVelocity=[-2.5, 0.0, 2.0])
                 self.flag_sphere2 = False
 
-        # Apply perturbation
-        # self.apply_external_force(k,  1000, 400, np.array([0.0, 6.0, 0.0]), np.zeros((3,)))
-        """self.apply_external_force(k,  4000, 400, np.array([0.0, 2.0, 0.0]), np.zeros((3,)))
-        self.apply_external_force(k,  8000, 400, np.array([0.0, -2.0, 0.0]), np.zeros((3,)))
-        self.apply_external_force(k, 12000, 400, np.array([2.0, 0.0, 0.0]), np.zeros((3,)))
-        self.apply_external_force(k, 16000, 400, np.array([-2.0, 0.0, 0.0]), np.zeros((3,)))"""
-
+        # Apply perturbations by directly applying external forces on the robot trunk
         if velID == 4:
             self.apply_external_force(k, 4250, 500, np.array([0.0, 0.0, -3.0]), np.zeros((3,)))
-            self.apply_external_force(k, 5250, 500, np.array([-3.0, 0.0, 0.0]), np.zeros((3,)))
+            self.apply_external_force(k, 5250, 500, np.array([0.0, -3.0, 0.0]), np.zeros((3,)))
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
                                        cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])"""
 
+        # Get the orientation of the robot to change the orientation of the camera with the rotation of the robot
         oMb_tmp = pin.SE3(pin.Quaternion(qmes12[3:7]), np.array([0.0, 0.0, 0.0]))
         RPY = pin.rpy.matrixToRpy(oMb_tmp.rotation)
 
@@ -536,7 +559,7 @@ class pybullet_simulator:
 
     def get_to_default_position(self, qtarget):
         """Controler that tries to get the robot back to a default angular positions
-        of its 12 actuators using polynomials to generate trajectories and a a PD controler
+        of its 12 actuators using polynomials to generate trajectories and a PD controller
         to make the actuators follow them
 
         Args:

@@ -1,7 +1,6 @@
 # coding: utf8
 
 import numpy as np
-import pybullet as pyb
 import math
 
 
@@ -14,6 +13,7 @@ class FootstepPlanner:
         dt (float): Duration of one time step of the MPC
         n_periods (int): Number of gait periods in one gait cycle
         T_gait (float): Duration of one gait period
+        on_solo8 (bool): if we are working on solo8 (True) or solo12 (False)
     """
 
     def __init__(self, dt, n_periods, T_gait, on_solo8):
@@ -323,6 +323,7 @@ class FootstepPlanner:
             v_cur (6x1 array): current velocity vector of the flying base in local frame (linear and angular stacked)
             v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
             h (float): desired height for the trunk of the robot
+            reduced (bool): if the size of the support polygon is reduced or not
         """
 
         self.fsteps[:, 0] = self.gait[:, 0]
@@ -339,8 +340,8 @@ class FootstepPlanner:
         self.compute_next_footstep(v_cur, v_ref, h)
 
         if reduced:  # Reduce size of support polygon
-            self.next_footstep[0:2, :] -= np.array([[0.14, 0.14, -0.14, -0.14],
-                                                    [0.12, -0.12, 0.12, -0.12]])
+            self.next_footstep[0:2, :] -= np.array([[0.12, 0.12, -0.12, -0.12],
+                                                    [0.10, -0.10, 0.10, -0.10]])
 
         self.next_footstep[2, :] = self.z_contacts[0, :].copy()
 
@@ -488,6 +489,8 @@ class FootstepPlanner:
         self.compute_footsteps(l_feet, v_cur, v_ref, h, reduced)
 
         # Display spheres for footsteps visualization
+        """
+        import pybullet as pyb
         i = 0
         up = np.isnan(self.gait[:, 1:])
         while (self.gait[i, 0] != 0 and i < 2):
@@ -498,6 +501,12 @@ class FootstepPlanner:
                                                         posObj=pos_tmp,
                                                         ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
             i += 1
+        """
+        """for j in range(4):
+            pos_tmp = np.array(oMl * np.array([l_feet[:, j]]).transpose())
+            pyb.resetBasePositionAndOrientation(ftps_Ids[j, 0],
+                                                posObj=pos_tmp,
+                                                ornObj=np.array([0.0, 0.0, 0.0, 1.0]))"""
 
         return 0
 

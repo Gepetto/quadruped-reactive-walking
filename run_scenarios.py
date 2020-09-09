@@ -31,7 +31,7 @@ pyb_feedback = True
 on_solo8 = False
 
 # If True the ground is flat, otherwise it has bumps
-use_flat_plane = False
+use_flat_plane = True
 
 # If we are using a predefined reference velocity (True) or a joystick (False)
 predefined_vel = True

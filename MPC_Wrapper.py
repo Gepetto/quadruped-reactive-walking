@@ -17,7 +17,8 @@ class Dummy:
 
 
 class MPC_Wrapper:
-    """Wrapper to run FootstepPlanner + MPC on another process
+    """Wrapper to run both types of MPC (OQSP or Crocoddyl) with the possibility to run OSQP in
+    a parallel process
 
     Args:
         mpc_type (bool): True to have PA's MPC, False to have Thomas's MPC
@@ -76,9 +77,7 @@ class MPC_Wrapper:
 
     def get_latest_result(self):
         """Return the desired contact forces that have been computed by the last iteration of the MPC
-
-        Args:
-
+        If a new result is available, return the new result. Otherwise return the old result again.
         """
 
         if (self.not_first_iter):
@@ -142,13 +141,8 @@ class MPC_Wrapper:
         """Run the MPC (asynchronous version) to get the desired contact forces for the feet currently in stance phase
 
         Args:
-            dt (float): Time step of the MPC
-            n_steps (int): Number of time steps in one gait cycle
             k (int): Number of inv dynamics iterations since the start of the simulation
-            T_gait (float): duration of one period of gait
-            joystick (object): interface with the gamepad
             fstep_planner (object): FootstepPlanner object of the control loop
-            interface (object): Interface object of the control loop
         """
 
         # If this is the first iteration, creation of the parallel process
@@ -255,13 +249,8 @@ class MPC_Wrapper:
         loop to the asynchronous MPC
 
         Args:
-            dt (float): Time step of the MPC
-            n_steps (int): Number of time steps in one gait cycle
             k (int): Number of inv dynamics iterations since the start of the simulation
-            T_gait (float): duration of one period of gait
-            joystick (object): interface with the gamepad
             fstep_planner (object): FootstepPlanner object of the control loop
-            interface (object): Interface object of the control loop
         """
 
         # print("Compressing dataIn")
@@ -309,6 +298,10 @@ class MPC_Wrapper:
         Simplification: instead of creating a new phase if required (see roll function of FootstepPlanner) we always
         increase the last one by 1 step. That way we don't need to call other functions to predict the position of
         footstep when a new phase is created.
+
+        Args:
+            fsteps (13x20 array): the remaining number of steps of each phase of the gait (first column)
+            and the [x, y, z]^T desired position of each foot for each phase of the gait (12 other columns)
         """
 
         self.fsteps_future = fsteps.copy()
