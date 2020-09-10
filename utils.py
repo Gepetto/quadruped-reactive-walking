@@ -486,7 +486,7 @@ class pybullet_simulator:
         # Apply perturbations by directly applying external forces on the robot trunk
         if velID == 4:
             self.apply_external_force(k, 4250, 500, np.array([0.0, 0.0, -3.0]), np.zeros((3,)))
-            self.apply_external_force(k, 5250, 500, np.array([0.0, -3.0, 0.0]), np.zeros((3,)))
+            self.apply_external_force(k, 5250, 500, np.array([0.0, +3.0, 0.0]), np.zeros((3,)))
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
@@ -544,8 +544,8 @@ class pybullet_simulator:
 
         if ((k < start) or (k > (start+duration))):
             return 0.0
-        if k == start:
-            print("Applying [", F[0], ", ", F[1], ", ", F[2], "]")
+        """if k == start:
+            print("Applying [", F[0], ", ", F[1], ", ", F[2], "]")"""
 
         ev = k - start
         t1 = duration

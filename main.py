@@ -60,7 +60,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
     # Wrapper that makes the link with the solver that you want to use for the MPC
     # First argument to True to have PA's MPC, to False to have Thomas's MPC
-    enable_multiprocessing = False
+    enable_multiprocessing = True
     mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, fstep_planner.n_steps,
                                           k_mpc, fstep_planner.T_gait, enable_multiprocessing)
 
@@ -147,7 +147,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         # If something wrong happened in TSID controller we stick to a security controller
         if myController.error:
             # D controller to slow down the legs
-            D = 0.1
+            D = 0.5
             jointTorques[:, 0] = D * (- pyb_sim.vmes12[6:, 0])
 
             # Saturation to limit the maximal torque
@@ -172,7 +172,7 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         # logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
         #                          False, pyb_sim.robotId, pyb_sim.planeId, solo)
         logger.log_state(k, pyb_sim, joystick, interface, mpc_wrapper, solo)
-        logger.log_forces(k, interface, myController, pyb_sim.robotId, pyb_sim.planeId)
+        # logger.log_forces(k, interface, myController, pyb_sim.robotId, pyb_sim.planeId)
         # logger.log_footsteps(k, interface, myController)
         # logger.log_fstep_planner(k, fstep_planner)
         # logger.log_tracking_foot(k, myController, solo)
@@ -215,6 +215,6 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     pyb.disconnect()
 
     # Plot graphs of the state estimator
-    estimator.plot_graphs()
+    # estimator.plot_graphs()
 
     return logger

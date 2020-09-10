@@ -11,14 +11,14 @@ from main import run_scenario
 ################################
 
 envID = 0  #  Identifier of the environment to choose in which one the simulation will happen
-velID = 5  #  Identifier of the reference velocity profile to choose which one will be sent to the robot
+velID = 4  #  Identifier of the reference velocity profile to choose which one will be sent to the robot
 
 dt_mpc = 0.02  # Time step of the MPC
 k_mpc = int(dt_mpc / dt)  # dt is dt_tsid, defined in the TSID controller script
 t = 0.0  # Time
 n_periods = 1  # Number of periods in the prediction horizon
 T_gait = 0.64  # Duration of one gait period
-N_SIMULATION = 3000  # number of simulated TSID time steps
+N_SIMULATION = 12000  # number of simulated TSID time steps
 
 # Which MPC solver you want to use
 # True to have PA's MPC, to False to have Thomas's MPC
@@ -37,7 +37,7 @@ use_flat_plane = True
 predefined_vel = True
 
 # Enable or disable PyBullet GUI
-enable_pyb_GUI = True
+enable_pyb_GUI = False
 
 #################
 # RUN SCENARIOS #
@@ -52,37 +52,41 @@ result_logger1 = run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait,
 result_loggers.append(result_logger1)
 
 # Run a scenario and retrieve data thanks to the logger
-# result_logger2 = run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC, False)
-# result_loggers.append(result_logger2)
+result_logger2 = run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, False,
+                              pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
+result_loggers.append(result_logger2)
 
 # Display what has been logged by the loggers
 # result_logger1.plot_graphs(enable_multiprocessing=False, show_block=False)
 # result_logger2.plot_graphs(enable_multiprocessing=False)
 
 # Only plot some graphs for debug purpose
-result_logger1.plot_state()
+# result_logger1.plot_state()
 # result_logger1.plot_footsteps()
 # result_logger1.plot_fstep_planner()
 # result_logger1.plot_tracking_foot()
-result_logger1.plot_forces()
+# result_logger1.plot_forces()
 # result_logger1.plot_torques()
 # result_logger2.plot_state()
-plt.show(block=True)
+# plt.show(block=True)
 
-quit()
 # embed()
 
 ###########
 # Results #
 ###########
-quit()  # Logger 2 is commented so no need to compare the two scenarios
+# quit()  # Logger 2 is commented so no need to compare the two scenarios
 index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
 lgd = ["Pos CoM X [m]", "Pos CoM Y [m]", "Pos CoM Z [m]", "Roll [deg]", "Pitch [deg]", "Yaw [deg]",
        "Lin Vel CoM X [m/s]", "Lin Vel CoM Y [m/s]", "Lin Vel CoM Z [m/s]", "Ang Vel Roll [deg/s]",
        "Ang Vel Pitch [deg/s]", "Ang Vel Yaw [deg/s]"]
 plt.figure()
 for i in range(12):
-    plt.subplot(3, 4, index[i])
+    if i == 0:
+        ax0 = plt.subplot(3, 4, index[i])
+    else:
+        plt.subplot(3, 4, index[i], sharex=ax0)
+
     if i < 3:
         for logger in result_loggers:
             plt.plot(logger.t_range, logger.lC_pyb[i, :], linewidth=3)
