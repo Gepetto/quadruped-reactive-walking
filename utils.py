@@ -282,10 +282,10 @@ class pybullet_simulator:
         if envID == 1:
 
             # Add stairs with platform and bridge
-            """self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")  # ,
-            basePosition = [-1.25, 3.5, -0.1],
-            baseOrientation = pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415])
-            pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)"""
+            self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")  # ,
+            """basePosition=[-1.25, 3.5, -0.1],
+                                 baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))"""
+            pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)
 
             # Create the red steps to act as small perturbations
             mesh_scale = [1.0, 0.1, 0.02]
@@ -483,6 +483,59 @@ class pybullet_simulator:
                 pyb.resetBaseVelocity(self.sphereId2, linearVelocity=[-2.5, 0.0, 2.0])
                 self.flag_sphere2 = False
 
+            # Create the red steps to act as small perturbations
+            """if k == 10:
+                pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
+
+                mesh_scale = [2.0, 2.0, 0.3]
+                visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                                      fileName="cube.obj",
+                                                      halfExtents=[0.5, 0.5, 0.1],
+                                                      rgbaColor=[0.0, 0.0, 1.0, 1.0],
+                                                      specularColor=[0.4, .4, 0],
+                                                      visualFramePosition=[0.0, 0.0, 0.0],
+                                                      meshScale=mesh_scale)
+
+                collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
+                                                            fileName="cube.obj",
+                                                            collisionFramePosition=[0.0, 0.0, 0.0],
+                                                            meshScale=mesh_scale)
+
+                tmpId = pyb.createMultiBody(baseMass=0.0,
+                                            baseInertialFramePosition=[0, 0, 0],
+                                            baseCollisionShapeIndex=collisionShapeId,
+                                            baseVisualShapeIndex=visualShapeId,
+                                            basePosition=[0.0, 0.0, 0.15],
+                                            useMaximalCoordinates=True)
+                pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
+
+                pyb.resetBasePositionAndOrientation(self.robotId, [0, 0, 0.5], [0, 0, 0, 1])"""
+            if k == 10:
+                pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
+
+                mesh_scale = [0.1, 0.1, 0.04]
+                visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                                      fileName="cube.obj",
+                                                      halfExtents=[0.5, 0.5, 0.1],
+                                                      rgbaColor=[0.0, 0.0, 1.0, 1.0],
+                                                      specularColor=[0.4, .4, 0],
+                                                      visualFramePosition=[0.0, 0.0, 0.0],
+                                                      meshScale=mesh_scale)
+
+                collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
+                                                            fileName="cube.obj",
+                                                            collisionFramePosition=[0.0, 0.0, 0.0],
+                                                            meshScale=mesh_scale)
+
+                tmpId = pyb.createMultiBody(baseMass=0.0,
+                                            baseInertialFramePosition=[0, 0, 0],
+                                            baseCollisionShapeIndex=collisionShapeId,
+                                            baseVisualShapeIndex=visualShapeId,
+                                            basePosition=[0.19, 0.15005, 0.02],
+                                            useMaximalCoordinates=True)
+                pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
+                pyb.resetBasePositionAndOrientation(self.robotId, [0, 0, 0.25], [0, 0, 0, 1])
+
         # Apply perturbations by directly applying external forces on the robot trunk
         if velID == 4:
             self.apply_external_force(k, 4250, 500, np.array([0.0, 0.0, -3.0]), np.zeros((3,)))
@@ -498,7 +551,7 @@ class pybullet_simulator:
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=(0.0*RPY[2]*(180/3.1415)+45), cameraPitch=-39.9,
-                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])
+                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])  # qmes12[2, 0]-0.15])
 
         return 0
 
