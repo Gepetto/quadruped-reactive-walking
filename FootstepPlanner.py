@@ -271,7 +271,7 @@ class FootstepPlanner:
 
         # Starting status of the gait
         # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
-        self.gait = np.zeros((6, 5))
+        self.gait = np.zeros((self.fsteps.shape[0], 5))
         self.gait[0:4, 0] = np.array([1, N-1, 1, N-1])
         self.fsteps[0:4, 0] = self.gait[0:4, 0]
 
@@ -297,7 +297,7 @@ class FootstepPlanner:
 
         # Starting status of the gait
         # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
-        self.gait = np.zeros((6, 5))
+        self.gait = np.zeros((self.fsteps.shape[0], 5))
         self.gait[0:4, 0] = np.array([1, N-1, 1, N-1])
         self.fsteps[0:4, 0] = self.gait[0:4, 0]
 

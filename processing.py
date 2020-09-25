@@ -24,7 +24,7 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
     if k != 0:
         # Retrieve data from the simulation (position/orientation/velocity of the robot)
         # Stored in pyb_sim.qmes12 and pyb_sim.vmes12 (quantities in PyBullet world frame)
-        pyb_sim.retrieve_pyb_data()
+        # pyb_sim.retrieve_pyb_data()
         estimator.log_v_truth[:, estimator.k_log] = estimator.b_baseVel.ravel()
         pyb_sim.qmes12[0:3, 0] = estimator.cheat_lin_pos
         pyb_sim.qmes12[3:7, 0] = estimator.quat_oMb
