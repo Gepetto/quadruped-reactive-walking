@@ -68,6 +68,8 @@ class Estimator:
 
         # Position and orientation of the trunk (PyBullet world frame)
         baseState = pyb.getBasePositionAndOrientation(robotId)
+        tmp = np.array(baseState[0])
+        tmp[2] = 0.20
 
         # Linear and angular velocity of the trunk (PyBullet world frame)
         baseVel = pyb.getBaseVelocity(robotId)
@@ -75,7 +77,7 @@ class Estimator:
         # Transform from world frame to base frame in PyBullet world
         self.quat_oMb = np.array(baseState[1])
         rot_oMb = pin.Quaternion(np.array([baseState[1]]).transpose()).toRotationMatrix()
-        self.oMb = pin.SE3(rot_oMb, np.array([baseState[0]]).transpose())
+        self.oMb = pin.SE3(rot_oMb, np.array([tmp]).transpose())
 
         # Get roll pitch yaw orientation in PyBullet world then remove yaw component
         # self.oMb = pin.SE3(pin.Quaternion(np.array([baseState[1]]).transpose()).toRotationMatrix(), np.zeros((3, 1)))
@@ -87,7 +89,7 @@ class Estimator:
         tmp = rot.rotation.transpose() @ np.array([baseVel[0]]).transpose()"""
 
         # Position of the trunk (PyBullet world frame)
-        self.cheat_lin_pos = np.array(baseState[0])
+        self.cheat_lin_pos = np.array(tmp)
 
         # Linear acceleration of the trunk (PyBullet base frame)
         self.b_baseVel = (self.oMb.rotation.transpose() @ np.array([baseVel[0]]).transpose()).ravel()
