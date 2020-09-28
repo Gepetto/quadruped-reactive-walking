@@ -12,6 +12,7 @@ import numpy as np
 import numpy.matlib as matlib
 import tsid
 import FootTrajectoryGenerator as ftg
+import pybullet as pyb
 
 ########################################################################
 #            Class for a PD with feed-forward Controller               #
@@ -302,7 +303,7 @@ class controller:
         # Resize the solver to fit the number of variables, equality and inequality constraints
         self.solver.resize(self.invdyn.nVar, self.invdyn.nEq, self.invdyn.nIn)
 
-    def update_feet_tasks(self, k_loop, gait, looping, interface, ftps_Ids_deb):
+    def update_feet_tasks(self, k_loop, gait, looping, interface, ftps_Ids_deb, k_simu):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
 
@@ -364,6 +365,9 @@ class controller:
                 self.t0s[i] = np.round(np.max((self.t0s[i] + self.dt, 0.0)), decimals=3)
 
         self.sub_test(self.feet, self.t0s, interface, ftps_Ids_deb)
+        #print(self.footsteps)
+        if k_simu > 640:
+            deb = 1
         return 0
 
     def sub_test(self, feet, t0s, interface, ftps_Ids_deb):
@@ -393,6 +397,9 @@ class controller:
             self.vgoals[:, i_foot] = np.array([dx0, dy0, dz0])
             self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])
 
+            if i_foot == 2:
+                print(self.goals[:, i_foot])
+
             # Update desired pos, vel, acc
             self.sampleFeet[i_foot].pos(np.array([x0, y0, z0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]))
             self.sampleFeet[i_foot].vel(np.array([dx0, dy0, dz0, 0.0, 0.0, 0.0]))
@@ -402,19 +409,18 @@ class controller:
             self.feetTask[i_foot].setReference(self.sampleFeet[i_foot])
 
             """# Update footgoal for display purpose
-            self.feetGoal[i_foot].translation = np.array([x0, y0, z0])
+            self.feetGoal[i_foot].translation = np.array([x0, y0, z0])"""
 
             # Display the goal position of the feet as green sphere in PyBullet
-            pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
+            """pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
                                                 posObj=np.array([gx1, gy1, 0.0]),
                                                 ornObj=np.array([0.0, 0.0, 0.0, 1.0]))"""
 
             # Display the 3D target position of the feet as green sphere in PyBullet
-            """import pybullet as pyb
+            import pybullet as pyb
             pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
                                                 posObj=np.array([x0, y0, z0]),
-                                                ornObj=np.array([0.0, 0.0, 0.0, 1.0]))"""
-
+                                                ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
         return 0
 
     ####################################################################
@@ -607,17 +613,21 @@ class controller:
         """
 
         # Update the foot tracking tasks
-        self.update_feet_tasks(k_loop, gait, looping, interface, ftps_Ids_deb)
+        self.update_feet_tasks(k_loop, gait, looping, interface, ftps_Ids_deb, k_simu)
 
         # Index of the first blank line in the gait matrix
-        index = next((idx for idx, val in np.ndenumerate(gait[:, 0]) if (((val == 0)))), [-1])[0]
+        # index = next((idx for idx, val in np.ndenumerate(gait[:, 0]) if (((val == 0)))), [-1])[0]
+
+        """if k_simu == 1290 or k_simu == 1280:
+            print(gait)"""
 
         # Check status of each foot
         for i_foot in range(4):
 
             # If foot entered swing phase
-            if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 0) and (gait[index-1, i_foot+1] == 1):
+            if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 0) and (i_foot in self.contacts_order):
                 # Disable contact
+                print("Disabling contact ", i_foot, "at k = ", k_simu)
                 self.invdyn.removeRigidContact(self.foot_frames[i_foot], 0.0)
                 self.contacts_order.remove(i_foot)
 
@@ -625,7 +635,7 @@ class controller:
                 self.invdyn.addMotionTask(self.feetTask[i_foot], self.w_foot, 1, 0.0)
 
             # If foot entered stance phase
-            if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 1) and (gait[index-1, i_foot+1] == 0):
+            if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 1) and (i_foot not in self.contacts_order):
 
                 # Update the position of contacts
                 tmp = interface.o_feet[:, i_foot:(i_foot+1)].copy()
@@ -639,6 +649,7 @@ class controller:
 
                 if not ((k_loop == 0) and (k_simu < looping)):  # If it is not the first gait period
                     # Enable contact
+                    print("Enabling contact ", i_foot, "at k = ", k_simu)
                     self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
                     self.contacts_order.append(i_foot)
 

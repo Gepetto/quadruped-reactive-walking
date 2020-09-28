@@ -138,6 +138,11 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
         fstep_planner.fsteps_invdyn = fstep_planner.fsteps.copy()
         fstep_planner.gait_invdyn = fstep_planner.gait.copy()
 
+        #if k > 640:
+            #print("###")
+            #print(fstep_planner.gait_invdyn[0:5, :])
+            #print(fstep_planner.fsteps_invdyn[0:5, :])
+
         fstep_planner.fsteps_mpc = fstep_planner.fsteps.copy()
         fstep_planner.gait_mpc = fstep_planner.gait.copy()
 

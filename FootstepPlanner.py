@@ -84,6 +84,9 @@ class FootstepPlanner:
         # self.create_side_walking()
         # self.create_static()
 
+        self.desired_gait = self.gait.copy()
+        self.new_desired_gait = self.gait.copy()
+
         # Predefined matrices for compute_footstep function
         # rpt_gait = np.zeros((self.gait.shape[0], 12), dtype='int64')
         self.R = np.zeros((3, 3, self.gait.shape[0]))
@@ -463,6 +466,55 @@ class FootstepPlanner:
 
         return 0
 
+    def roll_experimental(self, k, k_mpc):
+        """Move one step further in the gait cycle
+
+        Decrease by 1 the number of remaining step for the current phase of the gait and increase
+        by 1 the number of remaining step for the last phase of the gait (periodic motion)
+
+        Args:
+            k (int): number of MPC iterations since the start of the simulation
+            k_mpc (int): Number of inv dynamics iterations for one iteration of the MPC
+        """
+
+        # Retrieve the new desired gait pattern. Most of the time new_desired_gait will be equal to desired_gait since
+        # we want to keep the same gait pattern. However if we want to change then the new gait pattern is temporarily
+        # stored inside new_desired_gait before being stored inside desired_gait
+        if k % (np.int(self.T_gait/self.dt)*k_mpc) == 0:
+            self.desired_gait = self.new_desired_gait.copy()
+            self.pt_line = 0
+            self.pt_sum = self.desired_gait[0, 0]
+
+        # Index of the first empty line
+        index = next((idx for idx, val in np.ndenumerate(self.gait[:, 0]) if val == 0.0), 0.0)[0]
+
+        # Create a new phase if needed or increase the last one by 1 step
+        pt = (k / k_mpc) % np.int(self.T_gait/self.dt)
+        while pt >= self.pt_sum:
+            self.pt_line += 1
+            self.pt_sum += self.desired_gait[self.pt_line, 0]
+        if np.array_equal(self.desired_gait[self.pt_line, 1:], self.gait[index-1, 1:]):
+            self.gait[index-1, 0] += 1.0
+        else:
+            self.gait[index, 1:] = self.desired_gait[self.pt_line, 1:]
+            self.gait[index, 0] = 1.0
+
+        # Decrease the current phase by 1 step and delete it if it has ended
+        if self.gait[0, 0] > 1.0:
+            self.gait[0, 0] -= 1.0
+        else:
+            self.gait = np.roll(self.gait, -1, axis=0)
+            self.gait[-1, :] = np.zeros((5, ))
+
+        """print(k, ": ")
+        print("pt_line: ", self.pt_line)
+        print("pt_sum: ", self.pt_sum)
+        print("pt: ", pt)
+        print(self.gait[0:6, :])
+        print("###")"""
+
+        return 0
+
     def update_fsteps(self, k, k_mpc, l_feet, v_cur, v_ref, h, oMl, ftps_Ids, reduced):
         """Update the gait cycle and compute the desired location of footsteps for a given pair of current/reference velocities
 
@@ -477,9 +529,51 @@ class FootstepPlanner:
             ftps_Ids (4xX array): IDs of PyBullet objects to visualize desired footsteps location with spheres
         """
 
+        """self.gait = self.desired_gait.copy()
+        print("== DEBUG ==")
+        print(self.gait)
+        for i in range(640):
+            if i == 240:
+                # Number of timesteps in a half period of gait
+                N = np.int(0.5 * self.T_gait/self.dt)
+
+                # Starting status of the gait
+                # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
+                self.new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+                self.new_desired_gait[0:4, 0] = np.array([1, N-1, 1, N-1])
+
+                # Set stance and swing phases
+                # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+                # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+                self.new_desired_gait[0, 1:] = np.ones((4,))
+                self.new_desired_gait[1, [1, 3]] = np.ones((2,))
+                self.new_desired_gait[2, 1:] = np.ones((4,))
+                self.new_desired_gait[3, [2, 4]] = np.ones((2,))
+                deb = 1
+
+            if (i != -1) and ((i % k_mpc) == 0):
+                self.roll_experimental(i, k_mpc)"""
+
+        if k == 500:
+            # Number of timesteps in a half period of gait
+            N = np.int(0.5 * self.T_gait/self.dt)
+
+            # Starting status of the gait
+            # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
+            self.new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+            self.new_desired_gait[0:4, 0] = np.array([1, N-1, 1, N-1])
+
+            # Set stance and swing phases
+            # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+            # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+            self.new_desired_gait[0, 1:] = np.ones((4,))
+            self.new_desired_gait[1, [1, 3]] = np.ones((2,))
+            self.new_desired_gait[2, 1:] = np.ones((4,))
+            self.new_desired_gait[3, [2, 4]] = np.ones((2,))
+
         if (k != -1) and ((k % k_mpc) == 0):
             # Move one step further in the gait
-            self.roll()
+            self.roll_experimental(k, k_mpc)
 
         for i in range(4):
             if self.gait[0, i+1]:
