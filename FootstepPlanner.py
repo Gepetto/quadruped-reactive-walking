@@ -314,6 +314,106 @@ class FootstepPlanner:
 
         return 0
 
+    def static_gait(self):
+        """
+        For a static gait (4 feet on the ground)
+        Set stance and swing phases and their duration
+        Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Gait matrix
+        new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+        new_desired_gait[0:4, 0] = np.array([2*N, 0, 0, 0])
+        new_desired_gait[0:4, 1:] = np.ones((4, 4))
+
+        return new_desired_gait
+
+    def walking_trot_gait(self):
+        """
+        For a walking trot gait
+        Set stance and swing phases and their duration
+        Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Gait matrix
+        new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+        new_desired_gait[0:4, 0] = np.array([1, N-1, 1, N-1])
+        new_desired_gait[0, 1:] = np.ones((4,))
+        new_desired_gait[1, [1, 4]] = np.ones((2,))
+        new_desired_gait[2, 1:] = np.ones((4,))
+        new_desired_gait[3, [2, 3]] = np.ones((2,))
+
+        return new_desired_gait
+
+    def pacing_gait(self):
+        """
+        For a pacing gait
+        Set stance and swing phases and their duration
+        Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Gait matrix
+        new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+        new_desired_gait[0:4, 0] = np.array([1, N-1, 1, N-1])
+        new_desired_gait[0, 1:] = np.ones((4,))
+        new_desired_gait[1, [1, 3]] = np.ones((2,))
+        new_desired_gait[2, 1:] = np.ones((4,))
+        new_desired_gait[3, [2, 4]] = np.ones((2,))
+
+        return new_desired_gait
+
+    def bounding_gait(self):
+        """
+        For a bounding gait
+        Set stance and swing phases and their duration
+        Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Gait matrix
+        new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+        new_desired_gait[0:4, 0] = np.array([1, N-1, 1, N-1])
+        new_desired_gait[0, 1:] = np.ones((4,))
+        new_desired_gait[1, [1, 2]] = np.ones((2,))
+        new_desired_gait[2, 1:] = np.ones((4,))
+        new_desired_gait[3, [3, 4]] = np.ones((2,))
+
+        return new_desired_gait
+
+    def pronking_gait(self):
+        """
+        For a pronking gait
+        Set stance and swing phases and their duration
+        Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Gait matrix
+        new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+        new_desired_gait[0:2, 0] = np.array([N-1, N+1])
+        new_desired_gait[0, 1:] = np.zeros((4,))
+        new_desired_gait[1, 1:] = np.ones((4,))
+
+        return new_desired_gait
+
     def compute_footsteps(self, l_feet, v_cur, v_ref, h, reduced):
         """Compute the desired location of footsteps over the prediction horizon
 
@@ -549,27 +649,32 @@ class FootstepPlanner:
                 self.new_desired_gait[1, [1, 3]] = np.ones((2,))
                 self.new_desired_gait[2, 1:] = np.ones((4,))
                 self.new_desired_gait[3, [2, 4]] = np.ones((2,))
-                deb = 1
+
+                N = np.int(0.5 * self.T_gait/self.dt)
+                self.new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+                self.new_desired_gait[0:8, 0] = np.array([2, 2, 2, 2, 2, 2, 2, 2])
+                self.new_desired_gait[0, 1:] = np.array([1, 0, 0, 0])
+                self.new_desired_gait[1, 1:] = np.array([1, 0, 0, 1])
+                self.new_desired_gait[2, 1:] = np.array([0, 0, 0, 1])
+                self.new_desired_gait[3, 1:] = np.array([0, 0, 0, 0])
+                self.new_desired_gait[4, 1:] = np.array([0, 0, 1, 0])
+                self.new_desired_gait[5, 1:] = np.array([0, 1, 1, 0])
+                self.new_desired_gait[6, 1:] = np.array([0, 1, 0, 0])
+                self.new_desired_gait[7, 1:] = np.array([0, 0, 0, 0])
 
             if (i != -1) and ((i % k_mpc) == 0):
                 self.roll_experimental(i, k_mpc)"""
 
-        if k == 500:
-            # Number of timesteps in a half period of gait
-            N = np.int(0.5 * self.T_gait/self.dt)
-
-            # Starting status of the gait
-            # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
-            self.new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
-            self.new_desired_gait[0:4, 0] = np.array([1, N-1, 1, N-1])
-
-            # Set stance and swing phases
-            # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
-            # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
-            self.new_desired_gait[0, 1:] = np.ones((4,))
-            self.new_desired_gait[1, [1, 3]] = np.ones((2,))
-            self.new_desired_gait[2, 1:] = np.ones((4,))
-            self.new_desired_gait[3, [2, 4]] = np.ones((2,))
+        if (k == 1500) or (k == 3500) or (k == 5500) or (k == 7500):
+            self.new_desired_gait = self.static_gait()
+        elif (k == 2000):
+            self.new_desired_gait = self.pacing_gait()
+        elif (k == 4000):
+            self.new_desired_gait = self.bounding_gait()
+        elif (k == 6000):
+            self.new_desired_gait = self.pronking_gait()
+        elif (k == 8000):
+            self.new_desired_gait = self.walking_trot_gait()
 
         if (k != -1) and ((k % k_mpc) == 0):
             # Move one step further in the gait

@@ -146,7 +146,8 @@ class Estimator:
 
             cpt += 1
             vel_est += vel_estimated_baseframe[:, 0]
-        self.FK_lin_vel = vel_est / cpt
+        if cpt > 0:
+            self.FK_lin_vel = vel_est / cpt
 
         self.k_log += 1
 

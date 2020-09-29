@@ -352,6 +352,10 @@ class controller:
                     i_iter -= 1
                 self.t_swing[i] *= self.dt * self.k_mpc
 
+                # TODO: Fix that. We need to assess properly the duration of the swing phase even during the transition
+                # between two gaits (need to take into account past information)
+                self.t_swing[i] = self.T_gait * 0.5 - 0.02
+
                 self.t0s.append(
                     np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt - self.dt, 0.0)), decimals=3))
 
@@ -365,9 +369,11 @@ class controller:
                 self.t0s[i] = np.round(np.max((self.t0s[i] + self.dt, 0.0)), decimals=3)
 
         self.sub_test(self.feet, self.t0s, interface, ftps_Ids_deb)
-        #print(self.footsteps)
-        if k_simu > 640:
-            deb = 1
+        # print(self.footsteps)
+        # print(self.t0s)
+        # if k_simu > 640:
+        #    deb = 1
+        #    print(self.t0s)
         return 0
 
     def sub_test(self, feet, t0s, interface, ftps_Ids_deb):
@@ -397,9 +403,6 @@ class controller:
             self.vgoals[:, i_foot] = np.array([dx0, dy0, dz0])
             self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])
 
-            if i_foot == 2:
-                print(self.goals[:, i_foot])
-
             # Update desired pos, vel, acc
             self.sampleFeet[i_foot].pos(np.array([x0, y0, z0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]))
             self.sampleFeet[i_foot].vel(np.array([dx0, dy0, dz0, 0.0, 0.0, 0.0]))
@@ -412,12 +415,12 @@ class controller:
             self.feetGoal[i_foot].translation = np.array([x0, y0, z0])"""
 
             # Display the goal position of the feet as green sphere in PyBullet
+            import pybullet as pyb
             """pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
                                                 posObj=np.array([gx1, gy1, 0.0]),
                                                 ornObj=np.array([0.0, 0.0, 0.0, 1.0]))"""
 
             # Display the 3D target position of the feet as green sphere in PyBullet
-            import pybullet as pyb
             pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
                                                 posObj=np.array([x0, y0, z0]),
                                                 ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
@@ -627,7 +630,6 @@ class controller:
             # If foot entered swing phase
             if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 0) and (i_foot in self.contacts_order):
                 # Disable contact
-                print("Disabling contact ", i_foot, "at k = ", k_simu)
                 self.invdyn.removeRigidContact(self.foot_frames[i_foot], 0.0)
                 self.contacts_order.remove(i_foot)
 
@@ -649,7 +651,6 @@ class controller:
 
                 if not ((k_loop == 0) and (k_simu < looping)):  # If it is not the first gait period
                     # Enable contact
-                    print("Enabling contact ", i_foot, "at k = ", k_simu)
                     self.invdyn.addRigidContact(self.contacts[i_foot], self.w_forceRef)
                     self.contacts_order.append(i_foot)
 
