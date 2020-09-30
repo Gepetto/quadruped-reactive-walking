@@ -665,7 +665,7 @@ class FootstepPlanner:
             if (i != -1) and ((i % k_mpc) == 0):
                 self.roll_experimental(i, k_mpc)"""
 
-        if (k == 1500) or (k == 3500) or (k == 5500) or (k == 7500):
+        """if (k == 1500) or (k == 3500) or (k == 5500) or (k == 7500):
             self.new_desired_gait = self.static_gait()
         elif (k == 2000):
             self.new_desired_gait = self.pacing_gait()
@@ -674,7 +674,7 @@ class FootstepPlanner:
         elif (k == 6000):
             self.new_desired_gait = self.pronking_gait()
         elif (k == 8000):
-            self.new_desired_gait = self.walking_trot_gait()
+            self.new_desired_gait = self.walking_trot_gait()"""
 
         if (k != -1) and ((k % k_mpc) == 0):
             # Move one step further in the gait

@@ -138,10 +138,10 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
         fstep_planner.fsteps_invdyn = fstep_planner.fsteps.copy()
         fstep_planner.gait_invdyn = fstep_planner.gait.copy()
 
-        #if k > 640:
-            #print("###")
-            #print(fstep_planner.gait_invdyn[0:5, :])
-            #print(fstep_planner.fsteps_invdyn[0:5, :])
+        # if k > 640:
+        # print("###")
+        #print(fstep_planner.gait_invdyn[0:5, :])
+        #print(fstep_planner.fsteps_invdyn[0:5, :])
 
         fstep_planner.fsteps_mpc = fstep_planner.fsteps.copy()
         fstep_planner.gait_mpc = fstep_planner.gait.copy()
@@ -196,6 +196,9 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
     fstep_planner.getRefStates((k/k_mpc), fstep_planner.T_gait, interface.lC, interface.abg,
                                interface.lV, interface.lW, joystick.v_ref, h_ref=0.2027682,
                                predefined=joystick.predefined)
+
+    #if k > 2100:
+    #    print(fstep_planner.xref)
 
     # Run the MPC to get the reference forces and the next predicted state
     # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
