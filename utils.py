@@ -249,6 +249,8 @@ class pybullet_simulator:
         # Either use a flat ground or a rough terrain
         if use_flat_plane:
             self.planeId = pyb.loadURDF("plane.urdf")  # Flat plane
+            self.planeIdbis = pyb.loadURDF("plane.urdf")  # Flat plane
+            pyb.resetBasePositionAndOrientation(self.planeIdbis, [20.0, 0, 0], [0, 0, 0, 1])
         else:
             import random
             random.seed(41)
