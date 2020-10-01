@@ -147,8 +147,8 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         # If something wrong happened in TSID controller we stick to a security controller
         if myController.error:
             # D controller to slow down the legs
-            D = 0.5
-            jointTorques[:, 0] = D * (- pyb_sim.vmes12[6:, 0])
+            D = 0.2
+            jointTorques[:, 0] = D * (- estimator.actuators_vel[:])
 
             # Saturation to limit the maximal torque
             t_max = 1.0
@@ -178,11 +178,12 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         # logger.log_tracking_foot(k, myController, solo)
 
         # Wait a bit to have simulated time = real time
-        if k < 2000:
+        slow = 1
+        if k < 500:
             while (time.time() - time_loop) < dt:
                 pass
         else:
-            while (time.time() - time_loop) < dt:
+            while (time.time() - time_loop) < slow*dt:
                 pass
 
     ####################

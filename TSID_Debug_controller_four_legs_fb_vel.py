@@ -286,7 +286,7 @@ class controller:
         """self.tmp_tau_maxo = self.model.effortLimit[-self.robot.na:]
         self.tmp_tau_mino = -self.tmp_tau_maxo
         actuationBoundsTask = tsid.TaskActuationBounds("task-actuation-bounds", self.robot)
-        #actuationBoundsTask.setBounds(-tau_bound * np.ones((self.robot.na, )),
+        # actuationBoundsTask.setBounds(-tau_bound * np.ones((self.robot.na, )),
         #                              tau_bound * np.ones((self.robot.na, )))
         actuationBoundsTask.mask(np.ones((self.robot.na,)))
         actuationBoundsTask.setBounds(self.tmp_tau_mino, self.tmp_tau_maxo)
@@ -702,7 +702,8 @@ class controller:
             print('NaN value in feedforward torque. Switching to safety controller.')
             return np.zeros((12, ))
 
-        if self.qdes[7] > 10:
+        if np.any(np.abs(self.qdes[7:]) > np.tile(np.array([1.0, 2.0, 3.0]), 4)) \
+                or np.any(np.abs(self.qdes[9::3]) < 0.1):
             print('Abnormal angular values. Switching to safety controller.')
             self.error = True
             return np.zeros((12, ))
