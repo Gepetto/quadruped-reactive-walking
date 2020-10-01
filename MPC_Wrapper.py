@@ -3,7 +3,7 @@
 import numpy as np
 import libexample_adder as MPC
 from multiprocessing import Process, Value, Array
-import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
+# import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 
 
 class Dummy:

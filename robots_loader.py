@@ -27,7 +27,7 @@ def getModelPath(subpath, printmsg=False):
 def readParamsFromSrdf(robot, SRDF_PATH, verbose):
     rmodel = robot.model
 
-    # pinocchio.loadRotorParameters(rmodel, SRDF_PATH, verbose)
+    # pinocchio.loadRotorParameters(rmodel, SRDF_PATH, verbose)
     rmodel.armature = np.multiply(rmodel.rotorInertia.flat, np.square(rmodel.rotorGearRatio.flat))
     pinocchio.loadReferenceConfigurations(rmodel, SRDF_PATH, verbose)
     robot.q0.flat[:] = rmodel.referenceConfigurations["standing"].copy()

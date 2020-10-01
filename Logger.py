@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import pybullet as pyb
 import pinocchio as pin
-import scipy.stats as scipystats
+# import scipy.stats as scipystats
 from matplotlib import cm
 
 
@@ -371,7 +371,7 @@ class Logger:
                 if j == 0:
                     plt.ylabel(lgd[i])
 
-                slope, intercept, r_value, p_value, std_err = scipystats.linregress(x1, y1)
+                # slope, intercept, r_value, p_value, std_err = scipystats.linregress(x1, y1)
 
                 R[i, j] = r_value
         plt.suptitle("Correlation of state variables")

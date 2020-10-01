@@ -4,7 +4,7 @@ import numpy as np
 import scipy as scipy
 import osqp as osqp
 from matplotlib import pyplot as plt
-import utils
+import utils_mpc
 
 
 class MPC:
@@ -177,7 +177,7 @@ class MPC:
             # Get skew-symetric matrix for each foothold
             lever_arms = self.footholds - self.xref[0:3, k:(k+1)]
             for i in range(4):
-                self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils.getSkew(lever_arms[:, i]))
+                self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(I_inv, utils_mpc.getSkew(lever_arms[:, i]))
 
             i_iter = 24 * 4 * k
             self.ML.data[self.i_update_B + i_iter] = self.B[self.i_x_B, self.i_y_B]
@@ -344,7 +344,7 @@ class MPC:
                 # Get skew-symetric matrix for each foothold
                 self.lever_arms = np.reshape(fsteps[j, 1:], (3, 4), order='F') - self.xref[0:3, k:(k+1)]
                 for i in range(4):
-                    self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(self.I_inv, utils.getSkew(self.lever_arms[:, i]))
+                    self.B[-3:, (i*3):((i+1)*3)] = self.dt * np.dot(self.I_inv, utils_mpc.getSkew(self.lever_arms[:, i]))
 
                 # Replace the coefficient directly in ML.data
                 i_iter = 24 * 4 * k

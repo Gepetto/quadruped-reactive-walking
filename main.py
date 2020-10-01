@@ -1,7 +1,7 @@
 # coding: utf8
 
 import numpy as np
-import utils
+import utils_mpc
 import time
 
 from TSID_Debug_controller_four_legs_fb_vel import controller
@@ -57,7 +57,7 @@ class ControlLoop:
         self.enable_gepetto_viewer = False
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
-        self.joystick, self.fstep_planner, self.logger, self.interface, self.estimator = utils.init_objects(
+        self.joystick, self.fstep_planner, self.logger, self.interface, self.estimator = utils_mpc.init_objects(
             dt_tsid, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC, on_solo8,
             predefined_vel)
 
@@ -75,14 +75,14 @@ class ControlLoop:
         ########################################################################
 
         # Initialisation of the Gepetto viewer
-        self.solo = utils.init_viewer(self.enable_gepetto_viewer)
+        self.solo = utils_mpc.init_viewer(self.enable_gepetto_viewer)
 
         ########################################################################
         #                              PyBullet                                #
         ########################################################################
 
         # Initialisation of the PyBullet simulator
-        self.pyb_sim = utils.pybullet_simulator(envID, use_flat_plane, enable_pyb_GUI, dt=dt_tsid)
+        self.pyb_sim = utils_mpc.pybullet_simulator(envID, use_flat_plane, enable_pyb_GUI, dt=dt_tsid)
 
         # Force monitor to display contact forces in PyBullet with red lines
         # import ForceMonitor
@@ -118,7 +118,7 @@ class ControlLoop:
         # tic = time.time()
         # for k in range(int(self.N_SIMULATION)):
 
-        time_loop = time.time()  # To analyze the time taken by each step
+        # time_loop = time.time()  # To analyze the time taken by each step
 
         # Process state estimator
         if self.k == 1:
@@ -127,13 +127,13 @@ class ControlLoop:
         else:
             self.estimator.run_filter(self.k, self.fstep_planner.gait[0, 1:], self.pyb_sim.robotId)
 
-        t_filter = time.time()  # To analyze the time taken by each step
+        # t_filter = time.time()  # To analyze the time taken by each step
 
         # Process state update and joystick
         proc.process_states(self.solo, self.k, self.k_mpc, self.velID, self.pyb_sim, self.interface,
                             self.joystick, self.myController, self.estimator, self.pyb_feedback)
 
-        t_states = time.time()  # To analyze the time taken by each step
+        # t_states = time.time()  # To analyze the time taken by each step
 
         if np.isnan(self.interface.lC[2]):
             print("NaN value for the position of the center of mass. Simulation likely crashed. Ending loop.")
@@ -143,7 +143,7 @@ class ControlLoop:
         proc.process_footsteps_planner(self.k, self.k_mpc, self.pyb_sim, self.interface,
                                        self.joystick, self.fstep_planner)
 
-        t_fsteps = time.time()  # To analyze the time taken by each step
+        # t_fsteps = time.time()  # To analyze the time taken by each step
 
         # Process MPC once every k_mpc iterations of TSID
         if (self.k % self.k_mpc) == 0:
@@ -158,7 +158,7 @@ class ControlLoop:
             if (self.k % self.k_mpc) == 2:  # Mimic a 4 ms delay
                 self.f_applied = self.mpc_wrapper.get_latest_result()
 
-        t_mpc = time.time()  # To analyze the time taken by each step
+        # t_mpc = time.time()  # To analyze the time taken by each step
 
         # Process Inverse Dynamics
         # If nothing wrong happened yet in TSID controller
@@ -180,7 +180,7 @@ class ControlLoop:
             self.jointTorques[self.jointTorques > t_max] = t_max
             self.jointTorques[self.jointTorques < -t_max] = -t_max
 
-        t_tsid = time.time()  # To analyze the time taken by each step
+        # t_tsid = time.time()  # To analyze the time taken by each step
 
         # Compute processing duration of each step
         """self.t_list_filter[self.k] = t_filter - time_loop
