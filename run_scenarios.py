@@ -2,8 +2,7 @@
 
 import numpy as np
 import matplotlib.pylab as plt
-from TSID_Debug_controller_four_legs_fb_vel import dt
-from main import run_scenario
+from main import ControlLoop
 # from IPython import embed
 
 ################################
@@ -13,19 +12,20 @@ from main import run_scenario
 envID = 0  #  Identifier of the environment to choose in which one the simulation will happen
 velID = 0  #  Identifier of the reference velocity profile to choose which one will be sent to the robot
 
+dt_tsid = 0.0020  # Time step of TSID
 dt_mpc = 0.02  # Time step of the MPC
-k_mpc = int(dt_mpc / dt)  # dt is dt_tsid, defined in the TSID controller script
+k_mpc = int(dt_mpc / dt_tsid)  # dt is dt_tsid, defined in the TSID controller script
 t = 0.0  # Time
 n_periods = 1  # Number of periods in the prediction horizon
-T_gait = 0.32  # Duration of one gait period
-N_SIMULATION = 15000  # number of simulated TSID time steps
+T_gait = 0.64  # Duration of one gait period
+N_SIMULATION = 2000  # number of simulated TSID time steps
 
 # Which MPC solver you want to use
 # True to have PA's MPC, to False to have Thomas's MPC
 type_MPC = True
 
 # Whether PyBullet feedback is enabled or not
-pyb_feedback = True
+pyb_feedback = False
 
 # Whether we are working with solo8 or not
 on_solo8 = False
@@ -34,7 +34,7 @@ on_solo8 = False
 use_flat_plane = True
 
 # If we are using a predefined reference velocity (True) or a joystick (False)
-predefined_vel = True
+predefined_vel = False
 
 # Enable or disable PyBullet GUI
 enable_pyb_GUI = True
@@ -47,8 +47,11 @@ enable_pyb_GUI = True
 result_loggers = []
 
 # Run a scenario and retrieve data thanks to the logger
-result_logger1 = run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
-                              pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
+scenario1 = ControlLoop(envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
+                        pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
+result_logger1 = scenario1.launch_simu()
+# result_logger1 = run_scenario(envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
+#                              pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
 result_loggers.append(result_logger1)
 
 # Run a scenario and retrieve data thanks to the logger

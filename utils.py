@@ -542,6 +542,9 @@ class pybullet_simulator:
         if velID == 4:
             self.apply_external_force(k, 4250, 500, np.array([0.0, 0.0, -3.0]), np.zeros((3,)))
             self.apply_external_force(k, 5250, 500, np.array([0.0, +3.0, 0.0]), np.zeros((3,)))
+        """if velID == 0:
+            self.apply_external_force(k, 1000, 1000, np.array([0.0, 0.0, -6.0]), np.zeros((3,)))
+            self.apply_external_force(k, 2000, 1000, np.array([0.0, +12.0, 0.0]), np.zeros((3,)))"""
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,

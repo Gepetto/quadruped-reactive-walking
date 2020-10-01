@@ -32,7 +32,7 @@ class controller:
             on_solo8 (bool): if we are working on solo8 (True) or solo12 (False)
     """
 
-    def __init__(self, N_simulation, k_mpc, n_periods, T_gait, on_solo8):
+    def __init__(self, N_simulation, dt_tsid, k_mpc, n_periods, T_gait, on_solo8):
 
         self.q_ref = np.array([[0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0, 1.0,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
@@ -101,7 +101,7 @@ class controller:
         self.k_mpc = k_mpc
 
         # For update_feet_tasks function
-        self.dt = 0.0020  #  [s], time step
+        self.dt = dt_tsid  #  [s], time step
         self.t1 = T_gait * 0.5 - 0.02  # [s], duration of swing phase
 
         # Rotation matrix
@@ -137,8 +137,8 @@ class controller:
         self.t = 0.0
 
         # Gains of the PD+
-        self.P = 0.33 * 3.0
-        self.D = 0.33 * np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+        self.P = 3.0
+        self.D = np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
 
         ########################################################################
         #             Definition of the Model and TSID problem                 #
@@ -516,7 +516,7 @@ class controller:
         # FOOTSTEPS PLANNER #
         #####################
 
-        looping = int(self.n_periods*self.T_gait/dt)  # Number of TSID iterations in one gait cycle
+        looping = int(self.n_periods*self.T_gait/self.dt)  # Number of TSID iterations in one gait cycle
         k_loop = (k_simu - 0) % looping  # Current number of iterations since the start of the current gait cycle
 
         # Update the desired position of footholds thanks to the footstep planner
@@ -544,7 +544,7 @@ class controller:
         self.solve_HQP_problem(self.t)
 
         # Time incrementation
-        self.t += dt
+        self.t += self.dt
 
         ###########
         # DISPLAY #
@@ -682,8 +682,8 @@ class controller:
         if self.enable_hybrid_control:
             """self.ades[self.ades > 100] = 100
             self.ades[self.ades < -100] = -100"""
-            self.vdes = self.vtsid + self.ades * dt
-            self.qdes = np.array(pin.integrate(self.model, self.qtsid, self.vtsid * dt))
+            self.vdes = self.vtsid + self.ades * self.dt
+            self.qdes = np.array(pin.integrate(self.model, self.qtsid, self.vtsid * self.dt))
 
             # solo8: block shoulder joints
             if self.on_solo8:
@@ -834,7 +834,3 @@ class controller:
             if k_simu % 1 == 0:
                 solo.viewer.gui.refresh()
                 solo.display(self.qtsid)
-
-
-# Parameters for the controller
-dt = 0.0020		# controller time step
