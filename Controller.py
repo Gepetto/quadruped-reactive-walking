@@ -204,9 +204,26 @@ class Controller:
 
     def launch_simu(self, device):
 
+        # Default position after calibration
+        q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6])
+
+        class dummyDevice:
+
+            def __init__(self):
+
+                pass
+
+        dDevice = dummyDevice()
+        dDevice.q_mes = q_init
+        dDevice.v_mes = np.zeros(12)
+        dDevice.baseLinearAcceleration = np.zeros(3)
+        dDevice.baseAngularVelocity = np.zeros(3)
+        dDevice.baseOrientation = np.array([0.0, 0.0, 0.0, 1.0])
+        tau = self.compute(dDevice)
+
         tic = time.time()
 
-        for k in range(int(self.N_SIMULATION)):
+        for k in range(1, int(self.N_SIMULATION)):
 
             device.UpdateMeasurment()
 
@@ -215,6 +232,10 @@ class Controller:
             device.SetDesiredJointTorques(tau)
 
             device.SendCommand(WaitEndOfCycle=True)
+
+            print("###")
+            print("TSID: ", self.myController.qtsid.ravel())
+            print("TAU: ", tau.ravel())
 
             if self.enable_pyb_GUI:
                 # Update the PyBullet camera on the robot position to do as if it was attached to the robot

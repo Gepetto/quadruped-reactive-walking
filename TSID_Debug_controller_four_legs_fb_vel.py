@@ -137,8 +137,8 @@ class controller:
         self.t = 0.0
 
         # Gains of the PD+
-        self.P = 3.0
-        self.D = np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+        self.P = 1.0  # 3.0
+        self.D = 0.2 * np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
 
         ########################################################################
         #             Definition of the Model and TSID problem                 #
@@ -711,7 +711,7 @@ class controller:
             if self.enable_hybrid_control:
                 self.tau_pd = self.P * (self.qdes[7:] - self.qmes[7:, 0]) + \
                     self.D * (self.vdes[6:, 0] - self.vmes[6:, 0])
-                self.torques12 = self.tau_ff + self.tau_pd
+                self.torques12 = self.tau_pd  # + self.tau_ff
             else:
                 self.torques12 = self.tau_ff
 
@@ -720,7 +720,7 @@ class controller:
             self.torques12[self.torques12 > t_max] = t_max
             self.torques12[self.torques12 < -t_max] = -t_max
             cpt = 0
-            for i in (self.torques12[:] == 2.5):
+            for i in (np.abs(self.torques12[:]) > (t_max-0.02)):
                 if i:
                     cpt += 1
             if cpt >= 4:

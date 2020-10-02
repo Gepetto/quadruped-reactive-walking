@@ -771,7 +771,9 @@ class PyBulletSimulator():
 
         # Wait to have simulation time = real time
         if WaitEndOfCycle:
-            while (time.time() - self.time_loop) < self.dt:
+            while (time.time() - self.time_loop) < 50 * self.dt:
                 pass
+
+        self.time_loop = time.time()
 
         return
