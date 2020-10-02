@@ -5,7 +5,7 @@ import pybullet as pyb
 import pinocchio as pin
 
 
-def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_controller, estimator, pyb_feedback):
+def process_states(solo, k, k_mpc, velID, interface, joystick, tsid_controller, estimator, pyb_feedback):
     """Update states by retrieving information from the simulation and the gamepad
 
     Args:
@@ -13,7 +13,6 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
         k (int): Number of inv dynamics iterations since the start of the simulation
         k_mpc (int): Number of inv dynamics iterations for one iteration of the MPC
         velID (int): Identifier of the current velocity profile to be able to handle different scenarios
-        pyb_sim (object): PyBullet simulation
         interface (object): Interface object of the control loop
         joystick (object): Interface with the gamepad
         tsid_controller (object): Inverse dynamics controller
@@ -23,13 +22,15 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
 
     if k != 0:
         # Retrieve data from the simulation (position/orientation/velocity of the robot)
-        # Stored in pyb_sim.qmes12 and pyb_sim.vmes12 (quantities in PyBullet world frame)
-        # pyb_sim.retrieve_pyb_data()
-        estimator.log_v_truth[:, estimator.k_log] = estimator.b_baseVel.ravel()
-        pyb_sim.qmes12[0:3, 0] = estimator.cheat_lin_pos
-        pyb_sim.qmes12[3:7, 0] = estimator.quat_oMb
-        pyb_sim.vmes12[0:3, 0] = (estimator.oMb.rotation @ np.array([estimator.filt_lin_vel]).transpose()).ravel()
-        pyb_sim.vmes12[3:6, 0] = (estimator.oMb.rotation @ np.array([estimator.filt_ang_vel]).transpose()).ravel()
+        # Stored in loop_controller.qmes12 and loop_controller.vmes12 (quantities in PyBullet world frame)
+        # loop_controller.retrieve_pyb_data()
+        """estimator.log_v_truth[:, estimator.k_log] = estimator.b_baseVel.ravel()
+        loop_controller.qmes12[0:3, 0] = estimator.cheat_lin_pos
+        loop_controller.qmes12[3:7, 0] = estimator.quat_oMb
+        loop_controller.vmes12[0:3, 0] = (estimator.oMb.rotation @ np.array(
+            [estimator.filt_lin_vel]).transpose()).ravel()
+        loop_controller.vmes12[3:6, 0] = (estimator.oMb.rotation @ np.array(
+            [estimator.filt_ang_vel]).transpose()).ravel()"""
 
         # Retrieve state desired by TSID (position/orientation/velocity of the robot)
         tsid_controller.qtsid[:, 0] = tsid_controller.qdes.copy()  # in TSID world frame
@@ -41,7 +42,7 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
         # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
         if pyb_feedback:
             # Orientation is roll/pitch of PyBullet and Yaw of TSID
-            interface.RPY_pyb = pin.rpy.matrixToRpy(pin.Quaternion(pyb_sim.qmes12[3:7]).toRotationMatrix())
+            interface.RPY_pyb = pin.rpy.matrixToRpy(pin.Quaternion(estimator.q_filt[3:7]).toRotationMatrix())
             interface.RPY_tsid = pin.rpy.matrixToRpy(pin.Quaternion(tsid_controller.qtsid[3:7]).toRotationMatrix())
             tsid_controller.qtsid[3:7, 0:1] = np.array([pyb.getQuaternionFromEuler(np.array([interface.RPY_pyb[0],
                                                                                              interface.RPY_pyb[1],
@@ -55,10 +56,10 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
         if pyb_feedback:
 
             # Linear/angular velocity taken from PyBullet (in PyBullet world frame)
-            tsid_controller.vtsid[0:6, 0:1] = pyb_sim.vmes12[0:6, 0:1].copy()
+            tsid_controller.vtsid[0:6, 0:1] = estimator.v_filt[0:6, 0:1].copy()
 
             # Transform from PyBullet world frame to robot base frame (just rotation part)
-            interface.oMb_pyb = pin.SE3(pin.Quaternion(pyb_sim.qmes12[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
+            interface.oMb_pyb = pin.SE3(pin.Quaternion(estimator.q_filt[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
 
             # Get linear and angular velocities from PyBullet world frame to robot base frame
             tsid_controller.vtsid[0:3, 0:1] = interface.oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[0:3, 0:1]
@@ -67,23 +68,23 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
     # Algorithm needs the velocity of the robot in world frame
     if k == 0:
         # Retrieve data from the simulation (position/orientation/velocity of the robot)
-        pyb_sim.retrieve_pyb_data()
-        pyb_sim.qmes12[2, 0] = 0.2027682
+        # pyb_sim.retrieve_pyb_data()
+        # pyb_sim.qmes12[2, 0] = 0.2027682
 
         # Update the interface that makes the interface between the simulation and the MPC/TSID
-        interface.update(solo, pyb_sim.qmes12, pyb_sim.vmes12)
+        interface.update(solo, estimator.q_filt, estimator.v_filt)
 
     else:
         # To update the interface we need the position/velocity in TSID world frame
         # qtsid is already in TSID world frame
         # vtsid is in robot base frame, need to get it into TSID world frame
-        pyb_sim.qtsid_w = tsid_controller.qtsid.copy()
-        pyb_sim.vtsid_w = tsid_controller.vtsid.copy()
-        pyb_sim.vtsid_w[0:3, 0:1] = interface.oMb_tsid.rotation @ pyb_sim.vtsid_w[0:3, 0:1]
-        pyb_sim.vtsid_w[3:6, 0:1] = interface.oMb_tsid.rotation @ pyb_sim.vtsid_w[3:6, 0:1]
+        tsid_controller.qtsid_w = tsid_controller.qtsid.copy()
+        tsid_controller.vtsid_w = tsid_controller.vtsid.copy()
+        tsid_controller.vtsid_w[0:3, 0:1] = interface.oMb_tsid.rotation @ tsid_controller.vtsid_w[0:3, 0:1]
+        tsid_controller.vtsid_w[3:6, 0:1] = interface.oMb_tsid.rotation @ tsid_controller.vtsid_w[3:6, 0:1]
 
         # Update the interface that makes the interface between the simulation and the MPC/TSID
-        interface.update(solo, pyb_sim.qtsid_w, pyb_sim.vtsid_w)
+        interface.update(solo, tsid_controller.qtsid_w, tsid_controller.vtsid_w)
 
     # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
     if (k % k_mpc) == 0:
@@ -98,14 +99,13 @@ def process_states(solo, k, k_mpc, velID, pyb_sim, interface, joystick, tsid_con
     return 0
 
 
-def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_planner):
+def process_footsteps_planner(k, k_mpc, interface, joystick, fstep_planner):
     """Update desired location of footsteps depending on the current state of the robot
     and the reference velocity
 
     Args:
         k (int): Number of inv dynamics iterations since the start of the simulation
         k_mpc (int): Number of inv dynamics iterations for one iteration of the MPC
-        pyb_sim (object): PyBullet simulation
         interface (object): Interface object of the control loop
         joystick (object): Interface with the gamepad
         fstep_planner (object): Footsteps planner object
@@ -114,7 +114,7 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
     # Initialization of the desired location of footsteps (need to run update_fsteps once)
     if (k == 0):
         fstep_planner.update_fsteps(k, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
-                                    joystick.v_ref, interface.lC[2], interface.oMl, pyb_sim.ftps_Ids, False)
+                                    joystick.v_ref, interface.lC[2], interface.oMl, False)
 
     # Update position of debug spheres
     """import pybullet as pyb
@@ -132,16 +132,15 @@ def process_footsteps_planner(k, k_mpc, pyb_sim, interface, joystick, fstep_plan
 
         if (k != 0):
             fstep_planner.update_fsteps(k+1, k_mpc, interface.l_feet, np.vstack((interface.lV, interface.lW)),
-                                        joystick.v_ref, interface.lC[2, 0], interface.oMl, pyb_sim.ftps_Ids,
-                                        joystick.reduced)
+                                        joystick.v_ref, interface.lC[2, 0], interface.oMl, joystick.reduced)
 
         fstep_planner.fsteps_invdyn = fstep_planner.fsteps.copy()
         fstep_planner.gait_invdyn = fstep_planner.gait.copy()
 
         # if k > 640:
         # print("###")
-        #print(fstep_planner.gait_invdyn[0:5, :])
-        #print(fstep_planner.fsteps_invdyn[0:5, :])
+        # print(fstep_planner.gait_invdyn[0:5, :])
+        # print(fstep_planner.fsteps_invdyn[0:5, :])
 
         fstep_planner.fsteps_mpc = fstep_planner.fsteps.copy()
         fstep_planner.gait_mpc = fstep_planner.gait.copy()
@@ -197,7 +196,7 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
                                interface.lV, interface.lW, joystick.v_ref, h_ref=0.2027682,
                                predefined=joystick.predefined)
 
-    #if k > 2100:
+    # if k > 2100:
     #    print(fstep_planner.xref)
 
     # Run the MPC to get the reference forces and the next predicted state
@@ -210,7 +209,7 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
     return 0
 
 
-def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myController,
+def process_invdyn(solo, k, f_applied, estimator, interface, fstep_planner, myController,
                    enable_hybrid_control, enable_gepetto_viewer):
     """Update and run the whole body inverse dynamics using information coming from the MPC and the footstep planner
 
@@ -218,7 +217,7 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
         solo (object): Pinocchio wrapper for the quadruped
         k (int): Number of inv dynamics iterations since the start of the simulation
         f_applied (12x1 array): Reference contact forces for all feet (0s for feet in swing phase)
-        pyb_sim (object): PyBullet simulation
+        estimator (object): state estimator object
         interface (object): Interface object of the control loop
         joystick (object): Interface with the gamepad
         fstep_planner (object): Footsteps planner object
@@ -233,46 +232,45 @@ def process_invdyn(solo, k, f_applied, pyb_sim, interface, fstep_planner, myCont
 
     # TSID needs the velocity of the robot in base frame
     if not enable_hybrid_control:
-        pyb_sim.vmes12[0:3, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[0:3, 0:1]
-        pyb_sim.vmes12[3:6, 0:1] = interface.oMb.rotation.transpose() @ pyb_sim.vmes12[3:6, 0:1]
+        estimator.v_filt[0:3, 0:1] = interface.oMb.rotation.transpose() @ estimator.v_filt[0:3, 0:1]
+        estimator.v_filt[3:6, 0:1] = interface.oMb.rotation.transpose() @ estimator.v_filt[3:6, 0:1]
 
     """pyb_sim.qmes12 = myController.qtsid.copy()
     pyb_sim.vmes12 = myController.vtsid.copy()"""
 
     # Initial conditions
     if k == 0:
-        myController.qtsid = pyb_sim.qmes12.copy()
-        myController.vtsid = pyb_sim.vmes12.copy()
+        myController.qtsid = estimator.q_filt.copy()
+        myController.vtsid = estimator.v_filt.copy()
 
     # Retrieve the joint torques from the current active controller
     if enable_hybrid_control:
         myController.control(myController.qtsid, myController.vtsid, k, solo,
                              interface, f_applied, fstep_planner.fsteps_invdyn,
-                             fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb,
+                             fstep_planner.gait_invdyn,
                              enable_hybrid_control, enable_gepetto_viewer,
-                             pyb_sim.qmes12, pyb_sim.vmes12
+                             estimator.q_filt, estimator.v_filt
                              )
     else:
-        myController.control(pyb_sim.qmes12, pyb_sim.vmes12, k, solo,
+        myController.control(estimator.q_filt, estimator.v_filt, k, solo,
                              interface, f_applied, fstep_planner.fsteps_invdyn,
-                             fstep_planner.gait_invdyn, pyb_sim.ftps_Ids_deb)  # .reshape((12, 1))
+                             fstep_planner.gait_invdyn)  # .reshape((12, 1))
 
     return 0
 
 
-def process_pdp(pyb_sim, myController, estimator):
+def process_pdp(myController, estimator):
     """Compute the output of the PD+ controller by comparing the current angular position
     and velocities of actuators with the desired ones
     It returns the desired torques that should be sent to the drivers of the actuators
 
     Args:
-        pyb_sim (object): Wrapper of the PyBullet simulator
         myController (object): Inverse Dynamics controller
         estimator (object): state estimator object
     """
 
-    myController.qmes[7:, 0] = estimator.actuators_pos[:]
-    myController.vmes[6:, 0] = estimator.actuators_vel[:]
+    myController.qmes[7:, 0] = estimator.q_filt[7:, 0]
+    myController.vmes[6:, 0] = estimator.v_filt[6:, 0]
 
     return myController.run_PDplus()
 

@@ -525,6 +525,7 @@ class FootstepPlanner:
         # Add centrifugal term
         cross = cross3(np.array(v_cur[0:3, 0]), v_ref[3:6, 0])
         # cross = np.cross(v_cur[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
+
         self.next_footstep[0:2, :] += 0.5 * math.sqrt(h/self.g) * cross[0:2, 0:1]
 
         # Legs have a limited length so the deviation has to be limited
@@ -615,7 +616,7 @@ class FootstepPlanner:
 
         return 0
 
-    def update_fsteps(self, k, k_mpc, l_feet, v_cur, v_ref, h, oMl, ftps_Ids, reduced):
+    def update_fsteps(self, k, k_mpc, l_feet, v_cur, v_ref, h, oMl, reduced):
         """Update the gait cycle and compute the desired location of footsteps for a given pair of current/reference velocities
 
         Args:
@@ -626,7 +627,7 @@ class FootstepPlanner:
             v_ref (6x1 array): desired velocity vector of the flying base in local frame (linear and angular stacked)
             h (float): desired height for the trunk of the robot
             oMl (SE3): SE3 object that contains the translation and rotation to go from local frame to world frame
-            ftps_Ids (4xX array): IDs of PyBullet objects to visualize desired footsteps location with spheres
+            reduced (bool): true if we want to reduce the support polygon
         """
 
         """self.gait = self.desired_gait.copy()

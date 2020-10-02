@@ -10,7 +10,7 @@ import MPC_Wrapper
 import pybullet as pyb
 
 
-class ControlLoop:
+class Controller:
 
     def __init__(self, envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
                  pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI):
@@ -82,7 +82,7 @@ class ControlLoop:
         ########################################################################
 
         # Initialisation of the PyBullet simulator
-        self.pyb_sim = utils_mpc.pybullet_simulator(envID, use_flat_plane, enable_pyb_GUI, dt=dt_tsid)
+        # self.pyb_sim = utils_mpc.pybullet_simulator(envID, use_flat_plane, enable_pyb_GUI, dt=dt_tsid)
 
         # Force monitor to display contact forces in PyBullet with red lines
         # import ForceMonitor
@@ -113,7 +113,10 @@ class ControlLoop:
 
         self.k = 0
 
-    def compute(self):
+        self.qmes12 = np.zeros((19, 1))
+        self.vmes12 = np.zeros((18, 1))
+
+    def compute(self, device):
 
         # tic = time.time()
         # for k in range(int(self.N_SIMULATION)):
@@ -122,15 +125,15 @@ class ControlLoop:
 
         # Process state estimator
         if self.k == 1:
-            self.estimator.run_filter(self.k, self.fstep_planner.gait[0, 1:], self.pyb_sim.robotId,
+            self.estimator.run_filter(self.k, self.fstep_planner.gait[0, 1:], device,
                                       self.myController.invdyn.data(), self.myController.model)
         else:
-            self.estimator.run_filter(self.k, self.fstep_planner.gait[0, 1:], self.pyb_sim.robotId)
+            self.estimator.run_filter(self.k, self.fstep_planner.gait[0, 1:], device)
 
         # t_filter = time.time()  # To analyze the time taken by each step
 
         # Process state update and joystick
-        proc.process_states(self.solo, self.k, self.k_mpc, self.velID, self.pyb_sim, self.interface,
+        proc.process_states(self.solo, self.k, self.k_mpc, self.velID, self.interface,
                             self.joystick, self.myController, self.estimator, self.pyb_feedback)
 
         # t_states = time.time()  # To analyze the time taken by each step
@@ -140,7 +143,7 @@ class ControlLoop:
             return np.zeros(12)
 
         # Process footstep planner
-        proc.process_footsteps_planner(self.k, self.k_mpc, self.pyb_sim, self.interface,
+        proc.process_footsteps_planner(self.k, self.k_mpc, self.interface,
                                        self.joystick, self.fstep_planner)
 
         # t_fsteps = time.time()  # To analyze the time taken by each step
@@ -163,17 +166,17 @@ class ControlLoop:
         # Process Inverse Dynamics
         # If nothing wrong happened yet in TSID controller
         if not self.myController.error:
-            proc.process_invdyn(self.solo, self.k, self.f_applied, self.pyb_sim, self.interface, self.fstep_planner,
+            proc.process_invdyn(self.solo, self.k, self.f_applied, self.estimator, self.interface, self.fstep_planner,
                                 self.myController, self.enable_hybrid_control, self.enable_gepetto_viewer)
 
             # Process PD+ (feedforward torques and feedback torques)
-            self.jointTorques[:, 0] = proc.process_pdp(self.pyb_sim, self.myController, self.estimator)
+            self.jointTorques[:, 0] = proc.process_pdp(self.myController, self.estimator)
 
         # If something wrong happened in TSID controller we stick to a security controller
         if self.myController.error:
             # D controller to slow down the legs
             D = 0.05
-            self.jointTorques[:, 0] = D * (- self.estimator.actuators_vel[:])
+            self.jointTorques[:, 0] = D * (- self.estimator.v_filt[6:, 0])
 
             # Saturation to limit the maximal torque
             t_max = 1.0
@@ -199,18 +202,28 @@ class ControlLoop:
     # END OF MAIN LOOP #
     ####################
 
-    def launch_simu(self):
+    def launch_simu(self, device):
 
         tic = time.time()
 
         for k in range(int(self.N_SIMULATION)):
 
-            time_loop = time.time()  # To analyze the time taken by each step
+            device.UpdateMeasurment()
 
-            tau = self.compute()
+            tau = self.compute(device)
+
+            device.SetDesiredJointTorques(tau)
+
+            device.SendCommand(WaitEndOfCycle=True)
+
+            if self.enable_pyb_GUI:
+                # Update the PyBullet camera on the robot position to do as if it was attached to the robot
+                pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
+                                               cameraTargetPosition=[self.estimator.q_filt[0, 0],
+                                                                     self.estimator.q_filt[1, 0], 0.0])
 
             # Process PyBullet
-            proc.process_pybullet(self.pyb_sim, self.k, self.envID, self.velID, tau)
+            # proc.process_pybullet(self.pyb_sim, self.k, self.envID, self.velID, tau)
 
             # Call logger object to log various parameters
             # logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
@@ -220,15 +233,6 @@ class ControlLoop:
             # logger.log_footsteps(k, interface, myController)
             # logger.log_fstep_planner(k, fstep_planner)
             # logger.log_tracking_foot(k, myController, solo)
-
-            # Wait a bit to have simulated time = real time
-            slow = 1
-            if self.k < 500:
-                while (time.time() - time_loop) < self.dt_tsid:
-                    pass
-            else:
-                while (time.time() - time_loop) < slow*self.dt_tsid:
-                    pass
 
         tac = time.time()
         print("Average computation time of one iteration: ", (tac-tic)/self.N_SIMULATION)

@@ -37,8 +37,11 @@ class Estimator:
         # Filtered quantities (output)
         # self.filt_data = np.zeros((12, ))  # Sum of both filtered data
         self.filt_lin_vel = np.zeros((3, ))  # Linear velocity
+        self.filt_lin_pos = np.zeros((3, ))  # Linear position
         self.filt_ang_vel = np.zeros((3, ))  # Angular velocity
         self.filt_ang_pos = np.zeros((4, ))  # Angular position
+        self.q_filt = np.zeros((19, 1))
+        self.v_filt = np.zeros((18, 1))
 
         # Various matrices
         self.q_FK = np.zeros((19, 1))
@@ -60,63 +63,27 @@ class Estimator:
 
         self.k_log = 0
 
-        self.prev = np.zeros((3, ))
-
-    def get_data_IMU(self, robotId):
+    def get_data_IMU(self, device):
         """Get data from the IMU (linear acceleration, angular velocity and position)
         """
 
-        # Position and orientation of the trunk (PyBullet world frame)
-        baseState = pyb.getBasePositionAndOrientation(robotId)
-        tmp = np.array(baseState[0])
-        tmp[2] = 0.20
-
-        # Linear and angular velocity of the trunk (PyBullet world frame)
-        baseVel = pyb.getBaseVelocity(robotId)
-
-        # Transform from world frame to base frame in PyBullet world
-        self.quat_oMb = np.array(baseState[1])
-        rot_oMb = pin.Quaternion(np.array([baseState[1]]).transpose()).toRotationMatrix()
-        self.oMb = pin.SE3(rot_oMb, np.array([tmp]).transpose())
-
-        # Get roll pitch yaw orientation in PyBullet world then remove yaw component
-        # self.oMb = pin.SE3(pin.Quaternion(np.array([baseState[1]]).transpose()).toRotationMatrix(), np.zeros((3, 1)))
-        """RPY_pyb = pin.rpy.matrixToRpy(pin.Quaternion(np.array([baseState[1]]).transpose()).toRotationMatrix())
-        self.IMU_ang_pos[:] = np.array(pyb.getQuaternionFromEuler(np.array([RPY_pyb[0],
-                                                                            RPY_pyb[1],
-                                                                            0.0])))
-        rot = pin.SE3(pin.utils.rotate('z', RPY_pyb[2]), np.zeros((3, 1)))
-        tmp = rot.rotation.transpose() @ np.array([baseVel[0]]).transpose()"""
-
-        # Position of the trunk (PyBullet world frame)
-        self.cheat_lin_pos = np.array(tmp)
-
         # Linear acceleration of the trunk (PyBullet base frame)
-        self.b_baseVel = (self.oMb.rotation.transpose() @ np.array([baseVel[0]]).transpose()).ravel()
-        self.IMU_lin_acc[:] = (self.b_baseVel.ravel() - self.prev) / self.dt
-        """    + (self.k_log / 10000) * np.ones((3, )) \
-            + np.sin(2 * np.pi * self.k_log / 1000) \
-            + np.random.normal(loc=0.0, scale=0.05 * np.max(np.abs(self.IMU_lin_acc[:])), size=(3,))"""
-        self.prev[:] = self.b_baseVel.ravel()
+        self.IMU_lin_acc[:] = device.baseLinearAcceleration
 
         # Angular velocity of the trunk (PyBullet base frame)
-        self.IMU_ang_vel[:] = (self.oMb.rotation.transpose() @ np.array([baseVel[1]]).transpose()).ravel()
+        self.IMU_ang_vel[:] = device.baseAngularVelocity
 
         # Angular position of the trunk (PyBullet local frame)
-        RPY_pyb = pin.rpy.matrixToRpy(rot_oMb)
-        self.IMU_ang_pos[:] = np.array(pyb.getQuaternionFromEuler(np.array([RPY_pyb[0], RPY_pyb[1], 0.0])))
+        self.IMU_ang_pos[:] = device.baseOrientation
 
         return 0
 
-    def get_data_joints(self, robotId):
+    def get_data_joints(self, device):
         """Get the angular position and velocity of the 12 DoF
         """
 
-        revoluteJointIndices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
-        jointStates = pyb.getJointStates(robotId, revoluteJointIndices)  # State of all joints
-
-        self.actuators_pos[:] = np.array([state[0] for state in jointStates])
-        self.actuators_vel[:] = np.array([state[1] for state in jointStates])
+        self.actuators_pos[:] = device.q_mes
+        self.actuators_vel[:] = device.v_mes
 
         return 0
 
@@ -153,7 +120,7 @@ class Estimator:
 
         return 0
 
-    def run_filter(self, k, feet_status, robotId, data=None, model=None):
+    def run_filter(self, k, feet_status, device, data=None, model=None):
         """Run the complementary filter to get the filtered quantities
 
         Args:
@@ -161,23 +128,25 @@ class Estimator:
             feet_status (4x0 numpy array): Current contact state of feet
         """
 
-        # TSID needs to run at least once
-        if k == 0:
-            return 0
-
         # Retrieve model during first run
         if k == 1:
             self.data = data
             self.model = model
 
         # Update IMU data
-        self.get_data_IMU(robotId)
+        self.get_data_IMU(device)
 
         # Update joints data
-        self.get_data_joints(robotId)
+        self.get_data_joints(device)
 
-        # Update FK data
-        self.get_data_FK(feet_status)
+        # TSID needs to run at least once for forward kinematics
+        if k > 0:
+            # Update FK data
+            self.get_data_FK(feet_status)
+
+        # Linear position of the trunk
+        # TODO: Position estimation
+        self.filt_lin_pos[2] = 0.2027682
 
         # Angular position of the trunk (PyBullet local frame)
         """self.filt_data[3:6] = self.alpha * self.IMU_ang_pos \
@@ -185,8 +154,9 @@ class Estimator:
         self.filt_ang_pos[:] = self.IMU_ang_pos
 
         # Linear velocity of the trunk (PyBullet base frame)
-        self.filt_lin_vel[:] = self.alpha * (self.filt_lin_vel[:] + self.IMU_lin_acc * self.dt) \
-            + (1 - self.alpha) * self.FK_lin_vel
+        if k > 0:
+            self.filt_lin_vel[:] = self.alpha * (self.filt_lin_vel[:] + self.IMU_lin_acc * self.dt) \
+                + (1 - self.alpha) * self.FK_lin_vel
 
         self.log_filt_lin_vel[:, self.k_log] = self.filt_lin_vel[:]
         """beta = 475 / 500
@@ -202,6 +172,15 @@ class Estimator:
         """self.filt_data[9:12] = self.alpha * self.IMU_ang_vel \
             + (1 - self.alpha) * self.FK_ang_vel"""
         self.filt_ang_vel[:] = self.IMU_ang_vel
+
+        # Two vectors that store all data about filtered q and v
+        self.q_filt[0:3, 0] = self.filt_lin_pos
+        self.q_filt[3:7, 0] = self.filt_ang_pos
+        self.q_filt[7:, 0] = self.actuators_pos
+
+        self.v_filt[0:3, 0] = self.filt_lin_vel
+        self.v_filt[3:6, 0] = self.filt_ang_vel
+        self.v_filt[6:, 0] = self.actuators_vel
 
         return 0
 

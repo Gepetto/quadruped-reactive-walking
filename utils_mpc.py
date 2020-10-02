@@ -233,7 +233,7 @@ class pybullet_simulator:
         dt (float): time step of the inverse dynamics
     """
 
-    def __init__(self, envID, use_flat_plane, enable_pyb_GUI, dt=0.001):
+    def __init__(self, q_init, envID, use_flat_plane, enable_pyb_GUI, dt=0.001):
 
         # Start the client for PyBullet
         if enable_pyb_GUI:
@@ -444,8 +444,8 @@ class pybullet_simulator:
                                       forces=[0.0 for m in self.revoluteJointIndices])
 
         # Initialize the robot in a specific configuration
-        self.straight_standing = np.array([[0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()
-        pyb.resetJointStatesMultiDof(self.robotId, self.revoluteJointIndices, self.straight_standing)  # q0[7:])
+        self.q_init = np.array([q_init]).transpose()
+        pyb.resetJointStatesMultiDof(self.robotId, self.revoluteJointIndices, self.q_init)  # q0[7:])
 
         # Enable torque control for revolute joints
         jointTorques = [0.0 for m in self.revoluteJointIndices]
@@ -676,3 +676,102 @@ class pybullet_simulator:
 
             while (time.time() - time_loop) < dt_traj:
                 pass
+
+
+class Hardware():
+
+    def __init__(self):
+
+        self.is_timeout = False
+
+    def IsTimeout(self):
+
+        return self.is_timeout
+
+    def Stop():
+
+        return 0
+
+
+class PyBulletSimulator():
+
+    def __init__(self):
+
+        self.nb_motors = 12
+        self.jointTorques = np.zeros((self.nb_motors, 1))
+        self.revoluteJointIndices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
+
+        # Measured data
+        self.q_mes = np.zeros(12)
+        self.v_mes = np.zeros(12)
+        self.torquesFromCurrentMeasurment = np.zeros(12)
+        self.baseAngularVelocity = np.zeros(3)
+        self.baseOrientation = np.zeros(4)
+        self.baseLinearAcceleration = np.zeros(3)
+        self.prev_b_baseVel = np.zeros(3)
+
+    def Init(self, calibrateEncoders=False, q_init=None, envID=0, use_flat_plane=True, enable_pyb_GUI=False, dt=0.002):
+
+        # Initialisation of the PyBullet simulator
+        self.pyb_sim = pybullet_simulator(q_init, envID, use_flat_plane, enable_pyb_GUI, dt)
+        self.q_init = q_init
+        self.dt = dt
+        self.time_loop = time.time()
+
+        return
+
+    def UpdateMeasurment(self):
+
+        # Position and velocity of actuators
+        jointStates = pyb.getJointStates(self.pyb_sim.robotId, self.revoluteJointIndices)  # State of all joints
+        self.q_mes[:] = np.array([state[0] for state in jointStates])
+        self.v_mes[:] = np.array([state[1] for state in jointStates])
+
+        # Measured torques
+        self.torquesFromCurrentMeasurment[:] = self.jointTorques[:, 0]
+
+        # Position and orientation of the trunk (PyBullet world frame)
+        self.baseState = pyb.getBasePositionAndOrientation(self.pyb_sim.robotId)
+        self.dummyHeight = np.array(self.baseState[0])
+        self.dummyHeight[2] = 0.20
+
+        # Linear and angular velocity of the trunk (PyBullet world frame)
+        self.baseVel = pyb.getBaseVelocity(self.pyb_sim.robotId)
+
+        # Orientation of the base (quaternion)
+        self.baseOrientation[:] = np.array(self.baseState[1])
+        self.rot_oMb = pin.Quaternion(np.array([self.baseState[1]]).transpose()).toRotationMatrix()
+        self.oMb = pin.SE3(self.rot_oMb, np.array([self.dummyHeight]).transpose())
+
+        # Angular velocities of the base
+        self.baseAngularVelocity[:] = (self.oMb.rotation.transpose() @ np.array([self.baseVel[1]]).transpose()).ravel()
+
+        # Linear Acceleration of the base
+        self.b_baseVel = (self.oMb.rotation.transpose() @ np.array([self.baseVel[0]]).transpose()).ravel()
+        self.baseLinearAcceleration[:] = (self.b_baseVel.ravel() - self.prev_b_baseVel) / self.dt
+        self.prev_b_baseVel[:] = self.b_baseVel.ravel()
+
+        return
+
+    def SetDesiredJointTorques(self, torques):
+
+        # Save desired torques in a storage array
+        self.jointTorques = torques.copy()
+
+        return
+
+    def SendCommand(self, WaitEndOfCycle=True):
+
+        # Set control torque for all joints
+        pyb.setJointMotorControlArray(self.pyb_sim.robotId, self.pyb_sim.revoluteJointIndices,
+                                      controlMode=pyb.TORQUE_CONTROL, forces=self.jointTorques)
+
+        # Compute one step of simulation
+        pyb.stepSimulation()
+
+        # Wait to have simulation time = real time
+        if WaitEndOfCycle:
+            while (time.time() - self.time_loop) < self.dt:
+                pass
+
+        return

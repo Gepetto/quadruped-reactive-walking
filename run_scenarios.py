@@ -2,7 +2,8 @@
 
 import numpy as np
 import matplotlib.pylab as plt
-from main import ControlLoop
+from Controller import Controller
+from utils_mpc import PyBulletSimulator
 # from IPython import embed
 
 ################################
@@ -18,7 +19,7 @@ k_mpc = int(dt_mpc / dt_tsid)  # dt is dt_tsid, defined in the TSID controller s
 t = 0.0  # Time
 n_periods = 1  # Number of periods in the prediction horizon
 T_gait = 0.64  # Duration of one gait period
-N_SIMULATION = 2000  # number of simulated TSID time steps
+N_SIMULATION = 50000  # number of simulated TSID time steps
 
 # Which MPC solver you want to use
 # True to have PA's MPC, to False to have Thomas's MPC
@@ -47,9 +48,13 @@ enable_pyb_GUI = True
 result_loggers = []
 
 # Run a scenario and retrieve data thanks to the logger
-scenario1 = ControlLoop(envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
-                        pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
-result_logger1 = scenario1.launch_simu()
+device = PyBulletSimulator()
+my_q_init = np.array([0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6])
+device.Init(calibrateEncoders=True, q_init=my_q_init, envID=envID,
+            use_flat_plane=use_flat_plane, enable_pyb_GUI=enable_pyb_GUI, dt=dt_tsid)
+scenario1 = Controller(envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
+                       pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
+result_logger1 = scenario1.launch_simu(device)
 # result_logger1 = run_scenario(envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
 #                              pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
 result_loggers.append(result_logger1)

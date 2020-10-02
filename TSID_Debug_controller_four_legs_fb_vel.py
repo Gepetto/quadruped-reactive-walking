@@ -303,7 +303,7 @@ class controller:
         # Resize the solver to fit the number of variables, equality and inequality constraints
         self.solver.resize(self.invdyn.nVar, self.invdyn.nEq, self.invdyn.nIn)
 
-    def update_feet_tasks(self, k_loop, gait, looping, interface, ftps_Ids_deb, k_simu):
+    def update_feet_tasks(self, k_loop, gait, looping, interface, k_simu):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
 
@@ -312,7 +312,6 @@ class controller:
             pair (int): the current pair of feet in swing phase, for a walking trot gait
             looping (int): total number of time steps in one gait cycle
             interface (Interface object): interface between the simulator and the MPC/InvDyn
-            ftps_Ids_deb (list): IDs of debug spheres in PyBullet
         """
 
         if ((k_loop % self.k_mpc) == 0):
@@ -368,7 +367,7 @@ class controller:
             for i in range(len(self.feet)):
                 self.t0s[i] = np.round(np.max((self.t0s[i] + self.dt, 0.0)), decimals=3)
 
-        self.sub_test(self.feet, self.t0s, interface, ftps_Ids_deb)
+        self.sub_test(self.feet, self.t0s, interface)
         # print(self.footsteps)
         # print(self.t0s)
         # if k_simu > 640:
@@ -376,7 +375,7 @@ class controller:
         #    print(self.t0s)
         return 0
 
-    def sub_test(self, feet, t0s, interface, ftps_Ids_deb):
+    def sub_test(self, feet, t0s, interface):
 
         for i in range(len(feet)):
             i_foot = feet[i]
@@ -415,15 +414,15 @@ class controller:
             self.feetGoal[i_foot].translation = np.array([x0, y0, z0])"""
 
             # Display the goal position of the feet as green sphere in PyBullet
-            import pybullet as pyb
+            #import pybullet as pyb
             """pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
                                                 posObj=np.array([gx1, gy1, 0.0]),
                                                 ornObj=np.array([0.0, 0.0, 0.0, 1.0]))"""
 
             # Display the 3D target position of the feet as green sphere in PyBullet
-            pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
+            """pyb.resetBasePositionAndOrientation(ftps_Ids_deb[i_foot],
                                                 posObj=np.array([x0, y0, z0]),
-                                                ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
+                                                ornObj=np.array([0.0, 0.0, 0.0, 1.0]))"""
         return 0
 
     ####################################################################
@@ -431,7 +430,7 @@ class controller:
     ####################################################################
 
     def control(self, qtsid, vtsid, k_simu, solo, interface, f_applied, fsteps, gait,
-                ftps_Ids_deb, enable_hybrid_control=False, enable_gepetto_viewer=False,
+                enable_hybrid_control=False, enable_gepetto_viewer=False,
                 qmes=None, vmes=None, qmpc=None, vmpc=None):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
@@ -534,7 +533,7 @@ class controller:
         ################
 
         # Enable/disable contact and 3D tracking tasks depending on the state of the feet (swing or stance phase)
-        self.update_tasks(k_simu, k_loop, looping, interface, gait, ftps_Ids_deb)
+        self.update_tasks(k_simu, k_loop, looping, interface, gait)
 
         ###############
         # HQP PROBLEM #
@@ -602,7 +601,7 @@ class controller:
 
         return 0
 
-    def update_tasks(self, k_simu, k_loop, looping, interface, gait, ftps_Ids_deb):
+    def update_tasks(self, k_simu, k_loop, looping, interface, gait):
         """ Update TSID tasks (feet tracking, contacts, force tracking)
 
         Args:
@@ -616,7 +615,7 @@ class controller:
         """
 
         # Update the foot tracking tasks
-        self.update_feet_tasks(k_loop, gait, looping, interface, ftps_Ids_deb, k_simu)
+        self.update_feet_tasks(k_loop, gait, looping, interface, k_simu)
 
         # Index of the first blank line in the gait matrix
         # index = next((idx for idx, val in np.ndenumerate(gait[:, 0]) if (((val == 0)))), [-1])[0]
