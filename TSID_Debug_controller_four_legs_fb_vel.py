@@ -114,6 +114,7 @@ class controller:
         # Torques sent to the robot
         self.torques12 = np.zeros((12, 1))
         self.tau = np.zeros((12, ))
+        self.reached_tau_max = np.zeros((12, ), dtype=np.int)
 
         self.ID_base = None  # ID of base link
         self.ID_feet = [None] * 4  # ID of feet links
@@ -713,12 +714,17 @@ class controller:
                     self.D * (self.vdes[6:, 0] - self.vmes[6:, 0])
                 self.torques12 = self.tau_pd  # + self.tau_ff
             else:
-                self.torques12 = self.tau_ff
+                # self.torques12 = self.tau_ff
+                print("Control with enable_hybrid_control disabled for security. Lots of things have changed \n",
+                      "and we need to be sure nothing is broken.")
+                return np.zeros((12, ))
 
             # Saturation to limit the maximal torque
             t_max = 2.5
             self.torques12[self.torques12 > t_max] = t_max
             self.torques12[self.torques12 < -t_max] = -t_max
+
+            # If several torques are at saturation, switch to safety control
             cpt = 0
             for i in (np.abs(self.torques12[:]) > (t_max-0.02)):
                 if i:
@@ -727,6 +733,15 @@ class controller:
                 self.error = True
                 print('Several torques at saturation. Switching to safety controller.')
                 return np.zeros((12, ))
+
+            # If one of the torques is at saturation during several time steps, switch to safety controller
+            self.reached_tau_max += 1
+            self.reached_tau_max *= (np.abs(self.torques12[:]) > (t_max-0.02))
+            if np.any(self.reached_tau_max >= 50):
+                self.error = True
+                print('A torque reached saturation during several time steps. Switching to safety controller.')
+                return np.zeros((12, ))
+
             return self.torques12
 
     def display(self, t, solo, k_simu, sequencer):

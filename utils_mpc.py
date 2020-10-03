@@ -14,6 +14,7 @@ import pybullet_data
 import pinocchio as pin
 
 import time as time
+import sys
 
 ##########################
 # ROTATION MATRIX TO RPY #
@@ -453,7 +454,7 @@ class pybullet_simulator:
                                       controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
 
         # Fix the base in the world frame
-        # p.createConstraint(robotId, -1, -1, -1, p.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [0, 0, 0.34])
+        # pyb.createConstraint(self.robotId, -1, -1, -1, pyb.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [0, 0, robotStartPos[2]])
 
         # Set time step for the simulation
         pyb.setTimeStep(dt)
@@ -697,9 +698,11 @@ class PyBulletSimulator():
 
     def __init__(self):
 
+        self.cpt = 0
         self.nb_motors = 12
-        self.jointTorques = np.zeros((self.nb_motors, 1))
+        self.jointTorques = np.zeros(self.nb_motors)
         self.revoluteJointIndices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
+        self.hardware = Hardware()
 
         # Measured data
         self.q_mes = np.zeros(12)
@@ -709,6 +712,7 @@ class PyBulletSimulator():
         self.baseOrientation = np.zeros(4)
         self.baseLinearAcceleration = np.zeros(3)
         self.prev_b_baseVel = np.zeros(3)
+
 
     def Init(self, calibrateEncoders=False, q_init=None, envID=0, use_flat_plane=True, enable_pyb_GUI=False, dt=0.002):
 
@@ -728,7 +732,7 @@ class PyBulletSimulator():
         self.v_mes[:] = np.array([state[1] for state in jointStates])
 
         # Measured torques
-        self.torquesFromCurrentMeasurment[:] = self.jointTorques[:, 0]
+        self.torquesFromCurrentMeasurment[:] = self.jointTorques[:]
 
         # Position and orientation of the trunk (PyBullet world frame)
         self.baseState = pyb.getBasePositionAndOrientation(self.pyb_sim.robotId)
@@ -753,7 +757,7 @@ class PyBulletSimulator():
 
         return
 
-    def SetDesiredJointTorques(self, torques):
+    def SetDesiredJointTorque(self, torques):
 
         # Save desired torques in a storage array
         self.jointTorques = torques.copy()
@@ -771,9 +775,21 @@ class PyBulletSimulator():
 
         # Wait to have simulation time = real time
         if WaitEndOfCycle:
-            while (time.time() - self.time_loop) < 50 * self.dt:
+            while (time.time() - self.time_loop) < self.dt:
                 pass
+            self.cpt += 1
 
         self.time_loop = time.time()
 
         return
+
+    def Print(self):
+        # print(chr(27) + "[2J")
+        print("#######")
+        print("q_mes = ", self.q_mes)
+        print("v_mes = ", self.v_mes)
+        print("torques = ", self.torquesFromCurrentMeasurment)
+        print("orientation = ", self.baseOrientation)
+        print("lin acc = ", self.baseLinearAcceleration)
+        print("ang vel = ", self.baseAngularVelocity)
+        sys.stdout.flush()
