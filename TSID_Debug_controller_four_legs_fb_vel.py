@@ -125,7 +125,7 @@ class controller:
         self.t_stance = T_gait * 0.5
         self.T_gait = T_gait
         self.n_periods = n_periods
-        self.h_ref = 0.235 - 0.01205385
+        self.h_ref = 0.2027682  # 0.235 - 0.01205385
         self.t_swing = np.zeros((4, ))  # Total duration of current swing phase for each foot
 
         self.contacts_order = [0, 1, 2, 3]

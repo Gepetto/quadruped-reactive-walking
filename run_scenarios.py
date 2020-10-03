@@ -52,7 +52,7 @@ device = PyBulletSimulator()
 my_q_init = np.array([0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6])
 device.Init(calibrateEncoders=True, q_init=my_q_init, envID=envID,
             use_flat_plane=use_flat_plane, enable_pyb_GUI=enable_pyb_GUI, dt=dt_tsid)
-scenario1 = Controller(envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
+scenario1 = Controller(my_q_init, envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
                        pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
 result_logger1 = scenario1.launch_simu(device)
 # result_logger1 = run_scenario(envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,

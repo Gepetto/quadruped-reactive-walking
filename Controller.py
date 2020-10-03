@@ -10,9 +10,16 @@ import MPC_Wrapper
 import pybullet as pyb
 
 
+class dummyDevice:
+
+    def __init__(self):
+
+        pass
+
+
 class Controller:
 
-    def __init__(self, envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
+    def __init__(self, q_init, envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
                  pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI):
         """Function that runs a simulation scenario based on a reference velocity profile, an environment and
         various parameters to define the gait
@@ -116,6 +123,14 @@ class Controller:
         self.qmes12 = np.zeros((19, 1))
         self.vmes12 = np.zeros((18, 1))
 
+        dDevice = dummyDevice()
+        dDevice.q_mes = q_init
+        dDevice.v_mes = np.zeros(12)
+        dDevice.baseLinearAcceleration = np.zeros(3)
+        dDevice.baseAngularVelocity = np.zeros(3)
+        dDevice.baseOrientation = np.array([0.0, 0.0, 0.0, 1.0])
+        self.compute(dDevice)
+
     def compute(self, device):
 
         # tic = time.time()
@@ -204,7 +219,7 @@ class Controller:
 
     def launch_simu(self, device):
 
-        # Default position after calibration
+        """# Default position after calibration
         q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6])
 
         class dummyDevice:
@@ -219,7 +234,7 @@ class Controller:
         dDevice.baseLinearAcceleration = np.zeros(3)
         dDevice.baseAngularVelocity = np.zeros(3)
         dDevice.baseOrientation = np.array([0.0, 0.0, 0.0, 1.0])
-        tau = self.compute(dDevice)
+        tau = self.compute(dDevice)"""
 
         tic = time.time()
 
