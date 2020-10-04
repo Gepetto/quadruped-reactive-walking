@@ -91,24 +91,14 @@ baseOrientation = data['baseOrientation']  # Orientation as quat
 baseLinearAcceleration = data['baseLinearAcceleration']  # Linear acceleration
 baseAngularVelocity = data['baseAngularVelocity']  # Angular Vel
 
-# IMU is upside down so we have to reorder the data
-"""tmp = baseOrientation[:, 0].copy()
-baseOrientation[:, 0] = baseOrientation[:, 1].copy()
-baseOrientation[:, 1] = tmp
-baseOrientation[:, 2] = - baseOrientation[:, 2].copy()
-tmp = baseLinearAcceleration[:, 0].copy()
-baseLinearAcceleration[:, 0] = baseLinearAcceleration[:, 1].copy()
-baseLinearAcceleration[:, 1] = tmp
-baseLinearAcceleration[:, 2] = - baseLinearAcceleration[:, 2].copy()
-tmp = baseAngularVelocity[:, 0].copy()
-baseAngularVelocity[:, 0] = baseAngularVelocity[:, 1].copy()
-baseAngularVelocity[:, 1] = tmp
-baseAngularVelocity[:, 2] = - baseAngularVelocity[:, 2].copy()"""
-
 # From actuators
 torquesFromCurrentMeasurment = data['torquesFromCurrentMeasurment']  # Torques
 q_mes = data['q_mes']  # Angular positions
 v_mes = data['v_mes']  # Angular velocities
+
+# From estimator
+if data['estimatorVelocity'] is not None:
+    estimatorVelocity = data['estimatorVelocity']
 
 # Creating time vector
 Nlist = np.where(mocapPosition[:, 0] == 0.0)[0]
@@ -168,17 +158,23 @@ fig = plt.figure()
 ax0 = plt.subplot(3, 1, 1)
 plt.plot(t, mocapBaseLinearVelocity[:N, 0], "darkorange", linewidth=lwdth)
 plt.plot(t, imuBaseLinearVelocity[:N, 0], "royalblue", linewidth=lwdth)
+if data['estimatorVelocity'] is not None:
+    plt.plot(t, estimatorVelocity[:N, 0], "darkgreen", linewidth=lwdth)
 plt.ylabel("$\dot x$ [m/s]")
-plt.legend(["Mocap", "IMU"], prop={'size': 8})
+plt.legend(["Mocap", "IMU", "Estimator"], prop={'size': 8})
 # Y linear velocity
 ax1 = plt.subplot(3, 1, 2, sharex=ax0)
 plt.plot(t, mocapBaseLinearVelocity[:N, 1], "darkorange", linewidth=lwdth)
 plt.plot(t, imuBaseLinearVelocity[:N, 1], "royalblue", linewidth=lwdth)
+if data['estimatorVelocity'] is not None:
+    plt.plot(t, estimatorVelocity[:N, 1], "darkgreen", linewidth=lwdth)
 plt.ylabel("$\dot y$ [m/s]")
 # Z linear velocity
 ax1 = plt.subplot(3, 1, 3, sharex=ax0)
 plt.plot(t, mocapBaseLinearVelocity[:N, 2], "darkorange", linewidth=lwdth)
 plt.plot(t, imuBaseLinearVelocity[:N, 2], "royalblue", linewidth=lwdth)
+if data['estimatorVelocity'] is not None:
+    plt.plot(t, estimatorVelocity[:N, 2], "darkgreen", linewidth=lwdth)
 plt.ylabel("$\dot z$ [m/s]")
 plt.xlabel("Time [s]")
 
