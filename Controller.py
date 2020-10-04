@@ -180,7 +180,7 @@ class Controller:
 
         # Process Inverse Dynamics
         # If nothing wrong happened yet in TSID controller
-        if not self.myController.error:
+        if (not self.myController.error) and (not self.joystick.stop):
             proc.process_invdyn(self.solo, self.k, self.f_applied, self.estimator, self.interface, self.fstep_planner,
                                 self.myController, self.enable_hybrid_control, self.enable_gepetto_viewer)
 
@@ -188,7 +188,7 @@ class Controller:
             self.jointTorques[:, 0] = proc.process_pdp(self.myController, self.estimator)
 
         # If something wrong happened in TSID controller we stick to a security controller
-        if self.myController.error:
+        if self.myController.error or self.joystick.stop:
             # D controller to slow down the legs
             D = 0.05
             self.jointTorques[:, 0] = D * (- self.estimator.v_filt[6:, 0])
@@ -244,7 +244,7 @@ class Controller:
 
             tau = self.compute(device)
 
-            device.SetDesiredJointTorques(tau)
+            device.SetDesiredJointTorque(tau)
 
             device.SendCommand(WaitEndOfCycle=True)
 

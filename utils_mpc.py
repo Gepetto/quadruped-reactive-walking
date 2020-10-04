@@ -732,7 +732,7 @@ class PyBulletSimulator():
         self.v_mes[:] = np.array([state[1] for state in jointStates])
 
         # Measured torques
-        self.torquesFromCurrentMeasurment[:] = self.jointTorques[:]
+        self.torquesFromCurrentMeasurment[:] = self.jointTorques[:].ravel()
 
         # Position and orientation of the trunk (PyBullet world frame)
         self.baseState = pyb.getBasePositionAndOrientation(self.pyb_sim.robotId)

@@ -17,6 +17,7 @@ class Joystick:
         self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         self.reduced = False
+        self.stop = False
 
         # Bool to modify the update of v_ref
         # Used to launch multiple simulations
@@ -78,9 +79,13 @@ class Joystick:
         else:  # Otherwise the Vx, Vy, Vyaw is controlled
             self.v_gp = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
 
-        # Reduce the size of the support polygon by pressing Start
+        # Reduce the size of the support polygon by pressing Start
         if self.gp.startButton.value:
             self.reduced = not self.reduced
+
+        # Switch to safety controller if the Back key is pressed
+        if self.gp.backButton.value:
+            self.stop = True
 
         # Low pass filter to slow down the changes of velocity when moving the joysticks
         tc = 0.04  #  cutoff frequency at 50 Hz
