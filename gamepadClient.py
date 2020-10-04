@@ -17,6 +17,7 @@ class GamepadClient():
     def __init__(self):
         self.running = Value(c_bool, lock=True)
         self.startButton = Value(c_bool, lock=True)
+        self.backButton = Value(c_bool, lock=True)
         self.leftJoystickX = Value(c_double, lock=True)
         self.leftJoystickY = Value(c_double, lock=True)
         self.rightJoystickX = Value(c_double, lock=True)
@@ -25,6 +26,7 @@ class GamepadClient():
         self.L1Button = Value(c_bool, lock=True)
 
         self.startButton.value = False
+        self.backButton.value = False
         self.leftJoystickX.value = 0.0
         self.leftJoystickY.value = 0.0
         self.rightJoystickX.value = 0.0
@@ -32,13 +34,13 @@ class GamepadClient():
         self.R1Button.value = False
         self.L1Button.value = False
 
-        args = (self.running, self.startButton, self.leftJoystickX,
+        args = (self.running, self.startButton, self.backButton, self.leftJoystickX,
                 self.leftJoystickY, self.rightJoystickX, self.rightJoystickY, self.R1Button, self.L1Button)
         self.process = Process(target=self.run, args=args)
         self.process.start()
         time.sleep(0.2)
 
-    def run(self, running, startButton, leftJoystickX, leftJoystickY, rightJoystickX, rightJoystickY, R1Button, L1Button):
+    def run(self, running, startButton, backButton, leftJoystickX, leftJoystickY, rightJoystickX, rightJoystickY, R1Button, L1Button):
         running.value = True
         while(running.value):
             events = inputs.get_gamepad()
@@ -53,7 +55,7 @@ class GamepadClient():
                         rightJoystickX.value = event.state / 32768.0
                     if event.code == 'ABS_RY':
                         rightJoystickY.value = event.state / 32768.0
-                if (event.ev_type == 'Key'):  
+                if (event.ev_type == 'Key'):
                     if event.code == 'BTN_START':
                         startButton.value = event.state
                         print (event.state)
@@ -62,6 +64,9 @@ class GamepadClient():
                         print (event.state)
                     elif event.code == 'BTN_TL':
                         L1Button.value = event.state
+                        print (event.state)
+                    elif event.code == 'BTN_SELECT':
+                        backButton.value = event.state
                         print (event.state)
     def stop(self):
         self.running.value = False
@@ -77,6 +82,7 @@ if __name__ == "__main__":
         print("RX = ", gp.rightJoystickX.value, end=" ; ")
         print("RY = ", gp.rightJoystickY.value, end=" ; ")
         print("start = ",gp.startButton.value)
+        print("back = ",gp.backButton.value)
         print("R1 = ",gp.R1Button.value)
         print("L1 = ",gp.L1Button.value)
         time.sleep(0.1)
