@@ -10,6 +10,17 @@ import MPC_Wrapper
 import pybullet as pyb
 
 
+class Result:
+
+    def __init__(self):
+
+        self.P = 0.0
+        self.D = 0.0
+        self.q_des = np.zeros(12)
+        self.v_des = np.zeros(12)
+        self.tau_ff = np.zeros(12)
+
+
 class dummyDevice:
 
     def __init__(self):
@@ -124,11 +135,7 @@ class Controller:
         self.vmes12 = np.zeros((18, 1))
 
         # Interface with the PD+ on the control board
-        self.result.P = 0.0
-        self.result.D = 0.0
-        self.result.q_des = np.zeros(12)
-        self.result.v_des = np.zeros(12)
-        self.result.tau_ff = np.zeros(12)
+        self.result = Result()
 
         # Run the control loop once with a dummy device for initialization
         dDevice = dummyDevice()
@@ -198,8 +205,8 @@ class Controller:
                 np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
                           1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
             self.result.q_des[:] = self.myController.qdes[7:]
-            self.result.v_des[:] = self.myController.vdes[6:]
-            self.result.tau_ff[:] = self.myController.tau_ff
+            self.result.v_des[:] = self.myController.vdes[6:, 0]
+            # self.result.tau_ff[:] = self.myController.tau_ff
 
             # Process PD+ (feedforward torques and feedback torques)
             self.jointTorques[:, 0] = proc.process_pdp(self.myController, self.estimator)
@@ -213,15 +220,6 @@ class Controller:
             self.result.q_des[:] = np.zeros(12)
             self.result.v_des[:] = np.zeros(12)
             self.result.tau_ff[:] = np.zeros(12)
-
-            # D controller to slow down the legs
-            D = 0.05
-            self.jointTorques[:, 0] = D * (- self.estimator.v_filt[6:, 0])
-
-            # Saturation to limit the maximal torque
-            t_max = 1.0
-            self.jointTorques[self.jointTorques > t_max] = t_max
-            self.jointTorques[self.jointTorques < -t_max] = -t_max
 
         # t_tsid = time.time()  # To analyze the time taken by each step
 
@@ -268,7 +266,12 @@ class Controller:
 
             tau = self.compute(device)
 
-            device.SetDesiredJointTorque(tau)
+            # device.SetDesiredJointTorque(tau)
+            device.SetKp(self.result.P)
+            device.SetKd(self.result.D)
+            device.SetQdes(self.result.q_des)
+            device.SetVdes(self.result.v_des)
+            device.SetTauFF(self.result.tau_ff)
 
             device.SendCommand(WaitEndOfCycle=True)
 

@@ -715,6 +715,13 @@ class PyBulletSimulator():
         self.baseLinearAcceleration = np.zeros(3)
         self.prev_b_baseVel = np.zeros(3)
 
+        # PD+ quantities
+        self.P = 0.0
+        self.D = 0.0
+        self.q_des = np.zeros(12)
+        self.v_des = np.zeros(12)
+        self.tau_ff = np.zeros(12)
+
     def Init(self, calibrateEncoders=False, q_init=None, envID=0, use_flat_plane=True, enable_pyb_GUI=False, dt=0.002):
 
         # Initialisation of the PyBullet simulator
@@ -765,7 +772,28 @@ class PyBulletSimulator():
 
         return
 
+    def SetKp(self, P):
+        self.P = P
+
+    def SetKd(self, D):
+        self.D = D
+
+    def SetQdes(self, q_des):
+        self.q_des = q_des
+
+    def SetVdes(self, v_des):
+        self.v_des = v_des
+
+    def SetTauFF(self, tau_ff):
+        self.tau_ff = tau_ff
+
     def SendCommand(self, WaitEndOfCycle=True):
+
+        # Compute PD torques
+        tau_pd = self.P * (self.q_des - self.q_mes) + self.D * (self.v_des - self.v_mes)
+
+        # Save desired torques in a storage array
+        self.jointTorques = tau_pd + self.tau_ff
 
         # Set control torque for all joints
         pyb.setJointMotorControlArray(self.pyb_sim.robotId, self.pyb_sim.revoluteJointIndices,

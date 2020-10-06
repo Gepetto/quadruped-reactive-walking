@@ -694,54 +694,43 @@ class controller:
     def run_PDplus(self):
 
         # Check for NaN value in the output torques (means error during solving process)
-        """if np.any(np.isnan(self.tau_ff)):
-            self.tau_ff[np.isnan(self.tau_ff)] = 0.0"""
-
         if np.any(np.isnan(self.tau_ff)):
             self.error = True
             print('NaN value in feedforward torque. Switching to safety controller.')
-            return np.zeros((12, ))
         elif np.any(np.abs(self.qdes[7:]) > np.tile(np.array([1.0, 2.0, 3.0]), 4)) \
                 or np.any(np.abs(self.qdes[9::3]) < 0.1):
-            print('Abnormal angular values. Switching to safety controller.')
             self.error = True
-            return np.zeros((12, ))
+            print('Abnormal angular values. Switching to safety controller.')
         else:
             # Torque PD controller
             if self.enable_hybrid_control:
-                self.tau_pd = self.P * (self.qdes[7:] - self.qmes[7:, 0]) + \
-                    self.D * (self.vdes[6:, 0] - self.vmes[6:, 0])
-                self.torques12 = self.tau_pd  # + self.tau_ff
+
+                # Saturation to limit the maximal torque
+                t_max = 2.5
+                self.tau_ff[self.tau_ff > t_max] = t_max
+                self.tau_ff[self.tau_ff < -t_max] = -t_max
+
+                # If several torques are at saturation, switch to safety control
+                cpt = 0
+                for i in (np.abs(self.tau_ff[:]) > (t_max-0.02)):
+                    if i:
+                        cpt += 1
+                if cpt >= 4:
+                    self.error = True
+                    print('Several torques at saturation. Switching to safety controller.')
+
+                # If one of the torques is at saturation during several time steps, switch to safety controller
+                self.reached_tau_max += 1
+                self.reached_tau_max *= (np.abs(self.tau_ff[:]) > (t_max-0.02))
+                if np.any(self.reached_tau_max >= 50):
+                    self.error = True
+                    print('A torque reached saturation during several time steps. Switching to safety controller.')
+
             else:
-                # self.torques12 = self.tau_ff
                 print("Control with enable_hybrid_control disabled for security. Lots of things have changed \n",
                       "and we need to be sure nothing is broken.")
-                return np.zeros((12, ))
 
-            # Saturation to limit the maximal torque
-            t_max = 2.5
-            self.torques12[self.torques12 > t_max] = t_max
-            self.torques12[self.torques12 < -t_max] = -t_max
-
-            # If several torques are at saturation, switch to safety control
-            cpt = 0
-            for i in (np.abs(self.torques12[:]) > (t_max-0.02)):
-                if i:
-                    cpt += 1
-            if cpt >= 4:
-                self.error = True
-                print('Several torques at saturation. Switching to safety controller.')
-                return np.zeros((12, ))
-
-            # If one of the torques is at saturation during several time steps, switch to safety controller
-            self.reached_tau_max += 1
-            self.reached_tau_max *= (np.abs(self.torques12[:]) > (t_max-0.02))
-            if np.any(self.reached_tau_max >= 50):
-                self.error = True
-                print('A torque reached saturation during several time steps. Switching to safety controller.')
-                return np.zeros((12, ))
-
-            return self.torques12
+            return np.zeros((12, ))
 
     def display(self, t, solo, k_simu, sequencer):
         """ To display debug spheres in Gepetto Viewer
