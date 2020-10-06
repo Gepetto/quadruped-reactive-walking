@@ -2,7 +2,6 @@
 
 import numpy as np
 import pinocchio as pin
-import pybullet as pyb
 from matplotlib import pyplot as plt
 
 
@@ -25,14 +24,17 @@ class Estimator:
         self.alpha = self.dt * self.fc
 
         # IMU data
-        self.IMU_lin_acc = np.zeros((3, ))  # Linear acceleration (gravity debiased)
+        # Linear acceleration (gravity debiased)
+        self.IMU_lin_acc = np.zeros((3, ))
         self.IMU_ang_vel = np.zeros((3, ))  # Angular velocity (gyroscopes)
-        self.IMU_ang_pos = np.zeros((4, ))  # Angular position (estimation of IMU)
+        # Angular position (estimation of IMU)
+        self.IMU_ang_pos = np.zeros((4, ))
 
         # Forward Kinematics data
         self.FK_lin_vel = np.zeros((3, ))  # Linear velocity
         # self.FK_ang_vel = np.zeros((3, ))  # Angular velocity
         # self.FK_ang_pos = np.zeros((3, ))  # Angular position
+        self.FK_h = 0.2027682
 
         # Filtered quantities (output)
         # self.filt_data = np.zeros((12, ))  # Sum of both filtered data
@@ -56,6 +58,7 @@ class Estimator:
         self.log_v_est = np.zeros((3, 4, N_simulation))
         # self.log_Fv1F = np.zeros((3, 4, N_simulation))
         # self.log_alpha = np.zeros((3, N_simulation))
+        self.log_h_est = np.zeros((4, N_simulation))
 
         self.log_filt_lin_vel = np.zeros((3, N_simulation))
         self.log_filt_lin_vel_bis = np.zeros((3, N_simulation))
@@ -100,21 +103,28 @@ class Estimator:
         # self.v_FK[0:3, 0] = self.filt_lin_vel[:]  #  Linear velocity of base (in base frame)
         # self.v_FK[3:6, 0] = self.filt_ang_vel[:]  #  Angular velocity of base (in base frame)
 
+        # Update orientation of the robot with IMU data
+        self.q_FK[3:7, 0] = self.IMU_ang_pos
+
         pin.forwardKinematics(self.model, self.data, self.q_FK, self.v_FK)
 
         # Get estimated velocity from updated model
         cpt = 0
         vel_est = np.zeros((3, ))
+        h_est = 0.0
         for i in (np.where(feet_status == 1))[0]:
-            vel_estimated_baseframe = self.BaseVelocityFromKinAndIMU(self.indexes[i])
+            vel_estimated_baseframe, h_estimated = self.BaseVelocityFromKinAndIMU(self.indexes[i])
 
             self.log_v_est[:, i, self.k_log] = vel_estimated_baseframe[0:3, 0]
+            self.log_h_est[i, self.k_log] = h_estimated
             # self.log_Fv1F[:, i, self.k_log] = _Fv1F[0:3]
 
             cpt += 1
             vel_est += vel_estimated_baseframe[:, 0]
+            h_est += h_estimated
         if cpt > 0:
             self.FK_lin_vel = vel_est / cpt
+            self.FK_h = h_est / cpt
 
         self.k_log += 1
 
@@ -146,7 +156,7 @@ class Estimator:
 
         # Linear position of the trunk
         # TODO: Position estimation
-        self.filt_lin_pos[2] = 0.2027682
+        self.filt_lin_pos[2] = self.FK_h  # 0.2027682
 
         # Angular position of the trunk (PyBullet local frame)
         """self.filt_data[3:6] = self.alpha * self.IMU_ang_pos \
@@ -205,19 +215,22 @@ class Estimator:
 
         frameVelocity = pin.getFrameVelocity(self.model, self.data, contactFrameId, pin.ReferenceFrame.LOCAL)
         framePlacement = pin.updateFramePlacement(self.model, self.data, contactFrameId)
+        # print("Foot ", contactFrameId, " | ", framePlacement.translation)
 
         # Angular velocity of the base wrt the world in the base frame (Gyroscope)
         _1w01 = self.IMU_ang_vel.reshape((3, 1))
         # Linear velocity of the foot wrt the base in the base frame
         _Fv1F = frameVelocity.linear
         # Level arm between the base and the foot
-        _1F = framePlacement.translation
+        _1F = np.array(framePlacement.translation)
         # Orientation of the foot wrt the base
         _1RF = framePlacement.rotation
         # Linear velocity of the base from wrt world in the base frame
+        # print(_1F.ravel())
+        # print(_1w01.ravel())
         _1v01 = self.cross3(_1F.ravel(), _1w01.ravel()) - (_1RF @ _Fv1F.reshape((3, 1)))
 
-        return _1v01
+        return np.array(_1v01), (-framePlacement.translation[2])
 
     def plot_graphs(self):
 

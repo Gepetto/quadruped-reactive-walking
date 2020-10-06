@@ -138,8 +138,8 @@ class controller:
         self.t = 0.0
 
         # Gains of the PD+
-        self.P = 1.0  # 3.0
-        self.D = 0.2 * np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+        self.P = 2.0  # 3.0
+        self.D = 0.1 * np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
 
         ########################################################################
         #             Definition of the Model and TSID problem                 #
@@ -701,8 +701,7 @@ class controller:
             self.error = True
             print('NaN value in feedforward torque. Switching to safety controller.')
             return np.zeros((12, ))
-
-        if np.any(np.abs(self.qdes[7:]) > np.tile(np.array([1.0, 2.0, 3.0]), 4)) \
+        elif np.any(np.abs(self.qdes[7:]) > np.tile(np.array([1.0, 2.0, 3.0]), 4)) \
                 or np.any(np.abs(self.qdes[9::3]) < 0.1):
             print('Abnormal angular values. Switching to safety controller.')
             self.error = True
