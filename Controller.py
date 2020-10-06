@@ -123,6 +123,14 @@ class Controller:
         self.qmes12 = np.zeros((19, 1))
         self.vmes12 = np.zeros((18, 1))
 
+        # Interface with the PD+ on the control board
+        self.result.P = 0.0
+        self.result.D = 0.0
+        self.result.q_des = np.zeros(12)
+        self.result.v_des = np.zeros(12)
+        self.result.tau_ff = np.zeros(12)
+
+        # Run the control loop once with a dummy device for initialization
         dDevice = dummyDevice()
         dDevice.q_mes = q_init
         dDevice.v_mes = np.zeros(12)
@@ -184,11 +192,28 @@ class Controller:
             proc.process_invdyn(self.solo, self.k, self.f_applied, self.estimator, self.interface, self.fstep_planner,
                                 self.myController, self.enable_hybrid_control, self.enable_gepetto_viewer)
 
+            # Quantities sent to the control board
+            self.result.P = 2.0 * np.ones(12)
+            self.result.D = 0.1 * \
+                np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
+                          1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+            self.result.q_des[:] = self.myController.qdes[7:]
+            self.result.v_des[:] = self.myController.vdes[6:]
+            self.result.tau_ff[:] = self.myController.tau_ff
+
             # Process PD+ (feedforward torques and feedback torques)
             self.jointTorques[:, 0] = proc.process_pdp(self.myController, self.estimator)
 
         # If something wrong happened in TSID controller we stick to a security controller
         if self.myController.error or self.joystick.stop:
+
+            # Quantities sent to the control board
+            self.result.P = np.zeros(12)
+            self.result.D = 0.05 * np.ones(12)
+            self.result.q_des[:] = np.zeros(12)
+            self.result.v_des[:] = np.zeros(12)
+            self.result.tau_ff[:] = np.zeros(12)
+
             # D controller to slow down the legs
             D = 0.05
             self.jointTorques[:, 0] = D * (- self.estimator.v_filt[6:, 0])
@@ -218,7 +243,6 @@ class Controller:
     ####################
 
     def launch_simu(self, device):
-
         """# Default position after calibration
         q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6])
 
