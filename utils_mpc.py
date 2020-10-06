@@ -264,11 +264,12 @@ class pybullet_simulator:
             height_prev = 0.0
             for j in range(int(numHeightfieldColumns/2)):
                 for i in range(int(numHeightfieldRows/2)):
-                    height = random.uniform(0, heightPerturbationRange)  # uniform distribution
+                    # uniform distribution
+                    height = random.uniform(0, heightPerturbationRange)
                     # height = 0.25*np.sin(2*np.pi*(i-128)/46)  # sinus pattern
-                    heightfieldData[2*i+2*j*numHeightfieldRows] = (height + height_prev) * 0.5
+                    heightfieldData[2*i+2*j * numHeightfieldRows] = (height + height_prev) * 0.5
                     heightfieldData[2*i+1+2*j*numHeightfieldRows] = height
-                    heightfieldData[2*i+(2*j+1)*numHeightfieldRows] = (height + height_prev) * 0.5
+                    heightfieldData[2*i+(2*j+1) * numHeightfieldRows] = (height + height_prev) * 0.5
                     heightfieldData[2*i+1+(2*j+1)*numHeightfieldRows] = height
                     height_prev = height
 
@@ -432,7 +433,7 @@ class pybullet_simulator:
         pyb.setGravity(0, 0, -9.81)
 
         # Load Quadruped robot
-        robotStartPos = [0, 0, 0.235+0.0045]
+        robotStartPos = [0, 0, 0.235+0.0045+0.2]
         robotStartOrientation = pyb.getQuaternionFromEuler([0.0, 0.0, 0.0])  # -np.pi/2
         pyb.setAdditionalSearchPath("/opt/openrobots/share/example-robot-data/robots/solo_description/robots")
         self.robotId = pyb.loadURDF("solo12.urdf", robotStartPos, robotStartOrientation)
@@ -454,14 +455,14 @@ class pybullet_simulator:
                                       controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
 
         # Fix the base in the world frame
-        # pyb.createConstraint(self.robotId, -1, -1, -1, pyb.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [0, 0, robotStartPos[2]])
+        pyb.createConstraint(self.robotId, -1, -1, -1, pyb.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [0, 0, robotStartPos[2]])
 
         # Set time step for the simulation
         pyb.setTimeStep(dt)
 
         # Change camera position
-        pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=-50, cameraPitch=-35,
-                                       cameraTargetPosition=[0.0, 0.6, 0.0])
+        pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
+                                       cameraTargetPosition=[0.0, 0.0, robotStartPos[2]-0.2])
 
     def check_pyb_env(self, k, envID, velID, qmes12):
         """Check the state of the robot to trigger events and update camera
@@ -612,7 +613,7 @@ class pybullet_simulator:
         A3 = - 2 * t1 * A4
         A2 = t1**2 * A4
         alpha = A2*ev**2 + A3*ev**3 + A4*ev**4
-        pyb.applyExternalForce(self.robotId, -1, alpha*F, alpha*M, pyb.LINK_FRAME)
+        pyb.applyExternalForce(self.robotId, -1, alpha * F, alpha*M, pyb.LINK_FRAME)
 
         return 0.0
 
@@ -640,7 +641,8 @@ class pybullet_simulator:
 
         # PD settings
         P = 1.0 * 3.0
-        D = 0.05 * np.array([[1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3]]).transpose()
+        D = 0.05 * np.array([[1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
+                              1.0, 0.3, 0.3, 1.0, 0.3, 0.3]]).transpose()
 
         while True or np.max(np.abs(qtarget - qmes)) > 0.1:
 
@@ -689,7 +691,7 @@ class Hardware():
 
         return self.is_timeout
 
-    def Stop():
+    def Stop(self):
 
         return 0
 
@@ -712,7 +714,6 @@ class PyBulletSimulator():
         self.baseOrientation = np.zeros(4)
         self.baseLinearAcceleration = np.zeros(3)
         self.prev_b_baseVel = np.zeros(3)
-
 
     def Init(self, calibrateEncoders=False, q_init=None, envID=0, use_flat_plane=True, enable_pyb_GUI=False, dt=0.002):
 
@@ -784,6 +785,7 @@ class PyBulletSimulator():
         return
 
     def Print(self):
+        np.set_printoptions(precision=2)
         # print(chr(27) + "[2J")
         print("#######")
         print("q_mes = ", self.q_mes)
@@ -793,3 +795,8 @@ class PyBulletSimulator():
         print("lin acc = ", self.baseLinearAcceleration)
         print("ang vel = ", self.baseAngularVelocity)
         sys.stdout.flush()
+
+    def Stop(self):
+
+        # Disconnect the PyBullet server (also close the GUI)
+        pyb.disconnect()
