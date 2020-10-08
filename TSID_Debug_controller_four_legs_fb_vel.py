@@ -138,8 +138,8 @@ class controller:
         self.t = 0.0
 
         # Gains of the PD+
-        self.P = 2.0  # 3.0
-        self.D = 0.1 * np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+        self.P = 0.0 * np.ones(12)  # 3.0
+        self.D = 0*0.01 * np.ones(12) # 0.0 * np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
 
         ########################################################################
         #             Definition of the Model and TSID problem                 #

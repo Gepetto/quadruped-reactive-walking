@@ -200,13 +200,13 @@ class Controller:
                                 self.myController, self.enable_hybrid_control, self.enable_gepetto_viewer)
 
             # Quantities sent to the control board
-            self.result.P = 2.0 * np.ones(12)
-            self.result.D = 0.1 * \
-                np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
-                          1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+            self.result.P = 2.6 * np.ones(12)
+            self.result.D = 0.02 * np.ones(12) #* \
+            #np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
+            # 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
             self.result.q_des[:] = self.myController.qdes[7:]
             self.result.v_des[:] = self.myController.vdes[6:, 0]
-            # self.result.tau_ff[:] = self.myController.tau_ff
+            self.result.tau_ff[:] = 0.65 * self.myController.tau_ff
 
             # Process PD+ (feedforward torques and feedback torques)
             self.jointTorques[:, 0] = proc.process_pdp(self.myController, self.estimator)
@@ -216,7 +216,7 @@ class Controller:
 
             # Quantities sent to the control board
             self.result.P = np.zeros(12)
-            self.result.D = 0.05 * np.ones(12)
+            self.result.D = 0.1 * np.ones(12)
             self.result.q_des[:] = np.zeros(12)
             self.result.v_des[:] = np.zeros(12)
             self.result.tau_ff[:] = np.zeros(12)
@@ -271,7 +271,7 @@ class Controller:
             device.SetKd(self.result.D)
             device.SetQdes(self.result.q_des)
             device.SetVdes(self.result.v_des)
-            device.SetTauFF(self.result.tau_ff)
+            # device.SetTauFF(self.result.tau_ff)
 
             device.SendCommand(WaitEndOfCycle=True)
 
