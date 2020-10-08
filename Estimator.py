@@ -21,7 +21,7 @@ class Estimator:
         self.fc = 500
 
         # Filter coefficient (0 < alpha < 1)
-        self.alpha = self.dt * self.fc
+        self.alpha = 0.97  # self.dt * self.fc
 
         # IMU data
         # Linear acceleration (gravity debiased)
@@ -64,6 +64,8 @@ class Estimator:
         self.log_filt_lin_vel_bis = np.zeros((3, N_simulation))
         self.rotated_FK = np.zeros((3, N_simulation))
 
+        self.contactStatus = np.zeros(4)
+
         self.k_log = 0
 
     def get_data_IMU(self, device):
@@ -96,6 +98,9 @@ class Estimator:
         Args:
             feet_status (4x0 numpy array): Current contact state of feet
         """
+
+        # Save contact status sent to the estimator for logging purpose
+        self.contactStatus[:] = feet_status
 
         # Update estimator FK model
         self.q_FK[7:, 0] = self.actuators_pos  # Position of actuators
