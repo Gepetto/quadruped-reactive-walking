@@ -772,20 +772,15 @@ class PyBulletSimulator():
 
         return
 
-    def SetKp(self, P):
+    def SetDesiredJointPDgains(self, P, D):
         self.P = P
-
-    def SetKd(self, D):
         self.D = D
 
-    def SetQdes(self, q_des):
+    def SetDesiredJointPosition(self, q_des):
         self.q_des = q_des
 
-    def SetVdes(self, v_des):
+    def SetDesiredJointVelocity(self, v_des):
         self.v_des = v_des
-
-    def SetTauFF(self, tau_ff):
-        self.tau_ff = tau_ff
 
     def SendCommand(self, WaitEndOfCycle=True):
 
