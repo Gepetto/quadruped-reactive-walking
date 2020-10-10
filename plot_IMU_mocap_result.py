@@ -3,6 +3,58 @@ import numpy as np
 from matplotlib import pyplot as plt
 import pinocchio as pin
 import tsid as tsid
+from IPython import embed
+
+
+# Transform between the base frame and the IMU frame
+_1Mi = pin.SE3(pin.Quaternion(np.array([[0.0, 0.0, 0.0, 1.0]]).transpose()),
+               np.array([0.1163, 0.0, 0.02]))
+
+
+def EulerToQuaternion(roll_pitch_yaw):
+    roll, pitch, yaw = roll_pitch_yaw
+    sr = np.sin(roll/2.)
+    cr = np.cos(roll/2.)
+    sp = np.sin(pitch/2.)
+    cp = np.cos(pitch/2.)
+    sy = np.sin(yaw/2.)
+    cy = np.cos(yaw/2.)
+    qx = sr * cp * cy - cr * sp * sy
+    qy = cr * sp * cy + sr * cp * sy
+    qz = cr * cp * sy - sr * sp * cy
+    qw = cr * cp * cy + sr * sp * sy
+    return [qx, qy, qz, qw]
+
+
+def quaternionToRPY(quat):
+    qx = quat[0]
+    qy = quat[1]
+    qz = quat[2]
+    qw = quat[3]
+
+    rotateXa0 = 2.0*(qy*qz + qw*qx)
+    rotateXa1 = qw*qw - qx*qx - qy*qy + qz*qz
+    rotateX = 0.0
+
+    if (rotateXa0 != 0.0) and (rotateXa1 != 0.0):
+        rotateX = np.arctan2(rotateXa0, rotateXa1)
+
+    rotateYa0 = -2.0*(qx*qz - qw*qy)
+    rotateY = 0.0
+    if (rotateYa0 >= 1.0):
+        rotateY = np.pi/2.0
+    elif (rotateYa0 <= -1.0):
+        rotateY = -np.pi/2.0
+    else:
+        rotateY = np.arcsin(rotateYa0)
+
+    rotateZa0 = 2.0*(qx*qy + qw*qz)
+    rotateZa1 = qw*qw + qx*qx - qy*qy - qz*qz
+    rotateZ = 0.0
+    if (rotateZa0 != 0.0) and (rotateZa1 != 0.0):
+        rotateZ = np.arctan2(rotateZa0, rotateZa1)
+
+    return np.array([[rotateX], [rotateY], [rotateZ]])
 
 
 def linearly_interpolate_nans(y):
@@ -53,23 +105,26 @@ def BaseVelocityFromKinAndIMU(contactFrameId, model, data, IMU_ang_vel):
     # Linear velocity of the foot wrt the base in the base frame
     _Fv1F = frameVelocity.linear
     # Level arm between the base and the foot
-    _1F = framePlacement.translation
+    _1F = np.array(framePlacement.translation)
     # Orientation of the foot wrt the base
     _1RF = framePlacement.rotation
     # Linear velocity of the base from wrt world in the base frame
-    _1v01 = cross3(_1F.ravel(), _1w01.ravel()) - \
-        (_1RF @ _Fv1F.reshape((3, 1)))
+    _1v01 = cross3(_1F.ravel(), _1w01.ravel()) - (_1RF @ _Fv1F.reshape((3, 1)))
 
-    return _1v01
+    # IMU and base frames have the same orientation
+    _iv0i = _1v01 + cross3(_1Mi.translation.ravel(), _1w01.ravel())
+
+    return _1v01, np.array(_iv0i)
 
 #########
 # START #
 #########
 
+
 on_solo8 = False
 
 # Load data file
-data = np.load("../data_2020_10_05_19_29.npz")
+data = np.load("data_2020_10_09_19_06.npz")
 
 # Store content of data in variables
 
@@ -91,7 +146,8 @@ for i in range(3):
 baseOrientation = data['baseOrientation']  # Orientation as quat
 baseLinearAcceleration = data['baseLinearAcceleration']  # Linear acceleration
 baseAngularVelocity = data['baseAngularVelocity']  # Angular Vel
-
+baseAccelerometer = data['baseAccelerometer']  # Acceleration with gravity vector
+print(baseAngularVelocity)
 # From actuators
 torquesFromCurrentMeasurment = data['torquesFromCurrentMeasurment']  # Torques
 q_mes = data['q_mes']  # Angular positions
@@ -99,7 +155,10 @@ v_mes = data['v_mes']  # Angular velocities
 
 # From estimator
 if data['estimatorVelocity'] is not None:
+    estimatorHeight = data['estimatorHeight']
     estimatorVelocity = data['estimatorVelocity']
+    contactStatus = data['contactStatus']
+    referenceVelocity = np.round(data['referenceVelocity'], 3)
 
 # Creating time vector
 Nlist = np.where(mocapPosition[:, 0] == 0.0)[0]
@@ -109,12 +168,13 @@ else:
     N = mocapPosition.shape[0]
 if N == 0:
     N = baseOrientation.shape[0]
+N = baseOrientation.shape[0]
 Tend = N * 0.001
 t = np.linspace(0, Tend, N+1, endpoint=True)
 t = t[:-1]
 
 # Parameters
-dt = 0.001
+dt = 0.002
 lwdth = 2
 
 ###############
@@ -142,13 +202,15 @@ plt.plot(t, imuRPY[:N, 1], "royalblue", linewidth=lwdth)
 plt.ylabel("Pitch")
 plt.xlabel("Time [s]")
 
+# embed()
+
 ###################
 # LINEAR VELOCITY #
 ###################
 mocapBaseLinearVelocity = np.zeros((N, 3))
 imuBaseLinearVelocity = np.zeros((N, 3))
 for i in range(N):
-    mocapBaseLinearVelocity[i, :] = ((mocapOrientationMat9[i, :, :]).transpose() @
+    mocapBaseLinearVelocity[i, :] = ((mocapOrientationMat9[i, :, :]) @
                                      (mocapVelocity[i:(i+1), :]).transpose()).ravel()
     if i == 0:
         imuBaseLinearVelocity[i, :] = mocapBaseLinearVelocity[0, :]
@@ -163,14 +225,16 @@ plt.plot(t, mocapBaseLinearVelocity[:N, 0], "darkorange", linewidth=lwdth)
 plt.plot(t, imuBaseLinearVelocity[:N, 0], "royalblue", linewidth=lwdth)
 if data['estimatorVelocity'] is not None:
     plt.plot(t, estimatorVelocity[:N, 0], "darkgreen", linewidth=lwdth)
+plt.plot(t, referenceVelocity[:N, 0], color="darkviolet", linewidth=lwdth)
 plt.ylabel("$\dot x$ [m/s]")
-plt.legend(["Mocap", "IMU", "Estimator"], prop={'size': 8})
+plt.legend(["Mocap", "IMU", "Estimator", "Reference"], prop={'size': 8})
 # Y linear velocity
 ax1 = plt.subplot(3, 1, 2, sharex=ax0)
 plt.plot(t, mocapBaseLinearVelocity[:N, 1], "darkorange", linewidth=lwdth)
 plt.plot(t, imuBaseLinearVelocity[:N, 1], "royalblue", linewidth=lwdth)
 if data['estimatorVelocity'] is not None:
     plt.plot(t, estimatorVelocity[:N, 1], "darkgreen", linewidth=lwdth)
+plt.plot(t, referenceVelocity[:N, 1], color="darkviolet", linewidth=lwdth)
 plt.ylabel("$\dot y$ [m/s]")
 # Z linear velocity
 ax1 = plt.subplot(3, 1, 3, sharex=ax0)
@@ -178,6 +242,7 @@ plt.plot(t, mocapBaseLinearVelocity[:N, 2], "darkorange", linewidth=lwdth)
 plt.plot(t, imuBaseLinearVelocity[:N, 2], "royalblue", linewidth=lwdth)
 if data['estimatorVelocity'] is not None:
     plt.plot(t, estimatorVelocity[:N, 2], "darkgreen", linewidth=lwdth)
+plt.plot(t, referenceVelocity[:N, 2], color="darkviolet", linewidth=lwdth)
 plt.ylabel("$\dot z$ [m/s]")
 plt.xlabel("Time [s]")
 
@@ -186,24 +251,28 @@ plt.xlabel("Time [s]")
 ######################
 mocapBaseAngularVelocity = np.zeros(mocapAngularVelocity.shape)
 for i in range(N):
-    mocapBaseAngularVelocity[i, :] = ((mocapOrientationMat9[i, :, :]).transpose() @
-                                      (mocapAngularVelocity[i:(i+1), :]).transpose()).ravel()
+    #mocapBaseAngularVelocity[i, :] = ((mocapOrientationMat9[i, :, :]) @ (mocapAngularVelocity[i:(i+1), :]).transpose()).ravel()
+    mocapBaseAngularVelocity[i, :] = (mocapAngularVelocity[i:(i+1), :]).transpose().ravel()
+
 fig = plt.figure()
 # Angular velocity X subplot
 ax0 = plt.subplot(3, 1, 1)
 plt.plot(t, mocapBaseAngularVelocity[:N, 0], "darkorange", linewidth=lwdth)
-plt.plot(t, baseAngularVelocity[:N, 0], "royalblue", linewidth=lwdth)
+plt.plot(t, baseAngularVelocity[:N, 0], "royalblue", linewidth=lwdth*2)
+plt.plot(t, referenceVelocity[:N, 3], color="darkviolet", linewidth=lwdth)
 plt.ylabel("$\dot \phi$ [rad/s]")
-plt.legend(["Mocap", "IMU"], prop={'size': 8})
+plt.legend(["Mocap", "IMU", "Reference"], prop={'size': 8})
 # Angular velocity Y subplot
 ax1 = plt.subplot(3, 1, 2, sharex=ax0)
 plt.plot(t, mocapBaseAngularVelocity[:N, 1], "darkorange", linewidth=lwdth)
 plt.plot(t, baseAngularVelocity[:N, 1], "royalblue", linewidth=lwdth)
+plt.plot(t, referenceVelocity[:N, 4], color="darkviolet", linewidth=lwdth)
 plt.ylabel("$\dot \\theta$ [rad/s]")
 # Angular velocity Z subplot
 ax2 = plt.subplot(3, 1, 3, sharex=ax0)
 plt.plot(t, mocapBaseAngularVelocity[:N, 2], "darkorange", linewidth=lwdth)
 plt.plot(t, baseAngularVelocity[:N, 2], "royalblue", linewidth=lwdth)
+plt.plot(t, referenceVelocity[:N, 5], color="darkviolet", linewidth=lwdth)
 plt.ylabel("$\dot \psi$ [rad/s]")
 plt.xlabel("Time [s]")
 
@@ -226,6 +295,35 @@ ax1 = plt.subplot(3, 1, 3, sharex=ax0)
 plt.plot(t, baseLinearAcceleration[:N, 2], "royalblue", linewidth=lwdth)
 plt.ylabel("$\ddot z$ [m/s^2]")
 plt.xlabel("Time [s]")
+
+####################
+# JOYSTICK CONTROL #
+####################
+
+fig = plt.figure()
+# X linear velocity
+ax0 = plt.subplot(3, 1, 1)
+plt.plot(t, mocapBaseLinearVelocity[:N, 0], "darkorange", linewidth=lwdth)
+if data['estimatorVelocity'] is not None:
+    plt.plot(t, estimatorVelocity[:N, 0], "darkgreen", linewidth=lwdth)
+plt.plot(t, referenceVelocity[:N, 0], color="darkviolet", linewidth=lwdth)
+plt.ylabel("$\dot x$ [m/s]")
+plt.legend(["Mocap", "Estimator", "Reference"], prop={'size': 8})
+# Y linear velocity
+ax1 = plt.subplot(3, 1, 2, sharex=ax0)
+plt.plot(t, mocapBaseLinearVelocity[:N, 1], "darkorange", linewidth=lwdth)
+if data['estimatorVelocity'] is not None:
+    plt.plot(t, estimatorVelocity[:N, 1], "darkgreen", linewidth=lwdth)
+plt.plot(t, referenceVelocity[:N, 1], color="darkviolet", linewidth=lwdth)
+plt.ylabel("$\dot y$ [m/s]")
+# Z linear velocity
+ax1 = plt.subplot(3, 1, 3, sharex=ax0)
+plt.plot(t, mocapBaseAngularVelocity[:N, 2], "darkorange", linewidth=lwdth)
+plt.plot(t, baseAngularVelocity[:N, 2], "royalblue", linewidth=lwdth)
+plt.plot(t, referenceVelocity[:N, 5], color="darkviolet", linewidth=lwdth)
+plt.ylabel("$\dot \psi$ [rad/s]")
+plt.xlabel("Time [s]")
+plt.suptitle("Tracking of the velocity command sent to the robot")
 
 #############
 # ACTUATORS #
@@ -318,6 +416,11 @@ if on_solo8:
 else:
     q_FK = np.zeros((19, 1))
 q_FK[:7, 0] = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+RPY = quaternionToRPY(baseOrientation.ravel())
+IMU_ang_pos = np.zeros(4)
+IMU_ang_pos[:] = EulerToQuaternion([RPY[0], RPY[1], 0.0])
+q_FK[3:7, 0] = IMU_ang_pos
+
 v_FK = np.zeros((q_FK.shape[0] - 1, 1))
 invdyn.computeProblemData(t0, q_FK, v_FK)
 data = invdyn.data()
@@ -333,14 +436,20 @@ filteredLinearVelocity = np.zeros((N, 3))
     print(a)
     print(model.frames[a])"""
 FK_lin_vel_log = np.nan * np.zeros((N, 3))
+iFK_lin_vel_log = np.nan * np.zeros((N, 3))
 rms_x = []
 rms_y = []
 rms_z = []
+irms_x = []
+irms_y = []
+irms_z = []
 alphas = [0.97]  # [0.01*i for i in range(100)]
 i_not_nan = np.where(np.logical_not(np.isnan(mocapBaseLinearVelocity[:, 0])))
 i_not_nan = (i_not_nan[0])[(i_not_nan[0] < 9600)]
 for alpha in alphas:
+    print(alpha)
     filteredLinearVelocity = np.zeros((N, 3))
+    ifilteredLinearVelocity = np.zeros((N, 3))
     for i in range(N):
         # Update estimator FK model
         q_FK[7:, 0] = q_mes[i, :]  # Position of actuators
@@ -351,40 +460,96 @@ for alpha in alphas:
         # Get estimated velocity from updated model
         cpt = 0
         vel_est = np.zeros((3, ))
-        for j in (np.where(contact_state[i, :] == 1))[0]:
-            vel_estimated_baseframe = BaseVelocityFromKinAndIMU(
+        ivel_est = np.zeros((3, ))
+        for j in (np.where(contactStatus[i, :] == 1))[0]:
+            vel_estimated_baseframe, _iv0i = BaseVelocityFromKinAndIMU(
                 indexes[j], model, data, baseAngularVelocity[i, :])
 
             cpt += 1
             vel_est += vel_estimated_baseframe[:, 0]
+            ivel_est = ivel_est + _iv0i.ravel()
         if cpt > 0:
             FK_lin_vel = vel_est / cpt  # average of all feet in contact
+            iFK_lin_vel = ivel_est / cpt
 
-            filteredLinearVelocity[i, :] = alpha * (filteredLinearVelocity[i-1, :] + baseLinearAcceleration[i, :] * dt) \
-                + (1 - alpha) * FK_lin_vel
+            filteredLinearVelocity[i, :] = alpha * (filteredLinearVelocity[i-1, :] +
+                                                    baseLinearAcceleration[i, :] * dt) + (1 - alpha) * FK_lin_vel
             FK_lin_vel_log[i, :] = FK_lin_vel
+
+            # Get previous base vel wrt world in base frame into IMU frame
+            i_filt_lin_vel = ifilteredLinearVelocity[i-1, :] + \
+                cross3(_1Mi.translation.ravel(), baseAngularVelocity[i, :]).ravel()
+
+            # Merge IMU base vel wrt world in IMU frame with FK base vel wrt world in IMU frame
+            i_merged_lin_vel = alpha * \
+                (i_filt_lin_vel + baseLinearAcceleration[i, :] * dt) + (1 - alpha) * iFK_lin_vel.ravel()
+            """print("##")
+            print(filteredLinearVelocity[i, :])
+            print(i_merged_lin_vel)"""
+            # Get merged base vel wrt world in IMU frame into base frame
+            ifilteredLinearVelocity[i, :] = np.array(
+                i_merged_lin_vel + cross3(-_1Mi.translation.ravel(), baseAngularVelocity[i, :]).ravel())
+            #print(ifilteredLinearVelocity[i, :])
+            """if np.array_equal(filteredLinearVelocity[i, :], ifilteredLinearVelocity[i, :]):
+                print("Same values")
+                
+            else:
+                print("Different")
+                print(filteredLinearVelocity[i, :])
+                print(ifilteredLinearVelocity[i, :])"""
+
         else:
-            filteredLinearVelocity[i, :] = filteredLinearVelocity[i -
-                                                                  1, :] + baseLinearAcceleration[i, :] * dt
+            filteredLinearVelocity[i, :] = filteredLinearVelocity[i - 1, :] + baseLinearAcceleration[i, :] * dt
+
+            # Get previous base vel wrt world in base frame into IMU frame
+            i_filt_lin_vel = ifilteredLinearVelocity[i-1, :] + \
+                cross3(_1Mi.translation.ravel(), baseAngularVelocity[i, :]).ravel()
+            # Merge IMU base vel wrt world in IMU frame with FK base vel wrt world in IMU frame
+            i_merged_lin_vel = i_filt_lin_vel + baseLinearAcceleration[i, :] * dt
+            # Get merged base vel wrt world in IMU frame into base frame
+            ifilteredLinearVelocity[i, :] = i_merged_lin_vel + \
+                cross3(-_1Mi.translation.ravel(), baseAngularVelocity[i, :]).ravel()
+
     rms_x.append(
         np.sqrt(np.mean(np.square(filteredLinearVelocity[i_not_nan, 0] - mocapBaseLinearVelocity[i_not_nan, 0]))))
     rms_y.append(
         np.sqrt(np.mean(np.square(filteredLinearVelocity[i_not_nan, 1] - mocapBaseLinearVelocity[i_not_nan, 1]))))
     rms_z.append(
         np.sqrt(np.mean(np.square(filteredLinearVelocity[i_not_nan, 2] - mocapBaseLinearVelocity[i_not_nan, 2]))))
+    irms_x.append(
+        np.sqrt(np.mean(np.square(ifilteredLinearVelocity[i_not_nan, 0] - mocapBaseLinearVelocity[i_not_nan, 0]))))
+    irms_y.append(
+        np.sqrt(np.mean(np.square(ifilteredLinearVelocity[i_not_nan, 1] - mocapBaseLinearVelocity[i_not_nan, 1]))))
+    irms_z.append(
+        np.sqrt(np.mean(np.square(ifilteredLinearVelocity[i_not_nan, 2] - mocapBaseLinearVelocity[i_not_nan, 2]))))
 
 plt.figure()
 plt.plot(alphas, rms_x)
 plt.plot(alphas, rms_y)
 plt.plot(alphas, rms_z)
-plt.legend(["RMS X", "RMS Y", "RMS Z"], prop={'size': 8})
+plt.plot(alphas, irms_x)
+plt.plot(alphas, irms_y)
+plt.plot(alphas, irms_z)
+plt.legend(["RMS X", "RMS Y", "RMS Z", "New RMS X", "New RMS Y", "New RMS Z"], prop={'size': 8})
 plt.xlabel("Alpha")
 plt.ylabel("RMS erreur en vitesse")
 
+fc = 10
+y = 1 - np.cos(2*np.pi*fc*dt)
+alpha_v = -y+np.sqrt(y*y+2*y)
+lowpass_ifilteredLinearVelocity = np.zeros(ifilteredLinearVelocity.shape)
+lowpass_ifilteredLinearVelocity[0, :] = ifilteredLinearVelocity[0, :]
+for k in range(1, N):
+    lowpass_ifilteredLinearVelocity[k, :] = (
+        1 - alpha_v) * lowpass_ifilteredLinearVelocity[k-1, :] + alpha_v * ifilteredLinearVelocity[k, :]
+
+
 plt.figure()
 plt.plot(t, filteredLinearVelocity[:N, 0], linewidth=3)
+plt.plot(t, ifilteredLinearVelocity[:N, 0], linewidth=3, linestyle="--")
 plt.plot(t, mocapBaseLinearVelocity[:N, 0], linewidth=3)
-plt.plot(t, FK_lin_vel_log[:N, 0], color="rebeccapurple", linestyle="--")
+plt.plot(t, lowpass_ifilteredLinearVelocity[:N, 0], color="darkviolet", linewidth=3)
+# plt.plot(t, FK_lin_vel_log[:N, 0], color="darkviolet", linestyle="--")
 """plt.plot(t, baseLinearAcceleration[:N, 0], linestyle="--")"""
-plt.legend(["Filtered", "Mocap", "FK"], prop={'size': 8})
+plt.legend(["Filtered", "New Filtered", "Mocap"], prop={'size': 8})
 plt.show()
