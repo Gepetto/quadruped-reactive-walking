@@ -32,11 +32,12 @@ class controller:
             on_solo8 (bool): if we are working on solo8 (True) or solo12 (False)
     """
 
-    def __init__(self, N_simulation, dt_tsid, k_mpc, n_periods, T_gait, on_solo8):
+    def __init__(self, q_init, N_simulation, dt_tsid, k_mpc, n_periods, T_gait, on_solo8):
 
-        self.q_ref = np.array([[0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0, 1.0,
+        self.q_ref = (np.hstack((np.array([0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0, 1.0]), q_init))).reshape((19, 1))
+        """np.array([[0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0, 1.0,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
-                                0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()
+                                0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()"""
 
         self.qtsid = self.q_ref.copy()
         self.vtsid = np.zeros((18, 1))
@@ -90,7 +91,7 @@ class controller:
         self.memory_contacts = self.shoulders.copy()
 
         # Foot trajectory generator
-        max_height_feet = 0.07
+        max_height_feet = 0.035
         t_lock_before_touchdown = 0.1
         self.ftgs = [ftg.Foot_trajectory_generator(max_height_feet, t_lock_before_touchdown) for i in range(4)]
 
@@ -511,6 +512,10 @@ class controller:
 
             # Update internal state of TSID for the current interation
             self.update_state(qtsid, vtsid)
+
+
+        """RPY_test = pin.rpy.matrixToRpy(pin.Quaternion(self.qtsid[3:7]).toRotationMatrix())
+        print("Orientation TSID: ", RPY_test)"""
 
         #####################
         # FOOTSTEPS PLANNER #
