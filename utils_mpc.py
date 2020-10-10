@@ -433,7 +433,7 @@ class pybullet_simulator:
         pyb.setGravity(0, 0, -9.81)
 
         # Load Quadruped robot
-        robotStartPos = [0, 0, 0.235+0.0045+0.2]
+        robotStartPos = [0, 0, 0.235+0.0045]  # +0.2]
         robotStartOrientation = pyb.getQuaternionFromEuler([0.0, 0.0, 0.0])  # -np.pi/2
         pyb.setAdditionalSearchPath("/opt/openrobots/share/example-robot-data/robots/solo_description/robots")
         self.robotId = pyb.loadURDF("solo12.urdf", robotStartPos, robotStartOrientation)
@@ -455,7 +455,7 @@ class pybullet_simulator:
                                       controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
 
         # Fix the base in the world frame
-        pyb.createConstraint(self.robotId, -1, -1, -1, pyb.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [0, 0, robotStartPos[2]])
+        # pyb.createConstraint(self.robotId, -1, -1, -1, pyb.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [0, 0, robotStartPos[2]])
 
         # Set time step for the simulation
         pyb.setTimeStep(dt)
@@ -687,6 +687,10 @@ class Hardware():
 
         self.is_timeout = False
 
+        self.roll = 0.0
+        self.pitch = 0.0
+        self.yaw = 0.0
+
     def IsTimeout(self):
 
         return self.is_timeout
@@ -694,6 +698,14 @@ class Hardware():
     def Stop(self):
 
         return 0
+
+    def imu_data_attitude(self, i):
+        if i == 0:
+            return self.roll
+        elif i == 1:
+            return self.pitch
+        elif i == 2:
+            return self.yaw
 
 
 class PyBulletSimulator():
@@ -713,6 +725,7 @@ class PyBulletSimulator():
         self.baseAngularVelocity = np.zeros(3)
         self.baseOrientation = np.zeros(4)
         self.baseLinearAcceleration = np.zeros(3)
+        self.baseAccelerometer = np.zeros(3)
         self.prev_b_baseVel = np.zeros(3)
 
         # PD+ quantities
@@ -752,6 +765,10 @@ class PyBulletSimulator():
 
         # Orientation of the base (quaternion)
         self.baseOrientation[:] = np.array(self.baseState[1])
+        RPY = quaternionToRPY(self.baseOrientation)
+        self.hardware.roll = RPY[0]
+        self.hardware.pitch = RPY[1]
+        self.hardware.yaw = RPY[2]
         self.rot_oMb = pin.Quaternion(np.array([self.baseState[1]]).transpose()).toRotationMatrix()
         self.oMb = pin.SE3(self.rot_oMb, np.array([self.dummyHeight]).transpose())
 
@@ -762,6 +779,8 @@ class PyBulletSimulator():
         self.b_baseVel = (self.oMb.rotation.transpose() @ np.array([self.baseVel[0]]).transpose()).ravel()
         self.baseLinearAcceleration[:] = (self.b_baseVel.ravel() - self.prev_b_baseVel) / self.dt
         self.prev_b_baseVel[:] = self.b_baseVel.ravel()
+        self.baseAccelerometer[:] = self.baseLinearAcceleration[:] + \
+                                (self.oMb.rotation.transpose() @ np.array([[0.0], [0.0], [-9.81]])).ravel()
 
         return
 
