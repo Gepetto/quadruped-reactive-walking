@@ -18,9 +18,11 @@ class Estimator:
         self.dt = dt
 
         # Cut frequency (fc should be < than 1/dt)
-        self.fc = 500
+        fc = 10
+        y = 1 - np.cos(2*np.pi*fc*dt)
+        self.alpha_v = -y+np.sqrt(y*y+2*y)
 
-        # Filter coefficient (0 < alpha < 1)
+        # Filter coefficient (0 < alpha < 1) for IMU with FK
         self.alpha = 0.97  # self.dt * self.fc
 
         # IMU data
@@ -53,6 +55,10 @@ class Estimator:
         self.actuators_pos = np.zeros((12, ))
         self.actuators_vel = np.zeros((12, ))
 
+        # Transform between the base frame and the IMU frame
+        self._1Mi = pin.SE3(pin.Quaternion(np.array([[0.0, 0.0, 0.0, 1.0]]).transpose()),
+                        np.array([0.1163, 0.0, 0.02]))
+        
         # Logging
         self.log_v_truth = np.zeros((3, N_simulation))
         self.log_v_est = np.zeros((3, 4, N_simulation))
@@ -79,7 +85,10 @@ class Estimator:
         self.IMU_ang_vel[:] = device.baseAngularVelocity
 
         # Angular position of the trunk (PyBullet local frame)
-        self.IMU_ang_pos[:] = device.baseOrientation
+        RPY = self.quaternionToRPY(device.baseOrientation)
+        self.IMU_ang_pos[:] = self.EulerToQuaternion([RPY[0],
+                                                      RPY[1],
+                                                      0.0])
 
         return 0
 
@@ -135,7 +144,7 @@ class Estimator:
 
         return 0
 
-    def run_filter(self, k, feet_status, device, data=None, model=None):
+    def run_filter(self, k, feet_status, device, data=None, model=None, joystick=None):
         """Run the complementary filter to get the filtered quantities
 
         Args:
@@ -170,8 +179,17 @@ class Estimator:
 
         # Linear velocity of the trunk (PyBullet base frame)
         if k > 0:
-            self.filt_lin_vel[:] = self.alpha * (self.filt_lin_vel[:] + self.IMU_lin_acc * self.dt) \
-                + (1 - self.alpha) * self.FK_lin_vel
+            # Get previous base vel wrt world in base frame into IMU frame
+            i_filt_lin_vel = self.filt_lin_vel[:] + self.cross3(self._1Mi.translation.ravel(), self.IMU_ang_vel).ravel()
+    
+            # Merge IMU base vel wrt world in IMU frame with FK base vel wrt world in IMU frame
+            i_merged_lin_vel = self.alpha * (i_filt_lin_vel + self.IMU_lin_acc * self.dt) + (1 - self.alpha) * self.FK_lin_vel
+    
+            # Get merged base vel wrt world in IMU frame into base frame
+            self.filt_lin_vel[:] = i_merged_lin_vel + self.cross3(-self._1Mi.translation.ravel(), self.IMU_ang_vel).ravel()
+
+            #self.filt_lin_vel[:] = self.alpha * (self.filt_lin_vel[:] + self.IMU_lin_acc * self.dt) \
+            #    + (1 - self.alpha) * self.FK_lin_vel
 
         self.log_filt_lin_vel[:, self.k_log] = self.filt_lin_vel[:]
         """beta = 475 / 500
@@ -193,7 +211,9 @@ class Estimator:
         self.q_filt[3:7, 0] = self.filt_ang_pos
         self.q_filt[7:, 0] = self.actuators_pos
 
-        self.v_filt[0:3, 0] = self.filt_lin_vel
+        # self.v_filt[0:3, 0] = self.filt_lin_vel
+        self.v_filt[0:3, 0] = (1 - self.alpha_v) * self.v_filt[0:3, 0] + self.alpha_v * self.filt_lin_vel
+
         self.v_filt[3:6, 0] = self.filt_ang_vel
         self.v_filt[6:, 0] = self.actuators_vel
 
@@ -217,25 +237,72 @@ class Estimator:
         Args:
             contactFrameId (int): ID of the contact point frame (foot frame)
         """
-
+        
         frameVelocity = pin.getFrameVelocity(self.model, self.data, contactFrameId, pin.ReferenceFrame.LOCAL)
         framePlacement = pin.updateFramePlacement(self.model, self.data, contactFrameId)
         # print("Foot ", contactFrameId, " | ", framePlacement.translation)
 
         # Angular velocity of the base wrt the world in the base frame (Gyroscope)
         _1w01 = self.IMU_ang_vel.reshape((3, 1))
-        # Linear velocity of the foot wrt the base in the base frame
+        # Linear velocity of the foot wrt the base in the foot frame
         _Fv1F = frameVelocity.linear
         # Level arm between the base and the foot
         _1F = np.array(framePlacement.translation)
         # Orientation of the foot wrt the base
         _1RF = framePlacement.rotation
-        # Linear velocity of the base from wrt world in the base frame
+        # Linear velocity of the base wrt world in the base frame
         # print(_1F.ravel())
         # print(_1w01.ravel())
         _1v01 = self.cross3(_1F.ravel(), _1w01.ravel()) - (_1RF @ _Fv1F.reshape((3, 1)))
 
-        return np.array(_1v01), (-framePlacement.translation[2])
+        # IMU and base frames have the same orientation
+        _iv0i = _1v01 + self.cross3(self._1Mi.translation.ravel(), _1w01.ravel())
+        
+        return np.array(_iv0i), (-framePlacement.translation[2])
+
+    def EulerToQuaternion(self, roll_pitch_yaw):
+        roll, pitch, yaw = roll_pitch_yaw
+        sr = np.sin(roll/2.)
+        cr = np.cos(roll/2.)
+        sp = np.sin(pitch/2.)
+        cp = np.cos(pitch/2.)
+        sy = np.sin(yaw/2.)
+        cy = np.cos(yaw/2.)
+        qx = sr * cp * cy - cr * sp * sy
+        qy = cr * sp * cy + sr * cp * sy
+        qz = cr * cp * sy - sr * sp * cy
+        qw = cr * cp * cy + sr * sp * sy
+        return [qx, qy, qz, qw]
+
+    def quaternionToRPY(self, quat):
+        qx = quat[0]
+        qy = quat[1]
+        qz = quat[2]
+        qw = quat[3]
+
+        rotateXa0 = 2.0*(qy*qz + qw*qx)
+        rotateXa1 = qw*qw - qx*qx - qy*qy + qz*qz
+        rotateX = 0.0
+
+        if (rotateXa0 != 0.0) and (rotateXa1 != 0.0):
+            rotateX = np.arctan2(rotateXa0, rotateXa1)
+
+        rotateYa0 = -2.0*(qx*qz - qw*qy)
+        rotateY = 0.0
+        if (rotateYa0 >= 1.0):
+            rotateY = np.pi/2.0
+        elif (rotateYa0 <= -1.0):
+            rotateY = -np.pi/2.0
+        else:
+            rotateY = np.arcsin(rotateYa0)
+
+        rotateZa0 = 2.0*(qx*qy + qw*qz)
+        rotateZa1 = qw*qw + qx*qx - qy*qy - qz*qz
+        rotateZ = 0.0
+        if (rotateZa0 != 0.0) and (rotateZa1 != 0.0):
+            rotateZ = np.arctan2(rotateZa0, rotateZa1)
+
+        return np.array([[rotateX], [rotateY], [rotateZ]])
 
     def plot_graphs(self):
 
