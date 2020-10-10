@@ -13,8 +13,8 @@ from mpctsid.Estimator import Estimator
 from mpctsid.Controller import Controller
 from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
 
-SIMULATION = True
-LOGGING = False
+SIMULATION = False
+LOGGING = True
 
 if SIMULATION:
     from mpctsid.utils_mpc import PyBulletSimulator
@@ -95,15 +95,15 @@ def mcapi_playback(name_interface):
     k_mpc = int(dt_mpc / dt_tsid)  # dt is dt_tsid, defined in the TSID controller script
     t = 0.0  # Time
     n_periods = 1  # Number of periods in the prediction horizon
-    T_gait = 0.64  # Duration of one gait period
-    N_SIMULATION = 50000  # number of simulated TSID time steps
+    T_gait = 0.32  # Duration of one gait period
+    N_SIMULATION = 15000  # number of simulated TSID time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
     type_MPC = True
 
     # Whether PyBullet feedback is enabled or not
-    pyb_feedback = False
+    pyb_feedback = True
 
     # Whether we are working with solo8 or not
     on_solo8 = False
@@ -118,7 +118,7 @@ def mcapi_playback(name_interface):
     enable_pyb_GUI = True
 
     # Default position after calibration
-    q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6])
+    q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, +1.6, 0, -0.8, +1.6])
 
     # Run a scenario and retrieve data thanks to the logger
     controller = Controller(q_init, envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
@@ -160,18 +160,27 @@ def mcapi_playback(name_interface):
         # Desired torques
         tau = controller.compute(device)
         # print(tau[0:3].ravel())
-        tau = tau.ravel()
+        # tau = tau.ravel()
 
-        # Set desired torques for the actuators
-        device.SetKp(controller.result.P)
-        device.SetKd(controller.result.D)
-        device.SetQdes(controller.result.q_des)
-        device.SetVdes(controller.result.v_des)
-        device.SetTauFF(controller.result.tau_ff)
+        """RPY_test = pin.rpy.matrixToRpy(pin.Quaternion(np.array([device.baseOrientation]).transpose()).toRotationMatrix())
+        print("Orientation robot: ", RPY_test)"""
+
+        # Check that the initial position of actuators is not too far from the
+        # desired position of actuators to avoid breaking the robot
+        if (t == 0.0):
+            if np.max(np.abs(controller.result.q_des - device.q_mes)) > 0.15:
+                print("DIFFERNECE: ", controller.result.q_des - device.q_mes)
+                break
+
+        # Set desired quantities for the actuators
+        device.SetDesiredJointPDgains(controller.result.P, controller.result.D)
+        device.SetDesiredJointPosition(controller.result.q_des)
+        device.SetDesiredJointVelocity(controller.result.v_des)
+        #device.SetDesiredJointTorque(controller.result.tau_ff.ravel())
 
         # Call logger
         if LOGGING:
-            logger.sample(device, qualisys=qc)
+            logger.sample(device, qualisys=qc, estimator=controller.estimator)
 
         # Send command to the robot
         device.SendCommand(WaitEndOfCycle=True)
@@ -186,6 +195,28 @@ def mcapi_playback(name_interface):
     if controller.enable_multiprocessing:
         print("Stopping parallel process")
         controller.mpc_wrapper.stop_parallel_loop()
+
+    # DAMPING TO GET ON THE GROUND PROGRESSIVELY *********************
+    t = 0.0
+    t_max = 2.5
+    while ((not device.hardware.IsTimeout()) and (t < t_max)):
+
+        device.UpdateMeasurment()  # Retrieve data from IMU and Motion capture
+
+        # Set desired quantities for the actuators
+        device.SetDesiredJointPDgains(np.zeros(12), 0.1 * np.ones(12))
+        device.SetDesiredJointPosition(np.zeros(12))
+        device.SetDesiredJointVelocity(np.zeros(12))
+        device.SetDesiredJointTorque(np.zeros(12))
+
+        # Send command to the robot
+        device.SendCommand(WaitEndOfCycle=True)
+        if ((device.cpt % 1000) == 0):
+            device.Print()
+
+        t += DT
+
+    # FINAL SHUTDOWN *************************************************
 
     # Whatever happened we send 0 torques to the motors.
     device.SetDesiredJointTorque([0]*nb_motors)
