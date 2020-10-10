@@ -21,11 +21,22 @@ class Result:
         self.tau_ff = np.zeros(12)
 
 
-class dummyDevice:
+class dummyHardware:
 
     def __init__(self):
 
         pass
+
+    def imu_data_attitude(self, i):
+
+        return 0.0
+
+
+class dummyDevice:
+
+    def __init__(self):
+
+        self.hardware = dummyHardware()
 
 
 class Controller:
@@ -111,7 +122,7 @@ class Controller:
         ########################################################################
 
         # Define the default controller
-        self.myController = controller(int(N_SIMULATION), dt_tsid, k_mpc, n_periods, T_gait, on_solo8)
+        self.myController = controller(q_init, int(N_SIMULATION), dt_tsid, k_mpc, n_periods, T_gait, on_solo8)
 
         self.envID = envID
         self.velID = velID
@@ -156,7 +167,7 @@ class Controller:
         # Process state estimator
         if self.k == 1:
             self.estimator.run_filter(self.k, self.fstep_planner.gait[0, 1:], device,
-                                      self.myController.invdyn.data(), self.myController.model)
+                                      self.myController.invdyn.data(), self.myController.model, self.joystick.v_ref)
         else:
             self.estimator.run_filter(self.k, self.fstep_planner.gait[0, 1:], device)
 
@@ -200,13 +211,13 @@ class Controller:
                                 self.myController, self.enable_hybrid_control, self.enable_gepetto_viewer)
 
             # Quantities sent to the control board
-            self.result.P = 2.6 * np.ones(12)
-            self.result.D = 0.02 * np.ones(12) #* \
+            self.result.P = 3.0 * np.ones(12)
+            self.result.D = 0.2 * np.ones(12) #* \
             #np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
             # 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
             self.result.q_des[:] = self.myController.qdes[7:]
             self.result.v_des[:] = self.myController.vdes[6:, 0]
-            self.result.tau_ff[:] = 0.65 * self.myController.tau_ff
+            self.result.tau_ff[:] = self.myController.tau_ff
 
             # Process PD+ (feedforward torques and feedback torques)
             self.jointTorques[:, 0] = proc.process_pdp(self.myController, self.estimator)
@@ -230,6 +241,9 @@ class Controller:
         self.t_list_mpc[self.k] = t_mpc - t_fsteps
         self.t_list_tsid[self.k] = t_tsid - t_mpc
         self.t_list_loop[self.k] = time.time() - time_loop"""
+
+        if self.joystick is not None:
+            self.estimator.v_ref = self.joystick.v_ref
 
         # Increment loop counter
         self.k += 1
