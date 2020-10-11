@@ -762,6 +762,7 @@ class PyBulletSimulator():
 
         # Linear and angular velocity of the trunk (PyBullet world frame)
         self.baseVel = pyb.getBaseVelocity(self.pyb_sim.robotId)
+        print("baseVel: ", np.array([self.baseVel[0]]))
 
         # Orientation of the base (quaternion)
         self.baseOrientation[:] = np.array(self.baseState[1])
@@ -808,6 +809,8 @@ class PyBulletSimulator():
 
         # Save desired torques in a storage array
         self.jointTorques = tau_pd + self.tau_ff
+
+        # print("FF+PD: ", self.jointTorques.ravel())
 
         # Set control torque for all joints
         pyb.setJointMotorControlArray(self.pyb_sim.robotId, self.pyb_sim.revoluteJointIndices,

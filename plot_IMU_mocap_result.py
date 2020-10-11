@@ -124,7 +124,7 @@ def BaseVelocityFromKinAndIMU(contactFrameId, model, data, IMU_ang_vel):
 on_solo8 = False
 
 # Load data file
-data = np.load("data_2020_10_09_19_06.npz")
+data = np.load("data_2020_10_11_11_06.npz")
 
 # Store content of data in variables
 

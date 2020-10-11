@@ -20,71 +20,96 @@ def process_states(solo, k, k_mpc, velID, interface, joystick, tsid_controller, 
         pyb_feedback (bool): Whether PyBullet feedback is enabled or not
     """
 
+    ###############
+    # PROCESS MPC #
+    ###############
+
+    mpc_feedback_orientation = False
+    mpc_feedback_velocity = False
+
     if k != 0:
-        # Retrieve data from the simulation (position/orientation/velocity of the robot)
-        # Stored in loop_controller.qmes12 and loop_controller.vmes12 (quantities in PyBullet world frame)
-        # loop_controller.retrieve_pyb_data()
-        """estimator.log_v_truth[:, estimator.k_log] = estimator.b_baseVel.ravel()
-        loop_controller.qmes12[0:3, 0] = estimator.cheat_lin_pos
-        loop_controller.qmes12[3:7, 0] = estimator.quat_oMb
-        loop_controller.vmes12[0:3, 0] = (estimator.oMb.rotation @ np.array(
-            [estimator.filt_lin_vel]).transpose()).ravel()
-        loop_controller.vmes12[3:6, 0] = (estimator.oMb.rotation @ np.array(
-            [estimator.filt_ang_vel]).transpose()).ravel()"""
 
-        # Retrieve state desired by TSID (position/orientation/velocity of the robot)
-        tsid_controller.qtsid[:, 0] = tsid_controller.qdes.copy()  # in TSID world frame
-        tsid_controller.vtsid[:, 0:1] = tsid_controller.vdes.copy()  # in robot base frame
+        # Height of the robot for the MPC
+        interface.qmpc[2, 0] = tsid_controller.qdes[2]
 
-        # Take into account vertical drift in TSID world
-        # tsid_controller.qtsid[2, 0] -= interface.offset_z
+        # Positions and velocities of actuators
+        interface.qmpc[7:, 0] = tsid_controller.qdes[7:]  # in TSID world frame
+        interface.vmpc[6:, 0:1] = tsid_controller.vdes[6:, 0:1]  # in robot base frame
 
-        # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
-        if pyb_feedback:
-            # Orientation is roll/pitch of PyBullet and Yaw of TSID
-            interface.RPY_pyb = pin.rpy.matrixToRpy(pin.Quaternion(estimator.q_filt[3:7]).toRotationMatrix())
-            interface.RPY_tsid = pin.rpy.matrixToRpy(pin.Quaternion(tsid_controller.qtsid[3:7]).toRotationMatrix())
-            tsid_controller.qtsid[3:7, 0:1] = np.array([pyb.getQuaternionFromEuler(np.array([interface.RPY_pyb[0],
-                                                                                             interface.RPY_pyb[1],
-                                                                                             interface.RPY_tsid[2]]))]
-                                                       ).transpose()
+        # Orientation feedback from the real robot to the MPC
+        if mpc_feedback_orientation:
+            # Roll and Pitch from the estimator
+            RPY_pyb = pin.rpy.matrixToRpy(pin.Quaternion(estimator.q_filt[3:7]).toRotationMatrix())
+            interface.qmpc[3:7, 0] = np.array(pyb.getQuaternionFromEuler(np.array([RPY_pyb[0], RPY_pyb[1], 0.0])))
+        else:
+            # Roll and Pitch from TSID
+            RPY_tsid = pin.rpy.matrixToRpy(pin.Quaternion((tsid_controller.qdes[3:7]).reshape(4, 1)).toRotationMatrix())
+            interface.qmpc[3:7, 0] = np.array(pyb.getQuaternionFromEuler(np.array([RPY_tsid[0], RPY_tsid[1], 0.0])))
 
-        # Transform from TSID world frame to robot base frame (just rotation part)
-        interface.oMb_tsid = pin.SE3(pin.Quaternion(tsid_controller.qtsid[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
+        # Velocity feedback from the real robot to the MPC
+        if mpc_feedback_velocity:
+            # Linear/angular velocity from the estimator
+            interface.vmpc[0:6, 0:1] = estimator.v_filt[0:6, 0:1].copy()
+        else:
+            # Linear/angular velocity from TSID
+            interface.vmpc[0:6, 0:1] = tsid_controller.vdes[0:6, 0:1].copy()
 
-        # If PyBullet feedback is enabled, we want to mix PyBullet data into TSID desired state
-        if pyb_feedback:
+        # Update data using the state of the MPC
+        interface.update_mpc(solo, interface.qmpc, interface.vmpc)
 
-            # Linear/angular velocity taken from PyBullet (in PyBullet world frame)
-            tsid_controller.vtsid[0:6, 0:1] = estimator.v_filt[0:6, 0:1].copy()
+    ################
+    # PROCESS TSID #
+    ################
 
-            # Transform from PyBullet world frame to robot base frame (just rotation part)
-            interface.oMb_pyb = pin.SE3(pin.Quaternion(estimator.q_filt[3:7, 0:1]), np.array([0.0, 0.0, 0.0]))
+    tsid_feedback_orientation = False
+    tsid_feedback_velocity = False
 
-            # Get linear and angular velocities from PyBullet world frame to robot base frame
-            tsid_controller.vtsid[0:3, 0:1] = interface.oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[0:3, 0:1]
-            tsid_controller.vtsid[3:6, 0:1] = interface.oMb_pyb.rotation.transpose() @ tsid_controller.vtsid[3:6, 0:1]
+    if k != 0:
 
-    # Algorithm needs the velocity of the robot in world frame
-    if k == 0:
-        # Retrieve data from the simulation (position/orientation/velocity of the robot)
-        # pyb_sim.retrieve_pyb_data()
-        # pyb_sim.qmes12[2, 0] = 0.2027682
+        # State of the robot for TSID
+        interface.qtsid[:, 0] = tsid_controller.qdes.copy()  # in TSID world frame
+        interface.vtsid[:, 0:1] = tsid_controller.vdes.copy()  # in robot base frame
 
-        # Update the interface that makes the interface between the simulation and the MPC/TSID
-        interface.update(solo, estimator.q_filt, estimator.v_filt)
+        # Orientation feedback from the real robot to TSID
+        if tsid_feedback_orientation:
+
+            # Roll and Pitch from the estimator
+            RPY_pyb = pin.rpy.matrixToRpy(pin.Quaternion(estimator.q_filt[3:7]).toRotationMatrix())
+            RPY_tsid = pin.rpy.matrixToRpy(pin.Quaternion(interface.qtsid[3:7]).toRotationMatrix())
+            interface.qtsid[3:7, 0] = np.array(pyb.getQuaternionFromEuler(
+                np.array([RPY_pyb[0], RPY_pyb[1], RPY_tsid[2]])))
+
+        # Velocity feedback from the real robot to the MPC
+        if tsid_feedback_velocity:
+
+            # Linear/angular velocity from the estimator
+            interface.vtsid[0:6, 0:1] = estimator.v_filt[0:6, 0:1].copy()
+
+        # Update data using the state of TSID
+        interface.update_tsid(solo, interface.qtsid, interface.vtsid)
+
+        print("###")
+        print("TSID vdes: ", tsid_controller.vdes[0:6, 0:1].ravel())
+        print("TSID vtsid:", interface.vtsid[0:6, 0:1].ravel())
+        print("MPC vmpc:  ", interface.vmpc[0:6, 0:1].ravel())
+        print("Est vfilt: ", estimator.v_filt[0:6, 0])
 
     else:
-        # To update the interface we need the position/velocity in TSID world frame
-        # qtsid is already in TSID world frame
-        # vtsid is in robot base frame, need to get it into TSID world frame
-        tsid_controller.qtsid_w = tsid_controller.qtsid.copy()
-        tsid_controller.vtsid_w = tsid_controller.vtsid.copy()
-        tsid_controller.vtsid_w[0:3, 0:1] = interface.oMb_tsid.rotation @ tsid_controller.vtsid_w[0:3, 0:1]
-        tsid_controller.vtsid_w[3:6, 0:1] = interface.oMb_tsid.rotation @ tsid_controller.vtsid_w[3:6, 0:1]
 
-        # Update the interface that makes the interface between the simulation and the MPC/TSID
-        interface.update(solo, tsid_controller.qtsid_w, tsid_controller.vtsid_w)
+        # Starting values are those of the estimator
+        interface.qmpc = estimator.q_filt.copy()
+        interface.vmpc = estimator.v_filt.copy()
+        interface.qtsid = estimator.q_filt.copy()
+        interface.vtsid = estimator.v_filt.copy()
+
+        # Update data using the default state of the estimator
+        interface.update_mpc(solo, interface.qmpc, interface.vmpc)
+        interface.update_tsid(solo, interface.qtsid, interface.vtsid)
+
+    ##############################
+    # PROCESS REFERENCE VELOCITY #
+    ##############################
+
 
     # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
     if (k % k_mpc) == 0:
@@ -196,6 +221,9 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
                                interface.lV, interface.lW, joystick.v_ref, h_ref=0.2027682,
                                predefined=joystick.predefined)
 
+    print("X0:", fstep_planner.x0.ravel())
+    """print(fstep_planner.xref[:, 0:3].transpose())"""
+
     # if k > 2100:
     #    print(fstep_planner.xref)
 
@@ -232,20 +260,21 @@ def process_invdyn(solo, k, f_applied, estimator, interface, fstep_planner, myCo
 
     # TSID needs the velocity of the robot in base frame
     if not enable_hybrid_control:
-        estimator.v_filt[0:3, 0:1] = interface.oMb.rotation.transpose() @ estimator.v_filt[0:3, 0:1]
-        estimator.v_filt[3:6, 0:1] = interface.oMb.rotation.transpose() @ estimator.v_filt[3:6, 0:1]
+        print("CONTROL WITHOUT ENABLE HYBRID CONTROL NEEDS TO BE CHECKED")
+        # estimator.v_filt[0:3, 0:1] = interface.oMb.rotation.transpose() @ estimator.v_filt[0:3, 0:1]
+        # estimator.v_filt[3:6, 0:1] = interface.oMb.rotation.transpose() @ estimator.v_filt[3:6, 0:1]
 
     """pyb_sim.qmes12 = myController.qtsid.copy()
     pyb_sim.vmes12 = myController.vtsid.copy()"""
 
     # Initial conditions
     if k == 0:
-        myController.qtsid = estimator.q_filt.copy()
-        myController.vtsid = estimator.v_filt.copy()
+        myController.qtsid = interface.qtsid.copy()
+        myController.vtsid = interface.vtsid.copy()
 
     # Retrieve the joint torques from the current active controller
     if enable_hybrid_control:
-        myController.control(myController.qtsid, myController.vtsid, k, solo,
+        myController.control(interface.qtsid, interface.vtsid, k, solo,
                              interface, f_applied, fstep_planner.fsteps_invdyn,
                              fstep_planner.gait_invdyn,
                              enable_hybrid_control, enable_gepetto_viewer,

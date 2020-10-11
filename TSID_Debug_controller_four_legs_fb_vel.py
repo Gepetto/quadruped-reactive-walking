@@ -13,7 +13,7 @@ import numpy.matlib as matlib
 import tsid
 import FootTrajectoryGenerator as ftg
 import pybullet as pyb
-
+from IPython import embed
 ########################################################################
 #            Class for a PD with feed-forward Controller               #
 ########################################################################

@@ -211,13 +211,16 @@ class Controller:
                                 self.myController, self.enable_hybrid_control, self.enable_gepetto_viewer)
 
             # Quantities sent to the control board
-            self.result.P = 3.0 * np.ones(12)
-            self.result.D = 0.2 * np.ones(12) #* \
-            #np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
+            self.result.P = 4.0 * np.ones(12)
+            self.result.D = 0.2 * np.ones(12)  # * \
+            # np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
             # 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
             self.result.q_des[:] = self.myController.qdes[7:]
             self.result.v_des[:] = self.myController.vdes[6:, 0]
             self.result.tau_ff[:] = self.myController.tau_ff
+
+            # print("###")
+            # print("FF:    ", self.result.tau_ff)
 
             # Process PD+ (feedforward torques and feedback torques)
             self.jointTorques[:, 0] = proc.process_pdp(self.myController, self.estimator)

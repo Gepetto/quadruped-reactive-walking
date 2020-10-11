@@ -12,26 +12,31 @@ class Interface:
     def __init__(self):
 
         # Initialisation of matrices
-        self.oRb = np.eye(3)  # rotation matrix from the world frame to the base frame
-        self.vmes12_base = np.zeros((18, 1))  # pinocchio needs the linear and angular vel in base frame
-        self.oMb = pin.SE3.Identity()  # transform from world to base frame ("1")
+        # self.oRb = np.eye(3)  # rotation matrix from the world frame to the base frame
+        # self.vmes12_base = np.zeros((18, 1))  # pinocchio needs the linear and angular vel in base frame
+        #  = pin.SE3.Identity()  # transform from world to base frame ("1")
         self.oMl = pin.SE3.Identity()  #  transform from world to local frame ("L")
-        self.RPY = np.zeros((3, 1))  # roll, pitch, yaw of the base in world frame
-        self.oC = np.zeros((3, 1))  #  position of the CoM in world frame
-        self.oV = np.zeros((3, 1))  #  linear velocity of the CoM in world frame
-        self.oW = np.zeros((3, 1))  # angular velocity of the CoM in world frame
+        # self.RPY = np.zeros((3, 1))  # roll, pitch, yaw of the base in world frame
+        # self.oC = np.zeros((3, 1))  #  position of the CoM in world frame
+        # self.oV = np.zeros((3, 1))  #  linear velocity of the CoM in world frame
+        # self.oW = np.zeros((3, 1))  # angular velocity of the CoM in world frame
         self.lC = np.zeros((3, 1))  #  position of the CoM in local frame
         self.lV = np.zeros((3, 1))  #  linear velocity of the CoM in local frame
         self.lW = np.zeros((3, 1))  #  angular velocity of the CoM in local frame
-        self.lRb = np.eye(3)  # rotation matrix from the local frame to the base frame
+        # self.lRb = np.eye(3)  # rotation matrix from the local frame to the base frame
         self.abg = np.zeros((3, 1))  # roll, pitch, yaw of the base in local frame
         self.l_feet = np.zeros((3, 4))  # position of feet in local frame
         self.o_feet = np.zeros((3, 4))  # position of feet in world frame
-        self.lv_feet = np.zeros((3, 4))  # velocity of feet in local frame
+        # self.lv_feet = np.zeros((3, 4))  # velocity of feet in local frame
         self.ov_feet = np.zeros((3, 4))  # velocity of feet in world frame
-        self.la_feet = np.zeros((3, 4))  # acceleration of feet in local frame
+        # self.la_feet = np.zeros((3, 4))  # acceleration of feet in local frame
         self.oa_feet = np.zeros((3, 4))  # acceleration of feet in world frame
-        self.mot = np.zeros((12, 1))     # angular position of actuators
+        # self.mot = np.zeros((12, 1))     # angular position of actuators
+
+        self.qmpc = np.zeros((19, 1))
+        self.vmpc = np.zeros((18, 1))
+        self.qtsid = np.zeros((19, 1))
+        self.vtsid = np.zeros((18, 1))
 
         # Indexes of feet frames in this order: [FL, FR, HL, HR]
         self.indexes = [10, 18, 26, 34]
@@ -54,6 +59,14 @@ class Interface:
             vmes12 (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators
 
         """
+
+        ############
+        # MPC DATA #
+        ############
+
+        #############
+        # TSID DATA #
+        #############
 
         # Rotation matrix from the world frame to the base frame
         self.oRb = np.array(pin.Quaternion(qmes12[3:7]).matrix())
@@ -135,7 +148,66 @@ class Interface:
         self.abg[0:2, 0] = self.RPY[0:2]
 
         # Position of shoulders in world frame (NOT USED)
-        for i in range(4):
-           self.o_shoulders[:, i] = self.oMl * self.l_shoulders[:, i]
+        # for i in range(4):
+        #    self.o_shoulders[:, i] = self.oMl * self.l_shoulders[:, i]
+
+        return 0
+
+
+    def update_mpc(self, solo, q, v):
+        """Update the quantities of the Interface based on the last measurements from the simulation
+
+            Args:
+                solo (object): Pinocchio wrapper for the quadruped
+                q (19x1 array): the position/orientation of the trunk and angular position of actuators
+                v (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators (in base frame)
+
+        """
+
+        # Update Kinematics
+        pin.forwardKinematics(solo.model, solo.data, q, v)
+
+        # Get center of mass from Pinocchio
+        # pin.centerOfMass(solo.model, solo.data, q, v, False)
+
+        # Update position/orientation of frames
+        pin.updateFramePlacements(solo.model, solo.data)
+
+        # Position and linear velocity of the CoM in local frame (superposed to global frame)
+        self.lC[:, 0] = q[0:3, 0]  # solo.data.com[0]
+        self.lV[:, 0] = v[0:3, 0]  # solo.data.vcom[0]
+
+        # Orientation and angular velocity of the CoM in local frame (superposed to global frame)
+        # Local and base frame are supposed identical for the angular part
+        self.abg[:, 0] = pin.rpy.matrixToRpy(pin.Quaternion(q[3:7, 0:1]).toRotationMatrix())
+        self.lW[:, 0] = v[3:6, 0]
+
+        return 0
+
+
+    def update_tsid(self, solo, q, v):
+        """Update the quantities of the Interface based on the last measurements from the simulation
+
+            Args:
+                solo (object): Pinocchio wrapper for the quadruped
+                q (19x1 array): the position/orientation of the trunk and angular position of actuators
+                v (18x1 array): the linear/angular velocity of the trunk and angular velocity of actuators (in base frame)
+
+        """
+
+        # Update Kinematics
+        pin.forwardKinematics(solo.model, solo.data, q, v)
+
+        # Update position/orientation of frames
+        pin.updateFramePlacements(solo.model, solo.data)
+
+        # Get SE3 object from world frame to local frame
+        RPY_tsid = pin.rpy.matrixToRpy(pin.Quaternion(q[3:7, 0:1]).toRotationMatrix())
+        self.oMl = pin.SE3(pin.utils.rotate('z', RPY_tsid[2]), np.array([q[0, 0], q[1, 0], 0.0]))
+
+        # Position of feet
+        for i, j in enumerate(self.indexes):
+            self.o_feet[:, i] = solo.data.oMf[j].translation
+            self.l_feet[:, i] = self.oMl.inverse() * solo.data.oMf[j].translation
 
         return 0
