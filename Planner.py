@@ -5,6 +5,7 @@ import math
 import pinocchio as pin
 import tsid
 import utils_mpc
+import FootTrajectoryGenerator as ftg
 
 class Planner:
     """Planner that outputs current and future locations of footsteps, the reference trajectory of the base and
@@ -12,10 +13,13 @@ class Planner:
     the user and the current position/velocity of the base in TSID world
     """
 
-    def __init__(self, dt, n_periods, T_gait, on_solo8, h_ref):
+    def __init__(self, dt, dt_tsid, n_periods, T_gait, k_mpc, on_solo8, h_ref):
 
         # Time step of the contact sequence
         self.dt = dt
+
+        # Time step of TSID
+        self.dt_tsid = dt_tsid
 
         # Gait duration
         self.n_periods = n_periods
@@ -26,6 +30,9 @@ class Planner:
 
         # Reference velocity for the trunk
         self.h_ref = h_ref
+
+        # Number of TSID iterations for one iteration of the MPC
+        self.k_mpc = k_mpc
 
         # Feedback gain for the feedback term of the planner
         self.k_feedback = 0.03
@@ -68,6 +75,20 @@ class Planner:
 
         self.desired_gait = self.gait.copy()
         self.new_desired_gait = self.gait.copy()
+
+        # Foot trajectory generator
+        max_height_feet = 0.035
+        t_lock_before_touchdown = 0.1
+        self.ftgs = [ftg.Foot_trajectory_generator(max_height_feet, t_lock_before_touchdown) for i in range(4)]
+
+        # Variables for foot trajectory generator
+        self.i_end_gait = -1
+        self.t_swing = np.zeros((4, ))  # Total duration of current swing phase for each foot
+        self.footsteps_target = (self.shoulders[0:2, :]).copy()
+        self.goals = self.shoulders.copy()  # Store 3D target position for feet
+        self.vgoals = np.zeros((3, 4))  # Store 3D target velocity for feet
+        self.agoals = np.zeros((3, 4))  # Store 3D target acceleration for feet
+        self.mgoals = np.zeros((6, 4))  # Storage variable for the trajectory generator
 
     def create_static(self):
         """Create the matrices used to handle the gait and initialize them to keep the 4 feet in contact
@@ -231,6 +252,8 @@ class Planner:
                 # Get desired position of footstep compared to current position
                 next_ft = (np.dot(self.R[:, :, i-1], self.next_footstep) + q_tmp +
                            np.array([[dx[i-1]], [dy[i-1]], [0.0]])).ravel(order='F')
+                # next_ft = (self.next_footstep + q_tmp + np.array([[dx[i-1]], [dy[i-1]], [0.0]])).ravel(order='F')
+
                 # next_ft = (self.next_footstep).ravel(order='F')
 
                 # Assignement only to feet that have been in swing phase
@@ -253,6 +276,11 @@ class Planner:
             v_ref (6x1 array): desired velocity vector of the flying base in world frame (linear and angular stacked)
         """
 
+        c, s = math.cos(self.RPY[2, 0]), math.sin(self.RPY[2, 0])
+        R = np.array([[c, -s, 0], [s, c, 0], [0.0, 0.0, 0.0]])
+        b_v_cur = R.transpose() @ v_cur[0:3, 0:1]
+        b_v_ref = R.transpose() @ v_ref[0:3, 0:1]
+
         # TODO: Automatic detection of t_stance to handle arbitrary gaits
         t_stance = self.T_gait * 0.5
 
@@ -261,13 +289,13 @@ class Planner:
         # self.next_footstep = np.zeros((3, 4))
 
         # Add symmetry term
-        self.next_footstep[0:2, :] = t_stance * 0.5 * v_cur[0:2, 0:1]  # + q_cur[0:2, 0:1]
+        self.next_footstep[0:2, :] = t_stance * 0.5 * b_v_cur[0:2, 0:1]  # + q_cur[0:2, 0:1]
 
         # Add feedback term
-        self.next_footstep[0:2, :] += self.k_feedback * (v_cur[0:2, 0:1] - v_ref[0:2, 0:1])
+        self.next_footstep[0:2, :] += self.k_feedback * (b_v_cur[0:2, 0:1] - b_v_ref[0:2, 0:1])
 
         # Add centrifugal term
-        cross = self.cross3(np.array(v_cur[0:3, 0]), v_ref[3:6, 0])
+        cross = self.cross3(np.array(b_v_cur[0:3, 0]), v_ref[3:6, 0])
         # cross = np.cross(v_cur[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
 
         self.next_footstep[0:2, :] += 0.5 * math.sqrt(self.h_ref/self.g) * cross[0:2, 0:1]
@@ -289,24 +317,27 @@ class Planner:
 
     def run_planner(self, k, k_mpc, q, v, b_vref):
 
-        """if (k != 0):
-            k += 1"""
-
         # Get the reference velocity in world frame (given in base frame)
         self.RPY = utils_mpc.quaternionToRPY(q[3:7, 0])
-        c, s = np.cos(self.RPY[2, 0]), np.sin(self.RPY[2, 0])
+        c, s = math.cos(self.RPY[2, 0]), math.sin(self.RPY[2, 0])
         vref = b_vref.copy()
         vref[0:2, 0:1] = np.array([[c, -s], [s, c]]) @ b_vref[0:2, 0:1]
 
-        if (k != -1) and ((k % k_mpc) == 0):
+        if ((k % k_mpc) == 0):
             # Move one step further in the gait
             self.roll_experimental(k, k_mpc)
 
-        # Compute the desired location of footsteps over the prediction horizon
-        self.compute_footsteps(q, v, vref)
+            # Compute the desired location of footsteps over the prediction horizon
+            self.compute_footsteps(q, v, vref)
 
-        # Get the reference trajectory for the MPC
-        self.getRefStates(q, v, vref)
+            # Get the reference trajectory for the MPC
+            self.getRefStates(q, v, vref)
+
+            # Update desired location of footsteps on the ground
+            self.update_target_footsteps()
+
+        # Update trajectory generator (3D pos, vel, acc)
+        self.update_trajectory_generator(k)
 
         return 0
 
@@ -326,13 +357,22 @@ class Planner:
 
         # Update x and y velocities taking into account the rotation of the base over the prediction horizon
         dt_vector = np.linspace(self.dt, self.T_gait, self.n_steps)
-        yaw = dt_vector * vref[5, 0]
+        yaw = np.linspace(0, self.T_gait-self.dt, self.n_steps) * vref[5, 0]
+        # yaw = np.linspace(0, self.T_gait-self.dt, self.n_steps) * vref[5, 0]
         self.xref[6, 1:] = vref[0, 0] * np.cos(yaw) - vref[1, 0] * np.sin(yaw)
         self.xref[7, 1:] = vref[0, 0] * np.sin(yaw) + vref[1, 0] * np.cos(yaw)
 
         # Update x and y depending on x and y velocities (cumulative sum)
-        self.xref[0, 1:] = self.dt * np.cumsum(self.xref[6, 1:])
-        self.xref[1, 1:] = self.dt * np.cumsum(self.xref[7, 1:])
+        if vref[5, 0] != 0:
+            dx = (v[0, 0] * np.sin(vref[5, 0] * dt_vector) +
+                  v[1, 0] * (np.cos(vref[5, 0] * dt_vector) - 1)) / vref[5, 0]
+            dy = (v[1, 0] * np.sin(vref[5, 0] * dt_vector) -
+                  v[0, 0] * (np.cos(vref[5, 0] * dt_vector) - 1)) / vref[5, 0]
+        else:
+            dx = v[0, 0] * dt_vector
+            dy = v[1, 0] * dt_vector
+        self.xref[0, 1:] = dx  # dt_vector * self.xref[6, 1:]
+        self.xref[1, 1:] = dy  # dt_vector * self.xref[7, 1:]
 
         # Start from position of the CoM in local frame
         self.xref[0, 1:] += q[0, 0]
@@ -360,6 +400,108 @@ class Planner:
 
         return 0
 
+    def update_target_footsteps(self):
+        """ Update desired location of footsteps using information coming from the footsteps planner
+        """
+
+        self.footsteps_target = np.zeros((2, 4))
+
+        for i in range(4):
+            index = next((idx for idx, val in np.ndenumerate(
+                self.fsteps[:, 3*i+1]) if ((not (val == 0)) and (not np.isnan(val)))), [-1])[0]
+            self.footsteps_target[:, i] = self.fsteps[index, (1+i*3):(3+i*3)]
+
+        return 0
+
+    def update_trajectory_generator(self, k):
+        """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
+           to the desired position on the ground (computed by the footstep planner)
+
+        Args:
+            k (int): number of time steps since the start of the simulation
+        """
+
+        looping = int(self.n_periods*self.T_gait/self.dt_tsid)  # Number of TSID iterations in one gait cycle
+        k_loop = (k - 0) % looping  # Current number of iterations since the start of the current gait cycle
+
+        if ((k_loop % self.k_mpc) == 0):
+
+            # Indexes of feet in swing phase
+            self.feet = np.where(self.gait[0, 1:] == 0)[0]
+            if len(self.feet) == 0:  # If no foot in swing phase
+                return 0
+
+            # i_end_gait should point to the latest non-zero line
+            if (self.gait[self.i_end_gait, 0] == 0):
+                self.i_end_gait -= 1
+                while (self.gait[self.i_end_gait, 0] == 0):
+                    self.i_end_gait -= 1
+            else:
+                while (self.gait[self.i_end_gait+1, 0] != 0):
+                    self.i_end_gait += 1
+
+            self.t0s = []
+            for i in self.feet:  # For each foot in swing phase get remaining duration of the swing phase
+                # Index of the line containing the next stance phase
+                # index = next((idx for idx, val in np.ndenumerate(gait[:, 1+i]) if (((val == 1)))), [-1])[0]
+                # remaining_iterations = np.cumsum(gait[:index, 0])[-1] * self.k_mpc - ((k_loop+1) % self.k_mpc)
+
+                # Compute total duration of current swing phase
+                i_iter = 1
+                self.t_swing[i] = self.gait[0, 0]
+                while self.gait[i_iter, 1+i] == 0:
+                    self.t_swing[i] += self.gait[i_iter, 0]
+                    i_iter += 1
+
+                remaining_iterations = self.t_swing[i] * self.k_mpc - ((k_loop+1) % self.k_mpc)
+
+                i_iter = self.i_end_gait
+                while self.gait[i_iter, 1+i] == 0:
+                    self.t_swing[i] += self.gait[i_iter, 0]
+                    i_iter -= 1
+                self.t_swing[i] *= self.dt_tsid * self.k_mpc
+
+                # TODO: Fix that. We need to assess properly the duration of the swing phase even during the transition
+                # between two gaits (need to take into account past information)
+                self.t_swing[i] = self.T_gait * 0.5 - 0.02
+
+                self.t0s.append(
+                    np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt_tsid - self.dt_tsid, 0.0)), decimals=3))
+
+            # self.footsteps contains the target (x, y) positions for both feet in swing phase
+
+        else:
+            if len(self.feet) == 0:  # If no foot in swing phase
+                return 0
+
+            for i in range(len(self.feet)):
+                self.t0s[i] = np.round(np.max((self.t0s[i] + self.dt_tsid, 0.0)), decimals=3)
+
+        # Get position, velocity and acceleration commands for feet in swing phase
+        for i in range(len(self.feet)):
+            i_foot = self.feet[i]
+            if i_foot == 0:
+                deb= 1
+            # Get desired 3D position, velocity and acceleration
+            if self.t0s[i] == 0.000:
+                [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
+                    self.o_feet_contact[0+3*i_foot], 0.0, 0.0,
+                    self.o_feet_contact[1+3*i_foot], 0.0, 0.0,
+                    self.footsteps_target[0, i_foot], self.footsteps_target[1, i_foot], self.t0s[i],  self.t_swing[i_foot], self.dt_tsid)
+                self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
+            else:
+                [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
+                    self.mgoals[0, i_foot], self.mgoals[1, i_foot], self.mgoals[2, i_foot],
+                    self.mgoals[3, i_foot], self.mgoals[4, i_foot], self.mgoals[5, i_foot],
+                    self.footsteps_target[0, i_foot], self.footsteps_target[1, i_foot], self.t0s[i],  self.t_swing[i_foot], self.dt_tsid)
+                self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
+
+            # Store desired position, velocity and acceleration for later call to this function
+            self.goals[:, i_foot] = np.array([x0, y0, z0])
+            self.vgoals[:, i_foot] = np.array([dx0, dy0, dz0])
+            self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])
+
+
     def cross3(self, left, right):
         """Numpy is inefficient for this"""
         return np.array([[left[1] * right[2] - left[2] * right[1]],
@@ -370,35 +512,19 @@ import Joystick
 import time
 from matplotlib import pyplot as plt
 
-"""def quaternionToRPY(quat):
-        qx = quat[0]
-        qy = quat[1]
-        qz = quat[2]
-        qw = quat[3]
-
-        rotateXa0 = 2.0*(qy*qz + qw*qx)
-        rotateXa1 = qw*qw - qx*qx - qy*qy + qz*qz
-        rotateX = 0.0
-
-        if (rotateXa0 != 0.0) and (rotateXa1 != 0.0):
-            rotateX = np.arctan2(rotateXa0, rotateXa1)
-
-        rotateYa0 = -2.0*(qx*qz - qw*qy)
-        rotateY = 0.0
-        if (rotateYa0 >= 1.0):
-            rotateY = np.pi/2.0
-        elif (rotateYa0 <= -1.0):
-            rotateY = -np.pi/2.0
-        else:
-            rotateY = np.arcsin(rotateYa0)
-
-        rotateZa0 = 2.0*(qx*qy + qw*qz)
-        rotateZa1 = qw*qw + qx*qx - qy*qy - qz*qz
-        rotateZ = 0.0
-        if (rotateZa0 != 0.0) and (rotateZa1 != 0.0):
-            rotateZ = np.arctan2(rotateZa0, rotateZa1)
-
-        return np.array([[rotateX], [rotateY], [rotateZ]])"""
+def EulerToQuaternion(roll_pitch_yaw):
+    roll, pitch, yaw = roll_pitch_yaw
+    sr = math.sin(roll/2.)
+    cr = math.cos(roll/2.)
+    sp = math.sin(pitch/2.)
+    cp = math.cos(pitch/2.)
+    sy = math.sin(yaw/2.)
+    cy = math.cos(yaw/2.)
+    qx = sr * cp * cy - cr * sp * sy
+    qy = cr * sp * cy + sr * cp * sy
+    qz = cr * cp * sy - sr * sp * cy
+    qw = cr * cp * cy + sr * sp * sy
+    return [qx, qy, qz, qw]
 
 def test_planner():
 
@@ -413,27 +539,36 @@ def test_planner():
     robot = tsid.RobotWrapper(urdf, vector, pin.JointModelFreeFlyer(), False)
     model = robot.model()
 
-    dt = 0.001
+    dt = 0.002
     dt_mpc = 0.02
     n_periods = 1
     T_gait = 0.64
     on_solo8 = False
     k = 0
-    N = 500000
-    k_mpc = 20
+    N = 20000
+    k_mpc = 10
 
+    # Logging variables
+    ground_pos_target = np.zeros((3, 4, N))
+    feet_pos_target = np.zeros((3, 4, N))
+    feet_vel_target = np.zeros((3, 4, N))
+    feet_acc_target = np.zeros((3, 4, N))
+    mpc_traj = np.zeros((12, N))
+
+
+    # Initialisation
     q = np.zeros((19, 1))
     q[0:7, 0] = np.array([0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 1.0])
     v = np.zeros((18, 1))
     b_v = np.zeros((18, 1))
 
     joystick = Joystick.Joystick(False)
-    planner = Planner(dt_mpc, n_periods, T_gait, on_solo8, q[2, 0])
+    planner = Planner(dt_mpc, dt, n_periods, T_gait, k_mpc, on_solo8, q[2, 0])
 
     plt.ion()
     fig, ax = plt.subplots()
-    ax.set_xlim(-1.0, 1.0)
-    ax.set_ylim(-1.0, 1.0)
+    ax.set_xlim(-1.5, 1.5)
+    ax.set_ylim(-1.5, 1.5)
 
     while k < N:
 
@@ -445,19 +580,28 @@ def test_planner():
 
         if (k % k_mpc) == 0:
             joystick.update_v_ref(k, 0)
-            joystick.v_ref[0, 0] = 0.3
-            joystick.v_ref[1, 0] = 0.0
-            joystick.v_ref[5, 0] = 0.4
-            b_v[0:2, 0:1] = joystick.v_ref[0:2, 0:1]
-            b_v[5, 0] = joystick.v_ref[5, 0]
+            """joystick.v_ref[0, 0] = 0.3
+            joystick.v_ref[1, 0] = 0.3
+            joystick.v_ref[5, 0] = 0.4"""
+            # b_v[0:2, 0:1] = joystick.v_ref[0:2, 0:1]
+            # b_v[5, 0] = joystick.v_ref[5, 0]
 
         v[0:2, 0:1] = np.array([[c, -s], [s, c]]) @ joystick.v_ref[0:2, 0:1]
         v[5, 0] = joystick.v_ref[5, 0]
 
         planner.run_planner(k, k_mpc, q[0:7, 0:1], v[0:6, 0:1], joystick.v_ref)
 
+        # Logging output of foot trajectory generator
+        ground_pos_target[0:2, :, k] = planner.footsteps_target.copy()
+        feet_pos_target[:, :, k] = planner.goals.copy()
+        feet_vel_target[:, :, k] = planner.vgoals.copy()
+        feet_acc_target[:, :, k] = planner.agoals.copy()
+
+        # Logging output of MPC trajectory generator
+        mpc_traj[:, k] = planner.xref[:, 1]
+
         #print(RPY.ravel())
-        if k % 20 == 0:
+        if k % 10 == 0:
             test = 1
 
         if k == 0:
@@ -477,8 +621,6 @@ def test_planner():
             pos.set_offsets(np.array([q[0, 0], q[1, 0]]))
             orientation.set_xdata([q[0, 0], q[0, 0]+0.2*c])
             orientation.set_ydata([q[1, 0], q[1, 0]+0.2*s])
-            #orientation.set_offsets(np.array([[q[0, 0], q[1, 0]],[q[0, 0]+0.2*c, q[1, 0]+0.2*s]]))
-            #velocity.set_offsets(np.array([[q[0, 0], q[1, 0]],[q[0, 0]+v[0,0], q[1, 0]+v[1,0]]]))
             velocity.set_xdata([q[0, 0], q[0, 0]+v[0,0]])
             velocity.set_ydata([q[1, 0], q[1, 0]+v[1,0]])
             trajectory.set_xdata(planner.xref[0, :])
@@ -488,13 +630,63 @@ def test_planner():
             fig.canvas.draw()
             fig.canvas.flush_events()
 
-        q[:, 0] = np.array(pin.integrate(model, q, b_v * dt))
+        # Following the mpc reference trajectory perfectly
+        q[0:3, 0] = planner.xref[0:3, 1].copy()  # np.array(pin.integrate(model, q, b_v * dt))
+        q[3:7, 0] = EulerToQuaternion(planner.xref[3:6, 1])
+        v[0:3, 0] = planner.xref[6:9, 1].copy()
+        v[3:6, 0] = planner.xref[9:12, 1].copy()
         k += 1
 
-        while (time.time() - t_start) < 0.001:
+        while (time.time() - t_start) < 0.002:
             pass
         
+    plt.close("all")
 
+    t_range = np.array([k*dt for k in range(N)])
+    plt.figure()
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Pos X", "Pos Y", "Pos Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_pos_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.plot(t_range, ground_pos_target[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Target"])
+    plt.suptitle("Reference positions of feet (world frame)")
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Vel X", "Vel Y", "Vel Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_vel_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+    plt.suptitle("Current and reference velocities of feet (world frame)")
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Acc X", "Acc Y", "Acc Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_acc_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+    plt.suptitle("Current and reference accelerations of feet (world frame)")
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+
+    lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw", "Linear vel X", "Linear vel Y", "Linear vel Z",
+            "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range[::10], mpc_traj[i, ::10], "r", linewidth=2)
+        plt.ylabel(lgd[i])
+    plt.suptitle("Predicted trajectories (world frame)")
+
+    plt.show(block=True)
 print("START")
 test_planner()
 print("END")
