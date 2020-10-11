@@ -1,0 +1,500 @@
+# coding: utf8
+
+import numpy as np
+import math
+import pinocchio as pin
+import tsid
+import utils_mpc
+
+class Planner:
+    """Planner that outputs current and future locations of footsteps, the reference trajectory of the base and
+    the position, velocity, acceleration commands for feet in swing phase based on the reference velocity given by
+    the user and the current position/velocity of the base in TSID world
+    """
+
+    def __init__(self, dt, n_periods, T_gait, on_solo8, h_ref):
+
+        # Time step of the contact sequence
+        self.dt = dt
+
+        # Gait duration
+        self.n_periods = n_periods
+        self.T_gait = T_gait
+
+        # Whether we are working on solo8 or not
+        self.on_solo8 = on_solo8
+
+        # Reference velocity for the trunk
+        self.h_ref = h_ref
+
+        # Feedback gain for the feedback term of the planner
+        self.k_feedback = 0.03
+
+        # Position of shoulders in local frame
+        self.shoulders = np.array([[0.19, 0.19, -0.19, -0.19],
+                                   [0.15005, -0.15005, 0.15005, -0.15005],
+                                   [0.0, 0.0, 0.0, 0.0]])
+
+        # Value of the gravity acceleartion
+        self.g = 9.81
+
+        # Value of the maximum allowed deviation due to leg length
+        self.L = 0.155
+
+        # Number of time steps in the prediction horizon
+        self.n_steps = np.int(n_periods*self.T_gait/self.dt)
+
+        # Reference trajectory matrix of size 12 by (1 + N)  with the current state of
+        # the robot in column 0 and the N steps of the prediction horizon in the others
+        self.xref = np.zeros((12, 1 + self.n_steps))
+
+        # Gait matrix
+        self.gait = np.zeros((20, 5))
+        self.fsteps = np.full((self.gait.shape[0], 13), np.nan)
+
+        # Feet matrix
+        self.o_feet_contact = self.shoulders.ravel(order='F').copy()
+
+        # To store the result of the compute_next_footstep function
+        self.next_footstep = np.zeros((3, 4))
+
+        # Predefined matrices for compute_footstep function
+        self.R = np.zeros((3, 3, self.gait.shape[0]))
+        self.R[2, 2, :] = 1.0
+
+        # Create gait matrix
+        self.create_walking_trot()
+        # self.create_static()
+
+        self.desired_gait = self.gait.copy()
+        self.new_desired_gait = self.gait.copy()
+
+    def create_static(self):
+        """Create the matrices used to handle the gait and initialize them to keep the 4 feet in contact
+
+        self.gait and self.fsteps matrices contains information about the gait
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Starting status of the gait
+        # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
+        self.gait = np.zeros((self.fsteps.shape[0], 5))
+        self.gait[0:4, 0] = np.array([2*N, 0, 0, 0])
+        self.fsteps[0:4, 0] = self.gait[0:4, 0]
+
+        # Set stance and swing phases
+        # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        self.gait[0, 1:] = np.ones((4,))
+
+        return 0
+
+    def create_walking_trot(self):
+        """Create the matrices used to handle the gait and initialize them to perform a walking trot
+
+        self.gait and self.fsteps matrices contains information about the walking trot
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Starting status of the gait
+        # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
+        self.gait = np.zeros((self.fsteps.shape[0], 5))
+        for i in range(self.n_periods):
+            self.gait[(4*i):(4*(i+1)), 0] = np.array([1, N-1, 1, N-1])
+            self.fsteps[(4*i):(4*(i+1)), 0] = self.gait[(4*i):(4*(i+1)), 0]
+
+            # Set stance and swing phases
+            # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+            # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+            self.gait[4*i+0, 1:] = np.ones((4,))
+            self.gait[4*i+1, [1, 4]] = np.ones((2,))
+            self.gait[4*i+2, 1:] = np.ones((4,))
+            self.gait[4*i+3, [2, 3]] = np.ones((2,))
+
+        return 0
+
+    def roll_experimental(self, k, k_mpc):
+        """Move one step further in the gait cycle
+
+        Decrease by 1 the number of remaining step for the current phase of the gait and increase
+        by 1 the number of remaining step for the last phase of the gait (periodic motion)
+
+        Args:
+            k (int): number of MPC iterations since the start of the simulation
+            k_mpc (int): Number of inv dynamics iterations for one iteration of the MPC
+        """
+
+        # Retrieve the new desired gait pattern. Most of the time new_desired_gait will be equal to desired_gait since
+        # we want to keep the same gait pattern. However if we want to change then the new gait pattern is temporarily
+        # stored inside new_desired_gait before being stored inside desired_gait
+        if k % (np.int(self.T_gait/self.dt)*k_mpc) == 0:
+            self.desired_gait = self.new_desired_gait.copy()
+            self.pt_line = 0
+            self.pt_sum = self.desired_gait[0, 0]
+
+        # Index of the first empty line
+        index = next((idx for idx, val in np.ndenumerate(self.gait[:, 0]) if val == 0.0), 0.0)[0]
+
+        # Create a new phase if needed or increase the last one by 1 step
+        pt = (k / k_mpc) % np.int(self.T_gait/self.dt)
+        while pt >= self.pt_sum:
+            self.pt_line += 1
+            self.pt_sum += self.desired_gait[self.pt_line, 0]
+        if np.array_equal(self.desired_gait[self.pt_line, 1:], self.gait[index-1, 1:]):
+            self.gait[index-1, 0] += 1.0
+        else:
+            self.gait[index, 1:] = self.desired_gait[self.pt_line, 1:]
+            self.gait[index, 0] = 1.0
+
+        # Decrease the current phase by 1 step and delete it if it has ended
+        if self.gait[0, 0] > 1.0:
+            self.gait[0, 0] -= 1.0
+        else:
+            self.gait = np.roll(self.gait, -1, axis=0)
+            self.gait[-1, :] = np.zeros((5, ))
+
+            # Store positions of feet that are now in contact
+            if (k != 0):
+                for i in range(4):
+                    if self.gait[0, 1+i] == 1:
+                        self.o_feet_contact[(3*i):(3*(i+1))] = self.fsteps[1, (3*i+1):(3*(i+1)+1)]
+
+        return 0
+
+    def compute_footsteps(self, q_cur, v_cur, v_ref):
+        """Compute the desired location of footsteps over the prediction horizon
+
+        Compute a X by 13 matrix containing the remaining number of steps of each phase of the gait (first column)
+        and the [x, y, z]^T desired position of each foot for each phase of the gait (12 other columns).
+        For feet currently touching the ground the desired position is where they currently are.
+
+        Args:
+            q_cur (7x1 array): current position vector of the flying base in world frame (linear and angular stacked)
+            v_cur (6x1 array): current velocity vector of the flying base in world frame (linear and angular stacked)
+            v_ref (6x1 array): desired velocity vector of the flying base in world frame (linear and angular stacked)
+        """
+
+        self.fsteps[:, 0] = self.gait[:, 0]
+        self.fsteps[:, 1:] = np.nan
+
+        i = 1
+
+        rpt_gait = np.repeat(self.gait[:, 1:] == 1, 3, axis=1)
+
+        # Set current position of feet for feet in stance phase
+        (self.fsteps[0, 1:])[rpt_gait[0, :]] = (self.o_feet_contact)[rpt_gait[0, :]]
+
+        # Get future desired position of footsteps
+        self.compute_next_footstep(q_cur, v_cur, v_ref)
+
+        # Cumulative time by adding the terms in the first column (remaining number of timesteps)
+        dt_cum = np.cumsum(self.gait[:, 0]) * self.dt
+
+        # Get future yaw angle compared to current position
+        angle = v_ref[5, 0] * dt_cum + self.RPY[2, 0]
+        c = np.cos(angle)
+        s = np.sin(angle)
+        self.R[0:2, 0:2, :] = np.array([[c, -s], [s, c]])
+
+        # Displacement following the reference velocity compared to current position
+        if v_ref[5, 0] != 0:
+            dx = (v_cur[0, 0] * np.sin(v_ref[5, 0] * dt_cum) +
+                  v_cur[1, 0] * (np.cos(v_ref[5, 0] * dt_cum) - 1)) / v_ref[5, 0]
+            dy = (v_cur[1, 0] * np.sin(v_ref[5, 0] * dt_cum) -
+                  v_cur[0, 0] * (np.cos(v_ref[5, 0] * dt_cum) - 1)) / v_ref[5, 0]
+        else:
+            dx = v_cur[0, 0] * dt_cum
+            dy = v_cur[1, 0] * dt_cum
+
+        # Update the footstep matrix depending on the different phases of the gait (swing & stance)
+        while (self.gait[i, 0] != 0):
+
+            # Feet that were in stance phase and are still in stance phase do not move
+            A = rpt_gait[i-1, :] & rpt_gait[i, :]
+            if np.any(rpt_gait[i-1, :] & rpt_gait[i, :]):
+                (self.fsteps[i, 1:])[A] = (self.fsteps[i-1, 1:])[A]
+
+            # Feet that are in swing phase are NaN whether they were in stance phase previously or not
+            # Commented as self.fsteps is already filled by np.nan by default
+            """if np.any(rpt_gait[i, :] == False):
+                (self.fsteps[i, 1:])[rpt_gait[i, :] == False] = np.nan * np.ones((12,))[rpt_gait[i, :] == False]"""
+
+            # Feet that were in swing phase and are now in stance phase need to be updated
+            A = np.logical_not(rpt_gait[i-1, :]) & rpt_gait[i, :]
+            q_tmp = np.array([[q_cur[0, 0]], [q_cur[1, 0]], [0.0]])  # current position without height
+            if np.any(A):
+
+                # Get desired position of footstep compared to current position
+                next_ft = (np.dot(self.R[:, :, i-1], self.next_footstep) + q_tmp +
+                           np.array([[dx[i-1]], [dy[i-1]], [0.0]])).ravel(order='F')
+                # next_ft = (self.next_footstep).ravel(order='F')
+
+                # Assignement only to feet that have been in swing phase
+                (self.fsteps[i, 1:])[A] = next_ft[A]
+
+            i += 1
+
+        # print(self.fsteps[0:2, 2::3])
+        return 0
+
+    def compute_next_footstep(self, q_cur, v_cur, v_ref):
+        """Compute the desired location of footsteps for a given pair of current/reference velocities
+
+        Compute a 3 by 4 matrix containing the desired location of each feet considering the current velocity of the
+        robot and the reference velocity
+
+        Args:
+            q_cur (7x1 array): current position vector of the flying base in world frame (linear and angular stacked)
+            v_cur (6x1 array): current velocity vector of the flying base in world frame (linear and angular stacked)
+            v_ref (6x1 array): desired velocity vector of the flying base in world frame (linear and angular stacked)
+        """
+
+        # TODO: Automatic detection of t_stance to handle arbitrary gaits
+        t_stance = self.T_gait * 0.5
+
+        # Order of feet: FL, FR, HL, HR
+
+        # self.next_footstep = np.zeros((3, 4))
+
+        # Add symmetry term
+        self.next_footstep[0:2, :] = t_stance * 0.5 * v_cur[0:2, 0:1]  # + q_cur[0:2, 0:1]
+
+        # Add feedback term
+        self.next_footstep[0:2, :] += self.k_feedback * (v_cur[0:2, 0:1] - v_ref[0:2, 0:1])
+
+        # Add centrifugal term
+        cross = self.cross3(np.array(v_cur[0:3, 0]), v_ref[3:6, 0])
+        # cross = np.cross(v_cur[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
+
+        self.next_footstep[0:2, :] += 0.5 * math.sqrt(self.h_ref/self.g) * cross[0:2, 0:1]
+
+        # Legs have a limited length so the deviation has to be limited
+        (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) > self.L] = self.L
+        (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) < (-self.L)] = -self.L
+
+        # solo8: no degree of freedom along Y for footsteps
+        if self.on_solo8:
+            # self.next_footstep[1, :] = 0.0
+            # TODO: Adapt behaviour for world frame
+            pass
+
+        # Add shoulders
+        self.next_footstep[0:2, :] += self.shoulders[0:2, :]
+
+        return 0
+
+    def run_planner(self, k, k_mpc, q, v, b_vref):
+
+        """if (k != 0):
+            k += 1"""
+
+        # Get the reference velocity in world frame (given in base frame)
+        self.RPY = utils_mpc.quaternionToRPY(q[3:7, 0])
+        c, s = np.cos(self.RPY[2, 0]), np.sin(self.RPY[2, 0])
+        vref = b_vref.copy()
+        vref[0:2, 0:1] = np.array([[c, -s], [s, c]]) @ b_vref[0:2, 0:1]
+
+        if (k != -1) and ((k % k_mpc) == 0):
+            # Move one step further in the gait
+            self.roll_experimental(k, k_mpc)
+
+        # Compute the desired location of footsteps over the prediction horizon
+        self.compute_footsteps(q, v, vref)
+
+        # Get the reference trajectory for the MPC
+        self.getRefStates(q, v, vref)
+
+        return 0
+
+    def getRefStates(self, q, v, vref):
+        """Compute the reference trajectory of the CoM for each time step of the
+        predition horizon. The ouput is a matrix of size 12 by (N+1) with N the number
+        of time steps in the gait cycle (T_gait/dt) and 12 the position, orientation,
+        linear velocity and angular velocity vertically stacked. The first column contains
+        the current state while the remaining N columns contains the desired future states.
+
+        Args:
+            T_gait (float): duration of one period of gait
+            q (7x1 array): current position vector of the flying base in world frame (linear and angular stacked)
+            v (6x1 array): current velocity vector of the flying base in world frame (linear and angular stacked)
+            vref (6x1 array): desired velocity vector of the flying base in world frame (linear and angular stacked)
+        """
+
+        # Update x and y velocities taking into account the rotation of the base over the prediction horizon
+        dt_vector = np.linspace(self.dt, self.T_gait, self.n_steps)
+        yaw = dt_vector * vref[5, 0]
+        self.xref[6, 1:] = vref[0, 0] * np.cos(yaw) - vref[1, 0] * np.sin(yaw)
+        self.xref[7, 1:] = vref[0, 0] * np.sin(yaw) + vref[1, 0] * np.cos(yaw)
+
+        # Update x and y depending on x and y velocities (cumulative sum)
+        self.xref[0, 1:] = self.dt * np.cumsum(self.xref[6, 1:])
+        self.xref[1, 1:] = self.dt * np.cumsum(self.xref[7, 1:])
+
+        # Start from position of the CoM in local frame
+        self.xref[0, 1:] += q[0, 0]
+        self.xref[1, 1:] += q[1, 0]
+
+        # Desired height is supposed constant
+        self.xref[2, 1:] = self.h_ref
+        self.xref[8, 1:] = 0.0
+
+        # No need to update Z velocity as the reference is always 0
+        # No need to update roll and roll velocity as the reference is always 0 for those
+        # No need to update pitch and pitch velocity as the reference is always 0 for those
+        # Update yaw and yaw velocity
+        self.xref[5, 1:] = vref[5, 0] * dt_vector + self.RPY[2, 0]
+        self.xref[11, 1:] = vref[5, 0]
+
+        # Update the current state
+        self.xref[0:3, 0:1] = q[0:3, 0:1]
+        self.xref[3:6, 0:1] = self.RPY
+        self.xref[6:9, 0:1] = v[0:3, 0:1]
+        self.xref[9:12, 0:1] = v[3:6, 0:1]
+
+        # Current state vector of the robot
+        self.x0 = self.xref[:, 0:1]
+
+        return 0
+
+    def cross3(self, left, right):
+        """Numpy is inefficient for this"""
+        return np.array([[left[1] * right[2] - left[2] * right[1]],
+                        [left[2] * right[0] - left[0] * right[2]],
+                        [left[0] * right[1] - left[1] * right[0]]])
+
+import Joystick
+import time
+from matplotlib import pyplot as plt
+
+"""def quaternionToRPY(quat):
+        qx = quat[0]
+        qy = quat[1]
+        qz = quat[2]
+        qw = quat[3]
+
+        rotateXa0 = 2.0*(qy*qz + qw*qx)
+        rotateXa1 = qw*qw - qx*qx - qy*qy + qz*qz
+        rotateX = 0.0
+
+        if (rotateXa0 != 0.0) and (rotateXa1 != 0.0):
+            rotateX = np.arctan2(rotateXa0, rotateXa1)
+
+        rotateYa0 = -2.0*(qx*qz - qw*qy)
+        rotateY = 0.0
+        if (rotateYa0 >= 1.0):
+            rotateY = np.pi/2.0
+        elif (rotateYa0 <= -1.0):
+            rotateY = -np.pi/2.0
+        else:
+            rotateY = np.arcsin(rotateYa0)
+
+        rotateZa0 = 2.0*(qx*qy + qw*qz)
+        rotateZa1 = qw*qw + qx*qx - qy*qy - qz*qz
+        rotateZ = 0.0
+        if (rotateZa0 != 0.0) and (rotateZa1 != 0.0):
+            rotateZ = np.arctan2(rotateZa0, rotateZa1)
+
+        return np.array([[rotateX], [rotateY], [rotateZ]])"""
+
+def test_planner():
+
+    # Set the paths where the urdf and srdf file of the robot are registered
+    modelPath = "/opt/openrobots/share/example-robot-data/robots"
+    urdf = modelPath + "/solo_description/robots/solo12.urdf"
+    srdf = modelPath + "/solo_description/srdf/solo.srdf"
+    vector = pin.StdVec_StdString()
+    vector.extend(item for item in modelPath)
+
+    # Create the robot wrapper from the urdf model (which has no free flyer) and add a free flyer
+    robot = tsid.RobotWrapper(urdf, vector, pin.JointModelFreeFlyer(), False)
+    model = robot.model()
+
+    dt = 0.001
+    dt_mpc = 0.02
+    n_periods = 1
+    T_gait = 0.64
+    on_solo8 = False
+    k = 0
+    N = 500000
+    k_mpc = 20
+
+    q = np.zeros((19, 1))
+    q[0:7, 0] = np.array([0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 1.0])
+    v = np.zeros((18, 1))
+    b_v = np.zeros((18, 1))
+
+    joystick = Joystick.Joystick(False)
+    planner = Planner(dt_mpc, n_periods, T_gait, on_solo8, q[2, 0])
+
+    plt.ion()
+    fig, ax = plt.subplots()
+    ax.set_xlim(-1.0, 1.0)
+    ax.set_ylim(-1.0, 1.0)
+
+    while k < N:
+
+        t_start = time.time()
+
+        RPY = utils_mpc.quaternionToRPY(q[3:7, 0])
+        c = math.cos(RPY[2, 0])
+        s = math.sin(RPY[2, 0])
+
+        if (k % k_mpc) == 0:
+            joystick.update_v_ref(k, 0)
+            joystick.v_ref[0, 0] = 0.3
+            joystick.v_ref[1, 0] = 0.0
+            joystick.v_ref[5, 0] = 0.4
+            b_v[0:2, 0:1] = joystick.v_ref[0:2, 0:1]
+            b_v[5, 0] = joystick.v_ref[5, 0]
+
+        v[0:2, 0:1] = np.array([[c, -s], [s, c]]) @ joystick.v_ref[0:2, 0:1]
+        v[5, 0] = joystick.v_ref[5, 0]
+
+        planner.run_planner(k, k_mpc, q[0:7, 0:1], v[0:6, 0:1], joystick.v_ref)
+
+        #print(RPY.ravel())
+        if k % 20 == 0:
+            test = 1
+
+        if k == 0:
+            foot_FL = ax.scatter(planner.fsteps[:, 1], planner.fsteps[:, 2], marker="o", s=100)
+            foot_FR = ax.scatter(planner.fsteps[:, 4], planner.fsteps[:, 5], marker="o", s=100)
+            foot_HL = ax.scatter(planner.fsteps[:, 7], planner.fsteps[:, 8], marker="o", s=100)
+            foot_HR = ax.scatter(planner.fsteps[:, 10], planner.fsteps[:, 11], marker="o", s=100)
+            pos = ax.scatter([q[0, 0]], [q[1, 0]], marker="x", s=200)
+            orientation, = ax.plot(np.array([q[0, 0], q[0, 0]+0.2*c]), np.array([q[1, 0], q[1, 0]+0.2*s]), linestyle="-", linewidth=3)
+            velocity, = ax.plot(np.array([q[0, 0], q[0, 0]+v[0,0]]), np.array([q[1, 0], q[1, 0]+v[1,0]]), linestyle="-", linewidth=3)
+            trajectory, = ax.plot(planner.xref[0, :], planner.xref[1, :], linestyle="-", linewidth=3)
+        else:
+            foot_FL.set_offsets(planner.fsteps[:, 1:3])
+            foot_FR.set_offsets(planner.fsteps[:, 4:6])
+            foot_HL.set_offsets(planner.fsteps[:, 7:9])
+            foot_HR.set_offsets(planner.fsteps[:, 10:12])
+            pos.set_offsets(np.array([q[0, 0], q[1, 0]]))
+            orientation.set_xdata([q[0, 0], q[0, 0]+0.2*c])
+            orientation.set_ydata([q[1, 0], q[1, 0]+0.2*s])
+            #orientation.set_offsets(np.array([[q[0, 0], q[1, 0]],[q[0, 0]+0.2*c, q[1, 0]+0.2*s]]))
+            #velocity.set_offsets(np.array([[q[0, 0], q[1, 0]],[q[0, 0]+v[0,0], q[1, 0]+v[1,0]]]))
+            velocity.set_xdata([q[0, 0], q[0, 0]+v[0,0]])
+            velocity.set_ydata([q[1, 0], q[1, 0]+v[1,0]])
+            trajectory.set_xdata(planner.xref[0, :])
+            trajectory.set_ydata(planner.xref[1, :])
+
+        if k % 20 == 0:
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+
+        q[:, 0] = np.array(pin.integrate(model, q, b_v * dt))
+        k += 1
+
+        while (time.time() - t_start) < 0.001:
+            pass
+        
+
+print("START")
+test_planner()
+print("END")
