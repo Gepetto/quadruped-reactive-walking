@@ -36,7 +36,7 @@ class Estimator:
         self.FK_lin_vel = np.zeros((3, ))  # Linear velocity
         # self.FK_ang_vel = np.zeros((3, ))  # Angular velocity
         # self.FK_ang_pos = np.zeros((3, ))  # Angular position
-        self.FK_h = 0.2027682
+        self.FK_h = 0.22294615
 
         # Filtered quantities (output)
         # self.filt_data = np.zeros((12, ))  # Sum of both filtered data

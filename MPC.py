@@ -52,7 +52,7 @@ class MPC:
         self.x = np.zeros((12 * self.n_steps * 2,))
 
         # Initial state vector of the robot (x, y, z, roll, pitch, yaw)
-        self.q = np.array([[0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0]]).transpose()
+        self.q = np.array([[0.0, 0.0, 0.22294615, 0.0, 0.0, 0.0]]).transpose()
 
         # State vector of the trunk in the world frame
         self.q_w = self.q.copy()

@@ -80,7 +80,7 @@ class Planner:
         # Foot trajectory generator
         max_height_feet = 0.035
         t_lock_before_touchdown = 0.1
-        self.ftgs = [ftg.Foot_trajectory_generator(max_height_feet, t_lock_before_touchdown) for i in range(4)]
+        self.ftgs = [ftg.Foot_trajectory_generator(max_height_feet, t_lock_before_touchdown, self.shoulders[0, i], self.shoulders[1, i]) for i in range(4)]
 
         # Variables for foot trajectory generator
         self.i_end_gait = -1
@@ -488,7 +488,7 @@ class Planner:
 
                 # TODO: Fix that. We need to assess properly the duration of the swing phase even during the transition
                 # between two gaits (need to take into account past information)
-                self.t_swing[i] = self.T_gait * 0.5 - 0.02
+                self.t_swing[i] = self.T_gait * 0.5  #  - 0.02
 
                 self.t0s.append(
                     np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt_tsid - self.dt_tsid, 0.0)), decimals=3))
@@ -508,7 +508,7 @@ class Planner:
             if i_foot == 0:
                 deb= 1
             # Get desired 3D position, velocity and acceleration
-            if self.t0s[i] == 0.000:
+            if (self.t0s[i] == 0.000) or (k == 0):
                 [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
                     self.o_feet_contact[0+3*i_foot], 0.0, 0.0,
                     self.o_feet_contact[1+3*i_foot], 0.0, 0.0,
@@ -525,6 +525,8 @@ class Planner:
             self.goals[:, i_foot] = np.array([x0, y0, z0])
             self.vgoals[:, i_foot] = np.array([dx0, dy0, dz0])
             self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])
+            if k % 10 == 0:
+                test = 1
 
 
     def cross3(self, left, right):
@@ -570,7 +572,7 @@ def test_planner():
     T_gait = 0.64
     on_solo8 = False
     k = 0
-    N = 20000
+    N = 1000
     k_mpc = 10
 
     # Logging variables
@@ -583,7 +585,7 @@ def test_planner():
 
     # Initialisation
     q = np.zeros((19, 1))
-    q[0:7, 0] = np.array([0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 1.0])
+    q[0:7, 0] = np.array([0.0, 0.0, 0.22294615, 0.0, 0.0, 0.0, 1.0])
     v = np.zeros((18, 1))
     b_v = np.zeros((18, 1))
 
@@ -605,9 +607,9 @@ def test_planner():
 
         if (k % k_mpc) == 0:
             joystick.update_v_ref(k, 0)
-            """joystick.v_ref[0, 0] = 0.3
-            joystick.v_ref[1, 0] = 0.3
-            joystick.v_ref[5, 0] = 0.4"""
+            joystick.v_ref[0, 0] = 0.3
+            joystick.v_ref[1, 0] = 0.0
+            joystick.v_ref[5, 0] = 0.4
             # b_v[0:2, 0:1] = joystick.v_ref[0:2, 0:1]
             # b_v[5, 0] = joystick.v_ref[5, 0]
 
@@ -629,7 +631,7 @@ def test_planner():
         if k % 10 == 0:
             test = 1
 
-        if k == 0:
+        """if k == 0:
             foot_FL = ax.scatter(planner.fsteps[:, 1], planner.fsteps[:, 2], marker="o", s=100)
             foot_FR = ax.scatter(planner.fsteps[:, 4], planner.fsteps[:, 5], marker="o", s=100)
             foot_HL = ax.scatter(planner.fsteps[:, 7], planner.fsteps[:, 8], marker="o", s=100)
@@ -653,7 +655,7 @@ def test_planner():
 
         if k % 20 == 0:
             fig.canvas.draw()
-            fig.canvas.flush_events()
+            fig.canvas.flush_events()"""
 
         # Following the mpc reference trajectory perfectly
         q[0:3, 0] = planner.xref[0:3, 1].copy()  # np.array(pin.integrate(model, q, b_v * dt))
@@ -749,7 +751,7 @@ def test_planner_mpc():
 
     # Initialisation
     q = np.zeros((19, 1))
-    q[0:7, 0] = np.array([0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 1.0])
+    q[0:7, 0] = np.array([0.0, 0.0, 0.22294615, 0.0, 0.0, 0.0, 1.0])
     v = np.zeros((18, 1))
     b_v = np.zeros((18, 1))
 
@@ -769,7 +771,7 @@ def test_planner_mpc():
             joystick.update_v_ref(k, 0)
             joystick.v_ref[0, 0] = 0.3
             joystick.v_ref[1, 0] = 0.0
-            joystick.v_ref[5, 0] = 0.0
+            joystick.v_ref[5, 0] = 0.3
 
         # v[0:2, 0:1] = np.array([[c, -s], [s, c]]) @ joystick.v_ref[0:2, 0:1]
         # v[5, 0] = joystick.v_ref[5, 0]
@@ -826,6 +828,38 @@ def test_planner_mpc():
 
     t_range = np.array([k*dt for k in range(N)])
 
+    plt.figure()
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Pos X", "Pos Y", "Pos Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_pos_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.plot(t_range, ground_pos_target[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Target"])
+    plt.suptitle("Reference positions of feet (world frame)")
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Vel X", "Vel Y", "Vel Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_vel_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+    plt.suptitle("Current and reference velocities of feet (world frame)")
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Acc X", "Acc Y", "Acc Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_acc_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+    plt.suptitle("Current and reference accelerations of feet (world frame)")
+
     index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
 
     lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw", "Linear vel X", "Linear vel Y", "Linear vel Z",
@@ -862,8 +896,488 @@ def test_planner_mpc():
     plt.suptitle("MPC contact forces (world frame)")
 
     plt.show(block=True)
-        
+
+
+def test_planner_mpc_tsid():
+
+    import MPC_Wrapper
+    from Controller import controller
+    import robots_loader
+
+    # Set the paths where the urdf and srdf file of the robot are registered
+    modelPath = "/opt/openrobots/share/example-robot-data/robots"
+    urdf = modelPath + "/solo_description/robots/solo12.urdf"
+    srdf = modelPath + "/solo_description/srdf/solo.srdf"
+    vector = pin.StdVec_StdString()
+    vector.extend(item for item in modelPath)
+
+    # Create the robot wrapper from the urdf model (which has no free flyer) and add a free flyer
+    robot = tsid.RobotWrapper(urdf, vector, pin.JointModelFreeFlyer(), False)
+    model = robot.model()
+
+    dt = 0.002
+    dt_mpc = 0.02
+    n_periods = 1
+    T_gait = 0.64
+    on_solo8 = False
+    k = 0
+    N = 6000
+    k_mpc = 10
+
+    # Logging variables
+    ground_pos_target = np.zeros((3, 4, N))
+    feet_pos_target = np.zeros((3, 4, N))
+    feet_vel_target = np.zeros((3, 4, N))
+    feet_acc_target = np.zeros((3, 4, N))
+    planner_traj = np.zeros((12, N))
+    mpc_traj = np.zeros((12, N))
+    mpc_fc = np.zeros((12, N))
+    tsid_traj = np.zeros((12, N))
+
+    # Initialisation
+    q = np.zeros((19, 1))
+    q[0:7, 0] = np.array([0.0, 0.0, 0.22294615, 0.0, 0.0, 0.0, 1.0])
+    q[7:, 0] = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6])
+    v = np.zeros((18, 1))
+    b_v = np.zeros((18, 1))
+
+    joystick = Joystick.Joystick(False)
+    planner = Planner(dt_mpc, dt, n_periods, T_gait, k_mpc, on_solo8, q[2, 0])
+    mpc_wrapper = MPC_Wrapper.MPC_Wrapper(True, dt_mpc, planner.n_steps, k_mpc, planner.T_gait, q, True)
+    myController = controller(q[7:, 0], int(N), dt, k_mpc, n_periods, T_gait, on_solo8)
+    solo = utils_mpc.init_viewer(True)
+
+    while k < N:
+
+        t_start = time.time()
+
+        # RPY = utils_mpc.quaternionToRPY(q[3:7, 0])
+        # c = math.cos(RPY[2, 0])
+        # s = math.sin(RPY[2, 0])
+
+        if (k % k_mpc) == 0:
+            joystick.update_v_ref(k, 0)
+            joystick.v_ref[0, 0] = np.min((0.3, k * 0.3 / 1000))
+            joystick.v_ref[1, 0] = 0.0
+            joystick.v_ref[5, 0] = 0.0
+
+        # v[0:2, 0:1] = np.array([[c, -s], [s, c]]) @ joystick.v_ref[0:2, 0:1]
+        # v[5, 0] = joystick.v_ref[5, 0]
+
+        # Run planner
+        planner.run_planner(k, k_mpc, q[0:7, 0:1], v[0:6, 0:1], joystick.v_ref)
+
+        # Logging output of foot trajectory generator
+        ground_pos_target[0:2, :, k] = planner.footsteps_target.copy()
+        feet_pos_target[:, :, k] = planner.goals.copy()
+        feet_vel_target[:, :, k] = planner.vgoals.copy()
+        feet_acc_target[:, :, k] = planner.agoals.copy()
+
+        # Logging output of MPC trajectory generator
+        planner_traj[:, k] = planner.xref[:, 1]
+
+        # Send data to MPC parallel process
+        if (k % k_mpc) == 0:
+            try:
+                mpc_wrapper.solve(k, planner)
+            except ValueError:
+                print("MPC Problem")
+
+        # Check if the MPC has outputted a new result
+        x_f_mpc = mpc_wrapper.get_latest_result()
+
+        # print("x_f_mpc: ", x_f_mpc)
+
+        # Logging output of MPC trajectory generator
+        mpc_traj[:, k] = x_f_mpc[:12]
+
+        # Contact forces desired by MPC (transformed into world frame)
+        mpc_fc[:, k] = x_f_mpc[12:]
+
+        # Process Inverse Dynamics - If nothing wrong happened yet in TSID controller
+        if (not myController.error):
+
+            if k == 0:
+                b_v = v.copy()
+            oMb = pin.SE3(pin.Quaternion(q[3:7, 0:1]), q[0:3, 0:1])
+            b_v[0:3, 0:1] = oMb.rotation.transpose() @ v[0:3, 0:1]
+            b_v[3:6, 0:1] = oMb.rotation.transpose() @ v[3:6, 0:1]
+            b_v[6:, 0] = v[6:, 0]
+
+            # Initial conditions
+            """if k == 0:
+                myController.qtsid = q.copy()
+                myController.vtsid = b_v.copy()
+                q_tsid = q.copy()
+                v_tsid = b_v.copy()
+            else:
+                q_tsid = myController.qdes
+                v_tsid = myController.vdes"""
+
+            myController.control(q, b_v, k, solo,
+                                 planner, x_f_mpc[12:], planner.fsteps,
+                                 planner.gait, True, True,
+                                 q, b_v)
+
+            tsid_traj[0:3, k] = myController.qdes[0:3]
+            tsid_traj[3:6, k:(k+1)] = utils_mpc.quaternionToRPY(myController.qdes[3:7])
+            tsid_traj[6:9, k:(k+1)] = oMb.rotation @ myController.vdes[0:3, 0:1]
+            tsid_traj[9:12, k:(k+1)] = oMb.rotation @ myController.vdes[3:6, 0:1]
+
+            """# Quantities sent to the control board
+            self.result.P = 4.0 * np.ones(12)
+            self.result.D = 0.2 * np.ones(12)  # * \
+            # np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
+            # 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+            self.result.q_des[:] = self.myController.qdes[7:]
+            self.result.v_des[:] = self.myController.vdes[6:, 0]
+            self.result.tau_ff[:] = self.myController.tau_ff"""
+        else:
+            print("ERROR IN TSID")
+            break
+
+        # Following the mpc reference trajectory perfectly
+        """q[0:3, 0] = planner.xref[0:3, 1].copy()  # np.array(pin.integrate(model, q, b_v * dt))
+        q[3:7, 0] = EulerToQuaternion(planner.xref[3:6, 1])
+        v[0:3, 0] = planner.xref[6:9, 1].copy()
+        v[3:6, 0] = planner.xref[9:12, 1].copy()"""
+        """q[0:3, 0] = x_f_mpc[0:3]
+        q[3:7, 0] = EulerToQuaternion(x_f_mpc[3:6])
+        v[0:3, 0] = x_f_mpc[6:9]
+        v[3:6, 0] = x_f_mpc[9:12]"""
+
+        q[:, 0] = myController.qdes.copy()
+        v[0:3, 0:1] = oMb.rotation @ myController.vdes[0:3, 0:1]
+        v[3:6, 0:1] = oMb.rotation @ myController.vdes[3:6, 0:1]
+        v[6:, 0] = myController.vdes[6:, 0]
+
+        pin.forwardKinematics(solo.model, solo.data, q, myController.vdes)
+
+        k += 1
+
+        while (time.time() - t_start) < 0.002:
+            pass
+
+    mpc_wrapper.stop_parallel_loop()
+
+    # np.savez("mpc_traj_4.npz", mpc_traj_1=mpc_traj)
+    # data = np.load("mpc_traj_4.npz")
+    # mpc_traj_1 = data['mpc_traj_1']  # Position
+
+    t_range = np.array([k*dt for k in range(N)])
+
+    plt.figure()
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Pos X", "Pos Y", "Pos Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_pos_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.plot(t_range, ground_pos_target[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Target"])
+    plt.suptitle("Reference positions of feet (world frame)")
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Vel X", "Vel Y", "Vel Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_vel_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+    plt.suptitle("Current and reference velocities of feet (world frame)")
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Acc X", "Acc Y", "Acc Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_acc_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+    plt.suptitle("Current and reference accelerations of feet (world frame)")
+
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+
+    lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw", "Linear vel X", "Linear vel Y", "Linear vel Z",
+            "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range[::10], planner_traj[i, ::10], "r", linewidth=2)
+        plt.plot(t_range[::10], mpc_traj[i, ::10], "b", linewidth=2)
+        plt.plot(t_range[::10], tsid_traj[i, ::10], "g", linewidth=2)
+        plt.ylabel(lgd[i])
+    plt.suptitle("Planner trajectory VS Predicted trajectory (world frame)")
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]
+    lgd2 = ["FL", "FR", "HL", "HR"]
+    plt.figure()
+    for i in range(12):
+        if i == 0:
+            ax0 = plt.subplot(3, 4, index[i])
+        else:
+            plt.subplot(3, 4, index[i], sharex=ax0)
+
+        h1, = plt.plot(t_range, mpc_fc[i, :], "r", linewidth=5)
+
+        plt.xlabel("Time [s]")
+        plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)])
+
+        if (i % 3) == 2:
+            plt.ylim([-1.0, 15.0])
+        else:
+            plt.ylim([-1.5, 1.5])
+
+    plt.suptitle("MPC contact forces (world frame)")
+
+    plt.show(block=True)
+
+def test_planner_mpc_tsid_pyb():
+
+    import MPC_Wrapper
+    from Controller import controller
+    import robots_loader
+
+    # Set the paths where the urdf and srdf file of the robot are registered
+    modelPath = "/opt/openrobots/share/example-robot-data/robots"
+    urdf = modelPath + "/solo_description/robots/solo12.urdf"
+    srdf = modelPath + "/solo_description/srdf/solo.srdf"
+    vector = pin.StdVec_StdString()
+    vector.extend(item for item in modelPath)
+
+    # Create the robot wrapper from the urdf model (which has no free flyer) and add a free flyer
+    robot = tsid.RobotWrapper(urdf, vector, pin.JointModelFreeFlyer(), False)
+    model = robot.model()
+
+    dt = 0.002
+    dt_mpc = 0.02
+    n_periods = 1
+    T_gait = 0.64
+    on_solo8 = False
+    k = 0
+    N = 6000
+    k_mpc = 10
+
+    # Logging variables
+    ground_pos_target = np.zeros((3, 4, N))
+    feet_pos_target = np.zeros((3, 4, N))
+    feet_vel_target = np.zeros((3, 4, N))
+    feet_acc_target = np.zeros((3, 4, N))
+    planner_traj = np.zeros((12, N))
+    mpc_traj = np.zeros((12, N))
+    mpc_fc = np.zeros((12, N))
+    tsid_traj = np.zeros((12, N))
+
+    # Initialisation
+    q = np.zeros((19, 1))
+    q[0:7, 0] = np.array([0.0, 0.0, 0.22294615, 0.0, 0.0, 0.0, 1.0])
+    q[7:, 0] = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6])
+    v = np.zeros((18, 1))
+    b_v = np.zeros((18, 1))
+
+    joystick = Joystick.Joystick(False)
+    planner = Planner(dt_mpc, dt, n_periods, T_gait, k_mpc, on_solo8, q[2, 0])
+    mpc_wrapper = MPC_Wrapper.MPC_Wrapper(True, dt_mpc, planner.n_steps, k_mpc, planner.T_gait, q, True)
+    myController = controller(q[7:, 0], int(N), dt, k_mpc, n_periods, T_gait, on_solo8)
+    solo = utils_mpc.init_viewer(True)
+
+    while k < N:
+
+        t_start = time.time()
+
+        # RPY = utils_mpc.quaternionToRPY(q[3:7, 0])
+        # c = math.cos(RPY[2, 0])
+        # s = math.sin(RPY[2, 0])
+
+        if (k % k_mpc) == 0:
+            joystick.update_v_ref(k, 0)
+            joystick.v_ref[0, 0] = np.min((0.3, k * 0.3 / 1000))
+            joystick.v_ref[1, 0] = 0.0
+            joystick.v_ref[5, 0] = 0.0
+
+        # v[0:2, 0:1] = np.array([[c, -s], [s, c]]) @ joystick.v_ref[0:2, 0:1]
+        # v[5, 0] = joystick.v_ref[5, 0]
+
+        # Run planner
+        planner.run_planner(k, k_mpc, q[0:7, 0:1], v[0:6, 0:1], joystick.v_ref)
+
+        # Logging output of foot trajectory generator
+        ground_pos_target[0:2, :, k] = planner.footsteps_target.copy()
+        feet_pos_target[:, :, k] = planner.goals.copy()
+        feet_vel_target[:, :, k] = planner.vgoals.copy()
+        feet_acc_target[:, :, k] = planner.agoals.copy()
+
+        # Logging output of MPC trajectory generator
+        planner_traj[:, k] = planner.xref[:, 1]
+
+        # Send data to MPC parallel process
+        if (k % k_mpc) == 0:
+            try:
+                mpc_wrapper.solve(k, planner)
+            except ValueError:
+                print("MPC Problem")
+
+        # Check if the MPC has outputted a new result
+        x_f_mpc = mpc_wrapper.get_latest_result()
+
+        # print("x_f_mpc: ", x_f_mpc)
+
+        # Logging output of MPC trajectory generator
+        mpc_traj[:, k] = x_f_mpc[:12]
+
+        # Contact forces desired by MPC (transformed into world frame)
+        mpc_fc[:, k] = x_f_mpc[12:]
+
+        # Process Inverse Dynamics - If nothing wrong happened yet in TSID controller
+        if (not myController.error):
+
+            if k == 0:
+                b_v = v.copy()
+            oMb = pin.SE3(pin.Quaternion(q[3:7, 0:1]), q[0:3, 0:1])
+            b_v[0:3, 0:1] = oMb.rotation.transpose() @ v[0:3, 0:1]
+            b_v[3:6, 0:1] = oMb.rotation.transpose() @ v[3:6, 0:1]
+            b_v[6:, 0] = v[6:, 0]
+
+            # Initial conditions
+            """if k == 0:
+                myController.qtsid = q.copy()
+                myController.vtsid = b_v.copy()
+                q_tsid = q.copy()
+                v_tsid = b_v.copy()
+            else:
+                q_tsid = myController.qdes
+                v_tsid = myController.vdes"""
+
+            myController.control(q, b_v, k, solo,
+                                 planner, x_f_mpc[12:], planner.fsteps,
+                                 planner.gait, True, True,
+                                 q, b_v)
+
+            tsid_traj[0:3, k] = myController.qdes[0:3]
+            tsid_traj[3:6, k:(k+1)] = utils_mpc.quaternionToRPY(myController.qdes[3:7])
+            tsid_traj[6:9, k:(k+1)] = oMb.rotation @ myController.vdes[0:3, 0:1]
+            tsid_traj[9:12, k:(k+1)] = oMb.rotation @ myController.vdes[3:6, 0:1]
+
+            """# Quantities sent to the control board
+            self.result.P = 4.0 * np.ones(12)
+            self.result.D = 0.2 * np.ones(12)  # * \
+            # np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
+            # 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+            self.result.q_des[:] = self.myController.qdes[7:]
+            self.result.v_des[:] = self.myController.vdes[6:, 0]
+            self.result.tau_ff[:] = self.myController.tau_ff"""
+        else:
+            print("ERROR IN TSID")
+            break
+
+        # Following the mpc reference trajectory perfectly
+        """q[0:3, 0] = planner.xref[0:3, 1].copy()  # np.array(pin.integrate(model, q, b_v * dt))
+        q[3:7, 0] = EulerToQuaternion(planner.xref[3:6, 1])
+        v[0:3, 0] = planner.xref[6:9, 1].copy()
+        v[3:6, 0] = planner.xref[9:12, 1].copy()"""
+        """q[0:3, 0] = x_f_mpc[0:3]
+        q[3:7, 0] = EulerToQuaternion(x_f_mpc[3:6])
+        v[0:3, 0] = x_f_mpc[6:9]
+        v[3:6, 0] = x_f_mpc[9:12]"""
+
+        q[:, 0] = myController.qdes.copy()
+        v[0:3, 0:1] = oMb.rotation @ myController.vdes[0:3, 0:1]
+        v[3:6, 0:1] = oMb.rotation @ myController.vdes[3:6, 0:1]
+        v[6:, 0] = myController.vdes[6:, 0]
+
+        pin.forwardKinematics(solo.model, solo.data, q, myController.vdes)
+
+        k += 1
+
+        while (time.time() - t_start) < 0.002:
+            pass
+
+    mpc_wrapper.stop_parallel_loop()
+
+    # np.savez("mpc_traj_4.npz", mpc_traj_1=mpc_traj)
+    # data = np.load("mpc_traj_4.npz")
+    # mpc_traj_1 = data['mpc_traj_1']  # Position
+
+    t_range = np.array([k*dt for k in range(N)])
+
+    plt.figure()
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Pos X", "Pos Y", "Pos Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_pos_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.plot(t_range, ground_pos_target[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Target"])
+    plt.suptitle("Reference positions of feet (world frame)")
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Vel X", "Vel Y", "Vel Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_vel_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+    plt.suptitle("Current and reference velocities of feet (world frame)")
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Acc X", "Acc Y", "Acc Z"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range, feet_acc_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+    plt.suptitle("Current and reference accelerations of feet (world frame)")
+
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+
+    lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw", "Linear vel X", "Linear vel Y", "Linear vel Z",
+            "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+    plt.figure()
+    for i in range(12):
+        plt.subplot(3, 4, index[i])
+        plt.plot(t_range[::10], planner_traj[i, ::10], "r", linewidth=2)
+        plt.plot(t_range[::10], mpc_traj[i, ::10], "b", linewidth=2)
+        plt.plot(t_range[::10], tsid_traj[i, ::10], "g", linewidth=2)
+        plt.ylabel(lgd[i])
+    plt.suptitle("Planner trajectory VS Predicted trajectory (world frame)")
+
+    index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]
+    lgd2 = ["FL", "FR", "HL", "HR"]
+    plt.figure()
+    for i in range(12):
+        if i == 0:
+            ax0 = plt.subplot(3, 4, index[i])
+        else:
+            plt.subplot(3, 4, index[i], sharex=ax0)
+
+        h1, = plt.plot(t_range, mpc_fc[i, :], "r", linewidth=5)
+
+        plt.xlabel("Time [s]")
+        plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)])
+
+        if (i % 3) == 2:
+            plt.ylim([-1.0, 15.0])
+        else:
+            plt.ylim([-1.5, 1.5])
+
+    plt.suptitle("MPC contact forces (world frame)")
+
+    plt.show(block=True)
+
+
+
+
 
 print("START")
-test_planner_mpc()
+test_planner_mpc_tsid()
 print("END")

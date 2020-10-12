@@ -101,7 +101,7 @@ class FootstepPlanner:
         self.dy = np.zeros((self.gait.shape[0], ))
         self.next_ft = np.zeros((12,))"""
 
-    def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.2027682, predefined=True):
+    def getRefStates(self, k, T_gait, lC, abg, lV, lW, v_ref, h_ref=0.22294615, predefined=True):
         """Compute the reference trajectory of the CoM for each time step of the
         predition horizon. The ouput is a matrix of size 12 by (N+1) with N the number
         of time steps in the gait cycle (T_gait/dt) and 12 the position, orientation,

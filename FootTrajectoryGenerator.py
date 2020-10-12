@@ -194,7 +194,7 @@ class Foot_trajectory_generator(object):
         - time_adaptative_disabled (float): how much time before touchdown is the desired position locked
     '''
 
-    def __init__(self, h=0.03, time_adaptative_disabled=0.200):
+    def __init__(self, h=0.03, time_adaptative_disabled=0.200, x_init=0.0, y_init=0.0):
         # maximum heigth for the z coordonate
         self.h = h
 
@@ -207,8 +207,8 @@ class Foot_trajectory_generator(object):
         self.lastCoeffs_y = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         # self.lastCoeffs = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         #                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        self.x1 = 0.0
-        self.y1 = 0.0
+        self.x1 = x_init
+        self.y1 = y_init
 
         # express acceleration as: ddx0 = (coeff_acc_x_lin_a) * x1 + coeff_acc_x_lin_b
         #                         ddy0 = (coeff_acc_y_lin_a) * x1 + coeff_acc_y_lin_b

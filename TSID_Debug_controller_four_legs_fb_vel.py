@@ -34,7 +34,7 @@ class controller:
 
     def __init__(self, q_init, N_simulation, dt_tsid, k_mpc, n_periods, T_gait, on_solo8):
 
-        self.q_ref = (np.hstack((np.array([0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0, 1.0]), q_init))).reshape((19, 1))
+        self.q_ref = (np.hstack((np.array([0.0, 0.0, 0.22294615, 0.0, 0.0, 0.0, 1.0]), q_init))).reshape((19, 1))
         """np.array([[0.0, 0.0, 0.2027682, 0.0, 0.0, 0.0, 1.0,
                                 0.0, 0.8, -1.6, 0, 0.8, -1.6,
                                 0, -0.8, 1.6, 0, -0.8, 1.6]]).transpose()"""
@@ -126,7 +126,7 @@ class controller:
         self.t_stance = T_gait * 0.5
         self.T_gait = T_gait
         self.n_periods = n_periods
-        self.h_ref = 0.2027682  # 0.235 - 0.01205385
+        self.h_ref = 0.22294615 # 0.235 - 0.01205385
         self.t_swing = np.zeros((4, ))  # Total duration of current swing phase for each foot
 
         self.contacts_order = [0, 1, 2, 3]
@@ -305,7 +305,7 @@ class controller:
         # Resize the solver to fit the number of variables, equality and inequality constraints
         self.solver.resize(self.invdyn.nVar, self.invdyn.nEq, self.invdyn.nIn)
 
-    def update_feet_tasks(self, k_loop, gait, looping, interface, k_simu):
+    def update_feet_tasks(self, gait, planner):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
 
@@ -315,6 +315,23 @@ class controller:
             looping (int): total number of time steps in one gait cycle
             interface (Interface object): interface between the simulator and the MPC/InvDyn
         """
+
+        # Indexes of feet in swing phase
+        feet = np.where(gait[0, 1:] == 0)[0]
+
+        for i in range(len(feet)):
+            i_foot = feet[i]
+
+            # Update desired pos, vel, acc
+            self.sampleFeet[i_foot].pos(np.array([planner.goals[0, i_foot], planner.goals[1, i_foot], planner.goals[2, i_foot], 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]))
+            self.sampleFeet[i_foot].vel(np.array([planner.vgoals[0, i_foot], planner.vgoals[1, i_foot], planner.vgoals[2, i_foot], 0.0, 0.0, 0.0]))
+            self.sampleFeet[i_foot].acc(np.array([planner.agoals[0, i_foot], planner.agoals[1, i_foot], planner.agoals[2, i_foot], 0.0, 0.0, 0.0]))
+
+            # Set reference
+            self.feetTask[i_foot].setReference(self.sampleFeet[i_foot])
+
+        if True:
+            return 0
 
         if ((k_loop % self.k_mpc) == 0):
 
@@ -431,7 +448,7 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qtsid, vtsid, k_simu, solo, interface, f_applied, fsteps, gait,
+    def control(self, qtsid, vtsid, k_simu, solo, planner, f_applied, fsteps, gait,
                 enable_hybrid_control=False, enable_gepetto_viewer=False,
                 qmes=None, vmes=None, qmpc=None, vmpc=None):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
@@ -477,8 +494,10 @@ class controller:
         # Update state of TSID
         if k_simu == 0:  # Some initialization during the first iteration
             self.qtsid = qtsid
-            self.qtsid[:3] = np.zeros((3, 1))  # Discard x and y drift and height position
-            self.qtsid[2, 0] = 0.235 - 0.01205385
+            # self.qtsid[:3] = np.zeros((3, 1))  # Discard x and y drift and height position
+            # self.qtsid[2, 0] = 0.235 - 0.01205385
+
+            self.vtsid = vtsid
 
             self.feetGoal = 4*[None]
             self.sampleFeet = 4*[None]
@@ -525,21 +544,21 @@ class controller:
         k_loop = (k_simu - 0) % looping  # Current number of iterations since the start of the current gait cycle
 
         # Update the desired position of footholds thanks to the footstep planner
-        self.update_footsteps(interface, fsteps)
+        self.update_footsteps(fsteps)
 
         ######################################
         # UPDATE REFERENCE OF CONTACT FORCES #
         ######################################
 
         # Update the contact force tracking tasks to follow the forces computed by the MPC
-        self.update_ref_forces(interface)
+        self.update_ref_forces()
 
         ################
         # UPDATE TASKS #
         ################
 
         # Enable/disable contact and 3D tracking tasks depending on the state of the feet (swing or stance phase)
-        self.update_tasks(k_simu, k_loop, looping, interface, gait)
+        self.update_tasks(k_simu, k_loop, looping, planner, gait)
 
         ###############
         # HQP PROBLEM #
@@ -576,11 +595,10 @@ class controller:
 
         return 0
 
-    def update_footsteps(self, interface, fsteps):
+    def update_footsteps(self, fsteps):
         """ Update desired location of footsteps using information coming from the footsteps planner
 
         Args:
-            interface (object): Interface object of the control loop
             fsteps (20x13): duration of each phase of the gait sequence (first column)
                             and desired location of footsteps for these phases (other columns)
         """
@@ -590,24 +608,21 @@ class controller:
         for i in range(4):
             index = next((idx for idx, val in np.ndenumerate(
                 fsteps[:, 3*i+1]) if ((not (val == 0)) and (not np.isnan(val)))), [-1])[0]
-            pos_tmp = interface.oMl * (np.array([fsteps[index, (1+i*3):(4+i*3)]]).transpose())
-            self.footsteps[:, i] = pos_tmp[0:2]
+            self.footsteps[:, i] = fsteps[index, (1+i*3):(3+i*3)]
 
         return 0
 
-    def update_ref_forces(self, interface):
+    def update_ref_forces(self):
         """ Update the reference contact forces that TSID should try to apply on the ground
 
-        Args:
-            interface (object): Interface object of the control loop
         """
 
         for j, i_foot in enumerate([0, 1, 2, 3]):
-            self.contacts[i_foot].setForceReference((interface.oMl.rotation @ self.f_applied[3*j:3*(j+1)]).T)
+            self.contacts[i_foot].setForceReference(self.f_applied[3*j:3*(j+1)])
 
         return 0
 
-    def update_tasks(self, k_simu, k_loop, looping, interface, gait):
+    def update_tasks(self, k_simu, k_loop, looping, planner, gait):
         """ Update TSID tasks (feet tracking, contacts, force tracking)
 
         Args:
@@ -621,7 +636,7 @@ class controller:
         """
 
         # Update the foot tracking tasks
-        self.update_feet_tasks(k_loop, gait, looping, interface, k_simu)
+        self.update_feet_tasks(gait, planner)
 
         # Index of the first blank line in the gait matrix
         # index = next((idx for idx, val in np.ndenumerate(gait[:, 0]) if (((val == 0)))), [-1])[0]
@@ -645,14 +660,15 @@ class controller:
             if (k_loop % self.k_mpc == 0) and (gait[0, i_foot+1] == 1) and (i_foot not in self.contacts_order):
 
                 # Update the position of contacts
-                tmp = interface.o_feet[:, i_foot:(i_foot+1)].copy()
-                tmp[2, 0] = 0.0
-                self.pos_foot.translation = tmp
-                self.pos_contact[i_foot] = self.pos_foot.translation.transpose()
-                self.memory_contacts[:, i_foot] = interface.o_feet[0:2, i_foot]
-                self.feetGoal[i_foot].translation = tmp.ravel()
+                # planner.o_feet_contact[(3*i_foot):(3*i_foot+3)]
+                self.pos_foot.translation = np.array([planner.footsteps_target[0, i_foot],
+                                                      planner.footsteps_target[1, i_foot],
+                                                      0.0])
+                self.pos_contact[i_foot] = self.pos_foot.translation
+                self.memory_contacts[:, i_foot] = planner.footsteps_target[:, i_foot]
+                self.feetGoal[i_foot].translation = self.pos_foot.translation
                 self.contacts[i_foot].setReference(self.pos_foot.copy())
-                self.goals[:, i_foot] = tmp.transpose()
+                self.goals[:, i_foot] = self.pos_foot.translation
 
                 if not ((k_loop == 0) and (k_simu < looping)):  # If it is not the first gait period
                     # Enable contact
@@ -688,7 +704,7 @@ class controller:
             """self.ades[self.ades > 100] = 100
             self.ades[self.ades < -100] = -100"""
             self.vdes = self.vtsid + self.ades * self.dt
-            self.qdes = np.array(pin.integrate(self.model, self.qtsid, self.vtsid * self.dt))
+            self.qdes = np.array(pin.integrate(self.model, self.qtsid, self.vdes * self.dt))
 
             # solo8: block shoulder joints
             if self.on_solo8:
