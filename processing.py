@@ -221,7 +221,7 @@ def process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper, dt_mp
                                interface.lV, interface.lW, joystick.v_ref, h_ref=0.2027682,
                                predefined=joystick.predefined)
 
-    print("X0:", fstep_planner.x0.ravel())
+    # print("X0:", fstep_planner.x0.ravel())
     """print(fstep_planner.xref[:, 0:3].transpose())"""
 
     # if k > 2100:

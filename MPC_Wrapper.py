@@ -3,6 +3,7 @@
 import numpy as np
 import libexample_adder as MPC
 from multiprocessing import Process, Value, Array
+from utils_mpc import quaternionToRPY
 # import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 
 
@@ -29,7 +30,7 @@ class MPC_Wrapper:
         multiprocessing (bool): Enable/Disable running the MPC with another process
     """
 
-    def __init__(self, mpc_type, dt, n_steps, k_mpc, T_gait, multiprocessing=False):
+    def __init__(self, mpc_type, dt, n_steps, k_mpc, T_gait, q_init, multiprocessing=False):
 
         self.f_applied = np.zeros((12,))
         self.not_first_iter = False
@@ -47,7 +48,7 @@ class MPC_Wrapper:
             self.newData = Value('b', False)
             self.newResult = Value('b', False)
             self.dataIn = Array('d', [0.0] * (1 + (np.int(self.n_steps)+1) * 12 + 13*20))
-            self.dataOut = Array('d', [0] * 12)
+            self.dataOut = Array('d', [0] * 24)
             self.fsteps_future = np.zeros((20, 13))
             self.running = Value('b', True)
         else:
@@ -58,7 +59,10 @@ class MPC_Wrapper:
                 self.mpc = MPC_crocoddyl.MPC_crocoddyl(
                     dt=dt, T_mpc=T_gait, mu=0.9, inner=False, linearModel=True, n_period=int((dt * n_steps)/T_gait))
 
-        self.last_available_result = np.array([0.0, 0.0, 8.0] * 4)
+        x_init = np.zeros(12)
+        x_init[0:3] = q_init[0:3, 0]
+        x_init[3:6] = quaternionToRPY(q_init[3:7, 0]).ravel()
+        self.last_available_result = np.hstack((x_init, np.array([0.0, 0.0, 8.0] * 4)))
 
     def solve(self, k, fstep_planner):
         """Call either the asynchronous MPC or the synchronous MPC depending on the value of multiprocessing during
@@ -238,7 +242,8 @@ class MPC_Wrapper:
                     dummy_fstep_planner.fsteps = fsteps
                     loop_mpc.solve(k, dummy_fstep_planner)
 
-                # Store the result (desired forces) in the shared memory
+                # Store the result (predicted trajectory + desired forces) in the shared memory
+                # print("X_F: ", loop_mpc.get_latest_result().tolist())
                 self.dataOut[:] = loop_mpc.get_latest_result().tolist()
 
                 # Set shared variable to true to signal that a new result is available
@@ -262,7 +267,7 @@ class MPC_Wrapper:
 
         # Compress data in the shared input array
         self.dataIn[:] = np.concatenate([[(k/self.k_mpc)], fstep_planner.xref.ravel(),
-                                         fstep_planner.fsteps_mpc.ravel()], axis=0)
+                                         fstep_planner.fsteps.ravel()], axis=0)
 
         return 0.0
 
