@@ -1377,7 +1377,7 @@ def test_planner_mpc_tsid_pyb():
 
 
 
-
-print("START")
-test_planner_mpc_tsid()
-print("END")
+if __name__ == "__main__":
+    print("START")
+    test_planner_mpc_tsid()
+    print("END")

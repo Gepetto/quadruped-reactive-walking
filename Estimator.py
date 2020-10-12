@@ -20,10 +20,10 @@ class Estimator:
         # Cut frequency (fc should be < than 1/dt)
         fc = 10
         y = 1 - np.cos(2*np.pi*fc*dt)
-        self.alpha_v = -y+np.sqrt(y*y+2*y)
+        self.alpha_v = 1.0  # -y+np.sqrt(y*y+2*y)
 
         # Filter coefficient (0 < alpha < 1) for IMU with FK
-        self.alpha = 0.97  # self.dt * self.fc
+        self.alpha = 1.0  # 0.97  # self.dt * self.fc
 
         # IMU data
         # Linear acceleration (gravity debiased)

@@ -8,7 +8,8 @@ from TSID_Debug_controller_four_legs_fb_vel import controller
 import processing as proc
 import MPC_Wrapper
 import pybullet as pyb
-
+from Planner import Planner
+import pinocchio as pin
 
 class Result:
 
@@ -83,21 +84,30 @@ class Controller:
         self.ID_deb_lines = []
 
         # Enable/Disable Gepetto viewer
-        self.enable_gepetto_viewer = False
+        self.enable_gepetto_viewer = True
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
         self.joystick, self.fstep_planner, self.logger, self.interface, self.estimator = utils_mpc.init_objects(
             dt_tsid, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC, on_solo8,
             predefined_vel)
 
+        # Enable/Disable hybrid control
+        self.enable_hybrid_control = True
+
+        h_ref = 0.22294615
+        self.q = np.zeros((19, 1))
+        self.q[0:7, 0] = np.array([0.0, 0.0, h_ref, 0.0, 0.0, 0.0, 1.0])
+        self.q[7:, 0] = q_init
+        # self.v = np.zeros((18, 1))
+        self.b_v = np.zeros((18, 1))
+        self.o_v_filt = np.zeros((18, 1))
+        self.planner = Planner(dt_mpc, dt_tsid, n_periods, T_gait, k_mpc, on_solo8, h_ref)
+
         # Wrapper that makes the link with the solver that you want to use for the MPC
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
         self.enable_multiprocessing = True
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, self.fstep_planner.n_steps,
-                                                   k_mpc, self.fstep_planner.T_gait, self.enable_multiprocessing)
-
-        # Enable/Disable hybrid control
-        self.enable_hybrid_control = True
+                                                   k_mpc, self.fstep_planner.T_gait, self.q, self.enable_multiprocessing)
 
         ########################################################################
         #                            Gepetto viewer                            #
@@ -174,31 +184,34 @@ class Controller:
         # t_filter = time.time()  # To analyze the time taken by each step
 
         # Process state update and joystick
-        proc.process_states(self.solo, self.k, self.k_mpc, self.velID, self.interface,
-                            self.joystick, self.myController, self.estimator, self.pyb_feedback)
+        # proc.process_states(self.solo, self.k, self.k_mpc, self.velID, self.interface,
+        #                     self.joystick, self.myController, self.estimator, self.pyb_feedback)
+
+        # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
+        if (self.k % self.k_mpc) == 0:
+            self.joystick.update_v_ref(self.k, self.velID)
+
+        # Run planner
+        oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
+        self.o_v_filt[0:3, 0:1] = oMb.rotation @ self.b_v[0:3, 0:1] #self.estimator.v_filt[0:3, 0:1]
+        self.o_v_filt[3:6, 0:1] = oMb.rotation @ self.b_v[3:6, 0:1] #self.estimator.v_filt[3:6, 0:1]
+        self.planner.run_planner(self.k, self.k_mpc, self.q[0:7, 0:1], self.o_v_filt[0:6, 0:1], self.joystick.v_ref)
 
         # t_states = time.time()  # To analyze the time taken by each step
 
-        if np.isnan(self.interface.lC[2]):
-            print("NaN value for the position of the center of mass. Simulation likely crashed. Ending loop.")
-            return np.zeros(12)
-
-        # Process footstep planner
-        proc.process_footsteps_planner(self.k, self.k_mpc, self.interface,
-                                       self.joystick, self.fstep_planner)
-
-        # t_fsteps = time.time()  # To analyze the time taken by each step
-
         # Process MPC once every k_mpc iterations of TSID
         if (self.k % self.k_mpc) == 0:
-            proc.process_mpc(self.k, self.k_mpc, self.interface, self.joystick, self.fstep_planner, self.mpc_wrapper,
-                             self.dt_mpc, self.ID_deb_lines)
+            try:
+                self.mpc_wrapper.solve(self.k, self.planner)
+            except ValueError:
+                print("MPC Problem")
 
         # Retrieve reference contact forces
         if self.enable_multiprocessing or (self.k == 0):
             # Check if the MPC has outputted a new result
-            self.f_applied = self.mpc_wrapper.get_latest_result()
+            self.x_f_mpc = self.mpc_wrapper.get_latest_result()
         else:
+            print("TODO: Check non multiprocessing mode.")
             if (self.k % self.k_mpc) == 2:  # Mimic a 4 ms delay
                 self.f_applied = self.mpc_wrapper.get_latest_result()
 
@@ -207,23 +220,31 @@ class Controller:
         # Process Inverse Dynamics
         # If nothing wrong happened yet in TSID controller
         if (not self.myController.error) and (not self.joystick.stop):
-            proc.process_invdyn(self.solo, self.k, self.f_applied, self.estimator, self.interface, self.fstep_planner,
-                                self.myController, self.enable_hybrid_control, self.enable_gepetto_viewer)
+
+            # self.b_v[0:3, 0:1] = oMb.rotation.transpose() @ self.v[0:3, 0:1]
+            # self.b_v[3:6, 0:1] = oMb.rotation.transpose() @ self.v[3:6, 0:1]
+            # self.b_v[6:, 0] = self.v[6:, 0]
+
+            self.myController.control(self.q, self.b_v, self.k, self.solo,
+                                      self.planner, self.x_f_mpc[12:], self.planner.fsteps,
+                                      self.planner.gait, True, self.enable_gepetto_viewer,
+                                      self.q, self.b_v)
+
+            self.q[:, 0] = self.myController.qdes.copy()
+            # self.v[0:3, 0:1] = oMb.rotation @ self.myController.vdes[0:3, 0:1]
+            # self.v[3:6, 0:1] = oMb.rotation @ self.myController.vdes[3:6, 0:1]
+            # self.v[6:, 0] = self.myController.vdes[6:, 0]
+            self.b_v[:, 0] = self.myController.vdes[:, 0]
 
             # Quantities sent to the control board
-            self.result.P = 4.0 * np.ones(12)
-            self.result.D = 0.2 * np.ones(12)  # * \
-            # np.array([1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
-            # 1.0, 0.3, 0.3, 1.0, 0.3, 0.3])
+            self.result.P = 7.0 * np.ones(12)
+            self.result.D = 0.2 * np.ones(12)
             self.result.q_des[:] = self.myController.qdes[7:]
             self.result.v_des[:] = self.myController.vdes[6:, 0]
             self.result.tau_ff[:] = self.myController.tau_ff
 
-            # print("###")
-            # print("FF:    ", self.result.tau_ff)
-
             # Process PD+ (feedforward torques and feedback torques)
-            self.jointTorques[:, 0] = proc.process_pdp(self.myController, self.estimator)
+            # self.jointTorques[:, 0] = proc.process_pdp(self.myController, self.estimator)
 
         # If something wrong happened in TSID controller we stick to a security controller
         if self.myController.error or self.joystick.stop:
