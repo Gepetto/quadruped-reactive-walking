@@ -672,7 +672,8 @@ int MPC::retrieve_result() {
   // Retrieve the "contact forces" part of the solution of the QP problem
   for (int k = 0; k < 12; k++) {
     x_next[k] = (workspce->solution->x)[k];
-    f_applied(0, k) = (workspce->solution->x)[12 * n_steps + k];
+    x_f_applied(0, k) = (workspce->solution->x)[k] + xref(k, 1);
+    x_f_applied(0, k+12) = (workspce->solution->x)[12 * n_steps + k];
   }
 
   /*std::cout << "SOLUTION States" << std::endl;
@@ -698,7 +699,7 @@ int MPC::retrieve_result() {
 /*
 Return the latest desired contact forces that have been computed
 */
-Eigen::MatrixXd MPC::get_latest_result() { return f_applied; }
+Eigen::MatrixXd MPC::get_latest_result() { return x_f_applied; }
 
 /*
 Return the next predicted state of the base
