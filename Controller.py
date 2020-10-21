@@ -10,6 +10,7 @@ import MPC_Wrapper
 import pybullet as pyb
 from Planner import Planner
 import pinocchio as pin
+from Planner import EulerToQuaternion
 
 class Result:
 
@@ -84,7 +85,7 @@ class Controller:
         self.ID_deb_lines = []
 
         # Enable/Disable Gepetto viewer
-        self.enable_gepetto_viewer = True
+        self.enable_gepetto_viewer = False
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
         self.joystick, self.fstep_planner, self.logger, self.interface, self.estimator = utils_mpc.init_objects(
@@ -98,7 +99,7 @@ class Controller:
         self.q = np.zeros((19, 1))
         self.q[0:7, 0] = np.array([0.0, 0.0, h_ref, 0.0, 0.0, 0.0, 1.0])
         self.q[7:, 0] = q_init
-        # self.v = np.zeros((18, 1))
+        self.v = np.zeros((18, 1))
         self.b_v = np.zeros((18, 1))
         self.o_v_filt = np.zeros((18, 1))
         self.planner = Planner(dt_mpc, dt_tsid, n_periods, T_gait, k_mpc, on_solo8, h_ref)
@@ -175,11 +176,15 @@ class Controller:
         # time_loop = time.time()  # To analyze the time taken by each step
 
         # Process state estimator
-        if self.k == 1:
+        """if self.k == 1:
             self.estimator.run_filter(self.k, self.fstep_planner.gait[0, 1:], device,
                                       self.myController.invdyn.data(), self.myController.model, self.joystick.v_ref)
         else:
-            self.estimator.run_filter(self.k, self.fstep_planner.gait[0, 1:], device)
+            self.estimator.run_filter(self.k, self.fstep_planner.gait[0, 1:], device)"""
+
+        """if self.k > 500:
+            self.b_v[6:] = self.estimator.v_filt[6:]
+            self.q[3:7, 0] = self.estimator.filt_ang_pos[:]"""
 
         # t_filter = time.time()  # To analyze the time taken by each step
 
@@ -193,9 +198,33 @@ class Controller:
 
         # Run planner
         oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
-        self.o_v_filt[0:3, 0:1] = oMb.rotation @ self.b_v[0:3, 0:1] #self.estimator.v_filt[0:3, 0:1]
-        self.o_v_filt[3:6, 0:1] = oMb.rotation @ self.b_v[3:6, 0:1] #self.estimator.v_filt[3:6, 0:1]
-        self.planner.run_planner(self.k, self.k_mpc, self.q[0:7, 0:1], self.o_v_filt[0:6, 0:1], self.joystick.v_ref)
+        """if self.k > 500:
+            print("SWITCH")
+            self.estimator.v_filt[2, 0] = self.b_v[2, 0]
+            self.o_v_filt[0:3, 0:1] = oMb.rotation @ self.estimator.v_filt[0:3, 0:1]
+            # self.o_v_filt[3:6, 0:1] = oMb.rotation @ self.estimator.v_filt[3:6, 0:1]
+        else:"""
+        """self.o_v_filt[0:3, 0:1] = oMb.rotation @ self.estimator.v_filt[0:3, 0:1] #self.b_v[0:3, 0:1]
+        self.o_v_filt[3:6, 0:1] = oMb.rotation @ self.estimator.v_filt[3:6, 0:1] #self.b_v[3:6, 0:1]
+        self.v[0:3, 0:1] = oMb.rotation @ self.b_v[0:3, 0:1]
+        self.v[3:6, 0:1] = oMb.rotation @ self.b_v[3:6, 0:1]"""
+
+        """oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
+        tmp = oMb.rotation @ self.estimator.v_filt[0:3, 0:1]
+        self.o_v_filt[0:3, 0:1] = oMb.rotation @ self.b_v[0:3, 0:1]
+        if self.k > 500:
+            self.o_v_filt[0:2, 0] = tmp[0:2, 0]
+            print(self.planner.xref[:, 0:3])
+        self.o_v_filt[3:6, 0:1] = oMb.rotation @ self.b_v[3:6, 0:1]"""
+
+        """self.o_v_filt[0:3, 0:1] = oMb.rotation @ self.b_v[0:3, 0:1]
+        self.o_v_filt[3:6, 0:1] = oMb.rotation @ self.b_v[3:6, 0:1]
+        self.v[0:3, 0:1] = oMb.rotation @ self.b_v[0:3, 0:1]
+        self.v[3:6, 0:1] = oMb.rotation @ self.b_v[3:6, 0:1]"""
+
+        #self.o_v_filt[0:6, 0:1] = self.v[0:6, 0:1]
+
+        self.planner.run_planner(self.k, self.k_mpc, self.q[0:7, 0:1], self.v[0:6, 0:1], self.joystick.v_ref, self.v[0:6, 0:1])
 
         # t_states = time.time()  # To analyze the time taken by each step
 
@@ -217,27 +246,47 @@ class Controller:
 
         # t_mpc = time.time()  # To analyze the time taken by each step
 
+        self.estimator.x_f_mpc = self.x_f_mpc.copy()
+        
+        self.q[0:3, 0] = self.x_f_mpc[0:3]
+        self.q[3:7, 0] = EulerToQuaternion(self.x_f_mpc[3:6])
+        self.v[0:3, 0] = self.x_f_mpc[6:9]
+        self.v[3:6, 0] = self.x_f_mpc[9:12]
+
+        # self.solo.display(self.q)
+
         # Process Inverse Dynamics
         # If nothing wrong happened yet in TSID controller
         if (not self.myController.error) and (not self.joystick.stop):
 
-            # self.b_v[0:3, 0:1] = oMb.rotation.transpose() @ self.v[0:3, 0:1]
-            # self.b_v[3:6, 0:1] = oMb.rotation.transpose() @ self.v[3:6, 0:1]
-            # self.b_v[6:, 0] = self.v[6:, 0]
+            """self.b_v[0:3, 0:1] = oMb.rotation.transpose() @ self.v[0:3, 0:1]
+            self.b_v[3:6, 0:1] = oMb.rotation.transpose() @ self.v[3:6, 0:1]
+            self.b_v[6:, 0] = self.v[6:, 0]"""
 
-            self.myController.control(self.q, self.b_v, self.k, self.solo,
-                                      self.planner, self.x_f_mpc[12:], self.planner.fsteps,
+            # Initial conditions
+            if self.k == 0:
+                self.myController.qtsid = self.q.copy()
+                self.myController.vtsid = self.b_v.copy()
+                q_tsid = self.q.copy()
+                v_tsid = self.b_v.copy()
+            else:
+                q_tsid = self.myController.qdes
+                v_tsid = self.myController.vdes
+
+            self.myController.control(q_tsid, v_tsid.copy(), self.k, self.solo,
+                                      self.planner, self.x_f_mpc[:12], self.x_f_mpc[12:], self.planner.fsteps,
                                       self.planner.gait, True, self.enable_gepetto_viewer,
-                                      self.q, self.b_v)
+                                      q_tsid, v_tsid)
 
             self.q[:, 0] = self.myController.qdes.copy()
-            # self.v[0:3, 0:1] = oMb.rotation @ self.myController.vdes[0:3, 0:1]
-            # self.v[3:6, 0:1] = oMb.rotation @ self.myController.vdes[3:6, 0:1]
-            # self.v[6:, 0] = self.myController.vdes[6:, 0]
+            oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
+            self.v[0:3, 0:1] = oMb.rotation @ self.myController.vdes[0:3, 0:1]
+            self.v[3:6, 0:1] = oMb.rotation @ self.myController.vdes[3:6, 0:1]
+            self.v[6:, 0] = self.myController.vdes[6:, 0]
             self.b_v[:, 0] = self.myController.vdes[:, 0]
 
             # Quantities sent to the control board
-            self.result.P = 7.0 * np.ones(12)
+            self.result.P = 6.0 * np.ones(12)
             self.result.D = 0.2 * np.ones(12)
             self.result.q_des[:] = self.myController.qdes[7:]
             self.result.v_des[:] = self.myController.vdes[6:, 0]
@@ -259,12 +308,14 @@ class Controller:
         # t_tsid = time.time()  # To analyze the time taken by each step
 
         # Compute processing duration of each step
-        """self.t_list_filter[self.k] = t_filter - time_loop
+        """
+        self.t_list_filter[self.k] = t_filter - time_loop
         self.t_list_states[self.k] = t_states - t_filter
         self.t_list_fsteps[self.k] = t_fsteps - t_states
         self.t_list_mpc[self.k] = t_mpc - t_fsteps
         self.t_list_tsid[self.k] = t_tsid - t_mpc
-        self.t_list_loop[self.k] = time.time() - time_loop"""
+        self.t_list_loop[self.k] = time.time() - time_loop
+        """
 
         if self.joystick is not None:
             self.estimator.v_ref = self.joystick.v_ref
