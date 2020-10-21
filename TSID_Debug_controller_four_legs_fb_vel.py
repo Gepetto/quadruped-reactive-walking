@@ -13,6 +13,7 @@ import numpy.matlib as matlib
 import tsid
 import FootTrajectoryGenerator as ftg
 import pybullet as pyb
+from Planner import EulerToQuaternion
 from IPython import embed
 ########################################################################
 #            Class for a PD with feed-forward Controller               #
@@ -261,9 +262,8 @@ class controller:
         # Task definition (creating the task object)
         self.trunkTask = tsid.TaskSE3Equality("task-trunk", self.robot, 'base_link')
         mask = np.array([0.0, 0.0, 0.0, 1.0, 1.0, 0.0])
-        self.trunkTask.setKp(np.array([0.0, 0.0, 0.0*kp_trunk, kp_trunk, kp_trunk, 0.0]))
-        self.trunkTask.setKd(np.array([0.0, 0.0, 0.0*2.0 * np.sqrt(kp_trunk), 2.0 *
-                                       np.sqrt(kp_trunk), 2.0 * np.sqrt(kp_trunk), 0.0]))
+        self.trunkTask.setKp(np.array(6 * [kp_trunk]))
+        self.trunkTask.setKd(np.array(6 * [2.0 * np.sqrt(kp_trunk)]))
         self.trunkTask.useLocalFrame(False)
         self.trunkTask.setMask(mask)
 
@@ -448,7 +448,7 @@ class controller:
     #                      Torque Control method                       #
     ####################################################################
 
-    def control(self, qtsid, vtsid, k_simu, solo, planner, f_applied, fsteps, gait,
+    def control(self, qtsid, vtsid, k_simu, solo, planner, x_next, f_applied, fsteps, gait,
                 enable_hybrid_control=False, enable_gepetto_viewer=False,
                 qmes=None, vmes=None, qmpc=None, vmpc=None):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
@@ -553,12 +553,38 @@ class controller:
         # Update the contact force tracking tasks to follow the forces computed by the MPC
         self.update_ref_forces()
 
-        ################
-        # UPDATE TASKS #
-        ################
+        #####################
+        # UPDATE FEET TASKS #
+        #####################
 
         # Enable/disable contact and 3D tracking tasks depending on the state of the feet (swing or stance phase)
         self.update_tasks(k_simu, k_loop, looping, planner, gait)
+
+        #####################
+        # UPDATE TRUNK TASK #
+        #####################
+
+        # self.sampleTrunk.pos(np.hstack((np.array([x_next[0], x_next[1], x_next[2]]), EulerToQuaternion(x_next[3:6]))))
+        # self.sampleTrunk.pos(np.hstack((np.array([x_next[0], x_next[1], x_next[2]]), (pin.rpy.rpyToMatrix(x_next[3:6]).transpose()).ravel())))
+        # self.sampleTrunk.vel(x_next[6:])
+        self.sampleTrunk.pos(np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]))
+        self.sampleTrunk.vel(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        self.sampleTrunk.acc(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        self.trunkTask.setReference(self.sampleTrunk)
+        
+
+        ###
+
+        if enable_gepetto_viewer:
+            # Display target 3D positions of footholds with green spheres (gepetto gui)
+            rgbt = [0.0, 1.0, 0.0, 0.5]
+            for i in range(0, 4):
+                if (k_simu == 0):
+                    solo.viewer.gui.addSphere("world/sphere"+str(i)+"_target", .02, rgbt)  # .1 is the radius
+                solo.viewer.gui.applyConfiguration(
+                    "world/sphere"+str(i)+"_target", (self.footsteps[0, i],
+                                                        self.footsteps[1, i],
+                                                        0.0, 1., 0., 0., 0.))
 
         ###############
         # HQP PROBLEM #
@@ -608,7 +634,7 @@ class controller:
         for i in range(4):
             index = next((idx for idx, val in np.ndenumerate(
                 fsteps[:, 3*i+1]) if ((not (val == 0)) and (not np.isnan(val)))), [-1])[0]
-            self.footsteps[:, i] = fsteps[index, (1+i*3):(3+i*3)]
+            self.footsteps[:, i] = fsteps[index, (1+i*3):(3+i*3)].copy()
 
         return 0
 
@@ -661,12 +687,16 @@ class controller:
 
                 # Update the position of contacts
                 # planner.o_feet_contact[(3*i_foot):(3*i_foot+3)]
-                self.pos_foot.translation = np.array([planner.footsteps_target[0, i_foot],
+                """self.pos_foot.translation = np.array([planner.footsteps_target[0, i_foot],
                                                       planner.footsteps_target[1, i_foot],
+                                                      0.0])"""
+                self.pos_foot.translation = np.array([self.footsteps[0, i_foot],
+                                                      self.footsteps[1, i_foot],
                                                       0.0])
-                self.pos_contact[i_foot] = self.pos_foot.translation
-                self.memory_contacts[:, i_foot] = planner.footsteps_target[:, i_foot]
-                self.feetGoal[i_foot].translation = self.pos_foot.translation
+                self.pos_contact[i_foot] = self.pos_foot.translation.copy()
+                # self.memory_contacts[:, i_foot] = planner.footsteps_target[:, i_foot].copy()
+                self.memory_contacts[:, i_foot] = self.footsteps[:, i_foot].copy()
+                self.feetGoal[i_foot].translation = self.pos_foot.translation.copy()
                 self.contacts[i_foot].setReference(self.pos_foot.copy())
                 self.goals[:, i_foot] = self.pos_foot.translation
 
