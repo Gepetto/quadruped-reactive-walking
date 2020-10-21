@@ -18,12 +18,12 @@ class Estimator:
         self.dt = dt
 
         # Cut frequency (fc should be < than 1/dt)
-        fc = 10
+        fc = 4.0
         y = 1 - np.cos(2*np.pi*fc*dt)
-        self.alpha_v = 1.0  # -y+np.sqrt(y*y+2*y)
+        self.alpha_v = -y+np.sqrt(y*y+2*y)
 
         # Filter coefficient (0 < alpha < 1) for IMU with FK
-        self.alpha = 1.0  # 0.97  # self.dt * self.fc
+        self.alpha = 0.98  # self.dt * self.fc
 
         # IMU data
         # Linear acceleration (gravity debiased)
@@ -71,6 +71,7 @@ class Estimator:
         self.rotated_FK = np.zeros((3, N_simulation))
 
         self.contactStatus = np.zeros(4)
+        self.k_since_contact = np.zeros(4)
 
         self.k_log = 0
 
@@ -88,7 +89,7 @@ class Estimator:
         RPY = self.quaternionToRPY(device.baseOrientation)
         self.IMU_ang_pos[:] = self.EulerToQuaternion([RPY[0],
                                                       RPY[1],
-                                                      0.0])
+                                                      RPY[2]])
 
         return 0
 
@@ -127,15 +128,16 @@ class Estimator:
         vel_est = np.zeros((3, ))
         h_est = 0.0
         for i in (np.where(feet_status == 1))[0]:
-            vel_estimated_baseframe, h_estimated = self.BaseVelocityFromKinAndIMU(self.indexes[i])
+            if self.k_since_contact[i] >= 3:
+                vel_estimated_baseframe, h_estimated = self.BaseVelocityFromKinAndIMU(self.indexes[i])
 
-            self.log_v_est[:, i, self.k_log] = vel_estimated_baseframe[0:3, 0]
-            self.log_h_est[i, self.k_log] = h_estimated
-            # self.log_Fv1F[:, i, self.k_log] = _Fv1F[0:3]
+                self.log_v_est[:, i, self.k_log] = vel_estimated_baseframe[0:3, 0]
+                self.log_h_est[i, self.k_log] = h_estimated
+                # self.log_Fv1F[:, i, self.k_log] = _Fv1F[0:3]
 
-            cpt += 1
-            vel_est += vel_estimated_baseframe[:, 0]
-            h_est += h_estimated
+                cpt += 1
+                vel_est += vel_estimated_baseframe[:, 0]
+                h_est += h_estimated
         if cpt > 0:
             self.FK_lin_vel = vel_est / cpt
             self.FK_h = h_est / cpt
@@ -165,6 +167,10 @@ class Estimator:
 
         # TSID needs to run at least once for forward kinematics
         if k > 0:
+
+            self.k_since_contact += feet_status  # Increment feet in stance phase
+            self.k_since_contact *= feet_status  # Reset feet in swing phase
+
             # Update FK data
             self.get_data_FK(feet_status)
 
@@ -179,17 +185,17 @@ class Estimator:
 
         # Linear velocity of the trunk (PyBullet base frame)
         if k > 0:
-            # Get previous base vel wrt world in base frame into IMU frame
+            """# Get previous base vel wrt world in base frame into IMU frame
             i_filt_lin_vel = self.filt_lin_vel[:] + self.cross3(self._1Mi.translation.ravel(), self.IMU_ang_vel).ravel()
     
             # Merge IMU base vel wrt world in IMU frame with FK base vel wrt world in IMU frame
             i_merged_lin_vel = self.alpha * (i_filt_lin_vel + self.IMU_lin_acc * self.dt) + (1 - self.alpha) * self.FK_lin_vel
     
             # Get merged base vel wrt world in IMU frame into base frame
-            self.filt_lin_vel[:] = i_merged_lin_vel + self.cross3(-self._1Mi.translation.ravel(), self.IMU_ang_vel).ravel()
+            self.filt_lin_vel[:] = i_merged_lin_vel + self.cross3(-self._1Mi.translation.ravel(), self.IMU_ang_vel).ravel()"""
 
-            #self.filt_lin_vel[:] = self.alpha * (self.filt_lin_vel[:] + self.IMU_lin_acc * self.dt) \
-            #    + (1 - self.alpha) * self.FK_lin_vel
+            self.filt_lin_vel[:] = self.alpha * (self.filt_lin_vel[:] + self.IMU_lin_acc * self.dt) \
+                + (1 - self.alpha) * self.FK_lin_vel
 
         self.log_filt_lin_vel[:, self.k_log] = self.filt_lin_vel[:]
         """beta = 475 / 500
@@ -258,7 +264,7 @@ class Estimator:
         # IMU and base frames have the same orientation
         _iv0i = _1v01 + self.cross3(self._1Mi.translation.ravel(), _1w01.ravel())
         
-        return np.array(_iv0i), (-framePlacement.translation[2])
+        return np.array(_1v01), (-framePlacement.translation[2])
 
     def EulerToQuaternion(self, roll_pitch_yaw):
         roll, pitch, yaw = roll_pitch_yaw
