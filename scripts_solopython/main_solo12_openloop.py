@@ -4,14 +4,15 @@ import os
 import sys
 sys.path.insert(0, './mpctsid')
 
-from utils.logger import Logger
-import tsid as tsid
-import pinocchio as pin
-import argparse
-import numpy as np
-from mpctsid.Estimator import Estimator
-from mpctsid.Controller import Controller
 from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
+from mpctsid.Controller import Controller
+from mpctsid.Estimator import Estimator
+import numpy as np
+import argparse
+import pinocchio as pin
+import tsid as tsid
+from utils.logger import Logger
+
 
 SIMULATION = False
 LOGGING = True
@@ -139,6 +140,8 @@ def mcapi_playback(name_interface):
     # Number of motors
     nb_motors = device.nb_motors
     q_viewer = np.array((7 + nb_motors) * [0., ])
+    # view = viewerClient()
+    # view.display(q_viewer.copy())
 
     # Initiate communication with the device and calibrate encoders
     if SIMULATION:
@@ -153,6 +156,11 @@ def mcapi_playback(name_interface):
     # CONTROL LOOP ***************************************************
     t = 0.0
     t_max = (N_SIMULATION-2) * dt_tsid
+
+    log_v_est = np.zeros((6, N_SIMULATION))
+    log_v_tsid = np.zeros((6, N_SIMULATION))
+    kk = 0
+
     while ((not device.hardware.IsTimeout()) and (t < t_max)):
 
         device.UpdateMeasurment()  # Retrieve data from IMU and Motion capture
@@ -176,16 +184,31 @@ def mcapi_playback(name_interface):
         device.SetDesiredJointPDgains(controller.result.P, controller.result.D)
         device.SetDesiredJointPosition(controller.result.q_des)
         device.SetDesiredJointVelocity(controller.result.v_des)
-        #device.SetDesiredJointTorque(controller.result.tau_ff.ravel())
+        device.SetDesiredJointTorque(controller.result.tau_ff.ravel())
 
         # Call logger
         if LOGGING:
             logger.sample(device, qualisys=qc, estimator=controller.estimator)
 
+        # view.display(controller.q[:, 0:1])
+
+        """if kk >= 1500:
+            if kk == 1500:
+                print("FORCE")
+            device.pyb_sim.apply_external_force(kk, 1500, 1000, np.array([0.0, +6.0, 0.0]), np.zeros((3,)))"""
+
+        
+        #view.display(controller.q)
+
         # Send command to the robot
-        device.SendCommand(WaitEndOfCycle=True)
-        if ((device.cpt % 1000) == 0):
-            device.Print()
+        for i in range(1):
+            device.SendCommand(WaitEndOfCycle=True)
+        """if ((device.cpt % 1000) == 0):
+            device.Print()"""
+
+        #log_v_est[:, kk] = controller.estimator.v_filt[:6, 0]
+        #log_v_tsid[:, kk] = controller.b_v[:6, 0]
+        #kk += 1
 
         t += DT
 
@@ -195,6 +218,17 @@ def mcapi_playback(name_interface):
     if controller.enable_multiprocessing:
         print("Stopping parallel process")
         controller.mpc_wrapper.stop_parallel_loop()
+
+    """from matplotlib import pyplot as plt
+    index = [1, 3, 5, 2, 4, 6]
+    lgd = ["Linear vel X", "Linear vel Y", "Linear vel Z", "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+    plt.figure()
+    for i in range(6):
+        plt.subplot(3, 2, index[i])
+        plt.plot(log_v_est[i, :], "r", linewidth=2)
+        plt.plot(log_v_tsid[i, :], "b", linewidth=2)
+        plt.ylabel(lgd[i])
+    plt.show(block=True)"""
 
     # DAMPING TO GET ON THE GROUND PROGRESSIVELY *********************
     t = 0.0
