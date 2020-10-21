@@ -267,7 +267,7 @@ int MPC::create_ML() {
     double s = sin(xref(5, k));
     Eigen::Matrix<double, 3, 3> R;
     R << c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0;
-    Eigen::Matrix<double, 3, 3> R_gI = R * gI;
+    Eigen::Matrix<double, 3, 3> R_gI = R.transpose() * gI * R;
     Eigen::Matrix<double, 3, 3> I_inv = R_gI.inverse();
 
     // Get skew-symetric matrix for each foothold
@@ -420,7 +420,7 @@ int MPC::create_weight_matrices() {
 
   // Define weights for the x-x_ref components of the optimization vector
   // Hand-tuning of parameters if you want to give more weight to specific components
-  double w[12] = {0.5f, 0.5f, 2.0f, 0.11f, 0.11f, 0.11f};
+  double w[12] = {0.5f, 0.5f, 2.0f, 0.55f, 0.55f, 0.11f};
   w[6] = 2.0f * sqrt(w[0]);
   w[7] = 2.0f * sqrt(w[1]);
   w[8] = 2.0f * sqrt(w[2]);
@@ -522,7 +522,7 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
       double s = sin(xref(5, k));
       Eigen::Matrix<double, 3, 3> R;
       R << c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0;
-      Eigen::Matrix<double, 3, 3> R_gI = R * gI;
+      Eigen::Matrix<double, 3, 3> R_gI = R.transpose() * gI * R;
       Eigen::Matrix<double, 3, 3> I_inv = R_gI.inverse();
 
       // Get skew-symetric matrix for each foothold

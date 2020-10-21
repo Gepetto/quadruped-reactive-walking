@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 
+set (CMAKE_CXX_STANDARD 11)
+
 # Project properties
 set(PROJECT_NAMESPACE gepetto)
 set(PROJECT_NAME example-adder)
@@ -76,6 +78,9 @@ endif()
 
 # target_compile_options(${PROJECT_NAME} PUBLIC PRINTING)
 # target_compile_definitions(${PROJECT_NAME} PUBLIC PRINTING)
+
+target_compile_options(${PROJECT_NAME} PUBLIC -DNDEBUG -O3)
+
 
 # Main Executable
 add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/main.cpp)
