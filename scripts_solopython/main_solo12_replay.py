@@ -10,8 +10,8 @@ import numpy as np
 from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
 
 
-SIMULATION = False
-LOGGING = True
+SIMULATION = True
+LOGGING = False
 
 if SIMULATION:
     from mpctsid.utils_mpc import PyBulletSimulator
@@ -80,7 +80,7 @@ def mcapi_playback(name_interface):
         name_interface (string): name of the interface that is used to communicate with the robot
     """
 
-    name_replay = "./replay/solo_stamping/solo_stamping"
+    name_replay = "./replay/solo_sin_traj/solo_sin_traj"
     replay_q = np.loadtxt(name_replay + "_q.dat", delimiter=" ")
     replay_v = np.loadtxt(name_replay + "_v.dat", delimiter=" ")
     replay_tau = np.loadtxt(name_replay + "_tau.dat", delimiter=" ")
