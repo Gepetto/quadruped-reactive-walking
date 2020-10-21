@@ -124,7 +124,7 @@ def BaseVelocityFromKinAndIMU(contactFrameId, model, data, IMU_ang_vel):
 on_solo8 = False
 
 # Load data file
-data = np.load("data_2020_10_11_11_06.npz")
+data = np.load("data_2020_10_14_10_50.npz")
 
 # Store content of data in variables
 
@@ -159,6 +159,7 @@ if data['estimatorVelocity'] is not None:
     estimatorVelocity = data['estimatorVelocity']
     contactStatus = data['contactStatus']
     referenceVelocity = np.round(data['referenceVelocity'], 3)
+    log_xfmpc = data['logXFMPC']
 
 # Creating time vector
 Nlist = np.where(mocapPosition[:, 0] == 0.0)[0]
@@ -176,6 +177,43 @@ t = t[:-1]
 # Parameters
 dt = 0.002
 lwdth = 2
+
+embed()
+# X_F_MPC
+index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]
+lgd2 = ["FL", "FR", "HL", "HR"]
+plt.figure()
+for i in range(12):
+    if i == 0:
+        ax0 = plt.subplot(3, 4, index[i])
+    else:
+        plt.subplot(3, 4, index[i], sharex=ax0)
+    plt.plot(log_xfmpc[:, i], "b", linewidth=2)
+    #plt.ylabel(lgd[i])
+plt.suptitle("b_xfmpc")
+
+plt.figure()
+for i in range(12):
+    if i == 0:
+        ax0 = plt.subplot(3, 4, index[i])
+    else:
+        plt.subplot(3, 4, index[i], sharex=ax0)
+
+    h1, = plt.plot(log_xfmpc[:, 12+i], "b", linewidth=5)
+
+    plt.xlabel("Time [s]")
+    plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)])
+
+    if (i % 3) == 2:
+        plt.ylim([-1.0, 15.0])
+    else:
+        plt.ylim([-1.5, 1.5])
+
+plt.suptitle("b_xfmpc forces")
+
+plt.show(block=True)
+
 
 ###############
 # ORIENTATION #
