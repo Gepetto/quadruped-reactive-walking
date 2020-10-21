@@ -4,7 +4,6 @@ from IPython import embed
 import time
 import numpy as np
 import pinocchio as pin
-USE_VIEWER = True
 
 
 class Solo12InvKin:
@@ -19,7 +18,7 @@ class Solo12InvKin:
         self.feet_acceleration_ref = [np.array([0, 0, 0]), np.array(
             [0, 0, 0]), np.array([0, 0, 0]), np.array([0, 0, 0])]
         self.flag_in_contact = np.array([0, 1, 0, 1])
-        self.base_orientation_ref = pin.utils.rpyToMatrix(0, 0, np.pi/6)
+        self.base_orientation_ref = pin.utils.rpyToMatrix(0, 0, 0.0)
         self.base_angularvelocity_ref = np.array([0, 0, 0])
         self.base_angularacceleration_ref = np.array([0, 0, 0])
         self.base_position_ref = np.array([0, 0, 0.235])
@@ -67,6 +66,25 @@ class Solo12InvKin:
         else:
             Sinv = S/(S**2+damping**2)
         return (V.T*Sinv)@U.T
+
+    def refreshAndCompute(self, q, dq, x_cmd, contacts, planner):
+
+        # Update contact status of the feet
+        self.flag_in_contact[:] = contacts
+
+        # Update position, velocity and acceleration references for the feet
+        for i in range(4):
+            self.feet_position_ref[i] = planner.goals[0:3, i]
+            self.feet_velocity_ref[i] = planner.vgoals[0:3, i]
+            self.feet_acceleration_ref[i] = planner.agoals[0:3, i]
+
+        # Update position and velocity reference for the base
+        self.base_position_ref[:] = x_cmd[0:3]
+        self.base_orientation_ref = pin.utils.rpyToMatrix(x_cmd[3:6])
+        self.base_linearvelocity_ref[:] = x_cmd[6:9]
+        self.base_angularvelocity_ref[:] = x_cmd[9:12]
+
+        return self.compute(q, dq)
 
     def compute(self, q, dq):
         # FEET
@@ -148,6 +166,7 @@ class Solo12InvKin:
 
 
 if __name__ == "__main__":
+    USE_VIEWER = True
     print("test")
     dt = 0.001
     invKin = Solo12InvKin()

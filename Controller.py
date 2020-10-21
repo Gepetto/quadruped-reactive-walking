@@ -4,13 +4,15 @@ import numpy as np
 import utils_mpc
 import time
 
-from TSID_Debug_controller_four_legs_fb_vel import controller
+# from TSID_Debug_controller_four_legs_fb_vel import controller
+from QP_WBC import controller
 import processing as proc
 import MPC_Wrapper
 import pybullet as pyb
 from Planner import Planner
 import pinocchio as pin
 from Planner import EulerToQuaternion
+
 
 class Result:
 
@@ -133,7 +135,8 @@ class Controller:
         ########################################################################
 
         # Define the default controller
-        self.myController = controller(q_init, int(N_SIMULATION), dt_tsid, k_mpc, n_periods, T_gait, on_solo8)
+        # self.myController = controller(q_init, int(N_SIMULATION), dt_tsid, k_mpc, n_periods, T_gait, on_solo8)
+        self.myController = controller(dt_tsid)
 
         self.envID = envID
         self.velID = velID
@@ -224,7 +227,8 @@ class Controller:
 
         #self.o_v_filt[0:6, 0:1] = self.v[0:6, 0:1]
 
-        self.planner.run_planner(self.k, self.k_mpc, self.q[0:7, 0:1], self.v[0:6, 0:1], self.joystick.v_ref, self.v[0:6, 0:1])
+        self.planner.run_planner(self.k, self.k_mpc, self.q[0:7, 0:1],
+                                 self.v[0:6, 0:1], self.joystick.v_ref, self.v[0:6, 0:1])
 
         # t_states = time.time()  # To analyze the time taken by each step
 
@@ -247,11 +251,11 @@ class Controller:
         # t_mpc = time.time()  # To analyze the time taken by each step
 
         self.estimator.x_f_mpc = self.x_f_mpc.copy()
-        
-        self.q[0:3, 0] = self.x_f_mpc[0:3]
+
+        """self.q[0:3, 0] = self.x_f_mpc[0:3]
         self.q[3:7, 0] = EulerToQuaternion(self.x_f_mpc[3:6])
         self.v[0:3, 0] = self.x_f_mpc[6:9]
-        self.v[3:6, 0] = self.x_f_mpc[9:12]
+        self.v[3:6, 0] = self.x_f_mpc[9:12]"""
 
         # self.solo.display(self.q)
 
@@ -259,11 +263,11 @@ class Controller:
         # If nothing wrong happened yet in TSID controller
         if (not self.myController.error) and (not self.joystick.stop):
 
-            """self.b_v[0:3, 0:1] = oMb.rotation.transpose() @ self.v[0:3, 0:1]
+            self.b_v[0:3, 0:1] = oMb.rotation.transpose() @ self.v[0:3, 0:1]
             self.b_v[3:6, 0:1] = oMb.rotation.transpose() @ self.v[3:6, 0:1]
-            self.b_v[6:, 0] = self.v[6:, 0]"""
+            self.b_v[6:, 0] = self.v[6:, 0]
 
-            # Initial conditions
+            """# Initial conditions
             if self.k == 0:
                 self.myController.qtsid = self.q.copy()
                 self.myController.vtsid = self.b_v.copy()
@@ -276,7 +280,10 @@ class Controller:
             self.myController.control(q_tsid, v_tsid.copy(), self.k, self.solo,
                                       self.planner, self.x_f_mpc[:12], self.x_f_mpc[12:], self.planner.fsteps,
                                       self.planner.gait, True, self.enable_gepetto_viewer,
-                                      q_tsid, v_tsid)
+                                      q_tsid, v_tsid)"""
+
+            self.myController.compute(self.q, self.b_v, self.x_f_mpc[:12],
+                                      self.x_f_mpc[12:], self.planner.gait[0, 1:], self.planner)
 
             self.q[:, 0] = self.myController.qdes.copy()
             oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])

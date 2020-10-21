@@ -4,14 +4,61 @@ import scipy as scipy
 import pinocchio as pin
 from example_robot_data import load
 import osqp as osqp
+from solo12InvKin import Solo12InvKin
+
+
+class controller():
+
+    def __init__(self, dt):
+
+        self.dt = dt  # Time step
+
+        self.invKin = Solo12InvKin()  # Inverse Kinematics object
+        self.qp_wbc = QP_WBC()  # QP of the WBC
+
+        self.error = False  # Set to True when an error happens in the controller
+
+        # Arrays to store results (for solo12)
+        self.qdes = np.zeros((19, ))
+        self.vdes = np.zeros((18, 1))
+        self.tau_ff = np.zeros(12)
+
+    def compute(self, q, dq, x_cmd, f_cmd, contacts, planner):
+        """ Call Inverse Kinematics to get an acceleration command then
+        solve a QP problem to get the feedforward torques
+
+        Args:
+            q (19x1): Current state of the base
+            dq (18x1): Current velocity of the base
+            x_cmd (1x12): Position and velocity references from the mpc
+            f_cmd (1x12): Contact forces references from the mpc
+            contacts (1x4): Contact status of feet
+            planner (object): Object that contains the pos, vel and acc references for feet
+        """
+
+        # Compute Inverse Kinematics
+        ddq_cmd = np.array([self.invKin.refreshAndCompute(q, dq, x_cmd, contacts, planner)]).T
+
+        # Solve QP problem
+        self.qp_wbc.compute(self.invKin.robot.model, self.invKin.robot.data,
+                            q, dq, ddq_cmd, np.array([f_cmd]).T, contacts)
+
+        # Retrieve joint torques
+        self.tau_ff[:] = self.qp_wbc.get_joint_torques().ravel()
+
+        # Retrieve desired positions and velocities
+        self.vdes[:, 0] = (dq + ddq_cmd * self.dt).ravel()
+        self.qdes[:] = pin.integrate(self.invKin.robot.model, q, self.vdes * self.dt)
+
+        return 0
 
 
 class QP_WBC():
 
-    def __init__(self, model, data):
+    def __init__(self):
 
-        self.model = model
-        self.data = data
+        # Set to True after the creation of the QP problem during the first call of the solver
+        self.initialized = False
 
         # Friction coefficient
         self.mu = 0.9
@@ -28,7 +75,7 @@ class QP_WBC():
         self.C[[0, 1, 2, 3] * 2 + [4], [0, 0, 1, 1, 2, 2, 2, 2, 2]
                ] = np.array([1, -1, 1, -1, -self.mu, -self.mu, -self.mu, -self.mu, -1])
         for i in range(4):
-            self.ML_full[(6+5*i):(6+5*(i+1)), (6+3*i):(6+3*(i+1))] = self.C
+            self.ML_full[(6+5*i): (6+5*(i+1)), (6+3*i): (6+3*(i+1))] = self.C
 
         # NK matrix
         self.NK = np.zeros((6 + 20, 1))
@@ -36,8 +83,8 @@ class QP_WBC():
         # NK_inf is the lower bound
         self.NK_inf = np.zeros((6 + 20, ))
         self.inf_lower_bound = -np.inf * np.ones((20,))
-        self.inf_lower_bound[4::5] = - 25.0  # - maximum normal force
-        self.NK_inf[:6] = self.NK[:6, 0]
+        self.inf_lower_bound[4:: 5] = - 25.0  # - maximum normal force
+        self.NK_inf[: 6] = self.NK[: 6, 0]
         self.NK_inf[6:] = self.inf_lower_bound
 
         # Mass matrix
@@ -74,21 +121,22 @@ class QP_WBC():
 
         return 0
 
-    def update_ML(self, q, contacts):
+    def update_ML(self, model, data, q, contacts):
         """Update the M and L matrices involved in the MPC constraint equations M.X = N and L.X <= K
         """
 
         # Compute the joint space inertia matrix M by using the Composite Rigid Body Algorithm
-        self.A = pin.crba(self.model, self.data, q)
+        self.A = pin.crba(model, data, q)
 
         # Indexes of feet frames in this order: [FL, FR, HL, HR]
         indexes = [10, 18, 26, 34]
 
         # Contact Jacobian
         self.JcT = np.zeros((18, 12))
-        for i in contacts:
-            self.JcT[:, (3*i):(3*(i+1))] = pin.computeFrameJacobian(model,
-                                                                    data, q, indexes[i], pin.WORLD)[:3, :].transpose()
+        for i in range(4):
+            if contacts[i]:
+                self.JcT[:, (3*i):(3*(i+1))] = pin.computeFrameJacobian(model,
+                                                                        data, q, indexes[i], pin.WORLD)[:3, :].transpose()
 
         self.ML_full[:6, :6] = - self.A[:6, :6]
         self.ML_full[:6, 6:] = self.JcT[:6, :]
@@ -98,7 +146,7 @@ class QP_WBC():
 
         return 0
 
-    def update_NK(self, q, v, ddq_cmd, f_cmd):
+    def update_NK(self, model, data, q, v, ddq_cmd, f_cmd):
         """Update the N and K matrices involved in the MPC constraint equations M.X = N and L.X <= K
         """
 
@@ -120,7 +168,7 @@ class QP_WBC():
 
         return 0
 
-    def call_solver(self, k):
+    def call_solver(self):
         """Create an initial guess and call the solver to solve the QP problem
 
         Args:
@@ -140,12 +188,12 @@ class QP_WBC():
         # And - infinity <= L.X <= K for the lower part
 
         # Setup the solver (first iteration) then just update it
-        if k == 0:  # Setup the solver with the matrices
+        if not self.initialized:  # Setup the solver with the matrices
             self.prob.setup(P=self.P, q=self.Q, A=self.ML,
                             l=self.NK_inf, u=self.NK.ravel(), verbose=False)
             self.prob.update_settings(eps_abs=1e-5)
             self.prob.update_settings(eps_rel=1e-5)
-
+            self.initialized = True
         else:  # Code to update the QP problem without creating it again
             try:
                 self.prob.update(
@@ -160,13 +208,21 @@ class QP_WBC():
 
         return 0
 
+    def compute(self, model, data, q, dq, ddq_cmd, f_cmd, contacts):
+
+        self.update_ML(model, data, q, contacts)
+        self.update_NK(model, data, q, dq, ddq_cmd, f_cmd)
+        self.call_solver()
+
+        return 0
+
     def get_joint_torques(self):
 
         delta_q = np.zeros((18, 1))
-        delta_q[:6, 0] = qp_wbc.x[:6]
+        delta_q[:6, 0] = self.x[:6]
 
         return (self.A @ (self.ddq_cmd + delta_q) + np.array([self.NLE]).transpose()
-                - self.JcT @ (self.f_cmd + np.array([qp_wbc.x[6:]]).transpose()))[6:, :]
+                - self.JcT @ (self.f_cmd + np.array([self.x[6:]]).transpose()))[6:, ]
 
 
 if __name__ == "__main__":
@@ -191,7 +247,7 @@ if __name__ == "__main__":
     # Update the matrices, the four feet are in contact
     qp_wbc.update_ML(q, [0, 1, 2, 3])
     qp_wbc.update_NK(q, v, ddq_cmd, f_cmd)
-    qp_wbc.call_solver(0)
+    qp_wbc.call_solver()
 
     # Display results
     print("######")
