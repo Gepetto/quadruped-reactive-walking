@@ -420,7 +420,7 @@ int MPC::create_weight_matrices() {
 
   // Define weights for the x-x_ref components of the optimization vector
   // Hand-tuning of parameters if you want to give more weight to specific components
-  double w[12] = {0.5f, 0.5f, 2.0f, 0.55f, 0.55f, 0.11f};
+  double w[12] = {10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 10.0f};
   w[6] = 2.0f * sqrt(w[0]);
   w[7] = 2.0f * sqrt(w[1]);
   w[8] = 2.0f * sqrt(w[2]);
@@ -450,7 +450,7 @@ int MPC::create_weight_matrices() {
   int ncc = st_to_cc_size(nst, r_P, c_P);  // number of CC values
   int m = 12 * n_steps * 2;                // number of rows
   int n = 12 * n_steps * 2;                // number of columns
-  //std::cout << cpt_P << std::endl;
+  // std::cout << cpt_P << std::endl;
 
   // Get the CC indices.
   icc = (int *)malloc(ncc * sizeof(int));
@@ -644,7 +644,6 @@ int MPC::call_solver(int k) {
     settings->adaptive_rho_tolerance = (float)5.0;
     settings->adaptive_rho_fraction = (float)0.7;
     osqp_setup(&workspce, data, settings);
-  
 
     /*self.prob.setup(P=self.P, q=self.Q, A=self.ML, l=self.NK_inf, u=self.NK.ravel(), verbose=False)
     self.prob.update_settings(eps_abs=1e-5)
@@ -673,7 +672,7 @@ int MPC::retrieve_result() {
   for (int k = 0; k < 12; k++) {
     x_next[k] = (workspce->solution->x)[k];
     x_f_applied(0, k) = (workspce->solution->x)[k] + xref(k, 1);
-    x_f_applied(0, k+12) = (workspce->solution->x)[12 * n_steps + k];
+    x_f_applied(0, k + 12) = (workspce->solution->x)[12 * n_steps + k];
   }
 
   /*std::cout << "SOLUTION States" << std::endl;
