@@ -1,4 +1,5 @@
 
+from utils_mpc import quaternionToRPY
 import numpy as np
 import scipy as scipy
 import pinocchio as pin
@@ -9,11 +10,11 @@ from solo12InvKin import Solo12InvKin
 
 class controller():
 
-    def __init__(self, dt):
+    def __init__(self, dt, N_SIMULATION):
 
         self.dt = dt  # Time step
 
-        self.invKin = Solo12InvKin()  # Inverse Kinematics object
+        self.invKin = Solo12InvKin(dt)  # Inverse Kinematics object
         self.qp_wbc = QP_WBC()  # QP of the WBC
 
         self.error = False  # Set to True when an error happens in the controller
@@ -22,6 +23,23 @@ class controller():
         self.qdes = np.zeros((19, ))
         self.vdes = np.zeros((18, 1))
         self.tau_ff = np.zeros(12)
+        self.qint = np.zeros((19, ))
+        self.vint = np.zeros((18, 1))
+
+        # Logging
+        self.k_log = 0
+        self.log_feet_pos = np.zeros((3, 4, N_SIMULATION))
+        self.log_feet_pos_target = np.zeros((3, 4, N_SIMULATION))
+        self.log_feet_vel_target = np.zeros((3, 4, N_SIMULATION))
+        self.log_feet_acc_target = np.zeros((3, 4, N_SIMULATION))
+        self.log_x_cmd = np.zeros((12, N_SIMULATION))
+        self.log_x = np.zeros((12, N_SIMULATION))
+        self.log_q = np.zeros((6, N_SIMULATION))
+        self.log_dq = np.zeros((6, N_SIMULATION))
+        self.log_x_ref_invkin = np.zeros((6, N_SIMULATION))
+        self.log_x_invkin = np.zeros((6, N_SIMULATION))
+        self.log_dx_ref_invkin = np.zeros((6, N_SIMULATION))
+        self.log_dx_invkin = np.zeros((6, N_SIMULATION))
 
     def compute(self, q, dq, x_cmd, f_cmd, contacts, planner):
         """ Call Inverse Kinematics to get an acceleration command then
@@ -37,20 +55,138 @@ class controller():
         """
 
         # Compute Inverse Kinematics
-        ddq_cmd = np.array([self.invKin.refreshAndCompute(q, dq, x_cmd, contacts, planner)]).T
+        ddq_cmd = np.array([self.invKin.refreshAndCompute(q.copy(), dq.copy(), x_cmd, contacts, planner)]).T
 
         # Solve QP problem
         self.qp_wbc.compute(self.invKin.robot.model, self.invKin.robot.data,
-                            q, dq, ddq_cmd, np.array([f_cmd]).T, contacts)
+                            q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
 
         # Retrieve joint torques
         self.tau_ff[:] = self.qp_wbc.get_joint_torques().ravel()
 
         # Retrieve desired positions and velocities
-        self.vdes[:, 0] = (dq + ddq_cmd * self.dt).ravel()
-        self.qdes[:] = pin.integrate(self.invKin.robot.model, q, self.vdes * self.dt)
+        self.vdes[:, 0] = self.invKin.dq_cmd  # (dq + ddq_cmd * self.dt).ravel()
+        self.qdes[:] = self.invKin.q_cmd  # pin.integrate(self.invKin.robot.model, q, self.vdes * self.dt)
+
+        # Double integration of ddq_cmd
+        self.vint[:, 0] = (dq + ddq_cmd * self.dt).ravel()
+        self.qint[:] = pin.integrate(self.invKin.robot.model, q, self.vint * self.dt)
+
+        # Log position, velocity and acceleration references for the feet
+        indexes = [10, 18, 26, 34]
+        for i in range(4):
+            self.log_feet_pos[:, i, self.k_log] = self.invKin.robot.data.oMf[indexes[i]].translation
+        self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :]
+        self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
+        self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]
+        self.log_x_cmd[:, self.k_log] = x_cmd[:]
+        self.log_x[0:3, self.k_log] = self.qint[0:3]
+        self.log_x[3:6, self.k_log] = quaternionToRPY(self.qint[3:7]).ravel()
+        oMb = pin.SE3(pin.Quaternion(np.array([self.qint[3:7]]).transpose()), np.zeros((3, 1)))
+        self.log_x[6:9, self.k_log] = oMb.rotation @ self.vint[0:3, 0]
+        self.log_x[9:12, self.k_log] = oMb.rotation @ self.vint[3:6, 0]
+        self.log_q[0:3, self.k_log] = q[0:3, 0]
+        self.log_q[3:6, self.k_log] = quaternionToRPY(q[3:7]).ravel()
+        self.log_dq[:, self.k_log] = dq[0:6, 0]
+
+        self.log_x_ref_invkin[:, self.k_log] = self.invKin.x_ref[:, 0]
+        self.log_x_invkin[:, self.k_log] = self.invKin.x[:, 0]
+        self.log_dx_ref_invkin[:, self.k_log] = self.invKin.dx_ref[:, 0]
+        self.log_dx_invkin[:, self.k_log] = self.invKin.dx[:, 0]
+
+        """if dq[0, 0] > 0.02:
+            from IPython import embed
+            embed()"""
+
+        self.k_log += 1
 
         return 0
+
+    def show_logs(self):
+
+        from matplotlib import pyplot as plt
+
+        N = self.log_x_cmd.shape[1]
+        t_range = np.array([k*self.dt for k in range(N)])
+
+        index6 = [1, 3, 5, 2, 4, 6]
+        index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+
+        lgd_X = ["FL", "FR", "HL", "HR"]
+        lgd_Y = ["Pos X", "Pos Y", "Pos Z"]
+        plt.figure()
+        for i in range(12):
+            if i == 0:
+                ax0 = plt.subplot(3, 4, index12[i])
+            else:
+                plt.subplot(3, 4, index12[i], sharex=ax0)
+            plt.plot(t_range, self.log_feet_pos[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
+            plt.plot(t_range, self.log_feet_pos_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+"", lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+        plt.suptitle("Reference positions of feet (world frame)")
+
+        lgd_X = ["FL", "FR", "HL", "HR"]
+        lgd_Y = ["Vel X", "Vel Y", "Vel Z"]
+        plt.figure()
+        for i in range(12):
+            if i == 0:
+                ax0 = plt.subplot(3, 4, index12[i])
+            else:
+                plt.subplot(3, 4, index12[i], sharex=ax0)
+            plt.plot(t_range, self.log_feet_vel_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+        plt.suptitle("Current and reference velocities of feet (world frame)")
+
+        lgd_X = ["FL", "FR", "HL", "HR"]
+        lgd_Y = ["Acc X", "Acc Y", "Acc Z"]
+        plt.figure()
+        for i in range(12):
+            if i == 0:
+                ax0 = plt.subplot(3, 4, index12[i])
+            else:
+                plt.subplot(3, 4, index12[i], sharex=ax0)
+            plt.plot(t_range, self.log_feet_acc_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
+            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+        plt.suptitle("Current and reference accelerations of feet (world frame)")
+
+        # LOG_Q
+        lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw"]
+        plt.figure()
+        for i in range(6):
+            if i == 0:
+                ax0 = plt.subplot(3, 2, index6[i])
+            else:
+                plt.subplot(3, 2, index6[i], sharex=ax0)
+            plt.plot(t_range, self.log_x[i, :], "b", linewidth=2)
+            plt.plot(t_range, self.log_x_cmd[i, :], "r", linewidth=2)
+            # plt.plot(t_range, self.log_q[i, :], "g", linewidth=2)
+            plt.plot(t_range, self.log_x_invkin[i, :], "g", linewidth=2)
+            plt.plot(t_range, self.log_x_ref_invkin[i, :], "violet", linewidth=2)
+            plt.ylabel(lgd[i])
+
+        # LOG_V
+        lgd = ["Linear vel X", "Linear vel Y", "Linear vel Z",
+               "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+        plt.figure()
+        for i in range(6):
+            if i == 0:
+                ax0 = plt.subplot(3, 2, index6[i])
+            else:
+                plt.subplot(3, 2, index6[i], sharex=ax0)
+            plt.plot(t_range, self.log_x[i+6, :], "b", linewidth=2)
+            plt.plot(t_range, self.log_x_cmd[i+6, :], "r", linewidth=2)
+            # plt.plot(t_range, self.log_dq[i, :], "g", linewidth=2)
+            plt.plot(t_range, self.log_dx_invkin[i, :], "g", linewidth=2)
+            plt.plot(t_range, self.log_dx_ref_invkin[i, :], "violet", linewidth=2)
+            plt.ylabel(lgd[i])
+
+        plt.figure()
+        plt.plot(t_range, self.log_x[6, :], "b", linewidth=2)
+        plt.plot(t_range, self.log_x_cmd[6, :], "r", linewidth=2)
+        plt.plot(t_range, self.log_dx_invkin[0, :], "g", linewidth=2)
+        plt.plot(t_range, self.log_dx_ref_invkin[0, :], "violet", linewidth=2)
+
+        plt.show(block=True)
 
 
 class QP_WBC():

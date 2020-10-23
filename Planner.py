@@ -1,11 +1,15 @@
 # coding: utf8
 
+import Joystick
+from matplotlib import pyplot as plt
+import time
 import numpy as np
 import math
 import pinocchio as pin
 import tsid
 import utils_mpc
 import FootTrajectoryGenerator as ftg
+
 
 class Planner:
     """Planner that outputs current and future locations of footsteps, the reference trajectory of the base and
@@ -71,7 +75,7 @@ class Planner:
 
         self.flag_rotation_command = int(0)
         self.h_rotation_command = h_ref
-    
+
         # Create gait matrix
         # self.create_walking_trot()
         self.create_trot()
@@ -84,7 +88,8 @@ class Planner:
         # Foot trajectory generator
         max_height_feet = 0.050
         t_lock_before_touchdown = 0.07
-        self.ftgs = [ftg.Foot_trajectory_generator(max_height_feet, t_lock_before_touchdown, self.shoulders[0, i], self.shoulders[1, i]) for i in range(4)]
+        self.ftgs = [ftg.Foot_trajectory_generator(
+            max_height_feet, t_lock_before_touchdown, self.shoulders[0, i], self.shoulders[1, i]) for i in range(4)]
 
         # Variables for foot trajectory generator
         self.i_end_gait = -1
@@ -370,7 +375,7 @@ class Planner:
 
         return 0
 
-    def run_planner(self, k, k_mpc, q, v, b_vref, vtsid):
+    def run_planner(self, k, k_mpc, q, v, b_vref):
 
         # Get the reference velocity in world frame (given in base frame)
         self.RPY = utils_mpc.quaternionToRPY(q[3:7, 0])
@@ -386,7 +391,7 @@ class Planner:
             self.compute_footsteps(q, v, vref)
 
             # Get the reference trajectory for the MPC
-            self.getRefStates(q, vtsid, vref)
+            self.getRefStates(q, v, vref)
 
             # Update desired location of footsteps on the ground
             self.update_target_footsteps()
@@ -419,15 +424,15 @@ class Planner:
 
         # Update x and y depending on x and y velocities (cumulative sum)
         if vref[5, 0] != 0:
-            dx = (vref[0, 0] * np.sin(vref[5, 0] * dt_vector[:-1]) +
-                  vref[1, 0] * (np.cos(vref[5, 0] * dt_vector[:-1]) - 1)) / vref[5, 0]
-            dy = (vref[1, 0] * np.sin(vref[5, 0] * dt_vector[:-1]) -
-                  vref[0, 0] * (np.cos(vref[5, 0] * dt_vector[:-1]) - 1)) / vref[5, 0]
+            dx = (vref[0, 0] * np.sin(vref[5, 0] * dt_vector[:]) +
+                  vref[1, 0] * (np.cos(vref[5, 0] * dt_vector[:]) - 1)) / vref[5, 0]
+            dy = (vref[1, 0] * np.sin(vref[5, 0] * dt_vector[:]) -
+                  vref[0, 0] * (np.cos(vref[5, 0] * dt_vector[:]) - 1)) / vref[5, 0]
         else:
-            dx = vref[0, 0] * dt_vector[:-1]
-            dy = vref[1, 0] * dt_vector[:-1]
-        self.xref[0, 2:] = dx  # dt_vector * self.xref[6, 1:]
-        self.xref[1, 2:] = dy  # dt_vector * self.xref[7, 1:]
+            dx = vref[0, 0] * dt_vector[:]
+            dy = vref[1, 0] * dt_vector[:]
+        self.xref[0, 1:] = dx  # dt_vector * self.xref[6, 1:]
+        self.xref[1, 1:] = dy  # dt_vector * self.xref[7, 1:]
 
         # Start from position of the CoM in local frame
         #self.xref[0, 1:] += q[0, 0]
@@ -490,11 +495,15 @@ class Planner:
         # Current state vector of the robot
         self.x0 = self.xref[:, 0:1]
 
-        self.xref[0:3, 1:2] = self.xref[0:3, 0:1] + self.xref[6:9, 0:1] * self.dt
-        self.xref[3:6, 1:2] = self.xref[3:6, 0:1] + self.xref[9:12, 0:1] * self.dt
+        """self.xref[0:3, 1:2] = self.xref[0:3, 0:1] + self.xref[6:9, 0:1] * self.dt
+        self.xref[3:6, 1:2] = self.xref[3:6, 0:1] + self.xref[9:12, 0:1] * self.dt"""
 
-        self.xref[0, 2:] += self.xref[0, 1]
-        self.xref[1, 2:] += self.xref[1, 1]
+        self.xref[0, 1:] += self.xref[0, 0]
+        self.xref[1, 1:] += self.xref[1, 0]
+
+        """if v[0, 0] > 0.02:
+            from IPython import embed
+            embed()"""
 
         return 0
 
@@ -561,7 +570,7 @@ class Planner:
 
                 # TODO: Fix that. We need to assess properly the duration of the swing phase even during the transition
                 # between two gaits (need to take into account past information)
-                self.t_swing[i] = self.T_gait * 0.5 # - 0.02
+                self.t_swing[i] = self.T_gait * 0.5  # - 0.02
 
                 self.t0s.append(
                     np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt_tsid - self.dt_tsid, 0.0)), decimals=3))
@@ -579,7 +588,7 @@ class Planner:
         for i in range(len(self.feet)):
             i_foot = self.feet[i]
             if i_foot == 0:
-                deb= 1
+                deb = 1
             # Get desired 3D position, velocity and acceleration
             if (self.t0s[i] == 0.000) or (k == 0):
                 [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
@@ -601,16 +610,12 @@ class Planner:
             if k % 10 == 0:
                 test = 1
 
-
     def cross3(self, left, right):
         """Numpy is inefficient for this"""
         return np.array([[left[1] * right[2] - left[2] * right[1]],
-                        [left[2] * right[0] - left[0] * right[2]],
-                        [left[0] * right[1] - left[1] * right[0]]])
+                         [left[2] * right[0] - left[0] * right[2]],
+                         [left[0] * right[1] - left[1] * right[0]]])
 
-import Joystick
-import time
-from matplotlib import pyplot as plt
 
 def EulerToQuaternion(roll_pitch_yaw):
     roll, pitch, yaw = roll_pitch_yaw
@@ -625,6 +630,7 @@ def EulerToQuaternion(roll_pitch_yaw):
     qz = cr * cp * sy - sr * sp * cy
     qw = cr * cp * cy + sr * sp * sy
     return [qx, qy, qz, qw]
+
 
 def test_planner():
 
@@ -654,7 +660,6 @@ def test_planner():
     feet_vel_target = np.zeros((3, 4, N))
     feet_acc_target = np.zeros((3, 4, N))
     mpc_traj = np.zeros((12, N))
-
 
     # Initialisation
     q = np.zeros((19, 1))
@@ -700,7 +705,7 @@ def test_planner():
         # Logging output of MPC trajectory generator
         mpc_traj[:, k] = planner.xref[:, 1]
 
-        #print(RPY.ravel())
+        # print(RPY.ravel())
         if k % 10 == 0:
             test = 1
 
@@ -739,7 +744,7 @@ def test_planner():
 
         while (time.time() - t_start) < 0.002:
             pass
-        
+
     plt.close("all")
 
     t_range = np.array([k*dt for k in range(N)])
@@ -778,7 +783,7 @@ def test_planner():
     index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
 
     lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw", "Linear vel X", "Linear vel Y", "Linear vel Z",
-            "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+           "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
     plt.figure()
     for i in range(12):
         plt.subplot(3, 4, index[i])
@@ -810,7 +815,7 @@ def test_planner_mpc():
     T_gait = 0.64
     on_solo8 = False
     k = 0
-    N = 2000
+    N = 20000
     k_mpc = 10
 
     # Logging variables
@@ -892,8 +897,8 @@ def test_planner_mpc():
         q[3:7, 0] = EulerToQuaternion(planner.xref[3:6, 1])
         v[0:3, 0] = planner.xref[6:9, 1].copy()
         v[3:6, 0] = planner.xref[9:12, 1].copy()"""
-        
-        q[0:3, 0] = x_f_mpc[0:3]       
+
+        q[0:3, 0] = x_f_mpc[0:3]
         q[3:7, 0] = EulerToQuaternion(x_f_mpc[3:6])
         v[0:3, 0] = x_f_mpc[6:9]
         v[3:6, 0] = x_f_mpc[9:12]
@@ -947,7 +952,7 @@ def test_planner_mpc():
     index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
 
     lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw", "Linear vel X", "Linear vel Y", "Linear vel Z",
-            "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+           "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
     plt.figure()
     for i in range(12):
         plt.subplot(3, 4, index[i])
@@ -1043,14 +1048,13 @@ def test_planner_mpc_tsid():
 
         if (k % k_mpc) == 0:
             joystick.update_v_ref(k, 0)
-            joystick.v_ref[0, 0] = 0.0 # np.min((0.3, k * 0.3 / 1000))
+            joystick.v_ref[0, 0] = 0.0  # np.min((0.3, k * 0.3 / 1000))
             joystick.v_ref[1, 0] = 0.0
             joystick.v_ref[5, 0] = -0.3
             """if k > 2000:
                 joystick.v_ref[5, 0] = +0.2
             if k > 4500:
                 joystick.v_ref[5, 0] = -0.2"""
-
 
         # v[0:2, 0:1] = np.array([[c, -s], [s, c]]) @ joystick.v_ref[0:2, 0:1]
         # v[5, 0] = joystick.v_ref[5, 0]
@@ -1106,7 +1110,7 @@ def test_planner_mpc_tsid():
         for i in range(4):
             b_x_f_mpc[(12+3*i):(12+3*(i+1))] = (oMl.rotation @ np.array([x_f_mpc[(12+3*i):(12+3*(i+1))]]).transpose()).ravel()
         log_xfmpc[:, k] = b_x_f_mpc.copy()"""
-        
+
         #print("x_f_mpc: ", x_f_mpc)
         if k == 30:
             deb = 1
@@ -1151,7 +1155,7 @@ def test_planner_mpc_tsid():
             if k > 0:   
                 print(myController.vdes[:6, 0].ravel())
             print(x_f_mpc[:12])"""
-            
+
             # Initial conditions
             """if k == 0:
                 myController.qtsid = q.copy()
@@ -1177,7 +1181,6 @@ def test_planner_mpc_tsid():
                 log_f_tsid = np.zeros((12, N))
                 log_fsteps = np.zeros((8, N))
 
-            
             log_x_mpc[:, k] = x_f_mpc[:12]
             log_f_mpc[:, k] = x_f_mpc[12:]
             for i in range(4):
@@ -1248,10 +1251,10 @@ def test_planner_mpc_tsid():
 
         k += 1
 
-        #if k == 1000:
+        # if k == 1000:
         #    oMb = pin.SE3(pin.utils.rotate('z', 3.1415/2), np.array([0.0, 0.0, 0.0]))
         #    q[3:7, 0] = np.array([0, 0, 0.7009093, 0.7132504]) #pin.Quaternion(EulerToQuaternion(pin.rpy.matrixToRpy(oMb.rotation @ pin.Quaternion(q[3:7, 0:1]).toRotationMatrix())))
-                    
+
         while (time.time() - t_start) < 0.002:
             pass
 
@@ -1262,8 +1265,6 @@ def test_planner_mpc_tsid():
     # mpc_traj_1 = data['mpc_traj_1']  # Position
 
     t_range = np.array([k*dt for k in range(N)])
-
-    
 
     index6 = [1, 3, 5, 2, 4, 6]
     index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
@@ -1350,11 +1351,10 @@ def test_planner_mpc_tsid():
         plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
     plt.suptitle("Current and reference accelerations of feet (world frame)")
 
-
     index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
 
     lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw", "Linear vel X", "Linear vel Y", "Linear vel Z",
-            "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+           "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
     plt.figure()
     for i in range(12):
         plt.subplot(3, 4, index[i])
@@ -1386,7 +1386,6 @@ def test_planner_mpc_tsid():
             plt.ylim([-1.5, 1.5])
 
     plt.suptitle("MPC contact forces (world frame)")
-
 
     plt.figure()
     for i in range(12):
@@ -1422,5 +1421,5 @@ def test_planner_mpc_tsid():
 
 if __name__ == "__main__":
     print("START")
-    test_planner_mpc_tsid()
+    test_planner_mpc()
     print("END")
