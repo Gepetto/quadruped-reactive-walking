@@ -1,21 +1,20 @@
 # coding: utf8
 
+from utils.logger import Logger
+import tsid as tsid
+import pinocchio as pin
+import argparse
+import numpy as np
+from mpctsid.Estimator import Estimator
+from mpctsid.Controller import Controller
+from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
 import os
 import sys
 sys.path.insert(0, './mpctsid')
 
-from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
-from mpctsid.Controller import Controller
-from mpctsid.Estimator import Estimator
-import numpy as np
-import argparse
-import pinocchio as pin
-import tsid as tsid
-from utils.logger import Logger
 
-
-SIMULATION = False
-LOGGING = True
+SIMULATION = True
+LOGGING = False
 
 if SIMULATION:
     from mpctsid.utils_mpc import PyBulletSimulator
@@ -97,7 +96,7 @@ def mcapi_playback(name_interface):
     t = 0.0  # Time
     n_periods = 1  # Number of periods in the prediction horizon
     T_gait = 0.32  # Duration of one gait period
-    N_SIMULATION = 15000  # number of simulated TSID time steps
+    N_SIMULATION = 5000  # number of simulated TSID time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -116,7 +115,7 @@ def mcapi_playback(name_interface):
     predefined_vel = False
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = True
+    enable_pyb_GUI = False
 
     # Default position after calibration
     q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, +1.6, 0, -0.8, +1.6])
@@ -166,7 +165,7 @@ def mcapi_playback(name_interface):
         device.UpdateMeasurment()  # Retrieve data from IMU and Motion capture
 
         # Desired torques
-        tau = controller.compute(device)
+        controller.compute(device)
         # print(tau[0:3].ravel())
         # tau = tau.ravel()
 
@@ -197,8 +196,7 @@ def mcapi_playback(name_interface):
                 print("FORCE")
             device.pyb_sim.apply_external_force(kk, 1500, 1000, np.array([0.0, +6.0, 0.0]), np.zeros((3,)))"""
 
-        
-        #view.display(controller.q)
+        # view.display(controller.q)
 
         # Send command to the robot
         for i in range(1):
@@ -206,9 +204,9 @@ def mcapi_playback(name_interface):
         """if ((device.cpt % 1000) == 0):
             device.Print()"""
 
-        #log_v_est[:, kk] = controller.estimator.v_filt[:6, 0]
-        #log_v_tsid[:, kk] = controller.b_v[:6, 0]
-        #kk += 1
+        # log_v_est[:, kk] = controller.estimator.v_filt[:6, 0]
+        # log_v_tsid[:, kk] = controller.b_v[:6, 0]
+        # kk += 1
 
         t += DT
 
@@ -260,6 +258,8 @@ def mcapi_playback(name_interface):
         print("Masterboard timeout detected.")
         print("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.")
     device.hardware.Stop()  # Shut down the interface between the computer and the master board
+
+    controller.myController.show_logs()
 
     # Save the logs of the Logger object
     if LOGGING:
