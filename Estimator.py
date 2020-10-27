@@ -18,12 +18,12 @@ class Estimator:
         self.dt = dt
 
         # Cut frequency (fc should be < than 1/dt)
-        fc = 4.0
+        fc = 10.0
         y = 1 - np.cos(2*np.pi*fc*dt)
         self.alpha_v = -y+np.sqrt(y*y+2*y)
 
         # Filter coefficient (0 < alpha < 1) for IMU with FK
-        self.alpha = 0.98  # self.dt * self.fc
+        self.alpha = 0.98  # 0.98  # self.dt * self.fc
 
         # IMU data
         # Linear acceleration (gravity debiased)
@@ -57,8 +57,8 @@ class Estimator:
 
         # Transform between the base frame and the IMU frame
         self._1Mi = pin.SE3(pin.Quaternion(np.array([[0.0, 0.0, 0.0, 1.0]]).transpose()),
-                        np.array([0.1163, 0.0, 0.02]))
-        
+                            np.array([0.1163, 0.0, 0.02]))
+
         # Logging
         self.log_v_truth = np.zeros((3, N_simulation))
         self.log_v_est = np.zeros((3, 4, N_simulation))
@@ -75,7 +75,7 @@ class Estimator:
 
         self.k_log = 0
 
-    def get_data_IMU(self, device):
+    def get_data_IMU(self, device, q):
         """Get data from the IMU (linear acceleration, angular velocity and position)
         """
 
@@ -86,10 +86,17 @@ class Estimator:
         self.IMU_ang_vel[:] = device.baseAngularVelocity
 
         # Angular position of the trunk (PyBullet local frame)
-        RPY = self.quaternionToRPY(device.baseOrientation)
-        self.IMU_ang_pos[:] = self.EulerToQuaternion([RPY[0],
-                                                      RPY[1],
-                                                      RPY[2]])
+        if q is not None:
+            RPY = self.quaternionToRPY(device.baseOrientation)
+            RPY_simu = self.quaternionToRPY(q[3:7])
+            self.IMU_ang_pos[:] = self.EulerToQuaternion([RPY[0],
+                                                          RPY[1],
+                                                          RPY[2]])
+        else:
+            RPY = self.quaternionToRPY(device.baseOrientation)
+            self.IMU_ang_pos[:] = self.EulerToQuaternion([RPY[0],
+                                                          RPY[1],
+                                                          RPY[2]])
 
         return 0
 
@@ -146,7 +153,7 @@ class Estimator:
 
         return 0
 
-    def run_filter(self, k, feet_status, device, data=None, model=None, joystick=None):
+    def run_filter(self, k, feet_status, device, q=None, data=None, model=None, joystick=None):
         """Run the complementary filter to get the filtered quantities
 
         Args:
@@ -160,7 +167,7 @@ class Estimator:
             self.model = model
 
         # Update IMU data
-        self.get_data_IMU(device)
+        self.get_data_IMU(device, q)
 
         # Update joints data
         self.get_data_joints(device)
@@ -187,10 +194,10 @@ class Estimator:
         if k > 0:
             """# Get previous base vel wrt world in base frame into IMU frame
             i_filt_lin_vel = self.filt_lin_vel[:] + self.cross3(self._1Mi.translation.ravel(), self.IMU_ang_vel).ravel()
-    
+
             # Merge IMU base vel wrt world in IMU frame with FK base vel wrt world in IMU frame
             i_merged_lin_vel = self.alpha * (i_filt_lin_vel + self.IMU_lin_acc * self.dt) + (1 - self.alpha) * self.FK_lin_vel
-    
+
             # Get merged base vel wrt world in IMU frame into base frame
             self.filt_lin_vel[:] = i_merged_lin_vel + self.cross3(-self._1Mi.translation.ravel(), self.IMU_ang_vel).ravel()"""
 
@@ -243,7 +250,7 @@ class Estimator:
         Args:
             contactFrameId (int): ID of the contact point frame (foot frame)
         """
-        
+
         frameVelocity = pin.getFrameVelocity(self.model, self.data, contactFrameId, pin.ReferenceFrame.LOCAL)
         framePlacement = pin.updateFramePlacement(self.model, self.data, contactFrameId)
         # print("Foot ", contactFrameId, " | ", framePlacement.translation)
@@ -263,7 +270,7 @@ class Estimator:
 
         # IMU and base frames have the same orientation
         _iv0i = _1v01 + self.cross3(self._1Mi.translation.ravel(), _1w01.ravel())
-        
+
         return np.array(_1v01), (-framePlacement.translation[2])
 
     def EulerToQuaternion(self, roll_pitch_yaw):
