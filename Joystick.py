@@ -32,7 +32,7 @@ class Joystick:
         self.vYaw = 0.
         self.VxScale = 1.0
         self.VyScale = 1.0
-        self.vYawScale = 1.0
+        self.vYawScale = 1.5
 
         self.Vx_ref = 0.3
         self.Vy_ref = 0.0
@@ -89,7 +89,7 @@ class Joystick:
 
         # Low pass filter to slow down the changes of velocity when moving the joysticks
         tc = 0.04  #  cutoff frequency at 50 Hz
-        dT = 0.002  # velocity reference is updated every ms
+        dT = 0.0010  # velocity reference is updated every ms
         alpha = dT / tc
         self.v_ref = alpha * self.v_gp + (1-alpha) * self.v_ref
 

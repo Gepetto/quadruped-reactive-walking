@@ -635,7 +635,7 @@ class pybullet_simulator:
         vmes[:, 0] = [state[1] for state in jointStates]
 
         # Create trajectory
-        dt_traj = 0.002
+        dt_traj = 0.0010
         t1 = 4.0  # seconds
         cpt = 0
 
@@ -781,7 +781,7 @@ class PyBulletSimulator():
         self.baseLinearAcceleration[:] = (self.b_baseVel.ravel() - self.prev_b_baseVel) / self.dt
         self.prev_b_baseVel[:] = self.b_baseVel.ravel()
         self.baseAccelerometer[:] = self.baseLinearAcceleration[:] + \
-                                (self.oMb.rotation.transpose() @ np.array([[0.0], [0.0], [-9.81]])).ravel()
+            (self.oMb.rotation.transpose() @ np.array([[0.0], [0.0], [-9.81]])).ravel()
 
         return
 
@@ -815,6 +815,8 @@ class PyBulletSimulator():
         # Set control torque for all joints
         pyb.setJointMotorControlArray(self.pyb_sim.robotId, self.pyb_sim.revoluteJointIndices,
                                       controlMode=pyb.TORQUE_CONTROL, forces=self.jointTorques)
+
+        # self.pyb_sim.apply_external_force(self.cpt, 3250, 1000, np.array([0.0, +8.0, 0.0]), np.zeros((3,)))
 
         # Compute one step of simulation
         pyb.stepSimulation()

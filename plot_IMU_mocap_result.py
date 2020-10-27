@@ -124,7 +124,7 @@ def BaseVelocityFromKinAndIMU(contactFrameId, model, data, IMU_ang_vel):
 on_solo8 = False
 
 # Load data file
-data = np.load("data_2020_10_14_10_50.npz")
+data = np.load("data_2020_10_26_18_27.npz")
 
 # Store content of data in variables
 
@@ -175,7 +175,7 @@ t = np.linspace(0, Tend, N+1, endpoint=True)
 t = t[:-1]
 
 # Parameters
-dt = 0.002
+dt = 0.0010
 lwdth = 2
 
 embed()
@@ -190,7 +190,7 @@ for i in range(12):
     else:
         plt.subplot(3, 4, index[i], sharex=ax0)
     plt.plot(log_xfmpc[:, i], "b", linewidth=2)
-    #plt.ylabel(lgd[i])
+    # plt.ylabel(lgd[i])
 plt.suptitle("b_xfmpc")
 
 plt.figure()

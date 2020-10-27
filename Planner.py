@@ -99,6 +99,8 @@ class Planner:
         self.vgoals = np.zeros((3, 4))  # Store 3D target velocity for feet
         self.agoals = np.zeros((3, 4))  # Store 3D target acceleration for feet
         self.mgoals = np.zeros((6, 4))  # Storage variable for the trajectory generator
+        self.mgoals[0, :] = self.shoulders[0, :]
+        self.mgoals[3, :] = self.shoulders[1, :]
 
     def create_static(self):
         """Create the matrices used to handle the gait and initialize them to keep the 4 feet in contact
@@ -387,14 +389,14 @@ class Planner:
             # Move one step further in the gait
             self.roll_experimental(k, k_mpc)
 
-            # Compute the desired location of footsteps over the prediction horizon
-            self.compute_footsteps(q, v, vref)
+        # Compute the desired location of footsteps over the prediction horizon
+        self.compute_footsteps(q, v, vref)
 
-            # Get the reference trajectory for the MPC
-            self.getRefStates(q, v, vref)
+        # Get the reference trajectory for the MPC
+        self.getRefStates(q, v, vref)
 
-            # Update desired location of footsteps on the ground
-            self.update_target_footsteps()
+        # Update desired location of footsteps on the ground
+        self.update_target_footsteps()
 
         # Update trajectory generator (3D pos, vel, acc)
         self.update_trajectory_generator(k)
@@ -587,13 +589,12 @@ class Planner:
         # Get position, velocity and acceleration commands for feet in swing phase
         for i in range(len(self.feet)):
             i_foot = self.feet[i]
-            if i_foot == 0:
-                deb = 1
+
             # Get desired 3D position, velocity and acceleration
             if (self.t0s[i] == 0.000) or (k == 0):
                 [x0, dx0, ddx0,  y0, dy0, ddy0,  z0, dz0, ddz0, gx1, gy1] = (self.ftgs[i_foot]).get_next_foot(
-                    self.o_feet_contact[0+3*i_foot], 0.0, 0.0,
-                    self.o_feet_contact[1+3*i_foot], 0.0, 0.0,
+                    self.mgoals[0, i_foot], 0.0, 0.0,
+                    self.mgoals[3, i_foot], 0.0, 0.0,
                     self.footsteps_target[0, i_foot], self.footsteps_target[1, i_foot], self.t0s[i],  self.t_swing[i_foot], self.dt_tsid)
                 self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
             else:
@@ -645,14 +646,14 @@ def test_planner():
     robot = tsid.RobotWrapper(urdf, vector, pin.JointModelFreeFlyer(), False)
     model = robot.model()
 
-    dt = 0.002
+    dt = 0.001
     dt_mpc = 0.02
     n_periods = 1
     T_gait = 0.64
     on_solo8 = False
     k = 0
-    N = 1000
-    k_mpc = 10
+    N = 10000
+    k_mpc = 20
 
     # Logging variables
     ground_pos_target = np.zeros((3, 4, N))
@@ -687,7 +688,7 @@ def test_planner():
             joystick.update_v_ref(k, 0)
             joystick.v_ref[0, 0] = 0.3
             joystick.v_ref[1, 0] = 0.0
-            joystick.v_ref[5, 0] = 0.4
+            joystick.v_ref[5, 0] = 0.0
             # b_v[0:2, 0:1] = joystick.v_ref[0:2, 0:1]
             # b_v[5, 0] = joystick.v_ref[5, 0]
 
@@ -809,14 +810,14 @@ def test_planner_mpc():
     robot = tsid.RobotWrapper(urdf, vector, pin.JointModelFreeFlyer(), False)
     model = robot.model()
 
-    dt = 0.002
+    dt = 0.0010
     dt_mpc = 0.02
     n_periods = 1
-    T_gait = 0.64
+    T_gait = 0.32
     on_solo8 = False
     k = 0
     N = 20000
-    k_mpc = 10
+    k_mpc = 20
 
     # Logging variables
     ground_pos_target = np.zeros((3, 4, N))
@@ -846,24 +847,24 @@ def test_planner_mpc():
         c = math.cos(RPY[2, 0])
         s = math.sin(RPY[2, 0])
 
-        if (k % k_mpc) == 0:
-            joystick.update_v_ref(k, 0)
-            """joystick.v_ref[0, 0] = 0.4 # np.min((0.3, k * 0.3 / 1000))
-            joystick.v_ref[1, 0] = 0.0
-            joystick.v_ref[5, 0] = 0.4"""
+        # if (k % k_mpc) == 0:
+        joystick.update_v_ref(k, 0)
+        joystick.v_ref[0, 0] = np.min((0.4, k * 0.4 / 3000))
+        """joystick.v_ref[1, 0] = 0.0
+        joystick.v_ref[5, 0] = 0.4"""
 
         # v[0:2, 0:1] = np.array([[c, -s], [s, c]]) @ joystick.v_ref[0:2, 0:1]
         # v[5, 0] = joystick.v_ref[5, 0]
 
-        if k == 101:
+        """if k == 101:
             mpc_wrapper.last_available_result[3] = 15 * 3.1415/180
             #x_f_mpc[3] = 15 * 3.1415/180
-            print("Pass")
+            print("Pass")"""
 
         # Run planner
-        if k == 100:
-            q[3:7, 0] = EulerToQuaternion([0.2, 0.0, 0.0])
-        planner.run_planner(k, k_mpc, q[0:7, 0:1], v[0:6, 0:1], joystick.v_ref, v[0:6, 0:1])
+        """if k == 100:
+            q[3:7, 0] = EulerToQuaternion([0.2, 0.0, 0.0])"""
+        planner.run_planner(k, k_mpc, q[0:7, 0:1], v[0:6, 0:1], joystick.v_ref)
 
         # Logging output of foot trajectory generator
         ground_pos_target[0:2, :, k] = planner.footsteps_target.copy()

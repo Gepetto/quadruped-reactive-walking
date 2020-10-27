@@ -26,14 +26,14 @@ class Solo12InvKin:
         self.base_linearvelocity_ref = np.array([0., 0., 0.])
         self.base_linearacceleration_ref = np.array([0., 0., 0.])
 
-        self.Kp_base_orientation = 100
-        self.Kd_base_orientation = 2*np.sqrt(self.Kp_base_orientation)
+        self.Kp_base_orientation = 100.0
+        self.Kd_base_orientation = 2.0*np.sqrt(self.Kp_base_orientation)
 
-        self.Kp_base_position = 100
-        self.Kd_base_position = 2*np.sqrt(self.Kp_base_position)
+        self.Kp_base_position = 100.0
+        self.Kd_base_position = 2.0*np.sqrt(self.Kp_base_position)
 
-        self.Kp_flyingfeet = 100
-        self.Kd_flyingfeet = 2*np.sqrt(self.Kp_flyingfeet)
+        self.Kp_flyingfeet = 100.0
+        self.Kd_flyingfeet = 2.0*np.sqrt(self.Kp_flyingfeet)
 
         self.x_ref = np.zeros((6, 1))
         self.x = np.zeros((6, 1))
@@ -93,10 +93,6 @@ class Solo12InvKin:
         self.base_linearvelocity_ref[:] = x_cmd[6:9]
         self.base_angularvelocity_ref[:] = x_cmd[9:12]
 
-        """if dq[0, 0] > 0.02:
-            from IPython import embed
-            embed()"""
-
         return self.compute(q, dq)
 
     def compute(self, q, dq):
@@ -139,7 +135,7 @@ class Solo12InvKin:
         ref = self.base_position_ref
         Jbasis = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, idx, pin.LOCAL_WORLD_ALIGNED)[:3]
         e_basispos = ref - pos
-        accbasis = -self.Kp_base_position*(pos-ref) + self.Kd_base_position*(self.base_linearvelocity_ref - nu.linear)
+        accbasis = -self.Kp_base_position*(pos-ref) - self.Kd_base_position*(nu.linear-self.base_linearvelocity_ref)
         drift = np.zeros(3)
         drift += pin.getFrameAcceleration(self.rmodel, self.rdata, idx, pin.LOCAL_WORLD_ALIGNED).linear
         drift += self.cross3(nu.angular, nu.linear)
@@ -160,7 +156,7 @@ class Solo12InvKin:
         Jwbasis = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, idx, pin.LOCAL_WORLD_ALIGNED)[3:]
         e_basisrot = -rotref @ pin.log3(rotref.T@rot)
         accwbasis = -self.Kp_base_orientation * \
-            rotref @ pin.log3(rotref.T@rot) + self.Kd_base_orientation*(self.base_angularvelocity_ref - nu.angular)
+            rotref @ pin.log3(rotref.T@rot) - self.Kd_base_orientation*(nu.angular - self.base_angularvelocity_ref)
         drift = np.zeros(3)
         drift += pin.getFrameAcceleration(self.rmodel, self.rdata, idx, pin.LOCAL_WORLD_ALIGNED).angular
         accwbasis -= drift
@@ -171,13 +167,13 @@ class Solo12InvKin:
         self.dx_ref[3:6, 0] = self.base_angularvelocity_ref
         self.dx[3:6, 0] = nu.angular
 
-        J = np.vstack(Jfeet+[Jbasis, Jwbasis])
-        acc = np.concatenate(afeet+[accbasis, accwbasis])
+        J = np.vstack([Jbasis, Jwbasis]+Jfeet)
+        acc = np.concatenate([accbasis, accwbasis]+afeet)
 
-        x_err = np.concatenate(pfeet_err+[e_basispos, e_basisrot])
-        dx_ref = np.concatenate(vfeet_ref+[self.base_linearvelocity_ref, self.base_angularvelocity_ref])
+        x_err = np.concatenate([e_basispos, e_basisrot]+pfeet_err)
+        dx_ref = np.concatenate([self.base_linearvelocity_ref, self.base_angularvelocity_ref]+vfeet_ref)
 
-        invJ = self.dinv(J)  # or np.linalg.inv(J) since full rank
+        invJ = np.linalg.inv(J)  # self.dinv(J)  # or np.linalg.inv(J) since full rank
 
         ddq = invJ @ acc
         self.q_cmd = pin.integrate(self.robot.model, q, invJ @ x_err)

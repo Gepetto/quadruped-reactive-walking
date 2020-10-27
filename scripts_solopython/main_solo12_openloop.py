@@ -14,7 +14,7 @@ sys.path.insert(0, './mpctsid')
 
 
 SIMULATION = True
-LOGGING = False
+LOGGING = True
 
 if SIMULATION:
     from mpctsid.utils_mpc import PyBulletSimulator
@@ -23,7 +23,7 @@ else:
     from solo12 import Solo12
     from utils.qualisysClient import QualisysClient
 
-DT = 0.002
+DT = 0.0010
 
 key_pressed = False
 
@@ -90,13 +90,13 @@ def mcapi_playback(name_interface):
     envID = 0  # Identifier of the environment to choose in which one the simulation will happen
     velID = 0  # Identifier of the reference velocity profile to choose which one will be sent to the robot
 
-    dt_tsid = 0.0020  # Time step of TSID
+    dt_tsid = 0.0010  # Time step of TSID
     dt_mpc = 0.02  # Time step of the MPC
     k_mpc = int(dt_mpc / dt_tsid)  # dt is dt_tsid, defined in the TSID controller script
     t = 0.0  # Time
     n_periods = 1  # Number of periods in the prediction horizon
     T_gait = 0.32  # Duration of one gait period
-    N_SIMULATION = 5000  # number of simulated TSID time steps
+    N_SIMULATION = 8000  # number of simulated TSID time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -112,10 +112,10 @@ def mcapi_playback(name_interface):
     use_flat_plane = True
 
     # If we are using a predefined reference velocity (True) or a joystick (False)
-    predefined_vel = False
+    predefined_vel = True
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = False
+    enable_pyb_GUI = True
 
     # Default position after calibration
     q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, +1.6, 0, -0.8, +1.6])
