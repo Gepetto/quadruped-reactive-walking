@@ -175,15 +175,49 @@ class Controller:
 
         # Process state estimator
         """if self.k == 1:
-            self.estimator.run_filter(self.k, self.planner.gait[0, 1:], device,
+            self.estimator.run_filter(self.k, self.planner.gait[0, 1:], device, None,
                                       self.myController.invKin.robot.data, self.myController.invKin.robot.model,
                                       self.joystick.v_ref)
         else:
-            self.estimator.run_filter(self.k, self.planner.gait[0, 1:], device)"""
+            self.estimator.run_filter(self.k, self.planner.gait[0, 1:], device, self.myController.qint)
 
-        # Update the reference velocity coming from the gamepad once every k_mpc iterations of TSID
-        if (self.k % self.k_mpc) == 0:
-            self.joystick.update_v_ref(self.k, self.velID)
+        # Update state for the next iteration of the whole loop
+        if self.k > 1:
+            "self.q[:, 0] = self.myController.qint.copy()
+            self.q[0:2, 0] = self.myController.qint[0:2]""
+            self.q[:, 0] = self.estimator.q_filt[:, 0]
+            oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
+            self.v[0:3, 0:1] = oMb.rotation @ self.estimator.v_filt[0:3, 0:1]
+            self.v[3:6, 0:1] = oMb.rotation @ self.estimator.v_filt[3:6, 0:1]
+            self.v[6:, 0] = self.estimator.v_filt[6:, 0]"""
+
+        """if self.k > 1:
+            self.jointStates = pyb.getJointStates(
+                device.pyb_sim.robotId, device.revoluteJointIndices)  # State of all joints
+            self.baseState = pyb.getBasePositionAndOrientation(
+                device.pyb_sim.robotId)  # Position and orientation of the trunk
+            self.baseVel = pyb.getBaseVelocity(device.pyb_sim.robotId)  # Velocity of the trunk
+
+            # Joints configuration and velocity vector for free-flyer + 12 actuators
+            self.q[:, 0:1] = np.vstack((np.array([self.baseState[0]]).T, np.array([self.baseState[1]]).T,
+                                        np.array([[state[0] for state in self.jointStates]]).T))
+            self.v[:, 0:1] = np.vstack((np.array([self.baseVel[0]]).T, np.array([self.baseVel[1]]).T,
+                                        np.array([[state[1] for state in self.jointStates]]).T))"""
+
+        """if np.abs(self.v[5,0]) > 1.0:
+            from IPython import embed
+            embed()"""
+
+        if self.k > 10 and self.enable_pyb_GUI:
+            # Update the PyBullet camera on the robot position to do as if it was attached to the robot
+            pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
+                                           cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])
+        """if self.k > 10 and (self.k % 50 == 0):
+            # print(device.b_baseVel.ravel())
+            print(self.estimator.v_filt[0:3, 0])"""
+
+        # Update the reference velocity coming from the gamepad
+        self.joystick.update_v_ref(self.k, self.velID)
 
         if (self.k == 0):
             self.q_th = self.q.copy()
@@ -209,7 +243,19 @@ class Controller:
             if (self.k % self.k_mpc) == 2:  # Mimic a 4 ms delay
                 self.f_applied = self.mpc_wrapper.get_latest_result()
 
-        self.x_f_mpc[0:6] = self.planner.xref[:6, 1]
+        yaw_th = (utils_mpc.quaternionToRPY(self.q_th[3:7, 0]))[2, 0]
+        oRl = pin.utils.rotate('z', yaw_th)
+        self.v_th[0:3, 0] = oRl.transpose() @ self.planner.xref[6:9, 1]
+        self.v_th[3:6, 0] = oRl.transpose() @ self.planner.xref[9:12, 1]
+        self.q_th[:, 0] = pin.integrate(self.myController.invKin.robot.model,
+                                        self.q_th, self.v_th * self.myController.dt)
+
+        self.x_f_mpc[0] = self.q_th[0, 0]  # self.planner.xref[0, 0] + self.myController.dt * self.planner.xref[6, 1]
+        self.x_f_mpc[1] = self.q_th[1, 0]  # self.planner.xref[1, 0] + self.myController.dt * self.planner.xref[7, 1]
+        self.x_f_mpc[2] = self.planner.h_ref
+        self.x_f_mpc[3] = 0.0
+        self.x_f_mpc[4] = 0.0
+        self.x_f_mpc[5] = yaw_th + self.myController.dt * self.planner.xref[11, 1]
         self.x_f_mpc[6:12] = self.planner.xref[6:, 1]
         """from IPython import embed
         embed()"""
@@ -222,9 +268,6 @@ class Controller:
 
         # self.solo.display(self.q)
 
-        self.v_th[:6, 0] = self.planner.xref[6:, 1]
-        self.q_th[:, 0] = pin.integrate(self.myController.invKin.robot.model, self.q_th, self.v_th * self.dt_tsid)
-
         # Whole Body Control
         # If nothing wrong happened yet in the WBC controller
         if (not self.myController.error) and (not self.joystick.stop):
@@ -236,7 +279,7 @@ class Controller:
             self.b_v[6:, 0] = self.v[6:, 0]
 
             # Run InvKin + WBC QP
-            self.myController.compute(self.q, self.b_v, self.x_f_mpc[:12],
+            self.myController.compute(self.q, self.b_v, self.v, self.x_f_mpc[:12],
                                       self.x_f_mpc[12:], self.planner.gait[0, 1:], self.planner)
 
             # Update state for the next iteration of the whole loop
