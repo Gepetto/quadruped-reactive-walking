@@ -41,13 +41,13 @@ class controller():
         self.log_dx_ref_invkin = np.zeros((6, N_SIMULATION))
         self.log_dx_invkin = np.zeros((6, N_SIMULATION))
 
-    def compute(self, q, dq, x_cmd, f_cmd, contacts, planner):
+    def compute(self, q, dq, o_dq, x_cmd, f_cmd, contacts, planner):
         """ Call Inverse Kinematics to get an acceleration command then
         solve a QP problem to get the feedforward torques
 
         Args:
             q (19x1): Current state of the base
-            dq (18x1): Current velocity of the base
+            dq (18x1): Current velocity of the base (in base frame)
             x_cmd (1x12): Position and velocity references from the mpc
             f_cmd (1x12): Contact forces references from the mpc
             contacts (1x4): Contact status of feet
@@ -61,15 +61,21 @@ class controller():
         self.qp_wbc.compute(self.invKin.robot.model, self.invKin.robot.data,
                             q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
 
+        """if dq[0, 0] > 0.4:
+            from IPython import embed
+            embed()"""
+
         # Retrieve joint torques
         self.tau_ff[:] = self.qp_wbc.get_joint_torques().ravel()
 
         # Retrieve desired positions and velocities
-        self.vdes[:, 0] = self.invKin.dq_cmd  # (dq + ddq_cmd * self.dt).ravel()
+        self.vdes[:, 0] = self.invKin.dq_cmd  # (dq + ddq_cmd * self.dt).ravel()  # v des in world frame
         self.qdes[:] = self.invKin.q_cmd  # pin.integrate(self.invKin.robot.model, q, self.vdes * self.dt)
 
-        # Double integration of ddq_cmd
-        self.vint[:, 0] = (dq + ddq_cmd * self.dt).ravel()
+        # Double integration of ddq_cmd + delta_ddq
+        self.vint[:, 0] = (dq + (ddq_cmd + 0.0 * self.qp_wbc.delta_ddq) * self.dt).ravel()  # in world frame
+        # self.vint[0:3, 0:1] = self.invKin.rot.transpose() @ self.vint[0:3, 0:1]  # velocity needs to be in base frame for pin.integrate
+        # self.vint[3:6, 0:1] = self.invKin.rot.transpose() @ self.vint[3:6, 0:1]
         self.qint[:] = pin.integrate(self.invKin.robot.model, q, self.vint * self.dt)
 
         # Log position, velocity and acceleration references for the feet
@@ -79,19 +85,22 @@ class controller():
         self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :]
         self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
         self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]
-        self.log_x_cmd[:, self.k_log] = x_cmd[:]
-        self.log_x[0:3, self.k_log] = self.qint[0:3]
-        self.log_x[3:6, self.k_log] = quaternionToRPY(self.qint[3:7]).ravel()
-        oMb = pin.SE3(pin.Quaternion(np.array([self.qint[3:7]]).transpose()), np.zeros((3, 1)))
-        self.log_x[6:9, self.k_log] = oMb.rotation @ self.vint[0:3, 0]
-        self.log_x[9:12, self.k_log] = oMb.rotation @ self.vint[3:6, 0]
-        self.log_q[0:3, self.k_log] = q[0:3, 0]
-        self.log_q[3:6, self.k_log] = quaternionToRPY(q[3:7]).ravel()
-        self.log_dq[:, self.k_log] = dq[0:6, 0]
 
-        self.log_x_ref_invkin[:, self.k_log] = self.invKin.x_ref[:, 0]
+        self.log_x_cmd[:, self.k_log] = x_cmd[:]  # Input of the WBC block (reference pos/ori/linvel/angvel)
+        self.log_x[0:3, self.k_log] = self.qint[0:3]  # Output of the WBC block (pos)
+        self.log_x[3:6, self.k_log] = quaternionToRPY(self.qint[3:7]).ravel()  # Output of the WBC block (ori)
+        oMb = pin.SE3(pin.Quaternion(np.array([self.qint[3:7]]).transpose()), np.zeros((3, 1)))
+        self.log_x[6:9, self.k_log] = oMb.rotation @ self.vint[0:3, 0]  # Output of the WBC block (lin vel)
+        self.log_x[9:12, self.k_log] = oMb.rotation @ self.vint[3:6, 0]  # Output of the WBC block (ang vel)
+        self.log_q[0:3, self.k_log] = q[0:3, 0]  # Input of the WBC block (current pos)
+        self.log_q[3:6, self.k_log] = quaternionToRPY(q[3:7]).ravel()  # Input of the WBC block (current ori)
+        self.log_dq[:, self.k_log] = dq[0:6, 0]  # Input of the WBC block (current linvel/angvel)
+
+        self.log_x_ref_invkin[:, self.k_log] = self.invKin.x_ref[:, 0]  # Position task reference
+        # Position task state (reconstruct with pin.forwardKinematics)
         self.log_x_invkin[:, self.k_log] = self.invKin.x[:, 0]
-        self.log_dx_ref_invkin[:, self.k_log] = self.invKin.dx_ref[:, 0]
+        self.log_dx_ref_invkin[:, self.k_log] = self.invKin.dx_ref[:, 0]  # Velocity task reference
+        # Velocity task state (reconstruct with pin.forwardKinematics)
         self.log_dx_invkin[:, self.k_log] = self.invKin.dx[:, 0]
 
         """if dq[0, 0] > 0.02:
@@ -157,11 +166,13 @@ class controller():
                 ax0 = plt.subplot(3, 2, index6[i])
             else:
                 plt.subplot(3, 2, index6[i], sharex=ax0)
-            plt.plot(t_range, self.log_x[i, :], "b", linewidth=2)
-            plt.plot(t_range, self.log_x_cmd[i, :], "r", linewidth=2)
+            plt.plot(t_range[:-2], self.log_x[i, :-2], "b", linewidth=2)
+            plt.plot(t_range[:-2], self.log_x_cmd[i, :-2], "r", linewidth=3)
             # plt.plot(t_range, self.log_q[i, :], "g", linewidth=2)
-            plt.plot(t_range, self.log_x_invkin[i, :], "g", linewidth=2)
-            plt.plot(t_range, self.log_x_ref_invkin[i, :], "violet", linewidth=2)
+            plt.plot(t_range[:-2], self.log_x_invkin[i, :-2], "g", linewidth=2)
+            plt.plot(t_range[:-2], self.log_x_ref_invkin[i, :-2], "violet", linewidth=2, linestyle="--")
+            plt.legend(["WBC integrated output state", "Robot reference state",
+                        "Task current state", "Task reference state"])
             plt.ylabel(lgd[i])
 
         # LOG_V
@@ -173,18 +184,22 @@ class controller():
                 ax0 = plt.subplot(3, 2, index6[i])
             else:
                 plt.subplot(3, 2, index6[i], sharex=ax0)
-            plt.plot(t_range, self.log_x[i+6, :], "b", linewidth=2)
-            plt.plot(t_range, self.log_x_cmd[i+6, :], "r", linewidth=2)
+            plt.plot(t_range[:-2], self.log_x[i+6, :-2], "b", linewidth=2)
+            plt.plot(t_range[:-2], self.log_x_cmd[i+6, :-2], "r", linewidth=3)
             # plt.plot(t_range, self.log_dq[i, :], "g", linewidth=2)
-            plt.plot(t_range, self.log_dx_invkin[i, :], "g", linewidth=2)
-            plt.plot(t_range, self.log_dx_ref_invkin[i, :], "violet", linewidth=2)
+            plt.plot(t_range[:-2], self.log_dx_invkin[i, :-2], "g", linewidth=2)
+            plt.plot(t_range[:-2], self.log_dx_ref_invkin[i, :-2], "violet", linewidth=2, linestyle="--")
+            plt.legend(["WBC integrated output state", "Robot reference state",
+                        "Task current state", "Task reference state"])
             plt.ylabel(lgd[i])
 
         plt.figure()
-        plt.plot(t_range, self.log_x[6, :], "b", linewidth=2)
-        plt.plot(t_range, self.log_x_cmd[6, :], "r", linewidth=2)
-        plt.plot(t_range, self.log_dx_invkin[0, :], "g", linewidth=2)
-        plt.plot(t_range, self.log_dx_ref_invkin[0, :], "violet", linewidth=2)
+        plt.plot(t_range[:-2], self.log_x[6, :-2], "b", linewidth=2)
+        plt.plot(t_range[:-2], self.log_x_cmd[6, :-2], "r", linewidth=2)
+        plt.plot(t_range[:-2], self.log_dx_invkin[0, :-2], "g", linewidth=2)
+        plt.plot(t_range[:-2], self.log_dx_ref_invkin[0, :-2], "violet", linewidth=2)
+        plt.legend(["WBC integrated output state", "Robot reference state",
+                    "Task current state", "Task reference state"])
 
         plt.show(block=True)
 
@@ -212,6 +227,9 @@ class QP_WBC():
                ] = np.array([1, -1, 1, -1, -self.mu, -self.mu, -self.mu, -self.mu, -1])
         for i in range(4):
             self.ML_full[(6+5*i): (6+5*(i+1)), (6+3*i): (6+3*(i+1))] = self.C
+
+        # Relaxation of acceleration
+        self.delta_ddq = np.zeros((18, 1))
 
         # NK matrix
         self.NK = np.zeros((6 + 20, 1))
@@ -245,8 +263,8 @@ class QP_WBC():
         # Define weights for the x-x_ref components of the optimization vector
         P_row = np.arange(0, n_x, 1)
         P_col = np.arange(0, n_x, 1)
-        P_data = 1.0 * np.ones((n_x,))
-        P_data[6:] = 0.01  # weight for forces
+        P_data = 0.1 * np.ones((n_x,))
+        P_data[6:] = 1  # weight for forces
 
         # Convert P into a csc matrix for the solver
         self.P = scipy.sparse.csc.csc_matrix(
@@ -272,7 +290,7 @@ class QP_WBC():
         for i in range(4):
             if contacts[i]:
                 self.JcT[:, (3*i):(3*(i+1))] = pin.computeFrameJacobian(model,
-                                                                        data, q, indexes[i], pin.WORLD)[:3, :].transpose()
+                                                                        data, q, indexes[i], pin.LOCAL_WORLD_ALIGNED)[:3, :].transpose()
 
         self.ML_full[:6, :6] = - self.A[:6, :6]
         self.ML_full[:6, 6:] = self.JcT[:6, :]
@@ -342,6 +360,9 @@ class QP_WBC():
         self.sol = self.prob.solve()
         self.x = self.sol.x
 
+        """from IPython import embed
+        embed()"""
+
         return 0
 
     def compute(self, model, data, q, dq, ddq_cmd, f_cmd, contacts):
@@ -354,10 +375,9 @@ class QP_WBC():
 
     def get_joint_torques(self):
 
-        delta_q = np.zeros((18, 1))
-        delta_q[:6, 0] = self.x[:6]
+        self.delta_ddq[:6, 0] = self.x[:6]
 
-        return (self.A @ (self.ddq_cmd + delta_q) + np.array([self.NLE]).transpose()
+        return (self.A @ (self.ddq_cmd + self.delta_ddq) + np.array([self.NLE]).transpose()
                 - self.JcT @ (self.f_cmd + np.array([self.x[6:]]).transpose()))[6:, ]
 
 
