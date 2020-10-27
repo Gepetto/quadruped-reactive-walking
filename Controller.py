@@ -191,7 +191,7 @@ class Controller:
             self.v[3:6, 0:1] = oMb.rotation @ self.estimator.v_filt[3:6, 0:1]
             self.v[6:, 0] = self.estimator.v_filt[6:, 0]"""
 
-        """if self.k > 1:
+        if self.k > 1:
             self.jointStates = pyb.getJointStates(
                 device.pyb_sim.robotId, device.revoluteJointIndices)  # State of all joints
             self.baseState = pyb.getBasePositionAndOrientation(
@@ -199,10 +199,16 @@ class Controller:
             self.baseVel = pyb.getBaseVelocity(device.pyb_sim.robotId)  # Velocity of the trunk
 
             # Joints configuration and velocity vector for free-flyer + 12 actuators
-            self.q[:, 0:1] = np.vstack((np.array([self.baseState[0]]).T, np.array([self.baseState[1]]).T,
-                                        np.array([[state[0] for state in self.jointStates]]).T))
-            self.v[:, 0:1] = np.vstack((np.array([self.baseVel[0]]).T, np.array([self.baseVel[1]]).T,
-                                        np.array([[state[1] for state in self.jointStates]]).T))"""
+            q_pyb = np.vstack((np.array([self.baseState[0]]).T, np.array([self.baseState[1]]).T,
+                               np.array([[state[0] for state in self.jointStates]]).T))
+            v_pyb = np.vstack((np.array([self.baseVel[0]]).T, np.array([self.baseVel[1]]).T,
+                               np.array([[state[1] for state in self.jointStates]]).T))
+
+            self.q[:, 0:1] = q_pyb
+            self.v[:, 0:1] = v_pyb
+
+            self.myController.log_q_pyb[:, self.myController.k_log] = q_pyb[:, 0]
+            self.myController.log_v_pyb[:, self.myController.k_log] = v_pyb[:, 0]
 
         """if np.abs(self.v[5,0]) > 1.0:
             from IPython import embed
@@ -297,8 +303,8 @@ class Controller:
             self.result.v_des[:] = self.myController.vdes[6:, 0]
             self.result.tau_ff[:] = self.myController.tau_ff
 
-            if self.k % 5 == 0:
-                self.solo.display(self.q)
+            """if self.k % 5 == 0:
+                self.solo.display(self.q)"""
 
         # If something wrong happened in TSID controller we stick to a security controller
         if self.myController.error or self.joystick.stop:

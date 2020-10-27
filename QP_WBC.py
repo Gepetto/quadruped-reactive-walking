@@ -41,6 +41,12 @@ class controller():
         self.log_dx_ref_invkin = np.zeros((6, N_SIMULATION))
         self.log_dx_invkin = np.zeros((6, N_SIMULATION))
 
+        self.log_tau_ff = np.zeros((12, N_SIMULATION))
+        self.log_qdes = np.zeros((12, N_SIMULATION))
+        self.log_vdes = np.zeros((12, N_SIMULATION))
+        self.log_q_pyb = np.zeros((19, N_SIMULATION))
+        self.log_v_pyb = np.zeros((18, N_SIMULATION))
+
     def compute(self, q, dq, o_dq, x_cmd, f_cmd, contacts, planner):
         """ Call Inverse Kinematics to get an acceleration command then
         solve a QP problem to get the feedforward torques
@@ -73,7 +79,7 @@ class controller():
         self.qdes[:] = self.invKin.q_cmd  # pin.integrate(self.invKin.robot.model, q, self.vdes * self.dt)
 
         # Double integration of ddq_cmd + delta_ddq
-        self.vint[:, 0] = (dq + (ddq_cmd + 0.0 * self.qp_wbc.delta_ddq) * self.dt).ravel()  # in world frame
+        self.vint[:, 0] = (dq + ddq_cmd * self.dt).ravel()  # in world frame
         # self.vint[0:3, 0:1] = self.invKin.rot.transpose() @ self.vint[0:3, 0:1]  # velocity needs to be in base frame for pin.integrate
         # self.vint[3:6, 0:1] = self.invKin.rot.transpose() @ self.vint[3:6, 0:1]
         self.qint[:] = pin.integrate(self.invKin.robot.model, q, self.vint * self.dt)
@@ -102,6 +108,10 @@ class controller():
         self.log_dx_ref_invkin[:, self.k_log] = self.invKin.dx_ref[:, 0]  # Velocity task reference
         # Velocity task state (reconstruct with pin.forwardKinematics)
         self.log_dx_invkin[:, self.k_log] = self.invKin.dx[:, 0]
+
+        self.log_tau_ff[:, self.k_log] = self.tau_ff[:]
+        self.log_qdes[:, self.k_log] = self.qdes[7:]
+        self.log_vdes[:, self.k_log] = self.vdes[6:, 0]
 
         """if dq[0, 0] > 0.02:
             from IPython import embed
@@ -202,6 +212,32 @@ class controller():
                     "Task current state", "Task reference state"])
 
         plt.show(block=True)
+
+    def saveAll(self, fileName="data_QP", log_date=True):
+        from datetime import datetime as datetime
+        if log_date:
+            date_str = datetime.now().strftime('_%Y_%m_%d_%H_%M')
+        else:
+            date_str = ""
+
+        np.savez(fileName + date_str + ".npz",
+                 log_feet_pos=self.log_feet_pos,
+                 log_feet_pos_target=self.log_feet_pos_target,
+                 log_feet_vel_target=self.log_feet_vel_target,
+                 log_feet_acc_target=self.log_feet_acc_target,
+                 log_x_cmd=self.log_x_cmd,
+                 log_x=self.log_x,
+                 log_q=self.log_q,
+                 log_dq=self.log_dq,
+                 log_x_ref_invkin=self.log_x_ref_invkin,
+                 log_x_invkin=self.log_x_invkin,
+                 log_dx_ref_invkin=self.log_dx_ref_invkin,
+                 log_dx_invkin=self.log_dx_invkin,
+                 log_tau_ff=self.log_tau_ff,
+                 log_qdes=self.log_qdes,
+                 log_vdes=self.log_vdes,
+                 log_q_pyb=self.log_q_pyb,
+                 log_v_pyb=self.log_v_pyb)
 
 
 class QP_WBC():
