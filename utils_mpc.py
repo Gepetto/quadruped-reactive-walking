@@ -788,7 +788,7 @@ class PyBulletSimulator():
     def SetDesiredJointTorque(self, torques):
 
         # Save desired torques in a storage array
-        self.jointTorques = torques.copy()
+        self.tau_ff = torques.copy()
 
         return
 
@@ -816,7 +816,7 @@ class PyBulletSimulator():
         pyb.setJointMotorControlArray(self.pyb_sim.robotId, self.pyb_sim.revoluteJointIndices,
                                       controlMode=pyb.TORQUE_CONTROL, forces=self.jointTorques)
 
-        # self.pyb_sim.apply_external_force(self.cpt, 3250, 1000, np.array([0.0, +8.0, 0.0]), np.zeros((3,)))
+        # self.pyb_sim.apply_external_force(self.cpt, 1000, 1000, np.array([0.0, +8.0, 0.0]), np.zeros((3,)))
 
         # Compute one step of simulation
         pyb.stepSimulation()
