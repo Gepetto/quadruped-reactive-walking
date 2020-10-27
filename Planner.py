@@ -42,8 +42,8 @@ class Planner:
         self.k_feedback = 0.03
 
         # Position of shoulders in local frame
-        self.shoulders = np.array([[0.19, 0.19, -0.19, -0.19],
-                                   [0.15005, -0.15005, 0.15005, -0.15005],
+        self.shoulders = np.array([[0.1946, 0.1946, -0.1946, -0.1946],
+                                   [0.14695, -0.14695, 0.14695, -0.14695],
                                    [0.0, 0.0, 0.0, 0.0]])
 
         # Value of the gravity acceleartion
