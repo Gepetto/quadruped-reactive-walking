@@ -14,7 +14,7 @@ sys.path.insert(0, './mpctsid')
 
 
 SIMULATION = True
-LOGGING = True
+LOGGING = False
 
 if SIMULATION:
     from mpctsid.utils_mpc import PyBulletSimulator
@@ -96,7 +96,7 @@ def mcapi_playback(name_interface):
     t = 0.0  # Time
     n_periods = 1  # Number of periods in the prediction horizon
     T_gait = 0.32  # Duration of one gait period
-    N_SIMULATION = 8000  # number of simulated TSID time steps
+    N_SIMULATION = 4000  # number of simulated TSID time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -115,7 +115,7 @@ def mcapi_playback(name_interface):
     predefined_vel = True
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = True
+    enable_pyb_GUI = False
 
     # Default position after calibration
     q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, +1.6, 0, -0.8, +1.6])
@@ -176,7 +176,7 @@ def mcapi_playback(name_interface):
         # desired position of actuators to avoid breaking the robot
         if (t == 0.0):
             if np.max(np.abs(controller.result.q_des - device.q_mes)) > 0.15:
-                print("DIFFERNECE: ", controller.result.q_des - device.q_mes)
+                print("DIFFERENCE: ", controller.result.q_des - device.q_mes)
                 break
 
         # Set desired quantities for the actuators
@@ -259,7 +259,9 @@ def mcapi_playback(name_interface):
         print("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.")
     device.hardware.Stop()  # Shut down the interface between the computer and the master board
 
-    controller.myController.show_logs()
+    # controller.myController.saveAll(fileName="push_pyb_with_ff", log_date=False)
+    print("-- Controller log saved --")
+    # controller.myController.show_logs()
 
     # Save the logs of the Logger object
     if LOGGING:
