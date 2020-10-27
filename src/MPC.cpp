@@ -420,13 +420,14 @@ int MPC::create_weight_matrices() {
 
   // Define weights for the x-x_ref components of the optimization vector
   // Hand-tuning of parameters if you want to give more weight to specific components
-  double w[12] = {10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 10.0f};
-  w[6] = 2.0f * sqrt(w[0]);
+  // double w[12] = {10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 10.0f};
+  double w[12] = {2.0f, 2.0f, 20.0f, 0.25f, 0.25f, 10.0f, 0.2f, 0.2f, 0.2f, 0.0f, 0.0f, 0.3f};
+  /*w[6] = 2.0f * sqrt(w[0]);
   w[7] = 2.0f * sqrt(w[1]);
   w[8] = 2.0f * sqrt(w[2]);
   w[9] = 0.05f * sqrt(w[3]);
   w[10] = 0.05f * sqrt(w[4]);
-  w[11] = 0.05f * sqrt(w[5]);
+  w[11] = 0.05f * sqrt(w[5]);*/
   for (int k = 0; k < n_steps; k++) {
     for (int i = 0; i < 12; i++) {
       add_to_P(12 * k + i, 12 * k + i, w[i], r_P, c_P, v_P);
