@@ -93,7 +93,7 @@ def mcapi_playback(name_interface):
     #########################################
 
     envID = 0  # Identifier of the environment to choose in which one the simulation will happen
-    velID = 6  # Identifier of the reference velocity profile to choose which one will be sent to the robot
+    velID = 5  # Identifier of the reference velocity profile to choose which one will be sent to the robot
 
     dt_tsid = 0.0020  # Time step of TSID
     dt_mpc = 0.02  # Time step of the MPC
@@ -101,7 +101,7 @@ def mcapi_playback(name_interface):
     t = 0.0  # Time
     n_periods = 1  # Number of periods in the prediction horizon
     T_gait = 0.32  # Duration of one gait period
-    N_SIMULATION = 30000  # number of simulated TSID time steps
+    N_SIMULATION = 10000  # number of simulated TSID time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -114,10 +114,10 @@ def mcapi_playback(name_interface):
     on_solo8 = False
 
     # If True the ground is flat, otherwise it has bumps
-    use_flat_plane = True
+    use_flat_plane = False
 
     # If we are using a predefined reference velocity (True) or a joystick (False)
-    predefined_vel = False
+    predefined_vel = True
 
     # Enable or disable PyBullet GUI
     enable_pyb_GUI = True
@@ -166,6 +166,8 @@ def mcapi_playback(name_interface):
     log_v_est = np.zeros((6, N_SIMULATION))
     log_v_tsid = np.zeros((6, N_SIMULATION))
     kk = 0
+    cpt_frames = 0
+    import pybullet as pyb
 
     while ((not device.hardware.IsTimeout()) and (t < t_max)):
 
@@ -216,6 +218,30 @@ def mcapi_playback(name_interface):
         # kk += 1
 
         t += DT
+        
+        import os
+        from matplotlib import pyplot as plt
+        step = 10
+        if (cpt_frames % step) == 0:
+            if (cpt_frames % 1000):
+                print(cpt_frames)
+            img = pyb.getCameraImage(width=1920, height=1080, renderer=pyb.ER_BULLET_HARDWARE_OPENGL)
+            if cpt_frames == 0:
+                newpath = r'/tmp/recording'
+                if not os.path.exists(newpath):
+                    os.makedirs(newpath)
+            if (int(cpt_frames/step) < 10):
+                plt.imsave('/tmp/recording/frame_000'+str(int(cpt_frames/step))+'.png', img[2])
+            elif int(cpt_frames/step) < 100:
+                plt.imsave('/tmp/recording/frame_00'+str(int(cpt_frames/step))+'.png', img[2])
+            elif int(cpt_frames/step) < 1000:
+                plt.imsave('/tmp/recording/frame_0'+str(int(cpt_frames/step))+'.png', img[2])
+            else:
+                plt.imsave('/tmp/recording/frame_'+str(int(cpt_frames/step))+'.png', img[2])
+
+        cpt_frames += 1
+
+
 
     # ****************************************************************
 
