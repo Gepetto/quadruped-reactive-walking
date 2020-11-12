@@ -54,7 +54,7 @@ t = np.linspace(0, Tend, N+1, endpoint=True)
 t_range = t[:-1]
 
 # Parameters
-dt = 0.0010
+dt = 0.0020
 lwdth = 2
 
 ##########
@@ -89,6 +89,7 @@ for i in range(12):
     else:
         plt.subplot(3, 4, index12[i], sharex=ax0)
     for k in range(len(log_tau_ff)):
+        plt.plot(t_range, log_feet_vel[k][i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
         plt.plot(t_range, log_feet_vel_target[k][i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
         plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
 plt.suptitle("Current and reference velocities of feet (world frame)")
