@@ -1,7 +1,7 @@
 # coding: utf8
 
 import Joystick
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 import time
 import numpy as np
 import math
@@ -32,7 +32,7 @@ class Planner:
         # Whether we are working on solo8 or not
         self.on_solo8 = on_solo8
 
-        # Reference velocity for the trunk
+        # Reference height for the trunk
         self.h_ref = h_ref
 
         # Number of TSID iterations for one iteration of the MPC
@@ -54,6 +54,8 @@ class Planner:
 
         # Number of time steps in the prediction horizon
         self.n_steps = np.int(n_periods*self.T_gait/self.dt)
+        
+        self.dt_vector = np.linspace(self.dt, self.T_gait, self.n_steps)
 
         # Reference trajectory matrix of size 12 by (1 + N)  with the current state of
         # the robot in column 0 and the N steps of the prediction horizon in the others
@@ -62,6 +64,9 @@ class Planner:
         # Gait matrix
         self.gait = np.zeros((20, 5))
         self.fsteps = np.full((self.gait.shape[0], 13), np.nan)
+        self.is_static = False  # Flag for static gait
+        self.q_static = np.zeros((19, 1))
+        self.RPY_static = np.zeros((3, 1))
 
         # Feet matrix
         self.o_feet_contact = self.shoulders.ravel(order='F').copy()
@@ -86,7 +91,7 @@ class Planner:
         self.new_desired_gait = self.gait.copy()
 
         # Foot trajectory generator
-        max_height_feet = 0.050
+        max_height_feet = 0.05
         t_lock_before_touchdown = 0.07
         self.ftgs = [ftg.Foot_trajectory_generator(
             max_height_feet, t_lock_before_touchdown, self.shoulders[0, i], self.shoulders[1, i]) for i in range(4)]
@@ -123,6 +128,24 @@ class Planner:
         self.gait[0, 1:] = np.ones((4,))
 
         return 0
+
+    def static_gait(self):
+        """
+        For a static gait (4 feet on the ground)
+        Set stance and swing phases and their duration
+        Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Gait matrix
+        new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+        new_desired_gait[0:4, 0] = np.array([2*N, 0, 0, 0])
+        new_desired_gait[0:4, 1:] = np.ones((4, 4))
+
+        return new_desired_gait
 
     def create_walking_trot(self):
         """Create the matrices used to handle the gait and initialize them to perform a walking trot
@@ -173,6 +196,87 @@ class Planner:
             self.gait[2*i+1, [2, 3]] = np.ones((2,))
 
         return 0
+
+    def trot_gait(self):
+        """
+        For a walking trot gait
+        Set stance and swing phases and their duration
+        Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Gait matrix
+        new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+        new_desired_gait[0:2, 0] = np.array([N, N])
+        new_desired_gait[0, [1, 4]] = np.ones((2,))
+        new_desired_gait[1, [2, 3]] = np.ones((2,))
+
+        return new_desired_gait
+
+    def pacing_gait(self):
+        """
+        For a pacing gait
+        Set stance and swing phases and their duration
+        Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Gait matrix
+        new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+        new_desired_gait[0:4, 0] = np.array([1, N-1, 1, N-1])
+        new_desired_gait[0, 1:] = np.ones((4,))
+        new_desired_gait[1, [1, 3]] = np.ones((2,))
+        new_desired_gait[2, 1:] = np.ones((4,))
+        new_desired_gait[3, [2, 4]] = np.ones((2,))
+
+        return new_desired_gait
+
+    def bounding_gait(self):
+        """
+        For a bounding gait
+        Set stance and swing phases and their duration
+        Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Gait matrix
+        new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+        new_desired_gait[0:4, 0] = np.array([1, N-1, 1, N-1])
+        new_desired_gait[0, 1:] = np.ones((4,))
+        new_desired_gait[1, [1, 2]] = np.ones((2,))
+        new_desired_gait[2, 1:] = np.ones((4,))
+        new_desired_gait[3, [3, 4]] = np.ones((2,))
+
+        return new_desired_gait
+
+    def pronking_gait(self):
+        """
+        For a pronking gait
+        Set stance and swing phases and their duration
+        Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Gait matrix
+        new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+        new_desired_gait[0:2, 0] = np.array([N-1, N+1])
+        new_desired_gait[0, 1:] = np.zeros((4,))
+        new_desired_gait[1, 1:] = np.ones((4,))
+
+        return new_desired_gait
+
 
     def create_custom(self):
         """Create the matrices used to handle the gait and initialize them to perform a trot
@@ -248,7 +352,7 @@ class Planner:
 
         return 0
 
-    def compute_footsteps(self, q_cur, v_cur, v_ref):
+    def compute_footsteps(self, q_cur, v_cur, v_ref, reduced):
         """Compute the desired location of footsteps over the prediction horizon
 
         Compute a X by 13 matrix containing the remaining number of steps of each phase of the gait (first column)
@@ -273,6 +377,10 @@ class Planner:
 
         # Get future desired position of footsteps
         self.compute_next_footstep(q_cur, v_cur, v_ref)
+
+        if reduced:  # Reduce size of support polygon
+            self.next_footstep[0:2, :] -= np.array([[0.00, 0.00, -0.00, -0.00],
+                                                    [0.04, -0.04, 0.04, -0.04]])
 
         # Cumulative time by adding the terms in the first column (remaining number of timesteps)
         dt_cum = np.cumsum(self.gait[:, 0]) * self.dt
@@ -377,7 +485,7 @@ class Planner:
 
         return 0
 
-    def run_planner(self, k, k_mpc, q, v, b_vref):
+    def run_planner(self, k, k_mpc, q, v, b_vref, h_estim, z_average, joystick=None):
 
         # Get the reference velocity in world frame (given in base frame)
         self.RPY = utils_mpc.quaternionToRPY(q[3:7, 0])
@@ -385,25 +493,53 @@ class Planner:
         vref = b_vref.copy()
         vref[0:2, 0:1] = np.array([[c, -s], [s, c]]) @ b_vref[0:2, 0:1]
 
+        if joystick is not None:
+            if joystick.northButton:
+                self.new_desired_gait = self.pacing_gait()
+                self.is_static = False
+                joystick.northButton = False
+            elif joystick.eastButton:
+                self.new_desired_gait = self.bounding_gait()
+                self.is_static = False
+                joystick.eastButton = False
+            elif joystick.southButton:
+                self.new_desired_gait = self.trot_gait()
+                self.is_static = False
+                joystick.southButton = False
+            elif joystick.westButton:
+                self.new_desired_gait = self.static_gait()
+                self.is_static = True
+                self.q_static[0:7, 0:1] = q.copy()
+                joystick.westButton = False
+
+        """if (k == 2000):
+            self.new_desired_gait = self.static_gait()
+        """
+        """if (k == 1000):
+            self.new_desired_gait = self.pacing_gait()"""
+
+        """if (k == 5000):
+            self.new_desired_gait = self.pacing_gait()"""
+        
         if ((k % k_mpc) == 0):
             # Move one step further in the gait
             self.roll_experimental(k, k_mpc)
 
         # Compute the desired location of footsteps over the prediction horizon
-        self.compute_footsteps(q, v, vref)
+        self.compute_footsteps(q, v, vref, joystick.reduced)
 
         # Get the reference trajectory for the MPC
-        self.getRefStates(q, v, vref)
+        self.getRefStates(q, v, vref, z_average)
 
         # Update desired location of footsteps on the ground
         self.update_target_footsteps()
 
         # Update trajectory generator (3D pos, vel, acc)
-        self.update_trajectory_generator(k)
+        self.update_trajectory_generator(k, h_estim, q)
 
         return 0
 
-    def getRefStates(self, q, v, vref):
+    def getRefStates(self, q, v, vref, z_average):
         """Compute the reference trajectory of the CoM for each time step of the
         predition horizon. The ouput is a matrix of size 12 by (N+1) with N the number
         of time steps in the gait cycle (T_gait/dt) and 12 the position, orientation,
@@ -418,38 +554,44 @@ class Planner:
         """
 
         # Update x and y velocities taking into account the rotation of the base over the prediction horizon
-        dt_vector = np.linspace(self.dt, self.T_gait, self.n_steps)
-        yaw = np.linspace(0, self.T_gait-self.dt, self.n_steps) * vref[5, 0]
+        # dt_vector = np.linspace(self.dt, self.T_gait, self.n_steps)
         # yaw = np.linspace(0, self.T_gait-self.dt, self.n_steps) * vref[5, 0]
-        self.xref[6, 1:] = vref[0, 0] * np.cos(yaw) - vref[1, 0] * np.sin(yaw)
-        self.xref[7, 1:] = vref[0, 0] * np.sin(yaw) + vref[1, 0] * np.cos(yaw)
+
+        # Update yaw and yaw velocity
+        # dt_vector = np.linspace(self.dt, T_gait, self.n_steps)
+        self.xref[5, 1:] = vref[5, 0] * self.dt_vector
+        self.xref[11, 1:] = vref[5, 0]
+
+        # Update x and y velocities taking into account the rotation of the base over the prediction horizon
+        # yaw = np.linspace(0, T_gait-self.dt, self.n_steps) * v_ref[5, 0]
+        self.xref[6, 1:] = vref[0, 0] * np.cos(self.xref[5, 1:]) - vref[1, 0] * np.sin(self.xref[5, 1:])
+        self.xref[7, 1:] = vref[0, 0] * np.sin(self.xref[5, 1:]) + vref[1, 0] * np.cos(self.xref[5, 1:])
 
         # Update x and y depending on x and y velocities (cumulative sum)
         if vref[5, 0] != 0:
-            dx = (vref[0, 0] * np.sin(vref[5, 0] * dt_vector[:]) +
-                  vref[1, 0] * (np.cos(vref[5, 0] * dt_vector[:]) - 1)) / vref[5, 0]
-            dy = (vref[1, 0] * np.sin(vref[5, 0] * dt_vector[:]) -
-                  vref[0, 0] * (np.cos(vref[5, 0] * dt_vector[:]) - 1)) / vref[5, 0]
+            self.xref[0, 1:] = (vref[0, 0] * np.sin(vref[5, 0] * self.dt_vector[:]) +
+                  vref[1, 0] * (np.cos(vref[5, 0] * self.dt_vector[:]) - 1)) / vref[5, 0]
+            self.xref[1, 1:] = (vref[1, 0] * np.sin(vref[5, 0] * self.dt_vector[:]) -
+                  vref[0, 0] * (np.cos(vref[5, 0] * self.dt_vector[:]) - 1)) / vref[5, 0]
         else:
-            dx = vref[0, 0] * dt_vector[:]
-            dy = vref[1, 0] * dt_vector[:]
-        self.xref[0, 1:] = dx  # dt_vector * self.xref[6, 1:]
-        self.xref[1, 1:] = dy  # dt_vector * self.xref[7, 1:]
+            self.xref[0, 1:] = vref[0, 0] * self.dt_vector[:]
+            self.xref[1, 1:] = vref[1, 0] * self.dt_vector[:]
+        # self.xref[0, 1:] = self.dx  # dt_vector * self.xref[6, 1:]
+        # self.xref[1, 1:] = self.dy  # dt_vector * self.xref[7, 1:]
 
         # Start from position of the CoM in local frame
         #self.xref[0, 1:] += q[0, 0]
         #self.xref[1, 1:] += q[1, 0]
 
+        self.xref[5, 1:] += self.RPY[2, 0]
+
         # Desired height is supposed constant
-        self.xref[2, 1:] = self.h_ref
+        self.xref[2, 1:] = self.h_ref + z_average
         self.xref[8, 1:] = 0.0
 
         # No need to update Z velocity as the reference is always 0
         # No need to update roll and roll velocity as the reference is always 0 for those
         # No need to update pitch and pitch velocity as the reference is always 0 for those
-        # Update yaw and yaw velocity
-        self.xref[5, 1:] = vref[5, 0] * dt_vector + self.RPY[2, 0]
-        self.xref[11, 1:] = vref[5, 0]
 
         # Update the current state
         self.xref[0:3, 0:1] = q[0:3, 0:1]
@@ -458,7 +600,7 @@ class Planner:
         self.xref[9:12, 0:1] = v[3:6, 0:1]
 
         # Time steps [0, dt, 2*dt, ...]
-        to = np.linspace(0, self.T_gait-self.dt, self.n_steps)
+        # to = np.linspace(0, self.T_gait-self.dt, self.n_steps)
 
         # Threshold for gamepad command (since even if you do not touch the joystick it's not 0.0)
         step = 0.05
@@ -495,13 +637,18 @@ class Planner:
             self.xref[8, 1:] = 0.0"""
 
         # Current state vector of the robot
-        self.x0 = self.xref[:, 0:1]
+        # self.x0 = self.xref[:, 0:1]
 
         """self.xref[0:3, 1:2] = self.xref[0:3, 0:1] + self.xref[6:9, 0:1] * self.dt
         self.xref[3:6, 1:2] = self.xref[3:6, 0:1] + self.xref[9:12, 0:1] * self.dt"""
 
         self.xref[0, 1:] += self.xref[0, 0]
         self.xref[1, 1:] += self.xref[1, 0]
+
+        if self.is_static:
+            self.xref[0:3, 1:] = self.q_static[0:3, 0:1]
+            self.xref[3:6, 1:] = (utils_mpc.quaternionToRPY(self.q_static[3:7, 0])).reshape((3, 1))
+
 
         """if v[0, 0] > 0.02:
             from IPython import embed
@@ -522,7 +669,7 @@ class Planner:
 
         return 0
 
-    def update_trajectory_generator(self, k):
+    def update_trajectory_generator(self, k, h_estim, q):
         """Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
            to the desired position on the ground (computed by the footstep planner)
 
@@ -605,7 +752,7 @@ class Planner:
                 self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
 
             # Store desired position, velocity and acceleration for later call to this function
-            self.goals[:, i_foot] = np.array([x0, y0, z0])
+            self.goals[:, i_foot] = np.array([x0, y0, z0]) # + np.array([0.0, 0.0, q[2, 0] - self.h_ref])
             self.vgoals[:, i_foot] = np.array([dx0, dy0, dz0])
             self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])
             if k % 10 == 0:
@@ -810,14 +957,14 @@ def test_planner_mpc():
     robot = tsid.RobotWrapper(urdf, vector, pin.JointModelFreeFlyer(), False)
     model = robot.model()
 
-    dt = 0.0010
+    dt = 0.0020
     dt_mpc = 0.02
     n_periods = 1
     T_gait = 0.32
     on_solo8 = False
     k = 0
     N = 20000
-    k_mpc = 20
+    k_mpc = 10
 
     # Logging variables
     ground_pos_target = np.zeros((3, 4, N))
