@@ -8,15 +8,15 @@ from utils.logger import Logger
 import argparse
 import numpy as np
 from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
+import threading
 
-
-SIMULATION = True
-LOGGING = False
+SIMULATION = False
+LOGGING = True
 
 if SIMULATION:
     from mpctsid.utils_mpc import PyBulletSimulator
 else:
-    from pynput import keyboard
+    # from pynput import keyboard
     from solo12 import Solo12
     from utils.qualisysClient import QualisysClient
 
@@ -40,6 +40,11 @@ def on_press(key):
     except AttributeError:
         print('Unknown key {0} pressed'.format(key))
 
+def get_input():
+    global key_pressed
+    keystrk=input('Put the robot on the floor and press Enter \n')
+    # thread doesn't continue until key is pressed
+    key_pressed=True
 
 def put_on_the_floor(device, q_init):
     """Make the robot go to the default initial position and wait for the user
@@ -57,9 +62,8 @@ def put_on_the_floor(device, q_init):
     pos = np.zeros(device.nb_motors)
     for motor in range(device.nb_motors):
         pos[motor] = q_init[device.motorToUrdf[motor]] * device.gearRatioSigned[motor]
-    listener = keyboard.Listener(on_press=on_press)
-    listener.start()
-    print("Put the robot on the floor and press Enter")
+    i=threading.Thread(target=get_input)
+    i.start()
     while not key_pressed:
         device.UpdateMeasurment()
         for motor in range(device.nb_motors):
@@ -72,6 +76,7 @@ def put_on_the_floor(device, q_init):
     print("Start the motion.")
 
 
+
 def mcapi_playback(name_interface):
     """Main function that calibrates the robot, get it into a default waiting position then launch
     the main control loop once the user has pressed the Enter key
@@ -80,14 +85,22 @@ def mcapi_playback(name_interface):
         name_interface (string): name of the interface that is used to communicate with the robot
     """
 
-    name_replay = "./replay/solo_sin_traj/solo_sin_traj"
-    replay_q = np.loadtxt(name_replay + "_q.dat", delimiter=" ")
-    replay_v = np.loadtxt(name_replay + "_v.dat", delimiter=" ")
-    replay_tau = np.loadtxt(name_replay + "_tau.dat", delimiter=" ")
+    name_replay = "/home/odri/git/thomasCbrs/log_eval/walk_nonlinear_mpc/"
+    # replay_q = np.loadtxt(name_replay + "_q.dat", delimiter=" ")
+    # replay_v = np.loadtxt(name_replay + "_v.dat", delimiter=" ")
+    # replay_tau = np.loadtxt(name_replay + "_tau.dat", delimiter=" ")
+    qtsid_full = np.load(name_replay + "qtsid.npy" , allow_pickle = True)
+    vtsid_full = np.load(name_replay + "vtsid.npy" , allow_pickle = True)
+    tau_ff = np.load(name_replay + "torques_ff.npy" , allow_pickle = True)
+    replay_q = qtsid_full[7:,:].transpose()
+    replay_v = vtsid_full[6:,:].transpose()
+    replay_tau = tau_ff.transpose()
+
     N_SIMULATION = replay_q.shape[0]
 
     # Default position after calibration
-    q_init = replay_q[0, 1:]
+    # q_init = replay_q[0, 1:]
+    q_init = replay_q[0, :]
 
     if SIMULATION:
         device = PyBulletSimulator()
@@ -129,9 +142,12 @@ def mcapi_playback(name_interface):
 
         # Set desired quantities for the actuators
         device.SetDesiredJointPDgains(P, D)
-        device.SetDesiredJointPosition(replay_q[i, 1:])
-        device.SetDesiredJointVelocity(replay_v[i, 1:])
+        # device.SetDesiredJointPosition(replay_q[i, 1:])
+        # device.SetDesiredJointVelocity(replay_v[i, 1:])
         # device.SetDesiredJointTorque(replay_tau[i, 1:])
+        device.SetDesiredJointPosition(replay_q[i, :])
+        device.SetDesiredJointVelocity(replay_v[i, :])
+        device.SetDesiredJointTorque(replay_tau[i, :])
 
         # Call logger
         if LOGGING:
