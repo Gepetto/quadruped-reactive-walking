@@ -191,13 +191,7 @@ class Controller:
         self.joystick.update_v_ref(self.k, self.velID)
 
         # Process state estimator
-        if self.k == 1:
-            self.estimator.run_filter(self.k, self.planner.gait[0, 1:], device, self.planner.goals, self.planner.gait[0, 0], None,
-                                      self.myController.invKin.robot.data, self.myController.invKin.robot.model,
-                                      self.joystick.v_ref)
-        else:
-            self.estimator.run_filter(
-                self.k, self.planner.gait[0, 1:], device, self.planner.goals, self.planner.gait[0, 0], self.myController.qint)
+        self.estimator.run_filter(self.k, self.planner.gait[0, 1:], device, self.planner.goals, self.planner.gait[0, 0])
 
         t_filter = time.time()
         self.t_list_filter[self.k] = t_filter - tic
@@ -329,10 +323,10 @@ class Controller:
 
         if self.k > 10 and self.enable_pyb_GUI:
             # Update the PyBullet camera on the robot position to do as if it was attached to the robot
-            pyb.resetDebugVisualizerCamera(cameraDistance=0.8, cameraYaw=45, cameraPitch=-30,
-                                           cameraTargetPosition=[1.0, 0.3, 0.25])
-            """pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
-                                           cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])"""
+            # pyb.resetDebugVisualizerCamera(cameraDistance=0.8, cameraYaw=45, cameraPitch=-30,
+            #                                cameraTargetPosition=[1.0, 0.3, 0.25])
+            pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
+                                           cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])
         """if self.k > 10 and (self.k % 50 == 0):
             # print(device.b_baseVel.ravel())
             print(self.estimator.v_filt[0:3, 0])"""
