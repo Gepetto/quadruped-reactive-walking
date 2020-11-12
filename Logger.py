@@ -1,7 +1,7 @@
 # coding: utf8
 
 import numpy as np
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 import pybullet as pyb
 import pinocchio as pin
 # import scipy.stats as scipystats
@@ -59,6 +59,9 @@ class Logger:
 
         # Store time range
         self.t_range = np.array([k*dt for k in range(self.k_max_loop)])
+
+        # Store logging timestamps
+        self.tstamps = np.zeros(k_max_loop)
 
         # Store current and desired position, velocity and acceleration of feet over time
         # Used in log_footsteps function
