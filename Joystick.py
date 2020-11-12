@@ -19,6 +19,15 @@ class Joystick:
         self.reduced = False
         self.stop = False
 
+        dT = 0.0020  # velocity reference is updated every ms
+        fc = 100  #  cutoff frequency
+        y = 1 - np.cos(2*np.pi*fc*dT)
+        self.alpha = -y+np.sqrt(y*y+2*y)
+
+        tc = 0.04  #  cutoff frequency at 50 Hz
+        dT = 0.0020  # velocity reference is updated every ms
+        self.alpha = dT / tc
+
         # Bool to modify the update of v_ref
         # Used to launch multiple simulations
         self.multi_simu = multi_simu
@@ -30,13 +39,19 @@ class Joystick:
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 1.0
-        self.VyScale = 1.0
-        self.vYawScale = 1.5
+        self.VxScale = 0.4
+        self.VyScale = 0.8
+        self.vYawScale = 1.2
 
         self.Vx_ref = 0.3
         self.Vy_ref = 0.0
         self.Vw_ref = 0.0
+
+        # Y, B, A and X buttons (in that order)
+        self.northButton = False
+        self.eastButton = False
+        self.southButton = False
+        self.westButton = False
 
     def update_v_ref(self, k_loop, velID):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame by
@@ -75,9 +90,11 @@ class Joystick:
         self.vYaw = self.gp.rightJoystickX.value * self.vYawScale
 
         if self.gp.L1Button.value:  # If L1 is pressed the orientation of the base is controlled
-            self.v_gp = np.array([[0.0, 0.0, - self.vYaw * 0.25, - self.vX * 5, - self.vY * 2, 0.0]]).T
+            self.v_gp = np.array(
+                [[0.0, 0.0, - self.vYaw * 0.25, - self.vX * 5, - self.vY * 2, 0.0]]).T
         else:  # Otherwise the Vx, Vy, Vyaw is controlled
-            self.v_gp = np.array([[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
+            self.v_gp = np.array(
+                [[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
 
         # Reduce the size of the support polygon by pressing Start
         if self.gp.startButton.value:
@@ -87,11 +104,31 @@ class Joystick:
         if self.gp.backButton.value:
             self.stop = True
 
+        # Switch gaits
+        if self.gp.northButton.value:
+            self.northButton = True
+            self.eastButton = False
+            self.southButton = False
+            self.westButton = False
+        elif self.gp.eastButton.value:
+            self.northButton = False
+            self.eastButton = True
+            self.southButton = False
+            self.westButton = False
+        elif self.gp.southButton.value:
+            self.northButton = False
+            self.eastButton = False
+            self.southButton = True
+            self.westButton = False
+        elif self.gp.westButton.value:
+            self.northButton = False
+            self.eastButton = False
+            self.southButton = False
+            self.westButton = True
+
         # Low pass filter to slow down the changes of velocity when moving the joysticks
-        tc = 0.04  #  cutoff frequency at 50 Hz
-        dT = 0.0010  # velocity reference is updated every ms
-        alpha = dT / tc
-        self.v_ref = alpha * self.v_gp + (1-alpha) * self.v_ref
+        self.v_ref = self.alpha * self.v_gp + (1-self.alpha) * self.v_ref
+        self.v_ref[(self.v_ref < 0.001) & (self.v_ref > -0.001)] = 0.0
 
         return 0
 
@@ -120,7 +157,8 @@ class Joystick:
 
         ev = k - self.k_switch[i-1]
         t1 = self.k_switch[i] - self.k_switch[i-1]
-        A3 = 2 * (self.v_switch[:, (i-1):i] - self.v_switch[:, i:(i+1)]) / t1**3
+        A3 = 2 * (self.v_switch[:, (i-1):i] -
+                  self.v_switch[:, i:(i+1)]) / t1**3
         A2 = (-3/2) * t1 * A3
         self.v_ref = self.v_switch[:, (i-1):i] + A2*ev**2 + A3*ev**3
 
@@ -137,12 +175,17 @@ class Joystick:
 
         if velID == 0:
             if (k_loop == 0):
-                self.k_switch = np.array([0, 1000, 4000, 7000, 10000, 13000, 20000, 30000])
-                self.v_switch = np.array([[0.0, 0.0, 0.25, 0.45, 0.65, 0.7, 1.0, 1.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                self.k_switch = np.array(
+                    [0, 500, 1000, 8000, 10000, 13000, 20000, 30000])
+                self.v_switch = np.array([[0.0, 0.0, 0.25, 0.5, 0.0, 0.7, 1.0, 1.0],
+                                          [0.0, 0.0,  0.0, 0.0,
+                                              0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0,
+                                              0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0,
+                                              0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0,
+                                              0.0, 0.0, 0.0, 0.0],
                                           [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
         elif velID == 1:
             if (k_loop == 0):
@@ -180,7 +223,7 @@ class Joystick:
         elif velID == 4:
             if (k_loop == 0):
                 self.k_switch = np.array([0, 1000, 3000, 7000, 9000, 30000])
-                self.v_switch = np.array([[0.0, 0.0,  0.6, 0.6, 0.6, 0.6],
+                self.v_switch = np.array([[0.0, 0.0,  1.5, 1.5, 1.5, 1.5],
                                           [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
                                           [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
                                           [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
@@ -188,13 +231,31 @@ class Joystick:
                                           [0.0, 0.0,  0.0, 0.0, 0.4, 0.4]])
         elif velID == 5:
             if (k_loop == 0):
-                self.k_switch = np.array([0, 1000, 6000, 8000, 12000])
-                self.v_switch = np.array([[0.0, 0.0,  0.3, 0.3, 0.3],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.0, 0.0],
-                                          [0.0, 0.0,  0.0, 0.4, 0.4]])
+                """self.k_switch = np.array([0, 500, 1500, 2600, 5000, 6500, 8000])
+                self.v_switch = np.array([[0.0, 0.0,  0.7, 0.6, 0.3, 0.3, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.4, 0.6, 0.0, 0.0]])"""
+                self.k_switch = np.array([0, 500, 1500, 2600, 5000, 6500, 7000, 8000, 9000])
+                self.v_switch = np.array([[0.0, 0.0,  0.5, 0.6, 0.3, 0.6, -0.5, 0.7, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.2, 0.7, 0.7, 0.0, -0.4, -0.6, 0.0]])
+
+        elif velID == 6:
+            if (k_loop == 0):
+                self.k_switch = np.array(
+                    [0, 1000, 2500, 5000, 7500, 8000, 10000])
+                self.v_switch = np.array([[0.0, 0.0,  0.8, 0.4, 0.8, 0.8, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.55, 0.3, 0.0, 0.0]])
 
         self.handle_v_switch(k_loop)
         return 0
@@ -222,6 +283,7 @@ class Joystick:
         alpha_w = np.max([np.min([(k_loop-self.k_mpc*16*3)/beta_w, 1.0]), 0.0])
 
         # self.v_ref = np.array([[0.3*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
-        self.v_ref = np.array([[self.Vx_ref*alpha_x, self.Vy_ref*alpha_y, 0.0, 0.0, 0.0, self.Vw_ref*alpha_w]]).T
+        self.v_ref = np.array(
+            [[self.Vx_ref*alpha_x, self.Vy_ref*alpha_y, 0.0, 0.0, 0.0, self.Vw_ref*alpha_w]]).T
 
         return 0
