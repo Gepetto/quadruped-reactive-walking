@@ -6,7 +6,7 @@ import pinocchio as pin
 from example_robot_data import load
 import osqp as osqp
 from solo12InvKin import Solo12InvKin
-
+from time import clock, time
 
 class controller():
 
@@ -16,6 +16,7 @@ class controller():
 
         self.invKin = Solo12InvKin(dt)  # Inverse Kinematics object
         self.qp_wbc = QP_WBC()  # QP of the WBC
+        self.x = np.zeros(18)  # solution of WBC QP
 
         self.error = False  # Set to True when an error happens in the controller
 
@@ -29,10 +30,13 @@ class controller():
         # Logging
         self.k_log = 0
         self.log_feet_pos = np.zeros((3, 4, N_SIMULATION))
+        self.log_feet_vel = np.zeros((3, 4, N_SIMULATION))
         self.log_feet_pos_target = np.zeros((3, 4, N_SIMULATION))
         self.log_feet_vel_target = np.zeros((3, 4, N_SIMULATION))
         self.log_feet_acc_target = np.zeros((3, 4, N_SIMULATION))
         self.log_x_cmd = np.zeros((12, N_SIMULATION))
+        self.log_f_cmd = np.zeros((12, N_SIMULATION))
+        self.log_f_out = np.zeros((12, N_SIMULATION))
         self.log_x = np.zeros((12, N_SIMULATION))
         self.log_q = np.zeros((6, N_SIMULATION))
         self.log_dq = np.zeros((6, N_SIMULATION))
@@ -47,6 +51,9 @@ class controller():
         self.log_q_pyb = np.zeros((19, N_SIMULATION))
         self.log_v_pyb = np.zeros((18, N_SIMULATION))
 
+        self.log_contacts = np.zeros((4, N_SIMULATION))
+        self.log_tstamps = np.zeros((N_SIMULATION))
+
     def compute(self, q, dq, o_dq, x_cmd, f_cmd, contacts, planner):
         """ Call Inverse Kinematics to get an acceleration command then
         solve a QP problem to get the feedforward torques
@@ -60,46 +67,56 @@ class controller():
             planner (object): Object that contains the pos, vel and acc references for feet
         """
 
+        self.tic = time()
         # Compute Inverse Kinematics
         ddq_cmd = np.array([self.invKin.refreshAndCompute(q.copy(), dq.copy(), x_cmd, contacts, planner)]).T
 
+        # Log position, velocity and acceleration references for the feet
+        indexes = [10, 18, 26, 34]
+        for i in range(4):
+            self.log_feet_pos[:, i, self.k_log] = self.invKin.robot.data.oMf[indexes[i]].translation
+            self.log_feet_vel[:, i, self.k_log] = pin.getFrameVelocity(self.invKin.robot.model, self.invKin.robot.data, 
+            indexes[i], pin.LOCAL_WORLD_ALIGNED).linear
+        self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :] # + np.array([[0.0, 0.0, q[2, 0] - planner.h_ref]]).T
+        self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
+        self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]
+
+        self.tac = time()
         # Solve QP problem
         self.qp_wbc.compute(self.invKin.robot.model, self.invKin.robot.data,
                             q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
 
+        
         """if dq[0, 0] > 0.4:
             from IPython import embed
             embed()"""
 
         # Retrieve joint torques
         self.tau_ff[:] = self.qp_wbc.get_joint_torques().ravel()
+        self.toc = time()
 
         # Retrieve desired positions and velocities
         self.vdes[:, 0] = self.invKin.dq_cmd  # (dq + ddq_cmd * self.dt).ravel()  # v des in world frame
         self.qdes[:] = self.invKin.q_cmd  # pin.integrate(self.invKin.robot.model, q, self.vdes * self.dt)
 
         # Double integration of ddq_cmd + delta_ddq
+        # dq[2, 0] = 0.0 self.qdes[2]
         self.vint[:, 0] = (dq + ddq_cmd * self.dt).ravel()  # in world frame
         # self.vint[0:3, 0:1] = self.invKin.rot.transpose() @ self.vint[0:3, 0:1]  # velocity needs to be in base frame for pin.integrate
         # self.vint[3:6, 0:1] = self.invKin.rot.transpose() @ self.vint[3:6, 0:1]
         self.qint[:] = pin.integrate(self.invKin.robot.model, q, self.vint * self.dt)
-
-        # Log position, velocity and acceleration references for the feet
-        indexes = [10, 18, 26, 34]
-        for i in range(4):
-            self.log_feet_pos[:, i, self.k_log] = self.invKin.robot.data.oMf[indexes[i]].translation
-        self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :]
-        self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
-        self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]
+        # self.qint[2] = planner.h_ref 
 
         self.log_x_cmd[:, self.k_log] = x_cmd[:]  # Input of the WBC block (reference pos/ori/linvel/angvel)
+        self.log_f_cmd[:, self.k_log] = f_cmd[:]  # Input of the WBC block (contact forces)
+        self.log_f_out[:, self.k_log] = f_cmd[:] + np.array(self.x[6:]) # Input of the WBC block (contact forces)
         self.log_x[0:3, self.k_log] = self.qint[0:3]  # Output of the WBC block (pos)
         self.log_x[3:6, self.k_log] = quaternionToRPY(self.qint[3:7]).ravel()  # Output of the WBC block (ori)
         oMb = pin.SE3(pin.Quaternion(np.array([self.qint[3:7]]).transpose()), np.zeros((3, 1)))
         self.log_x[6:9, self.k_log] = oMb.rotation @ self.vint[0:3, 0]  # Output of the WBC block (lin vel)
         self.log_x[9:12, self.k_log] = oMb.rotation @ self.vint[3:6, 0]  # Output of the WBC block (ang vel)
         self.log_q[0:3, self.k_log] = q[0:3, 0]  # Input of the WBC block (current pos)
-        self.log_q[3:6, self.k_log] = quaternionToRPY(q[3:7]).ravel()  # Input of the WBC block (current ori)
+        self.log_q[3:6, self.k_log] = quaternionToRPY(q[3:7, 0]).ravel()  # Input of the WBC block (current ori)
         self.log_dq[:, self.k_log] = dq[0:6, 0]  # Input of the WBC block (current linvel/angvel)
 
         self.log_x_ref_invkin[:, self.k_log] = self.invKin.x_ref[:, 0]  # Position task reference
@@ -112,12 +129,17 @@ class controller():
         self.log_tau_ff[:, self.k_log] = self.tau_ff[:]
         self.log_qdes[:, self.k_log] = self.qdes[7:]
         self.log_vdes[:, self.k_log] = self.vdes[6:, 0]
+        self.log_contacts[:, self.k_log] = contacts
+
+        self.log_tstamps[self.k_log] = clock()
 
         """if dq[0, 0] > 0.02:
             from IPython import embed
             embed()"""
 
         self.k_log += 1
+
+        self.tuc = time()
 
         return 0
 
@@ -139,9 +161,11 @@ class controller():
                 ax0 = plt.subplot(3, 4, index12[i])
             else:
                 plt.subplot(3, 4, index12[i], sharex=ax0)
+            
             plt.plot(t_range, self.log_feet_pos[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
             plt.plot(t_range, self.log_feet_pos_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
-            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+"", lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
+            plt.plot(t_range, self.log_contacts[np.int(i/3), :] * np.max(self.log_feet_pos[i % 3, np.int(i/3), :]), color='k', linewidth=3, marker='')
+            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+"", lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", "Contact state"])
         plt.suptitle("Reference positions of feet (world frame)")
 
         lgd_X = ["FL", "FR", "HL", "HR"]
@@ -152,6 +176,7 @@ class controller():
                 ax0 = plt.subplot(3, 4, index12[i])
             else:
                 plt.subplot(3, 4, index12[i], sharex=ax0)
+                plt.plot(t_range, self.log_feet_vel[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
             plt.plot(t_range, self.log_feet_vel_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
             plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"])
         plt.suptitle("Current and reference velocities of feet (world frame)")
@@ -178,7 +203,7 @@ class controller():
                 plt.subplot(3, 2, index6[i], sharex=ax0)
             plt.plot(t_range[:-2], self.log_x[i, :-2], "b", linewidth=2)
             plt.plot(t_range[:-2], self.log_x_cmd[i, :-2], "r", linewidth=3)
-            # plt.plot(t_range, self.log_q[i, :], "g", linewidth=2)
+            # plt.plot(t_range, self.log_q[i, :], "grey", linewidth=4)
             plt.plot(t_range[:-2], self.log_x_invkin[i, :-2], "g", linewidth=2)
             plt.plot(t_range[:-2], self.log_x_ref_invkin[i, :-2], "violet", linewidth=2, linestyle="--")
             plt.legend(["WBC integrated output state", "Robot reference state",
@@ -211,6 +236,52 @@ class controller():
         plt.legend(["WBC integrated output state", "Robot reference state",
                     "Task current state", "Task reference state"])
 
+        index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+        lgd1 = ["Tau 1", "Tau 2", "Tau 3"]
+        lgd2 = ["FL", "FR", "HL", "HR"]
+        plt.figure()
+        for i in range(12):
+            if i == 0:
+                ax0 = plt.subplot(3, 4, index12[i])
+            else:
+                plt.subplot(3, 4, index12[i], sharex=ax0)
+            h1, = plt.plot(t_range[:-2], self.log_tau_ff[i, :-2], "b", linewidth=3)
+            plt.xlabel("Time [s]")
+            plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)])
+            plt.legend([h1], [lgd1[i % 3]+" "+lgd2[int(i/3)]])
+            plt.ylim([-8.0, 8.0])
+        plt.suptitle("Feedforward torques")
+
+        index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+        lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]
+        lgd2 = ["FL", "FR", "HL", "HR"]
+        plt.figure()
+        for i in range(12):
+            if i == 0:
+                ax0 = plt.subplot(3, 4, index12[i])
+            else:
+                plt.subplot(3, 4, index12[i], sharex=ax0)
+            h1, = plt.plot(t_range[:-2], self.log_f_cmd[i, :-2], "r", linewidth=3)
+            h2, = plt.plot(t_range[:-2], self.log_f_out[i, :-2], "b", linewidth=3, linestyle="--")
+            plt.xlabel("Time [s]")
+            plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)])
+            plt.legend([h1], [lgd1[i % 3]+" "+lgd2[int(i/3)]])
+            if (i % 3) == 2:
+                plt.ylim([-0.0, 26.0])
+            else:
+                plt.ylim([-26.0, 26.0])
+        plt.suptitle("Contact forces (MPC command) & WBC QP output")
+
+        index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+        plt.figure()
+        for i in range(12):
+            if i == 0:
+                ax0 = plt.subplot(3, 4, index12[i])
+            else:
+                plt.subplot(3, 4, index12[i], sharex=ax0)
+            plt.plot(t_range, self.log_qdes[i, :], color='r', linewidth=3)
+            plt.legend(["Qdes"], prop={'size': 8})
+
         plt.show(block=True)
 
     def saveAll(self, fileName="data_QP", log_date=True):
@@ -226,6 +297,8 @@ class controller():
                  log_feet_vel_target=self.log_feet_vel_target,
                  log_feet_acc_target=self.log_feet_acc_target,
                  log_x_cmd=self.log_x_cmd,
+                 log_f_cmd=self.log_f_cmd,
+                 log_f_out=self.log_f_out,
                  log_x=self.log_x,
                  log_q=self.log_q,
                  log_dq=self.log_dq,
@@ -237,8 +310,8 @@ class controller():
                  log_qdes=self.log_qdes,
                  log_vdes=self.log_vdes,
                  log_q_pyb=self.log_q_pyb,
-                 log_v_pyb=self.log_v_pyb)
-
+                 log_v_pyb=self.log_v_pyb,
+                 log_tstamps=self.log_tstamps)
 
 class QP_WBC():
 
@@ -383,6 +456,7 @@ class QP_WBC():
                             l=self.NK_inf, u=self.NK.ravel(), verbose=False)
             self.prob.update_settings(eps_abs=1e-5)
             self.prob.update_settings(eps_rel=1e-5)
+            # self.prob.update_settings(time_limit=5e-4)
             self.initialized = True
         else:  # Code to update the QP problem without creating it again
             try:
@@ -390,7 +464,7 @@ class QP_WBC():
                     Ax=self.ML.data, l=self.NK_inf, u=self.NK.ravel())
             except ValueError:
                 print("Bound Problem")
-            self.prob.warm_start(x=self.warmxf)
+            self.prob.warm_start(x=self.x)
 
         # Run the solver to solve the QP problem
         self.sol = self.prob.solve()
@@ -425,7 +499,7 @@ if __name__ == "__main__":
     data = robot.data
 
     # Create the QP object
-    qp_wbc = QP_WBC(model, data)
+    qp_wbc = QP_WBC()
 
     # Position and velocity
     q = np.array([[0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 1.0, 0.0, 0.8, -1.6,
@@ -437,8 +511,8 @@ if __name__ == "__main__":
     f_cmd = np.array([[0.0, 0.0, 6.0] * 4]).transpose()
 
     # Update the matrices, the four feet are in contact
-    qp_wbc.update_ML(q, [0, 1, 2, 3])
-    qp_wbc.update_NK(q, v, ddq_cmd, f_cmd)
+    qp_wbc.update_ML(model, data, q, np.array([1, 1, 1, 1]))
+    qp_wbc.update_NK(model, data, q, v, ddq_cmd, f_cmd)
     qp_wbc.call_solver()
 
     # Display results
@@ -446,5 +520,5 @@ if __name__ == "__main__":
     print("ddq_cmd: ", ddq_cmd.ravel())
     print("ddq_out: ", qp_wbc.x[:6].ravel())
     print("f_cmd: ", f_cmd.ravel())
-    print("f_out: ", qp_wbc.x[6:].ravel())
+    print("f_out: ", f_cmd.ravel() + qp_wbc.x[6:].ravel())
     print("torques: ", qp_wbc.get_joint_torques().ravel())
