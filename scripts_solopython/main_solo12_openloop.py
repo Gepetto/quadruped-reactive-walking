@@ -1,5 +1,9 @@
 # coding: utf8
 
+import os
+import sys
+sys.path.insert(0, './mpctsid')
+
 from utils.logger import Logger
 import tsid as tsid
 import pinocchio as pin
@@ -8,10 +12,7 @@ import numpy as np
 from mpctsid.Estimator import Estimator
 from mpctsid.Controller import Controller
 from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
-import os
-import sys
-sys.path.insert(0, './mpctsid')
-
+import threading
 
 SIMULATION = True
 LOGGING = False
@@ -19,11 +20,11 @@ LOGGING = False
 if SIMULATION:
     from mpctsid.utils_mpc import PyBulletSimulator
 else:
-    from pynput import keyboard
+    # from pynput import keyboard
     from solo12 import Solo12
     from utils.qualisysClient import QualisysClient
 
-DT = 0.0010
+DT = 0.0020
 
 key_pressed = False
 
@@ -43,6 +44,11 @@ def on_press(key):
     except AttributeError:
         print('Unknown key {0} pressed'.format(key))
 
+def get_input():
+    global key_pressed
+    keystrk=input('Put the robot on the floor and press Enter \n')
+    # thread doesn't continue until key is pressed
+    key_pressed=True
 
 def put_on_the_floor(device, q_init):
     """Make the robot go to the default initial position and wait for the user
@@ -60,9 +66,8 @@ def put_on_the_floor(device, q_init):
     pos = np.zeros(device.nb_motors)
     for motor in range(device.nb_motors):
         pos[motor] = q_init[device.motorToUrdf[motor]] * device.gearRatioSigned[motor]
-    listener = keyboard.Listener(on_press=on_press)
-    listener.start()
-    print("Put the robot on the floor and press Enter")
+    i=threading.Thread(target=get_input)
+    i.start()
     while not key_pressed:
         device.UpdateMeasurment()
         for motor in range(device.nb_motors):
@@ -88,15 +93,15 @@ def mcapi_playback(name_interface):
     #########################################
 
     envID = 0  # Identifier of the environment to choose in which one the simulation will happen
-    velID = 0  # Identifier of the reference velocity profile to choose which one will be sent to the robot
+    velID = 6  # Identifier of the reference velocity profile to choose which one will be sent to the robot
 
-    dt_tsid = 0.0010  # Time step of TSID
+    dt_tsid = 0.0020  # Time step of TSID
     dt_mpc = 0.02  # Time step of the MPC
     k_mpc = int(dt_mpc / dt_tsid)  # dt is dt_tsid, defined in the TSID controller script
     t = 0.0  # Time
     n_periods = 1  # Number of periods in the prediction horizon
     T_gait = 0.32  # Duration of one gait period
-    N_SIMULATION = 4000  # number of simulated TSID time steps
+    N_SIMULATION = 30000  # number of simulated TSID time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -112,10 +117,12 @@ def mcapi_playback(name_interface):
     use_flat_plane = True
 
     # If we are using a predefined reference velocity (True) or a joystick (False)
-    predefined_vel = True
+    predefined_vel = False
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = False
+    enable_pyb_GUI = True
+    if not SIMULATION:
+        enable_pyb_GUI = False
 
     # Default position after calibration
     q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, +1.6, 0, -0.8, +1.6])
@@ -259,9 +266,37 @@ def mcapi_playback(name_interface):
         print("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.")
     device.hardware.Stop()  # Shut down the interface between the computer and the master board
 
+    #controller.estimator.plot_graphs()
+
+    """import matplotlib.pylab as plt
+    plt.figure()
+    plt.plot(controller.t_list_filter[1:], 'r+')
+    plt.plot(controller.t_list_planner[1:], 'g+')
+    plt.plot(controller.t_list_mpc[1:], 'b+')
+    plt.plot(controller.t_list_wbc[1:], '+', color="violet")
+    plt.plot(controller.t_list_loop[1:], 'k+')
+    plt.plot(controller.t_list_InvKin[1:], 'o', color="darkgreen")
+    plt.plot(controller.t_list_QPWBC[1:], 'o', color="royalblue")
+    plt.plot(controller.t_list_intlog[1:], 'o', color="darkgoldenrod")
+    plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "InvKin", "QP WBC", "Integ + Log"])
+    plt.title("Loop time [s]")
+    plt.show(block=True)"""
+
+    """import matplotlib.pylab as plt
+    N = len(controller.log_tmp2)
+    t_range = np.array([k*0.002 for k in range(N)])
+    plt.figure()
+    plt.plot(t_range, controller.log_tmp1, 'b')
+    plt.plot(t_range, controller.log_tmp2, 'r')
+    plt.plot(t_range, controller.log_tmp3, 'g')
+    plt.plot(t_range, controller.log_tmp4, 'g')
+    # plt.show(block=True)"""
+
     # controller.myController.saveAll(fileName="push_pyb_with_ff", log_date=False)
+    if LOGGING:
+        controller.myController.saveAll(fileName="data_control", log_date=True)
     print("-- Controller log saved --")
-    # controller.myController.show_logs()
+    controller.myController.show_logs()
 
     # Save the logs of the Logger object
     if LOGGING:
@@ -271,6 +306,16 @@ def mcapi_playback(name_interface):
     if SIMULATION and enable_pyb_GUI:
         # Disconnect the PyBullet server (also close the GUI)
         device.Stop()
+
+    if controller.myController.error:
+        if (controller.error_flag == 1):
+            print("-- POSITION LIMIT ERROR --")
+        elif (controller.error_flag == 2):
+            print("-- VELOCITY TOO HIGH ERROR --")
+        elif (controller.error_flag == 3):
+            print("-- FEEDFORWARD TORQUES TOO HIGH ERROR --")
+        print(controller.error_value)
+
 
     print("End of script")
     quit()
