@@ -236,6 +236,8 @@ class pybullet_simulator:
 
     def __init__(self, q_init, envID, use_flat_plane, enable_pyb_GUI, dt=0.001):
 
+        self.applied_force = np.zeros(3)
+
         # Start the client for PyBullet
         if enable_pyb_GUI:
             pyb.connect(pyb.GUI)
@@ -243,7 +245,7 @@ class pybullet_simulator:
             pyb.connect(pyb.DIRECT)
         # p.GUI for graphical version
         # p.DIRECT for non-graphical version
-
+        
         # Load horizontal plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
 
@@ -286,7 +288,7 @@ class pybullet_simulator:
         if envID == 1:
 
             # Add stairs with platform and bridge
-            self.stairsId = pyb.loadURDF("../../../../../Documents/Git-Repositories/mpc-tsid/bauzil_stairs.urdf")  # ,
+            self.stairsId = pyb.loadURDF("../../../../../git/paleziart/solopython/mpctsid/bauzil_stairs.urdf")  # ,
             """basePosition=[-1.25, 3.5, -0.1],
                                  baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))"""
             pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)
@@ -437,7 +439,7 @@ class pybullet_simulator:
         robotStartOrientation = pyb.getQuaternionFromEuler([0.0, 0.0, 0.0])  # -np.pi/2
         pyb.setAdditionalSearchPath("/opt/openrobots/share/example-robot-data/robots/solo_description/robots")
         self.robotId = pyb.loadURDF("solo12.urdf", robotStartPos, robotStartOrientation)
-
+       
         # Disable default motor control for revolute joints
         self.revoluteJointIndices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
         pyb.setJointMotorControlArray(self.robotId, jointIndices=self.revoluteJointIndices,
@@ -613,6 +615,9 @@ class pybullet_simulator:
         A3 = - 2 * t1 * A4
         A2 = t1**2 * A4
         alpha = A2*ev**2 + A3*ev**3 + A4*ev**4
+
+        self.applied_force[:] = alpha * F
+
         pyb.applyExternalForce(self.robotId, -1, alpha * F, alpha*M, pyb.LINK_FRAME)
 
         return 0.0
@@ -635,7 +640,7 @@ class pybullet_simulator:
         vmes[:, 0] = [state[1] for state in jointStates]
 
         # Create trajectory
-        dt_traj = 0.0010
+        dt_traj = 0.0020
         t1 = 4.0  # seconds
         cpt = 0
 
@@ -759,6 +764,7 @@ class PyBulletSimulator():
         self.baseState = pyb.getBasePositionAndOrientation(self.pyb_sim.robotId)
         self.dummyHeight = np.array(self.baseState[0])
         self.dummyHeight[2] = 0.20
+        self.dummyPos = np.array(self.baseState[0])
 
         # Linear and angular velocity of the trunk (PyBullet world frame)
         self.baseVel = pyb.getBaseVelocity(self.pyb_sim.robotId)
@@ -817,6 +823,8 @@ class PyBulletSimulator():
                                       controlMode=pyb.TORQUE_CONTROL, forces=self.jointTorques)
 
         # self.pyb_sim.apply_external_force(self.cpt, 1000, 1000, np.array([0.0, +8.0, 0.0]), np.zeros((3,)))
+        # self.pyb_sim.apply_external_force(self.cpt, 4250, 500, np.array([+5.0, 0.0, 0.0]), np.zeros((3,)))
+        # self.pyb_sim.apply_external_force(self.cpt, 5250, 500, np.array([0.0, +5.0, 0.0]), np.zeros((3,)))
 
         # Compute one step of simulation
         pyb.stepSimulation()
