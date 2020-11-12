@@ -84,8 +84,8 @@ def mcapi_playback(name_interface):
     Args:
         name_interface (string): name of the interface that is used to communicate with the robot
     """
-
-    name_replay = "/home/odri/git/thomasCbrs/log_eval/walk_nonlinear_mpc/"
+    name_replay = "/home/odri/git/thomasCbrs/log_eval/test_3/06_nl/"
+    # name_replay = "/home/odri/git/thomasCbrs/log_eval/vmax_nl/"
     # replay_q = np.loadtxt(name_replay + "_q.dat", delimiter=" ")
     # replay_v = np.loadtxt(name_replay + "_v.dat", delimiter=" ")
     # replay_tau = np.loadtxt(name_replay + "_tau.dat", delimiter=" ")
