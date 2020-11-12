@@ -18,6 +18,10 @@ class GamepadClient():
         self.running = Value(c_bool, lock=True)
         self.startButton = Value(c_bool, lock=True)
         self.backButton = Value(c_bool, lock=True)
+        self.northButton = Value(c_bool, lock=True)
+        self.eastButton = Value(c_bool, lock=True)
+        self.southButton = Value(c_bool, lock=True)
+        self.westButton = Value(c_bool, lock=True)
         self.leftJoystickX = Value(c_double, lock=True)
         self.leftJoystickY = Value(c_double, lock=True)
         self.rightJoystickX = Value(c_double, lock=True)
@@ -27,6 +31,10 @@ class GamepadClient():
 
         self.startButton.value = False
         self.backButton.value = False
+        self.northButton.value = False
+        self.eastButton.value = False
+        self.southButton.value = False
+        self.westButton.value = False
         self.leftJoystickX.value = 0.0
         self.leftJoystickY.value = 0.0
         self.rightJoystickX.value = 0.0
@@ -34,18 +42,19 @@ class GamepadClient():
         self.R1Button.value = False
         self.L1Button.value = False
 
-        args = (self.running, self.startButton, self.backButton, self.leftJoystickX,
+        args = (self.running, self.startButton, self.backButton,
+                self.northButton, self.eastButton, self.southButton, self.westButton, self.leftJoystickX,
                 self.leftJoystickY, self.rightJoystickX, self.rightJoystickY, self.R1Button, self.L1Button)
         self.process = Process(target=self.run, args=args)
         self.process.start()
         time.sleep(0.2)
 
-    def run(self, running, startButton, backButton, leftJoystickX, leftJoystickY, rightJoystickX, rightJoystickY, R1Button, L1Button):
+    def run(self, running, startButton, backButton, northButton, eastButton, southButton, westButton, leftJoystickX, leftJoystickY, rightJoystickX, rightJoystickY, R1Button, L1Button):
         running.value = True
         while(running.value):
             events = inputs.get_gamepad()
             for event in events:
-                #print(event.ev_type, event.code, event.state)
+                # print(event.ev_type, event.code, event.state)
                 if event.ev_type == 'Absolute':
                     if event.code == 'ABS_X':
                         leftJoystickX.value = event.state / 32768.0
@@ -58,16 +67,21 @@ class GamepadClient():
                 if (event.ev_type == 'Key'):
                     if event.code == 'BTN_START':
                         startButton.value = event.state
-                        print (event.state)
                     elif event.code == 'BTN_TR':
                         R1Button.value = event.state
-                        print (event.state)
                     elif event.code == 'BTN_TL':
                         L1Button.value = event.state
-                        print (event.state)
                     elif event.code == 'BTN_SELECT':
                         backButton.value = event.state
-                        print (event.state)
+                    elif event.code == 'BTN_NORTH':
+                        northButton.value = event.state
+                    elif event.code == 'BTN_EAST':
+                        eastButton.value = event.state
+                    elif event.code == 'BTN_SOUTH':
+                        southButton.value = event.state
+                    elif event.code == 'BTN_WEST':
+                        westButton.value = event.state
+
     def stop(self):
         self.running.value = False
         self.process.terminate()
