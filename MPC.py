@@ -3,7 +3,7 @@
 import numpy as np
 import scipy as scipy
 import osqp as osqp
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 import utils_mpc
 
 
