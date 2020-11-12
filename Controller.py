@@ -74,11 +74,14 @@ class Controller:
 
         # Lists to log the duration of 1 iteration of the MPC/TSID
         self.t_list_filter = [0] * int(N_SIMULATION)
-        self.t_list_states = [0] * int(N_SIMULATION)
-        self.t_list_fsteps = [0] * int(N_SIMULATION)
+        self.t_list_planner = [0] * int(N_SIMULATION)
         self.t_list_mpc = [0] * int(N_SIMULATION)
-        self.t_list_tsid = [0] * int(N_SIMULATION)
+        self.t_list_wbc = [0] * int(N_SIMULATION)
         self.t_list_loop = [0] * int(N_SIMULATION)
+
+        self.t_list_InvKin = [0] * int(N_SIMULATION)
+        self.t_list_QPWBC = [0] * int(N_SIMULATION)
+        self.t_list_intlog = [0] * int(N_SIMULATION)
 
         # Init joint torques to correct shape
         self.jointTorques = np.zeros((12, 1))
@@ -87,7 +90,7 @@ class Controller:
         self.ID_deb_lines = []
 
         # Enable/Disable Gepetto viewer
-        self.enable_gepetto_viewer = True
+        self.enable_gepetto_viewer = False
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
         self.joystick, self.fstep_planner, self.logger, self.interface, self.estimator = utils_mpc.init_objects(
@@ -104,7 +107,8 @@ class Controller:
         self.v = np.zeros((18, 1))
         self.b_v = np.zeros((18, 1))
         self.o_v_filt = np.zeros((18, 1))
-        self.planner = Planner(dt_mpc, dt_tsid, n_periods, T_gait, k_mpc, on_solo8, h_ref)
+        self.planner = Planner(dt_mpc, dt_tsid, n_periods,
+                               T_gait, k_mpc, on_solo8, h_ref)
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
@@ -159,6 +163,14 @@ class Controller:
         self.qmes12 = np.zeros((19, 1))
         self.vmes12 = np.zeros((18, 1))
 
+        self.error_flag = 0
+        self.q_security = np.array([np.pi*0.4, np.pi*80/180, np.pi] * 4)
+
+        self.log_tmp1 = [0] * int(N_SIMULATION)
+        self.log_tmp2 = [0] * int(N_SIMULATION)
+        self.log_tmp3 = [0] * int(N_SIMULATION)
+        self.log_tmp4 = [0] * int(N_SIMULATION)
+
         # Interface with the PD+ on the control board
         self.result = Result()
 
@@ -173,26 +185,79 @@ class Controller:
 
     def compute(self, device):
 
+        tic = time.time()
+
+        # Update the reference velocity coming from the gamepad
+        self.joystick.update_v_ref(self.k, self.velID)
+
         # Process state estimator
-        """if self.k == 1:
-            self.estimator.run_filter(self.k, self.planner.gait[0, 1:], device, None,
+        if self.k == 1:
+            self.estimator.run_filter(self.k, self.planner.gait[0, 1:], device, self.planner.goals, self.planner.gait[0, 0], None,
                                       self.myController.invKin.robot.data, self.myController.invKin.robot.model,
                                       self.joystick.v_ref)
         else:
-            self.estimator.run_filter(self.k, self.planner.gait[0, 1:], device, self.myController.qint)
+            self.estimator.run_filter(
+                self.k, self.planner.gait[0, 1:], device, self.planner.goals, self.planner.gait[0, 0], self.myController.qint)
+
+        t_filter = time.time()
+        self.t_list_filter[self.k] = t_filter - tic
 
         # Update state for the next iteration of the whole loop
         if self.k > 1:
-            "self.q[:, 0] = self.myController.qint.copy()
-            self.q[0:2, 0] = self.myController.qint[0:2]""
+            # self.q[:, 0] = self.myController.qint.copy()
+            # self.q[0:2, 0] = self.myController.qint[0:2]
             self.q[:, 0] = self.estimator.q_filt[:, 0]
+            # self.q[0:2, 0] = self.myController.qint[0:2]
             oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
             self.v[0:3, 0:1] = oMb.rotation @ self.estimator.v_filt[0:3, 0:1]
             self.v[3:6, 0:1] = oMb.rotation @ self.estimator.v_filt[3:6, 0:1]
-            self.v[6:, 0] = self.estimator.v_filt[6:, 0]"""
+            self.v[6:, 0] = self.estimator.v_filt[6:, 0]
+
+            """self.q[2, 0] = self.myController.invKin.q_cmd[2]
+            self.v[2, 0] = self.myController.invKin.dq_cmd[2]
+            self.q[7:, 0] = self.myController.invKin.q_cmd[7:]
+            self.v[6:, 0] = self.myController.invKin.dq_cmd[6:]"""
+
+            """# Assess average height of feet in contact with the ground
+            pin.forwardKinematics(self.solo.model, self.solo.data, self.q, np.zeros((18, 1)))
+            pin.updateFramePlacements(self.solo.model, self.solo.data)
+            indexes = [10, 18, 26, 34]  #  Indexes of feet frames
+            z_average = 0.0  # Average height of feet in contact
+
+            # Take into account height of feet if we are not close from a contact switch
+            if not self.estimator.close_from_contact:
+                cpt = 0
+                for i_ee in range(4):
+                    if (self.planner.gait[0, 1+i_ee] == 1):
+                        z_average += self.solo.data.oMf[indexes[i_ee]].translation[2]
+                        cpt += 1
+                if cpt > 0:
+                    z_average /= cpt
+
+                # Remove average from the height of the base so that feet on the ground are at 0 height
+                self.q[2, 0] -= z_average"""
+
+            # Update estimated position of the robot
+            self.v_estim[:6, 0] = self.joystick.v_ref[:, 0]
+            if not self.planner.is_static:
+                self.q_estim[:, 0] = pin.integrate(self.solo.model,
+                                                self.q, self.v_estim * self.myController.dt)
+                self.yaw_estim = (utils_mpc.quaternionToRPY(self.q_estim[3:7, 0]))[2, 0]
+            else:
+                self.planner.q_static[:, 0] = pin.integrate(self.solo.model,
+                                                self.planner.q_static, self.v_estim * self.myController.dt)
+                self.planner.RPY_static[:, 0:1] = utils_mpc.quaternionToRPY(self.planner.q_static[3:7, 0])
+            
+            
+            
+        else:
+            self.yaw_estim = 0.0
+
+        z_average = 0.0
 
         if self.k > 1:
-            self.jointStates = pyb.getJointStates(
+            pass
+            """self.jointStates = pyb.getJointStates(
                 device.pyb_sim.robotId, device.revoluteJointIndices)  # State of all joints
             self.baseState = pyb.getBasePositionAndOrientation(
                 device.pyb_sim.robotId)  # Position and orientation of the trunk
@@ -204,34 +269,90 @@ class Controller:
             v_pyb = np.vstack((np.array([self.baseVel[0]]).T, np.array([self.baseVel[1]]).T,
                                np.array([[state[1] for state in self.jointStates]]).T))
 
-            self.q[:, 0:1] = q_pyb
+            indexes = [3, 7, 11, 15]  #  Indexes of feet frames
+            z_average_pyb = 0.0  # Average height of feet in contact
+
+            # Take into account height of feet if we are not close from a contact switch
+            if not self.estimator.close_from_contact:
+                cpt = 0
+                for i_ee in range(4):
+                    if (self.planner.gait[0, 1+i_ee] == 1):
+                        z_average_pyb += pyb.getLinkState(device.pyb_sim.robotId, indexes[i_ee])[0][2]
+                        cpt += 1
+                if cpt > 0:
+                    z_average_pyb /= cpt
+
+            self.log_tmp1[self.k] = self.estimator.FK_xyz[2]
+            self.log_tmp2[self.k] = q_pyb[2, 0]
+            self.log_tmp3[self.k] = self.estimator.xyz_mean_feet[2]
+            self.log_tmp4[self.k] = self.estimator.filt_lin_pos[2]"""
+
+            """self.q[:, 0:1] = q_pyb
+            self.q[2, 0] = self.myController.qdes[2]
             self.v[:, 0:1] = v_pyb
+
+            # Assess average height of feet in contact with the ground
+            pin.forwardKinematics(self.solo.model, self.solo.data, self.q, np.zeros((18, 1)))
+            pin.updateFramePlacements(self.solo.model, self.solo.data)
+            indexes = [10, 18, 26, 34]  #  Indexes of feet frames
+            z_average = 0.0  # Average height of feet in contact
+
+            # Take into account height of feet if we are not close from a contact switch
+            if not self.estimator.close_from_contact:
+                cpt = 0
+                for i_ee in range(4):
+                    if (self.planner.gait[0, 1+i_ee] == 1):
+                        z_average += self.solo.data.oMf[indexes[i_ee]].translation[2]
+                        cpt += 1
+                if cpt > 0:
+                    z_average /= cpt
+
+            # Update estimated position of the robot
+            self.v_estim[:6, 0] = self.joystick.v_ref[:, 0]
+            self.q_estim[:, 0] = pin.integrate(self.solo.model,
+                                               self.q, self.v_estim * self.myController.dt)
+            yaw_estim = (utils_mpc.quaternionToRPY(self.q_estim[3:7, 0]))[2, 0]
+
 
             self.myController.log_q_pyb[:, self.myController.k_log] = q_pyb[:, 0]
             self.myController.log_v_pyb[:, self.myController.k_log] = v_pyb[:, 0]
+        else:
+            z_average = 0.0"""
 
         """if np.abs(self.v[5,0]) > 1.0:
             from IPython import embed
             embed()"""
 
+        """if self.k == 1000:
+            from IPython import embed
+            embed()"""
+
         if self.k > 10 and self.enable_pyb_GUI:
             # Update the PyBullet camera on the robot position to do as if it was attached to the robot
-            pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
-                                           cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])
+            pyb.resetDebugVisualizerCamera(cameraDistance=0.8, cameraYaw=45, cameraPitch=-30,
+                                           cameraTargetPosition=[1.0, 0.3, 0.25])
+            """pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
+                                           cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])"""
         """if self.k > 10 and (self.k % 50 == 0):
             # print(device.b_baseVel.ravel())
             print(self.estimator.v_filt[0:3, 0])"""
 
-        # Update the reference velocity coming from the gamepad
-        self.joystick.update_v_ref(self.k, self.velID)
-
         if (self.k == 0):
-            self.q_th = self.q.copy()
-            self.v_th = self.v.copy()
+            """self.q_th = self.q.copy()
+            self.v_th = self.v.copy()"""
+            self.q_estim = self.q.copy()
+            self.v_estim = self.v.copy()
+
+        # Update reference height
+        """if self.k < 1000:
+            self.planner.h_ref += 0.00005"""
 
         # Run planner
         self.planner.run_planner(self.k, self.k_mpc, self.q[0:7, 0:1],
-                                 self.v[0:6, 0:1], self.joystick.v_ref)
+                                 self.v[0:6, 0:1].copy(), self.joystick.v_ref, self.q_estim[2, 0], z_average, self.joystick)
+
+        t_planner = time.time()
+        self.t_list_planner[self.k] = t_planner - t_filter
 
         # Process MPC once every k_mpc iterations of TSID
         if (self.k % self.k_mpc) == 0:
@@ -249,28 +370,39 @@ class Controller:
             if (self.k % self.k_mpc) == 2:  # Mimic a 4 ms delay
                 self.f_applied = self.mpc_wrapper.get_latest_result()
 
-        yaw_th = (utils_mpc.quaternionToRPY(self.q_th[3:7, 0]))[2, 0]
+        t_mpc = time.time()
+        self.t_list_mpc[self.k] = t_mpc - t_planner
+
+        """yaw_th = (utils_mpc.quaternionToRPY(self.q_th[3:7, 0]))[2, 0]
         oRl = pin.utils.rotate('z', yaw_th)
         self.v_th[0:3, 0] = oRl.transpose() @ self.planner.xref[6:9, 1]
         self.v_th[3:6, 0] = oRl.transpose() @ self.planner.xref[9:12, 1]
         self.q_th[:, 0] = pin.integrate(self.myController.invKin.robot.model,
-                                        self.q_th, self.v_th * self.myController.dt)
+                                        self.q_th, self.v_th * self.myController.dt)"""
 
-        self.x_f_mpc[0] = self.q_th[0, 0]  # self.planner.xref[0, 0] + self.myController.dt * self.planner.xref[6, 1]
-        self.x_f_mpc[1] = self.q_th[1, 0]  # self.planner.xref[1, 0] + self.myController.dt * self.planner.xref[7, 1]
-        self.x_f_mpc[2] = self.planner.h_ref
-        self.x_f_mpc[3] = 0.0
-        self.x_f_mpc[4] = 0.0
-        self.x_f_mpc[5] = yaw_th + self.myController.dt * self.planner.xref[11, 1]
+        if not self.planner.is_static:
+            self.x_f_mpc[0] = self.q_estim[0, 0]
+            self.x_f_mpc[1] = self.q_estim[1, 0]
+            self.x_f_mpc[2] = self.planner.h_ref
+            self.x_f_mpc[3] = 0.0
+            self.x_f_mpc[4] = 0.0
+            self.x_f_mpc[5] = self.yaw_estim
+        else:
+            self.x_f_mpc[0:3] = self.planner.q_static[0:3, 0]
+            self.x_f_mpc[3:6] = self.planner.RPY_static[:, 0]
+
         self.x_f_mpc[6:12] = self.planner.xref[6:, 1]
-        """from IPython import embed
-        embed()"""
+
         self.estimator.x_f_mpc = self.x_f_mpc.copy()  # For logging
 
         """self.q[0:3, 0] = self.x_f_mpc[0:3]
         self.q[3:7, 0] = EulerToQuaternion(self.x_f_mpc[3:6])
         self.v[0:3, 0] = self.x_f_mpc[6:9]
         self.v[3:6, 0] = self.x_f_mpc[9:12]"""
+
+        """if self.k == 2000:
+            from IPython import embed
+            embed()"""
 
         # self.solo.display(self.q)
 
@@ -289,22 +421,39 @@ class Controller:
                                       self.x_f_mpc[12:], self.planner.gait[0, 1:], self.planner)
 
             # Update state for the next iteration of the whole loop
-            self.q[:, 0] = self.myController.qint.copy()
+            """self.q[:, 0] = self.myController.qint.copy()
             oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
             self.v[0:3, 0:1] = oMb.rotation @ self.myController.vint[0:3, 0:1]
             self.v[3:6, 0:1] = oMb.rotation @ self.myController.vint[3:6, 0:1]
-            self.v[6:, 0] = self.myController.vint[6:, 0]
+            self.v[6:, 0] = self.myController.vint[6:, 0]"""
             # self.b_v[:, 0] = self.myController.vint[:, 0]
 
             # Quantities sent to the control board
-            self.result.P = 6.0 * np.ones(12)
+            self.result.P = 3.0 * np.ones(12)
             self.result.D = 0.2 * np.ones(12)
             self.result.q_des[:] = self.myController.qdes[7:]
             self.result.v_des[:] = self.myController.vdes[6:, 0]
             self.result.tau_ff[:] = self.myController.tau_ff
+            """from IPython import embed
+            embed()"""
 
             """if self.k % 5 == 0:
                 self.solo.display(self.q)"""
+
+        # Security check
+        if (self.error_flag == 0) and (not self.myController.error) and (not self.joystick.stop):
+            if np.any(np.abs(self.estimator.q_filt[7:, 0]) > self.q_security):
+                self.myController.error = True
+                self.error_flag = 1
+                self.error_value = self.estimator.q_filt[7:, 0] * 180 / 3.1415
+            if np.any(np.abs(self.estimator.v_secu) > 50):
+                self.myController.error = True
+                self.error_flag = 2
+                self.error_value = self.estimator.v_secu
+            if np.any(np.abs(self.myController.tau_ff) > 8):
+                self.myController.error = True
+                self.error_flag = 3
+                self.error_value = self.myController.tau_ff
 
         # If something wrong happened in TSID controller we stick to a security controller
         if self.myController.error or self.joystick.stop:
@@ -319,6 +468,15 @@ class Controller:
         # Log joystick command
         if self.joystick is not None:
             self.estimator.v_ref = self.joystick.v_ref
+
+        self.t_list_wbc[self.k] = time.time() - t_mpc
+        self.t_list_loop[self.k] = time.time() - tic
+        self.t_list_InvKin[self.k] = self.myController.tac - \
+            self.myController.tic
+        self.t_list_QPWBC[self.k] = self.myController.toc - \
+            self.myController.tac
+        self.t_list_intlog[self.k] = self.myController.tuc - \
+            self.myController.toc
 
         # Increment loop counter
         self.k += 1
@@ -387,7 +545,8 @@ class Controller:
             # logger.log_tracking_foot(k, myController, solo)
 
         tac = time.time()
-        print("Average computation time of one iteration: ", (tac-tic)/self.N_SIMULATION)
+        print("Average computation time of one iteration: ",
+              (tac-tic)/self.N_SIMULATION)
         print("Computation duration: ", tac-tic)
         print("Simulated duration: ", self.N_SIMULATION*self.dt_tsid)
         print("Max loop time: ", np.max(self.t_list_loop[10:]))
