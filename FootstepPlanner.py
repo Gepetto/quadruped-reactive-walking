@@ -65,6 +65,9 @@ class FootstepPlanner:
         # Number of time steps in the prediction horizon
         self.n_steps = np.int(n_periods*self.T_gait/self.dt)
 
+
+        self.dt_vector = np.linspace(self.dt, T_gait, self.n_steps)
+
         # Reference trajectory matrix of size 12 by (1 + N)  with the current state of
         # the robot in column 0 and the N steps of the prediction horizon in the others
         self.xref = np.zeros((12, 1 + self.n_steps))
@@ -120,10 +123,15 @@ class FootstepPlanner:
             predefined (bool): if we are using a predefined reference velocity (True) or a joystick (False)
         """
 
+        # Update yaw and yaw velocity
+        # dt_vector = np.linspace(self.dt, T_gait, self.n_steps)
+        self.xref[5, 1:] = v_ref[5, 0] * self.dt_vector
+        self.xref[11, 1:] = v_ref[5, 0]
+
         # Update x and y velocities taking into account the rotation of the base over the prediction horizon
-        yaw = np.linspace(0, T_gait-self.dt, self.n_steps) * v_ref[5, 0]
-        self.xref[6, 1:] = v_ref[0, 0] * np.cos(yaw) - v_ref[1, 0] * np.sin(yaw)
-        self.xref[7, 1:] = v_ref[0, 0] * np.sin(yaw) + v_ref[1, 0] * np.cos(yaw)
+        # yaw = np.linspace(0, T_gait-self.dt, self.n_steps) * v_ref[5, 0]
+        self.xref[6, 1:] = v_ref[0, 0] * np.cos(self.xref[5, 1:]) - v_ref[1, 0] * np.sin(self.xref[5, 1:])
+        self.xref[7, 1:] = v_ref[0, 0] * np.sin(self.xref[5, 1:]) + v_ref[1, 0] * np.cos(self.xref[5, 1:])
 
         # Update x and y depending on x and y velocities (cumulative sum)
         self.xref[0, 1:] = self.dt * np.cumsum(self.xref[6, 1:])
@@ -140,10 +148,6 @@ class FootstepPlanner:
         # No need to update Z velocity as the reference is always 0
         # No need to update roll and roll velocity as the reference is always 0 for those
         # No need to update pitch and pitch velocity as the reference is always 0 for those
-        # Update yaw and yaw velocity
-        dt_vector = np.linspace(self.dt, T_gait, self.n_steps)
-        self.xref[5, 1:] = v_ref[5, 0] * dt_vector
-        self.xref[11, 1:] = v_ref[5, 0]
 
         # Update the current state
         self.xref[0:3, 0:1] = lC
