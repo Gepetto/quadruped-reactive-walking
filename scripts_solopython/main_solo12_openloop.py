@@ -101,7 +101,7 @@ def mcapi_playback(name_interface):
     t = 0.0  # Time
     n_periods = 1  # Number of periods in the prediction horizon
     T_gait = 0.32  # Duration of one gait period
-    N_SIMULATION = 10000  # number of simulated TSID time steps
+    N_SIMULATION = 4000  # number of simulated TSID time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -114,13 +114,13 @@ def mcapi_playback(name_interface):
     on_solo8 = False
 
     # If True the ground is flat, otherwise it has bumps
-    use_flat_plane = False
+    use_flat_plane = True
 
     # If we are using a predefined reference velocity (True) or a joystick (False)
-    predefined_vel = True
+    predefined_vel = False
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = True
+    enable_pyb_GUI = False
     if not SIMULATION:
         enable_pyb_GUI = False
 
@@ -219,7 +219,7 @@ def mcapi_playback(name_interface):
 
         t += DT
         
-        import os
+        """import os
         from matplotlib import pyplot as plt
         step = 10
         if (cpt_frames % step) == 0:
@@ -239,7 +239,7 @@ def mcapi_playback(name_interface):
             else:
                 plt.imsave('/tmp/recording/frame_'+str(int(cpt_frames/step))+'.png', img[2])
 
-        cpt_frames += 1
+        cpt_frames += 1"""
 
 
 
@@ -294,7 +294,7 @@ def mcapi_playback(name_interface):
 
     #controller.estimator.plot_graphs()
 
-    """import matplotlib.pylab as plt
+    import matplotlib.pylab as plt
     plt.figure()
     plt.plot(controller.t_list_filter[1:], 'r+')
     plt.plot(controller.t_list_planner[1:], 'g+')
@@ -306,7 +306,7 @@ def mcapi_playback(name_interface):
     plt.plot(controller.t_list_intlog[1:], 'o', color="darkgoldenrod")
     plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "InvKin", "QP WBC", "Integ + Log"])
     plt.title("Loop time [s]")
-    plt.show(block=True)"""
+    plt.show(block=True)
 
     """import matplotlib.pylab as plt
     N = len(controller.log_tmp2)
