@@ -198,41 +198,15 @@ class Controller:
 
         # Update state for the next iteration of the whole loop
         if self.k > 1:
-            # self.q[:, 0] = self.myController.qint.copy()
-            # self.q[0:2, 0] = self.myController.qint[0:2]
             self.q[:, 0] = self.estimator.q_filt[:, 0]
-            # self.q[0:2, 0] = self.myController.qint[0:2]
             oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
             self.v[0:3, 0:1] = oMb.rotation @ self.estimator.v_filt[0:3, 0:1]
             self.v[3:6, 0:1] = oMb.rotation @ self.estimator.v_filt[3:6, 0:1]
-            self.v[6:, 0] = self.estimator.v_filt[6:, 0]
-
-            """self.q[2, 0] = self.myController.invKin.q_cmd[2]
-            self.v[2, 0] = self.myController.invKin.dq_cmd[2]
-            self.q[7:, 0] = self.myController.invKin.q_cmd[7:]
-            self.v[6:, 0] = self.myController.invKin.dq_cmd[6:]"""
-
-            """# Assess average height of feet in contact with the ground
-            pin.forwardKinematics(self.solo.model, self.solo.data, self.q, np.zeros((18, 1)))
-            pin.updateFramePlacements(self.solo.model, self.solo.data)
-            indexes = [10, 18, 26, 34]  #  Indexes of feet frames
-            z_average = 0.0  # Average height of feet in contact
-
-            # Take into account height of feet if we are not close from a contact switch
-            if not self.estimator.close_from_contact:
-                cpt = 0
-                for i_ee in range(4):
-                    if (self.planner.gait[0, 1+i_ee] == 1):
-                        z_average += self.solo.data.oMf[indexes[i_ee]].translation[2]
-                        cpt += 1
-                if cpt > 0:
-                    z_average /= cpt
-
-                # Remove average from the height of the base so that feet on the ground are at 0 height
-                self.q[2, 0] -= z_average"""
+            self.v[6:, 0] = self.estimator.v_filt[6:, 0]           
 
             # Update estimated position of the robot
-            self.v_estim[:6, 0] = self.joystick.v_ref[:, 0]
+            self.v_estim[0:3, 0:1] = oMb.rotation.transpose() @ self.joystick.v_ref[0:3, 0:1]
+            self.v_estim[3:6, 0:1] = oMb.rotation.transpose() @ self.joystick.v_ref[3:6, 0:1]
             if not self.planner.is_static:
                 self.q_estim[:, 0] = pin.integrate(self.solo.model,
                                                 self.q, self.v_estim * self.myController.dt)
@@ -241,101 +215,18 @@ class Controller:
                 self.planner.q_static[:, 0] = pin.integrate(self.solo.model,
                                                 self.planner.q_static, self.v_estim * self.myController.dt)
                 self.planner.RPY_static[:, 0:1] = utils_mpc.quaternionToRPY(self.planner.q_static[3:7, 0])
-            
-            
-            
         else:
             self.yaw_estim = 0.0
+            self.q_estim = self.q.copy()
+            oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
+            self.v_estim = self.v.copy()
 
-        z_average = 0.0
-
-        if self.k > 1:
-            pass
-            """self.jointStates = pyb.getJointStates(
-                device.pyb_sim.robotId, device.revoluteJointIndices)  # State of all joints
-            self.baseState = pyb.getBasePositionAndOrientation(
-                device.pyb_sim.robotId)  # Position and orientation of the trunk
-            self.baseVel = pyb.getBaseVelocity(device.pyb_sim.robotId)  # Velocity of the trunk
-
-            # Joints configuration and velocity vector for free-flyer + 12 actuators
-            q_pyb = np.vstack((np.array([self.baseState[0]]).T, np.array([self.baseState[1]]).T,
-                               np.array([[state[0] for state in self.jointStates]]).T))
-            v_pyb = np.vstack((np.array([self.baseVel[0]]).T, np.array([self.baseVel[1]]).T,
-                               np.array([[state[1] for state in self.jointStates]]).T))
-
-            indexes = [3, 7, 11, 15]  #  Indexes of feet frames
-            z_average_pyb = 0.0  # Average height of feet in contact
-
-            # Take into account height of feet if we are not close from a contact switch
-            if not self.estimator.close_from_contact:
-                cpt = 0
-                for i_ee in range(4):
-                    if (self.planner.gait[0, 1+i_ee] == 1):
-                        z_average_pyb += pyb.getLinkState(device.pyb_sim.robotId, indexes[i_ee])[0][2]
-                        cpt += 1
-                if cpt > 0:
-                    z_average_pyb /= cpt
-
-            self.log_tmp1[self.k] = self.estimator.FK_xyz[2]
-            self.log_tmp2[self.k] = q_pyb[2, 0]
-            self.log_tmp3[self.k] = self.estimator.xyz_mean_feet[2]
-            self.log_tmp4[self.k] = self.estimator.filt_lin_pos[2]"""
-
-            """self.q[:, 0:1] = q_pyb
-            self.q[2, 0] = self.myController.qdes[2]
-            self.v[:, 0:1] = v_pyb
-
-            # Assess average height of feet in contact with the ground
-            pin.forwardKinematics(self.solo.model, self.solo.data, self.q, np.zeros((18, 1)))
-            pin.updateFramePlacements(self.solo.model, self.solo.data)
-            indexes = [10, 18, 26, 34]  #  Indexes of feet frames
-            z_average = 0.0  # Average height of feet in contact
-
-            # Take into account height of feet if we are not close from a contact switch
-            if not self.estimator.close_from_contact:
-                cpt = 0
-                for i_ee in range(4):
-                    if (self.planner.gait[0, 1+i_ee] == 1):
-                        z_average += self.solo.data.oMf[indexes[i_ee]].translation[2]
-                        cpt += 1
-                if cpt > 0:
-                    z_average /= cpt
-
-            # Update estimated position of the robot
-            self.v_estim[:6, 0] = self.joystick.v_ref[:, 0]
-            self.q_estim[:, 0] = pin.integrate(self.solo.model,
-                                               self.q, self.v_estim * self.myController.dt)
-            yaw_estim = (utils_mpc.quaternionToRPY(self.q_estim[3:7, 0]))[2, 0]
-
-
-            self.myController.log_q_pyb[:, self.myController.k_log] = q_pyb[:, 0]
-            self.myController.log_v_pyb[:, self.myController.k_log] = v_pyb[:, 0]
-        else:
-            z_average = 0.0"""
-
-        """if np.abs(self.v[5,0]) > 1.0:
-            from IPython import embed
-            embed()"""
-
-        """if self.k == 1000:
-            from IPython import embed
-            embed()"""
-
+        # Update position of PyBullet camera on the robot position to do as if it was attached to the robot
         if self.k > 10 and self.enable_pyb_GUI:
-            # Update the PyBullet camera on the robot position to do as if it was attached to the robot
             # pyb.resetDebugVisualizerCamera(cameraDistance=0.8, cameraYaw=45, cameraPitch=-30,
             #                                cameraTargetPosition=[1.0, 0.3, 0.25])
             pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
                                            cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])
-        """if self.k > 10 and (self.k % 50 == 0):
-            # print(device.b_baseVel.ravel())
-            print(self.estimator.v_filt[0:3, 0])"""
-
-        if (self.k == 0):
-            """self.q_th = self.q.copy()
-            self.v_th = self.v.copy()"""
-            self.q_estim = self.q.copy()
-            self.v_estim = self.v.copy()
 
         # Update reference height
         """if self.k < 1000:
@@ -343,7 +234,7 @@ class Controller:
 
         # Run planner
         self.planner.run_planner(self.k, self.k_mpc, self.q[0:7, 0:1],
-                                 self.v[0:6, 0:1].copy(), self.joystick.v_ref, self.q_estim[2, 0], z_average, self.joystick)
+                                 self.v[0:6, 0:1].copy(), self.joystick.v_ref, self.q_estim[2, 0], 0.0, self.joystick)
 
         t_planner = time.time()
         self.t_list_planner[self.k] = t_planner - t_filter
@@ -367,13 +258,7 @@ class Controller:
         t_mpc = time.time()
         self.t_list_mpc[self.k] = t_mpc - t_planner
 
-        """yaw_th = (utils_mpc.quaternionToRPY(self.q_th[3:7, 0]))[2, 0]
-        oRl = pin.utils.rotate('z', yaw_th)
-        self.v_th[0:3, 0] = oRl.transpose() @ self.planner.xref[6:9, 1]
-        self.v_th[3:6, 0] = oRl.transpose() @ self.planner.xref[9:12, 1]
-        self.q_th[:, 0] = pin.integrate(self.myController.invKin.robot.model,
-                                        self.q_th, self.v_th * self.myController.dt)"""
-
+        # Target state for the inverse kinematics
         if not self.planner.is_static:
             self.x_f_mpc[0] = self.q_estim[0, 0]
             self.x_f_mpc[1] = self.q_estim[1, 0]
@@ -384,28 +269,15 @@ class Controller:
         else:
             self.x_f_mpc[0:3] = self.planner.q_static[0:3, 0]
             self.x_f_mpc[3:6] = self.planner.RPY_static[:, 0]
-
         self.x_f_mpc[6:12] = self.planner.xref[6:, 1]
 
         self.estimator.x_f_mpc = self.x_f_mpc.copy()  # For logging
-
-        """self.q[0:3, 0] = self.x_f_mpc[0:3]
-        self.q[3:7, 0] = EulerToQuaternion(self.x_f_mpc[3:6])
-        self.v[0:3, 0] = self.x_f_mpc[6:9]
-        self.v[3:6, 0] = self.x_f_mpc[9:12]"""
-
-        """if self.k == 2000:
-            from IPython import embed
-            embed()"""
-
-        # self.solo.display(self.q)
 
         # Whole Body Control
         # If nothing wrong happened yet in the WBC controller
         if (not self.myController.error) and (not self.joystick.stop):
 
             # Get velocity in base frame for pinocchio
-            oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
             self.b_v[0:3, 0:1] = oMb.rotation.transpose() @ self.v[0:3, 0:1]
             self.b_v[3:6, 0:1] = oMb.rotation.transpose() @ self.v[3:6, 0:1]
             self.b_v[6:, 0] = self.v[6:, 0]
@@ -414,22 +286,12 @@ class Controller:
             self.myController.compute(self.q, self.b_v, self.v, self.x_f_mpc[:12],
                                       self.x_f_mpc[12:], self.planner.gait[0, 1:], self.planner)
 
-            # Update state for the next iteration of the whole loop
-            """self.q[:, 0] = self.myController.qint.copy()
-            oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
-            self.v[0:3, 0:1] = oMb.rotation @ self.myController.vint[0:3, 0:1]
-            self.v[3:6, 0:1] = oMb.rotation @ self.myController.vint[3:6, 0:1]
-            self.v[6:, 0] = self.myController.vint[6:, 0]"""
-            # self.b_v[:, 0] = self.myController.vint[:, 0]
-
             # Quantities sent to the control board
             self.result.P = 3.0 * np.ones(12)
             self.result.D = 0.2 * np.ones(12)
             self.result.q_des[:] = self.myController.qdes[7:]
             self.result.v_des[:] = self.myController.vdes[6:, 0]
             self.result.tau_ff[:] = self.myController.tau_ff
-            """from IPython import embed
-            embed()"""
 
             """if self.k % 5 == 0:
                 self.solo.display(self.q)"""
