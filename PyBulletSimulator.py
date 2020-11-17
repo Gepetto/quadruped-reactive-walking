@@ -1,8 +1,18 @@
+import numpy as np
+import pybullet as pyb  # Pybullet server
+import pybullet_data
+import time as time
+import sys
+import pinocchio as pin
+from utils_mpc import quaternionToRPY
+
+
 class pybullet_simulator:
     """Wrapper for the PyBullet simulator to initialize the simulation, interact with it
     and use various utility functions
 
     Args:
+        q_init (array): the default position of the robot
         envID (int): identifier of the current environment to be able to handle different scenarios
         use_flat_plane (bool): to use either a flat ground or a rough ground
         enable_pyb_GUI (bool): to display PyBullet GUI or not
@@ -462,6 +472,7 @@ class pybullet_simulator:
 
 
 class Hardware():
+    """Dummy class that simulates the Hardware class used to communicate with the real masterboard"""
 
     def __init__(self):
 
@@ -489,6 +500,9 @@ class Hardware():
 
 
 class PyBulletSimulator():
+    """Class that wraps a PyBullet simulation environment to seamlessly switch between the real robot or
+    simulation by having the same interface in both cases (calling the same functions/variables)
+    """
 
     def __init__(self):
 
@@ -516,6 +530,16 @@ class PyBulletSimulator():
         self.tau_ff = np.zeros(12)
 
     def Init(self, calibrateEncoders=False, q_init=None, envID=0, use_flat_plane=True, enable_pyb_GUI=False, dt=0.002):
+        """Initialize the PyBullet simultor with a given environment and a given state of the robot
+
+        Args:
+            calibrateEncoders (bool): dummy variable, not used for simulation but used for real robot
+            q_init (12 x 0 array): initial angular positions of the joints of the robot
+            envID (int): which environment should be loaded in the simulation
+            use_flat_plane (bool): to use either a flat ground or a rough ground
+            enable_pyb_GUI (bool): to display PyBullet GUI or not
+            dt (float): time step of the simulation
+        """
 
         # Initialisation of the PyBullet simulator
         self.pyb_sim = pybullet_simulator(q_init, envID, use_flat_plane, enable_pyb_GUI, dt)
@@ -526,6 +550,8 @@ class PyBulletSimulator():
         return
 
     def UpdateMeasurment(self):
+        """Retrieve data about the robot from the simulation to mimic what the masterboard does
+        """
 
         # Position and velocity of actuators
         jointStates = pyb.getJointStates(self.pyb_sim.robotId, self.revoluteJointIndices)  # State of all joints
@@ -567,23 +593,48 @@ class PyBulletSimulator():
         return
 
     def SetDesiredJointTorque(self, torques):
+        """Set desired joint torques
 
+        Args:
+            torques (12 x 0): desired articular feedforward torques
+        """
         # Save desired torques in a storage array
         self.tau_ff = torques.copy()
 
         return
 
     def SetDesiredJointPDgains(self, P, D):
+        """Set desired PD gains for articular low level control
+
+        Args:
+            P (12 x 0 array): desired position gains
+            D (12 x 0 array): desired velocity gains
+        """
         self.P = P
         self.D = D
 
     def SetDesiredJointPosition(self, q_des):
+        """Set desired joint positions
+
+        Args:
+            q_des (12 x 0 array): desired articular positions
+        """
         self.q_des = q_des
 
     def SetDesiredJointVelocity(self, v_des):
+        """Set desired joint velocities
+
+        Args:
+            v_des (12 x 0 array): desired articular velocities
+        """
         self.v_des = v_des
 
     def SendCommand(self, WaitEndOfCycle=True):
+        """Send control commands to the robot
+
+        Args:
+            WaitEndOfCycle (bool): wait to have simulation time = real time
+        """
 
         # Compute PD torques
         tau_pd = self.P * (self.q_des - self.q_mes) + self.D * (self.v_des - self.v_mes)
@@ -591,12 +642,11 @@ class PyBulletSimulator():
         # Save desired torques in a storage array
         self.jointTorques = tau_pd + self.tau_ff
 
-        # print("FF+PD: ", self.jointTorques.ravel())
-
         # Set control torque for all joints
         pyb.setJointMotorControlArray(self.pyb_sim.robotId, self.pyb_sim.revoluteJointIndices,
                                       controlMode=pyb.TORQUE_CONTROL, forces=self.jointTorques)
 
+        # Apply arbitrary external forces to the robot base in the simulation
         # self.pyb_sim.apply_external_force(self.cpt, 1000, 1000, np.array([0.0, +8.0, 0.0]), np.zeros((3,)))
         # self.pyb_sim.apply_external_force(self.cpt, 4250, 500, np.array([+5.0, 0.0, 0.0]), np.zeros((3,)))
         # self.pyb_sim.apply_external_force(self.cpt, 5250, 500, np.array([0.0, +5.0, 0.0]), np.zeros((3,)))
@@ -615,6 +665,8 @@ class PyBulletSimulator():
         return
 
     def Print(self):
+        """Print simulation parameters in the console"""
+
         np.set_printoptions(precision=2)
         # print(chr(27) + "[2J")
         print("#######")
@@ -627,6 +679,7 @@ class PyBulletSimulator():
         sys.stdout.flush()
 
     def Stop(self):
+        """Stop the simulation environment"""
 
         # Disconnect the PyBullet server (also close the GUI)
         pyb.disconnect()

@@ -765,20 +765,6 @@ class Planner:
                          [left[0] * right[1] - left[1] * right[0]]])
 
 
-def EulerToQuaternion(roll_pitch_yaw):
-    roll, pitch, yaw = roll_pitch_yaw
-    sr = math.sin(roll/2.)
-    cr = math.cos(roll/2.)
-    sp = math.sin(pitch/2.)
-    cp = math.cos(pitch/2.)
-    sy = math.sin(yaw/2.)
-    cy = math.cos(yaw/2.)
-    qx = sr * cp * cy - cr * sp * sy
-    qy = cr * sp * cy + sr * cp * sy
-    qz = cr * cp * sy - sr * sp * cy
-    qw = cr * cp * cy + sr * sp * sy
-    return [qx, qy, qz, qw]
-
 
 def test_planner():
 
@@ -885,7 +871,7 @@ def test_planner():
 
         # Following the mpc reference trajectory perfectly
         q[0:3, 0] = planner.xref[0:3, 1].copy()  # np.array(pin.integrate(model, q, b_v * dt))
-        q[3:7, 0] = EulerToQuaternion(planner.xref[3:6, 1])
+        q[3:7, 0] = utils_mpc.EulerToQuaternion(planner.xref[3:6, 1])
         v[0:3, 0] = planner.xref[6:9, 1].copy()
         v[3:6, 0] = planner.xref[9:12, 1].copy()
         k += 1
@@ -1010,7 +996,7 @@ def test_planner_mpc():
 
         # Run planner
         """if k == 100:
-            q[3:7, 0] = EulerToQuaternion([0.2, 0.0, 0.0])"""
+            q[3:7, 0] = utils_mpc.EulerToQuaternion([0.2, 0.0, 0.0])"""
         planner.run_planner(k, k_mpc, q[0:7, 0:1], v[0:6, 0:1], joystick.v_ref)
 
         # Logging output of foot trajectory generator
@@ -1042,12 +1028,12 @@ def test_planner_mpc():
 
         # Following the mpc reference trajectory perfectly
         """q[0:3, 0] = planner.xref[0:3, 1].copy()  # np.array(pin.integrate(model, q, b_v * dt))
-        q[3:7, 0] = EulerToQuaternion(planner.xref[3:6, 1])
+        q[3:7, 0] = utils_mpc.EulerToQuaternion(planner.xref[3:6, 1])
         v[0:3, 0] = planner.xref[6:9, 1].copy()
         v[3:6, 0] = planner.xref[9:12, 1].copy()"""
 
         q[0:3, 0] = x_f_mpc[0:3]
-        q[3:7, 0] = EulerToQuaternion(x_f_mpc[3:6])
+        q[3:7, 0] = utils_mpc.EulerToQuaternion(x_f_mpc[3:6])
         v[0:3, 0] = x_f_mpc[6:9]
         v[3:6, 0] = x_f_mpc[9:12]
         k += 1
@@ -1229,7 +1215,7 @@ def test_planner_mpc_tsid():
 
             for i in range(planner.xref.shape[1]):
                 planner.xref[0:3, i] = oMl.inverse() * planner.xref[0:3, i:(i+1)]
-                planner.xref[3:6, i] = pin.rpy.matrixToRpy(oMl.rotation.transpose() @ pin.Quaternion(np.array([EulerToQuaternion(planner.xref[3:6, i])]).T).toRotationMatrix())
+                planner.xref[3:6, i] = pin.rpy.matrixToRpy(oMl.rotation.transpose() @ pin.Quaternion(np.array([utils_mpc.EulerToQuaternion(planner.xref[3:6, i])]).T).toRotationMatrix())
                 planner.xref[6:9, i:(i+1)] = oMl.rotation.transpose() @ planner.xref[6:9, i:(i+1)]
                 planner.xref[9:12, i:(i+1)] = oMl.rotation.transpose() @ planner.xref[9:12, i:(i+1)]
 
@@ -1252,7 +1238,7 @@ def test_planner_mpc_tsid():
         x_f_mpc = mpc_wrapper.get_latest_result()
         """b_x_f_mpc = x_f_mpc.copy()
         b_x_f_mpc[0:3] = (oMl * np.array([x_f_mpc[0:3]]).transpose()).ravel()
-        b_x_f_mpc[3:6] = pin.rpy.matrixToRpy(oMl.rotation @ pin.Quaternion(np.array([EulerToQuaternion(x_f_mpc[3:6])]).T).toRotationMatrix())
+        b_x_f_mpc[3:6] = pin.rpy.matrixToRpy(oMl.rotation @ pin.Quaternion(np.array([utils_mpc.EulerToQuaternion(x_f_mpc[3:6])]).T).toRotationMatrix())
         b_x_f_mpc[6:9] = (oMl.rotation @ np.array([x_f_mpc[6:9]]).transpose()).ravel()  
         b_x_f_mpc[9:12] = (oMl.rotation @  np.array([x_f_mpc[9:12]]).transpose()).ravel()
         for i in range(4):
@@ -1281,7 +1267,7 @@ def test_planner_mpc_tsid():
             plt.show(block=True)"""
 
         """q[0:3, 0] = x_f_mpc[0:3]       
-        q[3:7, 0] = EulerToQuaternion(x_f_mpc[3:6])
+        q[3:7, 0] = utils_mpc.EulerToQuaternion(x_f_mpc[3:6])
         v[0:3, 0] = x_f_mpc[6:9]
         v[3:6, 0] = x_f_mpc[9:12]"""
 
@@ -1368,11 +1354,11 @@ def test_planner_mpc_tsid():
 
         # Following the mpc reference trajectory perfectly
         """q[0:3, 0] = planner.xref[0:3, 1].copy()  # np.array(pin.integrate(model, q, b_v * dt))
-        q[3:7, 0] = EulerToQuaternion(planner.xref[3:6, 1])
+        q[3:7, 0] = utils_mpc.EulerToQuaternion(planner.xref[3:6, 1])
         v[0:3, 0] = planner.xref[6:9, 1].copy()
         v[3:6, 0] = planner.xref[9:12, 1].copy()"""
         """q[0:3, 0] = x_f_mpc[0:3]
-        q[3:7, 0] = EulerToQuaternion(x_f_mpc[3:6])
+        q[3:7, 0] = utils_mpc.EulerToQuaternion(x_f_mpc[3:6])
         v[0:3, 0] = x_f_mpc[6:9]
         v[3:6, 0] = x_f_mpc[9:12]"""
 
@@ -1401,7 +1387,7 @@ def test_planner_mpc_tsid():
 
         # if k == 1000:
         #    oMb = pin.SE3(pin.utils.rotate('z', 3.1415/2), np.array([0.0, 0.0, 0.0]))
-        #    q[3:7, 0] = np.array([0, 0, 0.7009093, 0.7132504]) #pin.Quaternion(EulerToQuaternion(pin.rpy.matrixToRpy(oMb.rotation @ pin.Quaternion(q[3:7, 0:1]).toRotationMatrix())))
+        #    q[3:7, 0] = np.array([0, 0, 0.7009093, 0.7132504]) #pin.Quaternion(utils_mpc.EulerToQuaternion(pin.rpy.matrixToRpy(oMb.rotation @ pin.Quaternion(q[3:7, 0:1]).toRotationMatrix())))
 
         while (time.time() - t_start) < 0.002:
             pass

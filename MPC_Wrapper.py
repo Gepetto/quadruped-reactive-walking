@@ -8,11 +8,12 @@ from utils_mpc import quaternionToRPY
 
 
 class Dummy:
+    """Dummy class to store variables"""
 
     def __init__(self):
 
-        self.xref = None
-        self.fsteps = None
+        self.xref = None  # Desired trajectory
+        self.fsteps = None  # Desired location of footsteps
 
         pass
 
@@ -27,6 +28,7 @@ class MPC_Wrapper:
         n_steps (int): Number of time steps in one gait cycle
         k_mpc (int): Number of inv dyn time step for one iteration of the MPC
         T_gait (float): Duration of one period of gait
+        q_init (array): the default position of the robot
         multiprocessing (bool): Enable/Disable running the MPC with another process
     """
 
@@ -44,7 +46,7 @@ class MPC_Wrapper:
 
         self.mpc_type = mpc_type
         self.multiprocessing = multiprocessing
-        if multiprocessing:
+        if multiprocessing:  # Setup variables in the shared memory
             self.newData = Value('b', False)
             self.newResult = Value('b', False)
             self.dataIn = Array('d', [0.0] * (1 + (np.int(self.n_steps)+1) * 12 + 13*20))
@@ -59,6 +61,7 @@ class MPC_Wrapper:
                 self.mpc = MPC_crocoddyl.MPC_crocoddyl(
                     dt=dt, T_mpc=T_gait, mu=0.9, inner=False, linearModel=True, n_period=int((dt * n_steps)/T_gait))
 
+        # Setup initial result for the first iteration of the main control loop
         x_init = np.zeros(12)
         x_init[0:3] = q_init[0:3, 0]
         x_init[3:6] = quaternionToRPY(q_init[3:7, 0]).ravel()
@@ -73,9 +76,9 @@ class MPC_Wrapper:
             fstep_planner (object): FootstepPlanner object of the control loop
         """
 
-        if self.multiprocessing:
+        if self.multiprocessing:  # Run in parallel process
             self.run_MPC_asynchronous(k, fstep_planner)
-        else:
+        else:  # Run in the same process than main loop
             self.run_MPC_synchronous(k, fstep_planner)
 
         return 0
@@ -94,7 +97,6 @@ class MPC_Wrapper:
                     return self.last_available_result
                 else:
                     return self.last_available_result
-                    # raise ValueError("Error: something went wrong with the MPC, result not available.")
             else:
                 # Directly retrieve desired contact force of the synchronous MPC object
                 return self.f_applied
@@ -114,31 +116,14 @@ class MPC_Wrapper:
         # Run the MPC to get the reference forces and the next predicted state
         # Result is stored in mpc.f_applied, mpc.q_next, mpc.v_next
 
-        """print(dt, n_steps, k, T_gait)
-        print(np.round(interface.lC.ravel(), decimals=2))
-        print(np.round(interface.abg.ravel(), decimals=2))
-        print(np.round(interface.lV.ravel(), decimals=2))
-        print(np.round(interface.lW.ravel(), decimals=2))
-        print(interface.l_feet.ravel())
-        print(joystick.v_ref.ravel())
-        print(fstep_planner.fsteps)"""
-
         if self.mpc_type:
             # OSQP MPC
-            # Replace NaN values by 0.0
+            # Replace NaN values by 0.0 (shared memory cannot handle np.nan)
             fstep_planner.fsteps_mpc[np.isnan(fstep_planner.fsteps_mpc)] = 0.0
             self.mpc.run(np.int(k), fstep_planner.xref.copy(), fstep_planner.fsteps_mpc.copy())
         else:
             # Crocoddyl MPC
             self.mpc.solve(k, fstep_planner)
-
-        """tmp_lC = interface.lC.copy()
-        tmp_lC[2, 0] += dt * interface.lV[2, 0]
-        tmp_abg = interface.abg + dt * interface.lW
-        tmp_abg[2, 0] = 0.0
-        tmp_lfeet = interface.l_feet - dt * interface.lV
-        tmp_xref = fstep_planner.xref.copy()
-        tmp_xref """
 
         # Output of the MPC
         self.f_applied = self.mpc.get_latest_result()
@@ -157,18 +142,8 @@ class MPC_Wrapper:
                 self.newData, self.newResult, self.dataIn, self.dataOut, self.running))
             p.start()
 
-        # print("Setting Data")
+        # Stacking data to send them to the parallel process
         self.compress_dataIn(k, fstep_planner)
-        """print("Sending")
-        print(dt, n_steps, k, T_gait)
-        print(interface.lC.ravel())
-        print(interface.abg.ravel())
-        print(interface.lV.ravel())
-        print(interface.lW.ravel())
-        print(interface.l_feet.ravel())
-        print(joystick.v_ref.ravel())
-        print(fstep_planner.fsteps)"""
-
         self.newData.value = True
 
         return 0
@@ -196,33 +171,10 @@ class MPC_Wrapper:
                 # Retrieve data thanks to the decompression function and reshape it
                 kf, xref_1dim, fsteps_1dim = self.decompress_dataIn(dataIn)
 
-                # print("Receiving")
-                """dt = dt[0]
-                nsteps = np.int(nsteps[0])
-                k = k[0]
-                T_gait = T_gait[0]
-                lC = np.reshape(lC, (3, 1))
-                abg = np.reshape(abg, (3, 1))
-                lV = np.reshape(lV, (3, 1))
-                lW = np.reshape(lW, (3, 1))
-                l_feet = np.reshape(l_feet, (3, 4))
-                xref = np.reshape(xref, (12, nsteps+1))
-                x0 = np.reshape(x0, (12, 1))
-                v_ref = np.reshape(v_ref, (6, 1))
-                fsteps = np.reshape(fsteps, (20, 13))"""
-
+                # Reshaping 1-dimensional data
                 k = int(kf[0])
                 xref = np.reshape(xref_1dim, (12, self.n_steps+1))
                 fsteps = np.reshape(fsteps_1dim, (20, 13))
-
-                """print(dt, nsteps, k, T_gait)
-                print(lC.ravel())
-                print(abg.ravel())
-                print(lV.ravel())
-                print(lW.ravel())
-                print(l_feet.ravel())
-                print(v_ref.ravel())
-                print(fsteps)"""
 
                 # Create the MPC object of the parallel process during the first iteration
                 if k == 0:
@@ -242,8 +194,7 @@ class MPC_Wrapper:
                     dummy_fstep_planner.fsteps = fsteps
                     loop_mpc.solve(k, dummy_fstep_planner)
 
-                # Store the result (predicted trajectory + desired forces) in the shared memory
-                # print("X_F: ", loop_mpc.get_latest_result().tolist())
+                # Store the result (predicted state + desired forces) in the shared memory
                 self.dataOut[:] = loop_mpc.get_latest_result().tolist()
 
                 # Set shared variable to true to signal that a new result is available
@@ -259,8 +210,6 @@ class MPC_Wrapper:
             k (int): Number of inv dynamics iterations since the start of the simulation
             fstep_planner (object): FootstepPlanner object of the control loop
         """
-
-        # print("Compressing dataIn")
 
         # Replace NaN values by 0.0 to be stored in C-type arrays
         fstep_planner.fsteps[np.isnan(fstep_planner.fsteps)] = 0.0
@@ -278,8 +227,6 @@ class MPC_Wrapper:
         Args:
             dataIn (Array): shared array that contains the data the asynchronous MPC will use as inputs
         """
-
-        # print("Decompressing dataIn")
 
         # Sizes of the different variables that are stored in the C-type array
         sizes = [0, 1, (np.int(self.n_steps)+1) * 12, 13*20]

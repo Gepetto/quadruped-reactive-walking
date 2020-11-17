@@ -30,6 +30,7 @@ class controller():
         # Logging
         self.k_log = 0
         self.log_feet_pos = np.zeros((3, 4, N_SIMULATION))
+        self.log_feet_err = np.zeros((3, 4, N_SIMULATION))
         self.log_feet_vel = np.zeros((3, 4, N_SIMULATION))
         self.log_feet_pos_target = np.zeros((3, 4, N_SIMULATION))
         self.log_feet_vel_target = np.zeros((3, 4, N_SIMULATION))
@@ -74,8 +75,9 @@ class controller():
         # Log position, velocity and acceleration references for the feet
         indexes = [10, 18, 26, 34]
         for i in range(4):
-            self.log_feet_pos[:, i, self.k_log] = self.invKin.robot.data.oMf[indexes[i]].translation
-            self.log_feet_vel[:, i, self.k_log] = pin.getFrameVelocity(self.invKin.robot.model, self.invKin.robot.data, 
+            self.log_feet_pos[:, i, self.k_log] = self.invKin.rdata.oMf[indexes[i]].translation
+            self.log_feet_err[:, i, self.k_log] = self.invKin.pfeet_err[i]
+            self.log_feet_vel[:, i, self.k_log] = pin.getFrameVelocity(self.invKin.rmodel, self.invKin.rdata, 
             indexes[i], pin.LOCAL_WORLD_ALIGNED).linear
         self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :] # + np.array([[0.0, 0.0, q[2, 0] - planner.h_ref]]).T
         self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
@@ -163,9 +165,10 @@ class controller():
                 plt.subplot(3, 4, index12[i], sharex=ax0)
             
             plt.plot(t_range, self.log_feet_pos[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
+            plt.plot(t_range, self.log_feet_err[i % 3, np.int(i/3), :], color='g', linewidth=3, marker='')
             plt.plot(t_range, self.log_feet_pos_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
             plt.plot(t_range, self.log_contacts[np.int(i/3), :] * np.max(self.log_feet_pos[i % 3, np.int(i/3), :]), color='k', linewidth=3, marker='')
-            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+"", lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", "Contact state"])
+            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+"", "error", lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", "Contact state"])
         plt.suptitle("Reference positions of feet (world frame)")
 
         lgd_X = ["FL", "FR", "HL", "HR"]

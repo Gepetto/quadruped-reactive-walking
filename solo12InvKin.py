@@ -99,7 +99,7 @@ class Solo12InvKin:
         # FEET
         Jfeet = []
         afeet = []
-        pfeet_err = []
+        self.pfeet_err = []
         vfeet_ref = []
         pin.forwardKinematics(self.rmodel, self.rdata, q, dq, np.zeros(self.rmodel.nv))
         pin.updateFramePlacements(self.rmodel, self.rdata)
@@ -125,7 +125,7 @@ class Solo12InvKin:
             Jfeet.append(J1)
             afeet.append(acc1)
 
-            pfeet_err.append(e1)
+            self.pfeet_err.append(e1)
             vfeet_ref.append(vref)
 
         # BASE POSITION
@@ -170,7 +170,7 @@ class Solo12InvKin:
         J = np.vstack([Jbasis, Jwbasis]+Jfeet)
         acc = np.concatenate([accbasis, accwbasis]+afeet)
 
-        x_err = np.concatenate([e_basispos, e_basisrot]+pfeet_err)
+        x_err = np.concatenate([e_basispos, e_basisrot]+self.pfeet_err)
         dx_ref = np.concatenate([self.base_linearvelocity_ref, self.base_angularvelocity_ref]+vfeet_ref)
 
 

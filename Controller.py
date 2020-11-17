@@ -4,17 +4,17 @@ import numpy as np
 import utils_mpc
 import time
 
-# from TSID_Debug_controller_four_legs_fb_vel import controller
 from QP_WBC import controller
-import processing as proc
 import MPC_Wrapper
 import pybullet as pyb
 from Planner import Planner
 import pinocchio as pin
-from Planner import EulerToQuaternion
 
 
 class Result:
+    """Object to store the result of the control loop
+    It contains what is sent to the robot (gains, desired positions and velocities,
+    feedforward torques)"""
 
     def __init__(self):
 
@@ -26,6 +26,7 @@ class Result:
 
 
 class dummyHardware:
+    """Fake hardware for initialisation purpose"""
 
     def __init__(self):
 
@@ -37,6 +38,7 @@ class dummyHardware:
 
 
 class dummyDevice:
+    """Fake device for initialisation purpose"""
 
     def __init__(self):
 
@@ -93,9 +95,8 @@ class Controller:
         self.enable_gepetto_viewer = False
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
-        self.joystick, self.fstep_planner, self.logger, self.interface, self.estimator = utils_mpc.init_objects(
-            dt_tsid, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC, on_solo8,
-            predefined_vel)
+        self.joystick, self.logger, self.estimator = utils_mpc.init_objects(
+            dt_tsid, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC, predefined_vel)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True
@@ -113,33 +114,17 @@ class Controller:
         # Wrapper that makes the link with the solver that you want to use for the MPC
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
         self.enable_multiprocessing = True
-        self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, self.fstep_planner.n_steps,
-                                                   k_mpc, self.fstep_planner.T_gait, self.q, self.enable_multiprocessing)
-
-        ########################################################################
-        #                            Gepetto viewer                            #
-        ########################################################################
+        self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, np.int(n_periods*T_gait/dt_mpc),
+                                                   k_mpc, T_gait, self.q, self.enable_multiprocessing)
 
         # Initialisation of the Gepetto viewer
         self.solo = utils_mpc.init_viewer(self.enable_gepetto_viewer)
 
-        ########################################################################
-        #                              PyBullet                                #
-        ########################################################################
-
-        # Initialisation of the PyBullet simulator
-        # self.pyb_sim = utils_mpc.pybullet_simulator(envID, use_flat_plane, enable_pyb_GUI, dt=dt_tsid)
-
-        # Force monitor to display contact forces in PyBullet with red lines
+        # ForceMonitor to display contact forces in PyBullet with red lines
         # import ForceMonitor
         # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
-        ########################################################################
-        #                             Simulator                                #
-        ########################################################################
-
         # Define the default controller
-        # self.myController = controller(q_init, int(N_SIMULATION), dt_tsid, k_mpc, n_periods, T_gait, on_solo8)
         self.myController = controller(dt_tsid, int(N_SIMULATION))
 
         self.envID = envID
@@ -184,6 +169,11 @@ class Controller:
         self.compute(dDevice)
 
     def compute(self, device):
+        """Run one iteration of the main control loop
+        
+        Args:
+            device (object): Interface with the masterboard or the simulation
+        """
 
         tic = time.time()
 
@@ -191,7 +181,8 @@ class Controller:
         self.joystick.update_v_ref(self.k, self.velID)
 
         # Process state estimator
-        self.estimator.run_filter(self.k, self.planner.gait[0, 1:], device, self.planner.goals, self.planner.gait[0, 0])
+        self.estimator.run_filter(self.k, self.planner.gait[0, 1:],
+                                  device, self.planner.goals, self.planner.gait[0, 0])
 
         t_filter = time.time()
         self.t_list_filter[self.k] = t_filter - tic
@@ -202,18 +193,18 @@ class Controller:
             oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
             self.v[0:3, 0:1] = oMb.rotation @ self.estimator.v_filt[0:3, 0:1]
             self.v[3:6, 0:1] = oMb.rotation @ self.estimator.v_filt[3:6, 0:1]
-            self.v[6:, 0] = self.estimator.v_filt[6:, 0]           
+            self.v[6:, 0] = self.estimator.v_filt[6:, 0]
 
             # Update estimated position of the robot
             self.v_estim[0:3, 0:1] = oMb.rotation.transpose() @ self.joystick.v_ref[0:3, 0:1]
             self.v_estim[3:6, 0:1] = oMb.rotation.transpose() @ self.joystick.v_ref[3:6, 0:1]
             if not self.planner.is_static:
                 self.q_estim[:, 0] = pin.integrate(self.solo.model,
-                                                self.q, self.v_estim * self.myController.dt)
+                                                   self.q, self.v_estim * self.myController.dt)
                 self.yaw_estim = (utils_mpc.quaternionToRPY(self.q_estim[3:7, 0]))[2, 0]
             else:
                 self.planner.q_static[:, 0] = pin.integrate(self.solo.model,
-                                                self.planner.q_static, self.v_estim * self.myController.dt)
+                                                            self.planner.q_static, self.v_estim * self.myController.dt)
                 self.planner.RPY_static[:, 0:1] = utils_mpc.quaternionToRPY(self.planner.q_static[3:7, 0])
         else:
             self.yaw_estim = 0.0
@@ -228,7 +219,7 @@ class Controller:
             pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
                                            cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])
 
-        # Update reference height
+        # Update reference height
         """if self.k < 1000:
             self.planner.h_ref += 0.00005"""
 
@@ -258,7 +249,7 @@ class Controller:
         t_mpc = time.time()
         self.t_list_mpc[self.k] = t_mpc - t_planner
 
-        # Target state for the inverse kinematics
+        # Target state for the whole body control
         if not self.planner.is_static:
             self.x_f_mpc[0] = self.q_estim[0, 0]
             self.x_f_mpc[1] = self.q_estim[1, 0]
@@ -338,99 +329,3 @@ class Controller:
         self.k += 1
 
         return 0.0
-
-    ####################
-    # END OF MAIN LOOP #
-    ####################
-
-    def launch_simu(self, device):
-        """# Default position after calibration
-        q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6])
-
-        class dummyDevice:
-
-            def __init__(self):
-
-                pass
-
-        dDevice = dummyDevice()
-        dDevice.q_mes = q_init
-        dDevice.v_mes = np.zeros(12)
-        dDevice.baseLinearAcceleration = np.zeros(3)
-        dDevice.baseAngularVelocity = np.zeros(3)
-        dDevice.baseOrientation = np.array([0.0, 0.0, 0.0, 1.0])
-        tau = self.compute(dDevice)"""
-
-        tic = time.time()
-
-        for k in range(1, int(self.N_SIMULATION)):
-
-            device.UpdateMeasurment()
-
-            tau = self.compute(device)
-
-            # device.SetDesiredJointTorque(tau)
-            device.SetKp(self.result.P)
-            device.SetKd(self.result.D)
-            device.SetQdes(self.result.q_des)
-            device.SetVdes(self.result.v_des)
-            # device.SetTauFF(self.result.tau_ff)
-
-            device.SendCommand(WaitEndOfCycle=True)
-
-            print("###")
-            print("TSID: ", self.myController.qtsid.ravel())
-            print("TAU: ", tau.ravel())
-
-            if self.enable_pyb_GUI:
-                # Update the PyBullet camera on the robot position to do as if it was attached to the robot
-                pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
-                                               cameraTargetPosition=[self.estimator.q_filt[0, 0],
-                                                                     self.estimator.q_filt[1, 0], 0.0])
-
-            # Process PyBullet
-            # proc.process_pybullet(self.pyb_sim, self.k, self.envID, self.velID, tau)
-
-            # Call logger object to log various parameters
-            # logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
-            #                          False, pyb_sim.robotId, pyb_sim.planeId, solo)
-            # logger.log_state(k, pyb_sim, joystick, interface, mpc_wrapper, solo)
-            # logger.log_forces(k, interface, myController, pyb_sim.robotId, pyb_sim.planeId)
-            # logger.log_footsteps(k, interface, myController)
-            # logger.log_fstep_planner(k, fstep_planner)
-            # logger.log_tracking_foot(k, myController, solo)
-
-        tac = time.time()
-        print("Average computation time of one iteration: ",
-              (tac-tic)/self.N_SIMULATION)
-        print("Computation duration: ", tac-tic)
-        print("Simulated duration: ", self.N_SIMULATION*self.dt_tsid)
-        print("Max loop time: ", np.max(self.t_list_loop[10:]))
-
-        # Close the parallel process if it is running
-        if self.enable_multiprocessing:
-            print("Stopping parallel process")
-            self.mpc_wrapper.stop_parallel_loop()
-
-        print("END")
-
-        # Plot processing duration of each step of the control loop
-        """
-        import matplotlib.pylab as plt
-        plt.figure()
-        plt.plot(t_list_filter[1:], '+', color="orange")
-        plt.plot(t_list_states[1:], 'r+')
-        plt.plot(t_list_fsteps[1:], 'g+')
-        plt.plot(t_list_mpc[1:], 'b+')
-        plt.plot(t_list_tsid[1:], '+', color="violet")
-        plt.plot(t_list_loop[1:], 'k+')
-        plt.title("Time for state update + footstep planner + MPC communication + Inv Dyn + PD+")
-        plt.show(block=True)"""
-
-        # Disconnect the PyBullet server (also close the GUI)
-        pyb.disconnect()
-
-        # Plot graphs of the state estimator
-        # estimator.plot_graphs()
-
-        return self.logger
