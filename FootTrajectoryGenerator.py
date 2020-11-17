@@ -223,7 +223,7 @@ class Foot_trajectory_generator(object):
     def get_next_foot(self, x0, dx0, ddx0, y0, dy0, ddy0, x1, y1, t0, t1,  dt):
         '''how to reach a foot position (here using polynomials profiles)'''
 
-        epsilon = 0.02
+        epsilon = 0.00
         t2 = t1
         t3 = t0
         t1 -= 2*epsilon
