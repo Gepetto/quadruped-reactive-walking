@@ -220,7 +220,7 @@ class pybullet_simulator:
         pyb.setGravity(0, 0, -9.81)
 
         # Load Quadruped robot
-        robotStartPos = [0, 0, 0.235+0.0045]  # +0.2]
+        robotStartPos = [0, 0, 0.0]
         robotStartOrientation = pyb.getQuaternionFromEuler([0.0, 0.0, 0.0])  # -np.pi/2
         pyb.setAdditionalSearchPath("/opt/openrobots/share/example-robot-data/robots/solo_description/robots")
         self.robotId = pyb.loadURDF("solo12.urdf", robotStartPos, robotStartOrientation)
@@ -240,6 +240,29 @@ class pybullet_simulator:
         jointTorques = [0.0 for m in self.revoluteJointIndices]
         pyb.setJointMotorControlArray(self.robotId, self.revoluteJointIndices,
                                       controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
+
+        # Get position of feet in world frame with base at (0, 0, 0)
+        feetLinksID = [3, 7, 11, 15]
+        linkStates = pyb.getLinkStates(self.robotId, feetLinksID)
+
+        # Get minimum height of feet (they are in the ground since base is at 0, 0, 0)
+        z_min = linkStates[0][4][2]
+        i_min = 0
+        i = 1
+        for link in linkStates[1:]:
+            if link[4][2] < z_min:
+                z_min = link[4][2]
+                i_min = i
+            i += 1
+
+        # Set base at (0, 0, -z_min) so that the lowest foot is at z = 0
+        pyb.resetBasePositionAndOrientation(self.robotId, [0.0, 0.0, -z_min], [0, 0, 0, 1])
+
+        # Progressively raise the base to achieve proper contact (take into account radius of the foot)
+        while (pyb.getClosestPoints(self.robotId, self.planeId, distance=0.005,
+                                    linkIndexA=feetLinksID[i_min]))[0][8] < 0.001:
+            z_min -= 0.001
+            pyb.resetBasePositionAndOrientation(self.robotId, [0.0, 0.0, -z_min], [0, 0, 0, 1])
 
         # Fix the base in the world frame
         # pyb.createConstraint(self.robotId, -1, -1, -1, pyb.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [0, 0, robotStartPos[2]])
