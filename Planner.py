@@ -54,7 +54,7 @@ class Planner:
 
         # Number of time steps in the prediction horizon
         self.n_steps = np.int(n_periods*self.T_gait/self.dt)
-        
+
         self.dt_vector = np.linspace(self.dt, self.T_gait, self.n_steps)
 
         # Reference trajectory matrix of size 12 by (1 + N)  with the current state of
@@ -276,7 +276,6 @@ class Planner:
         new_desired_gait[1, 1:] = np.ones((4,))
 
         return new_desired_gait
-
 
     def create_custom(self):
         """Create the matrices used to handle the gait and initialize them to perform a trot
@@ -520,7 +519,7 @@ class Planner:
 
         """if (k == 5000):
             self.new_desired_gait = self.pacing_gait()"""
-        
+
         if ((k % k_mpc) == 0):
             # Move one step further in the gait
             self.roll_experimental(k, k_mpc)
@@ -570,9 +569,9 @@ class Planner:
         # Update x and y depending on x and y velocities (cumulative sum)
         if vref[5, 0] != 0:
             self.xref[0, 1:] = (vref[0, 0] * np.sin(vref[5, 0] * self.dt_vector[:]) +
-                  vref[1, 0] * (np.cos(vref[5, 0] * self.dt_vector[:]) - 1)) / vref[5, 0]
+                                vref[1, 0] * (np.cos(vref[5, 0] * self.dt_vector[:]) - 1)) / vref[5, 0]
             self.xref[1, 1:] = (vref[1, 0] * np.sin(vref[5, 0] * self.dt_vector[:]) -
-                  vref[0, 0] * (np.cos(vref[5, 0] * self.dt_vector[:]) - 1)) / vref[5, 0]
+                                vref[0, 0] * (np.cos(vref[5, 0] * self.dt_vector[:]) - 1)) / vref[5, 0]
         else:
             self.xref[0, 1:] = vref[0, 0] * self.dt_vector[:]
             self.xref[1, 1:] = vref[1, 0] * self.dt_vector[:]
@@ -648,7 +647,6 @@ class Planner:
         if self.is_static:
             self.xref[0:3, 1:] = self.q_static[0:3, 0:1]
             self.xref[3:6, 1:] = (utils_mpc.quaternionToRPY(self.q_static[3:7, 0])).reshape((3, 1))
-
 
         """if v[0, 0] > 0.02:
             from IPython import embed
@@ -752,7 +750,7 @@ class Planner:
                 self.mgoals[:, i_foot] = np.array([x0, dx0, ddx0, y0, dy0, ddy0])
 
             # Store desired position, velocity and acceleration for later call to this function
-            self.goals[:, i_foot] = np.array([x0, y0, z0]) # + np.array([0.0, 0.0, q[2, 0] - self.h_ref])
+            self.goals[:, i_foot] = np.array([x0, y0, z0])  # + np.array([0.0, 0.0, q[2, 0] - self.h_ref])
             self.vgoals[:, i_foot] = np.array([dx0, dy0, dz0])
             self.agoals[:, i_foot] = np.array([ddx0, ddy0, ddz0])
             if k % 10 == 0:
@@ -763,7 +761,6 @@ class Planner:
         return np.array([[left[1] * right[2] - left[2] * right[1]],
                          [left[2] * right[0] - left[0] * right[2]],
                          [left[0] * right[1] - left[1] * right[0]]])
-
 
 
 def test_planner():

@@ -4,9 +4,10 @@ import numpy as np
 import pinocchio as pin
 from example_robot_data import load
 
+
 class ComplementaryFilter:
     """Simple complementary filter
-    
+
     Args:
         dt (float): time step of the filter [s]
         fc (float): cut frequency of the filter [Hz]
@@ -25,7 +26,7 @@ class ComplementaryFilter:
 
     def compute(self, x, dx, alpha=None):
         """Run one step of complementary filter
-        
+
         Args:
             x (N by 1 array): quantity handled by the filter
             dx (N by 1 array): derivative of the quantity
@@ -42,7 +43,7 @@ class ComplementaryFilter:
         # Process low pass filter
         self.LP_x[:] = self.alpha * self.LP_x + (1.0 - self.alpha) * x
 
-        # Add both
+        # Add both
         self.filt_x[:] = self.HP_x + self.LP_x
 
         return self.filt_x
@@ -86,7 +87,7 @@ class Estimator:
         self.xyz_mean_feet = np.zeros(3)
         self.filter_xyz_pos.LP_x[2] = self.FK_h
 
-        # Boolean to disable FK and FG near contact switches
+        # Boolean to disable FK and FG near contact switches
         self.close_from_contact = False
         self.contactStatus = np.zeros(4)
         self.k_since_contact = np.zeros(4)
@@ -139,7 +140,6 @@ class Estimator:
         self.rotated_FK = np.zeros((3, N_simulation))
         self.k_log = 0
 
-
     def get_data_IMU(self, device):
         """Get data from the IMU (linear acceleration, angular velocity and position)
 
@@ -187,15 +187,15 @@ class Estimator:
         # Update estimator FK model
         self.q_FK[7:, 0] = self.actuators_pos  # Position of actuators
         self.v_FK[6:, 0] = self.actuators_vel  # Velocity of actuators
-        # Position and orientation of the base remain at 0
-        # Linear and angular velocities of the base remain at 0
+        # Position and orientation of the base remain at 0
+        # Linear and angular velocities of the base remain at 0
 
         # Update model used for the forward kinematics
         self.q_FK[3:7, 0] = np.array([0.0, 0.0, 0.0, 1.0])
         pin.forwardKinematics(self.model, self.data, self.q_FK, self.v_FK)
         pin.updateFramePlacements(self.model, self.data)
 
-        # Update model used for the forward geometry
+        # Update model used for the forward geometry
         self.q_FK[3:7, 0] = self.IMU_ang_pos[:]
         pin.forwardKinematics(self.model_for_xyz, self.data_for_xyz, self.q_FK)
 
@@ -209,7 +209,7 @@ class Estimator:
                 # Estimated velocity of the base using the considered foot
                 vel_estimated_baseframe = self.BaseVelocityFromKinAndIMU(self.indexes[i])
 
-                # Estimated position of the base using the considered foot
+                # Estimated position of the base using the considered foot
                 framePlacement = pin.updateFramePlacement(
                     self.model_for_xyz, self.data_for_xyz, self.indexes[i])
                 xyz_estimated = -framePlacement.translation
@@ -223,7 +223,7 @@ class Estimator:
                 vel_est += vel_estimated_baseframe[:, 0]  # Linear velocity
                 xyz_est += xyz_estimated  # Position
 
-        # If at least one foot is in contact, we do the average of feet results
+        # If at least one foot is in contact, we do the average of feet results
         if cpt > 0:
             self.FK_lin_vel = vel_est / cpt
             self.FK_xyz = xyz_est / cpt
@@ -243,7 +243,7 @@ class Estimator:
         for i in (np.where(feet_status == 1))[0]:  # Consider only feet in contact
             cpt += 1
             xyz_feet += goals[:, i]
-        # If at least one foot is in contact, we do the average of feet results
+        # If at least one foot is in contact, we do the average of feet results
         if cpt > 0:
             self.xyz_mean_feet = xyz_feet / cpt
 
@@ -307,7 +307,8 @@ class Estimator:
         i_merged_lin_vel = self.alpha * (i_filt_lin_vel + self.IMU_lin_acc * self.dt) + (1 - self.alpha) * self.FK_lin_vel
 
         # Get merged base vel wrt world in IMU frame into base frame
-        self.filt_lin_vel[:] = i_merged_lin_vel + self.cross3(-self._1Mi.translation.ravel(), self.IMU_ang_vel).ravel()"""
+        self.filt_lin_vel[:] = i_merged_lin_vel + self.cross3(-self._1Mi.translation.ravel(), self.IMU_ang_vel).ravel()
+        """
 
         # Linear velocity of the trunk (world frame)
         oRb = pin.Quaternion(np.array([self.IMU_ang_pos]).transpose()).toRotationMatrix()
@@ -319,14 +320,14 @@ class Estimator:
 
         # Logging
         self.log_alpha[self.k_log] = self.alpha
-        self.contactStatus[:] = feet_status # Save contact status sent to the estimator for logging
+        self.contactStatus[:] = feet_status  # Save contact status sent to the estimator for logging
         self.log_IMU_lin_acc[:, self.k_log] = self.IMU_lin_acc[:]
         self.log_HP_lin_vel[:, self.k_log] = self.HP_lin_vel[:]
         self.log_LP_lin_vel[:, self.k_log] = self.LP_lin_vel[:]
         self.log_FK_lin_vel[:, self.k_log] = self.FK_lin_vel[:]
         self.log_filt_lin_vel[:, self.k_log] = self.filt_lin_vel[:]
         self.log_o_filt_lin_vel[:, self.k_log] = self.o_filt_lin_vel[:, 0]
-        
+
         # Output filtered position vector (19 x 1)
         self.q_filt[0:3, 0] = self.filt_lin_pos
         self.q_filt[3:7, 0] = self.filt_ang_pos
@@ -337,7 +338,7 @@ class Estimator:
         self.v_filt[3:6, 0] = self.filt_ang_vel
         self.v_filt[6:, 0] = self.actuators_vel
 
-        # Output filtered actuators velocity for security checks
+        # Output filtered actuators velocity for security checks
         self.v_secu[:] = (1 - self.alpha_secu) * self.actuators_vel + self.alpha_secu * self.v_secu[:]
 
         # Increment iteration counter
@@ -456,7 +457,7 @@ class Estimator:
                 plt.subplot(3, 1, i+1, sharex=ax0)
             for j in range(4):
                 pass
-                #plt.plot(self.log_v_est[i, j, :], linewidth=3)
+                # plt.plot(self.log_v_est[i, j, :], linewidth=3)
                 # plt.plot(-myController.log_Fv1F[i, j, :], linewidth=3, linestyle="--")
             # plt.plot(avg[i, :], color="rebeccapurple", linewidth=3, linestyle="--")
             plt.plot(self.log_v_truth[i, :], "k", linewidth=3, linestyle="--")

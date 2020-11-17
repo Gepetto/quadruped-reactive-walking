@@ -345,7 +345,7 @@ class pybullet_simulator:
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
         pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=(0.0*RPY[2]*(180/3.1415)+45), cameraPitch=-39.9,
-                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])  # qmes12[2, 0]-0.15])
+                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])
 
         return 0
 

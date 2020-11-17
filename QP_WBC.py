@@ -8,6 +8,7 @@ import osqp as osqp
 from solo12InvKin import Solo12InvKin
 from time import clock, time
 
+
 class controller():
 
     def __init__(self, dt, N_SIMULATION):
@@ -77,9 +78,10 @@ class controller():
         for i in range(4):
             self.log_feet_pos[:, i, self.k_log] = self.invKin.rdata.oMf[indexes[i]].translation
             self.log_feet_err[:, i, self.k_log] = self.invKin.pfeet_err[i]
-            self.log_feet_vel[:, i, self.k_log] = pin.getFrameVelocity(self.invKin.rmodel, self.invKin.rdata, 
-            indexes[i], pin.LOCAL_WORLD_ALIGNED).linear
-        self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :] # + np.array([[0.0, 0.0, q[2, 0] - planner.h_ref]]).T
+            self.log_feet_vel[:, i, self.k_log] = pin.getFrameVelocity(self.invKin.rmodel, self.invKin.rdata,
+                                                                       indexes[i], pin.LOCAL_WORLD_ALIGNED).linear
+        # + np.array([[0.0, 0.0, q[2, 0] - planner.h_ref]]).T
+        self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :]
         self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
         self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]
 
@@ -88,7 +90,6 @@ class controller():
         self.qp_wbc.compute(self.invKin.robot.model, self.invKin.robot.data,
                             q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
 
-        
         """if dq[0, 0] > 0.4:
             from IPython import embed
             embed()"""
@@ -107,11 +108,11 @@ class controller():
         # self.vint[0:3, 0:1] = self.invKin.rot.transpose() @ self.vint[0:3, 0:1]  # velocity needs to be in base frame for pin.integrate
         # self.vint[3:6, 0:1] = self.invKin.rot.transpose() @ self.vint[3:6, 0:1]
         self.qint[:] = pin.integrate(self.invKin.robot.model, q, self.vint * self.dt)
-        # self.qint[2] = planner.h_ref 
+        # self.qint[2] = planner.h_ref
 
         self.log_x_cmd[:, self.k_log] = x_cmd[:]  # Input of the WBC block (reference pos/ori/linvel/angvel)
         self.log_f_cmd[:, self.k_log] = f_cmd[:]  # Input of the WBC block (contact forces)
-        self.log_f_out[:, self.k_log] = f_cmd[:] + np.array(self.x[6:]) # Input of the WBC block (contact forces)
+        self.log_f_out[:, self.k_log] = f_cmd[:] + np.array(self.x[6:])  # Input of the WBC block (contact forces)
         self.log_x[0:3, self.k_log] = self.qint[0:3]  # Output of the WBC block (pos)
         self.log_x[3:6, self.k_log] = quaternionToRPY(self.qint[3:7]).ravel()  # Output of the WBC block (ori)
         oMb = pin.SE3(pin.Quaternion(np.array([self.qint[3:7]]).transpose()), np.zeros((3, 1)))
@@ -163,12 +164,14 @@ class controller():
                 ax0 = plt.subplot(3, 4, index12[i])
             else:
                 plt.subplot(3, 4, index12[i], sharex=ax0)
-            
+
             plt.plot(t_range, self.log_feet_pos[i % 3, np.int(i/3), :], color='b', linewidth=3, marker='')
             plt.plot(t_range, self.log_feet_err[i % 3, np.int(i/3), :], color='g', linewidth=3, marker='')
             plt.plot(t_range, self.log_feet_pos_target[i % 3, np.int(i/3), :], color='r', linewidth=3, marker='')
-            plt.plot(t_range, self.log_contacts[np.int(i/3), :] * np.max(self.log_feet_pos[i % 3, np.int(i/3), :]), color='k', linewidth=3, marker='')
-            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+"", "error", lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", "Contact state"])
+            plt.plot(t_range, self.log_contacts[np.int(
+                i/3), :] * np.max(self.log_feet_pos[i % 3, np.int(i/3), :]), color='k', linewidth=3, marker='')
+            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+"", "error",
+                        lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", "Contact state"])
         plt.suptitle("Reference positions of feet (world frame)")
 
         lgd_X = ["FL", "FR", "HL", "HR"]
@@ -255,7 +258,6 @@ class controller():
             plt.ylim([-8.0, 8.0])
         plt.suptitle("Feedforward torques")
 
-        index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
         lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]
         lgd2 = ["FL", "FR", "HL", "HR"]
         plt.figure()
@@ -315,6 +317,7 @@ class controller():
                  log_q_pyb=self.log_q_pyb,
                  log_v_pyb=self.log_v_pyb,
                  log_tstamps=self.log_tstamps)
+
 
 class QP_WBC():
 
@@ -401,8 +404,8 @@ class QP_WBC():
         self.JcT = np.zeros((18, 12))
         for i in range(4):
             if contacts[i]:
-                self.JcT[:, (3*i):(3*(i+1))] = pin.computeFrameJacobian(model,
-                                                                        data, q, indexes[i], pin.LOCAL_WORLD_ALIGNED)[:3, :].transpose()
+                self.JcT[:, (3*i):(3*(i+1))] = pin.computeFrameJacobian(model, data, q, indexes[i],
+                                                                        pin.LOCAL_WORLD_ALIGNED)[:3, :].transpose()
 
         self.ML_full[:6, :6] = - self.A[:6, :6]
         self.ML_full[:6, 6:] = self.JcT[:6, :]

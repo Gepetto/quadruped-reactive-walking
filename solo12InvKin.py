@@ -1,10 +1,9 @@
 
 from example_robot_data import load
-from IPython import embed
 import time
 import numpy as np
 import pinocchio as pin
-from time import time
+
 
 class Solo12InvKin:
     def __init__(self, dt):
@@ -13,7 +12,8 @@ class Solo12InvKin:
 
         # Inputs to be modified bu the user before calling .compute
         self.feet_position_ref = [np.array([0.1946,   0.16891, 0.0191028]), np.array(
-            [0.1946,  -0.16891, 0.0191028]), np.array([-0.1946,   0.16891, 0.0191028]), np.array([-0.1946,  -0.16891, 0.0191028])]
+            [0.1946,  -0.16891, 0.0191028]), np.array([-0.1946,   0.16891, 0.0191028]),
+            np.array([-0.1946,  -0.16891, 0.0191028])]
         self.feet_velocity_ref = [np.array([0., 0., 0.]), np.array(
             [0., 0., 0.]), np.array([0., 0., 0.]), np.array([0., 0., 0.])]
         self.feet_acceleration_ref = [np.array([0., 0., 0.]), np.array(
@@ -83,7 +83,7 @@ class Solo12InvKin:
 
         # Update position, velocity and acceleration references for the feet
         for i in range(4):
-            self.feet_position_ref[i] = planner.goals[0:3, i] # + np.array([0.0, 0.0, q[2, 0] - planner.h_ref])
+            self.feet_position_ref[i] = planner.goals[0:3, i]  # + np.array([0.0, 0.0, q[2, 0] - planner.h_ref])
             self.feet_velocity_ref[i] = planner.vgoals[0:3, i]
             self.feet_acceleration_ref[i] = planner.agoals[0:3, i]
 
@@ -173,7 +173,6 @@ class Solo12InvKin:
         x_err = np.concatenate([e_basispos, e_basisrot]+self.pfeet_err)
         dx_ref = np.concatenate([self.base_linearvelocity_ref, self.base_angularvelocity_ref]+vfeet_ref)
 
-
         invJ = np.linalg.pinv(J)  # self.dinv(J)  # or np.linalg.inv(J) since full rank
         ddq = invJ @ acc
         self.q_cmd = pin.integrate(self.robot.model, q, invJ @ x_err)
@@ -189,44 +188,43 @@ if __name__ == "__main__":
     invKin = Solo12InvKin(dt)
     q = invKin.robot.q0.copy()
     q = np.array([[-3.87696007e-01],
-       [-4.62877770e+00],
-       [ 1.87606547e-01],
-       [ 1.32558492e-02],
-       [ 8.87905574e-03],
-       [-8.86025995e-01],
-       [ 4.63360961e-01],
-       [ 9.62126158e-03],
-       [ 6.06172292e-01],
-       [-1.48984107e+00],
-       [ 4.44117781e-03],
-       [ 1.08394553e+00],
-       [-1.40899150e+00],
-       [-5.22347798e-02],
-       [-4.24868613e-01],
-       [ 1.44182047e+00],
-       [ 4.41620770e-02],
-       [-9.76513563e-01],
-       [ 1.41483950e+00]])
+                  [-4.62877770e+00],
+                  [1.87606547e-01],
+                  [1.32558492e-02],
+                  [8.87905574e-03],
+                  [-8.86025995e-01],
+                  [4.63360961e-01],
+                  [9.62126158e-03],
+                  [6.06172292e-01],
+                  [-1.48984107e+00],
+                  [4.44117781e-03],
+                  [1.08394553e+00],
+                  [-1.40899150e+00],
+                  [-5.22347798e-02],
+                  [-4.24868613e-01],
+                  [1.44182047e+00],
+                  [4.41620770e-02],
+                  [-9.76513563e-01],
+                  [1.41483950e+00]])
 
-    dq = np.array([[ 0.92799144],
-       [ 0.02038822],
-       [-0.10578672],
-       [ 1.29588322],
-       [-0.23417772],
-       [ 0.32688336],
-       [-1.60580342],
-       [ 4.67635444],
-       [-1.54127171],
-       [-1.63819893],
-       [ 7.81376752],
-       [-4.61388499],
-       [ 0.30138108],
-       [ 4.57546437],
-       [ 4.92438176],
-       [ 3.18059759],
-       [ 2.83654818],
-       [-5.17240673]])
-
+    dq = np.array([[0.92799144],
+                   [0.02038822],
+                   [-0.10578672],
+                   [1.29588322],
+                   [-0.23417772],
+                   [0.32688336],
+                   [-1.60580342],
+                   [4.67635444],
+                   [-1.54127171],
+                   [-1.63819893],
+                   [7.81376752],
+                   [-4.61388499],
+                   [0.30138108],
+                   [4.57546437],
+                   [4.92438176],
+                   [3.18059759],
+                   [2.83654818],
+                   [-5.17240673]])
 
     pin.forwardKinematics(invKin.rmodel, invKin.rdata, q, dq, np.zeros(invKin.rmodel.nv))
     pin.updateFramePlacements(invKin.rmodel, invKin.rdata)
@@ -273,7 +271,7 @@ if __name__ == "__main__":
         invKin.base_angularvelocity_ref[:] = np.array([0.0, 0.0, 0.0])
 
         ddq = invKin.compute(q, dq)
-        dq = dq +dt*np.array([ddq]).T
+        dq = dq + dt*np.array([ddq]).T
         q = pin.integrate(invKin.robot.model, q, dq*dt)
 
         pin.forwardKinematics(invKin.rmodel, invKin.rdata, q, dq, np.zeros(invKin.rmodel.nv))
@@ -289,6 +287,3 @@ if __name__ == "__main__":
 
         if USE_VIEWER:
             invKin.robot.display(q)
-
-        from IPython import embed
-        embed()

@@ -170,7 +170,7 @@ class Controller:
 
     def compute(self, device):
         """Run one iteration of the main control loop
-        
+
         Args:
             device (object): Interface with the masterboard or the simulation
         """
