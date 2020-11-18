@@ -88,15 +88,18 @@ def EulerToQuaternion(roll_pitch_yaw):
 ##################
 
 
-def init_viewer(enable_viewer):
+def init_robot(q_init, enable_viewer):
     """Load the solo model and initialize the Gepetto viewer if it is enabled
 
     Args:
+        q_init (array): the default position of the robot actuators
         enable_viewer (bool): if the Gepetto viewer is enabled or not
     """
 
     # Load robot model and data
     solo = load('solo12')
+    q = solo.q0.reshape((-1, 1))
+    q[7:, 0] = q_init
 
     # Initialisation of the Gepetto viewer
     if enable_viewer:
@@ -104,17 +107,25 @@ def init_viewer(enable_viewer):
         if ('viewer' in solo.viz.__dict__):
             solo.viewer.gui.addFloor('world/floor')
             solo.viewer.gui.setRefreshIsSynchronous(False)
-        solo.display(solo.q0)
+        solo.display(q)
 
     # Initialisation of model quantities
-    pin.centerOfMass(solo.model, solo.data, solo.q0, np.zeros((18, 1)))
+    pin.centerOfMass(solo.model, solo.data, q, np.zeros((18, 1)))
     pin.updateFramePlacements(solo.model, solo.data)
     pin.crba(solo.model, solo.data, solo.q0)
 
-    return solo
+    # Initialisation of the position of footsteps
+    fsteps_init = np.zeros((3, 4))
+    indexes = [10, 18, 26, 34]
+    for i in range(4):
+        fsteps_init[:, i] = solo.data.oMf[indexes[i]].translation
+    h_init = (solo.data.oMf[1].translation - solo.data.oMf[indexes[0]].translation)[2]
+    fsteps_init[2, :] = 0.0
+
+    return solo, fsteps_init, h_init
 
 
-def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC, predefined):
+def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC, predefined, h_init):
     """Create several objects that are used in the control loop
 
     Args:
@@ -126,6 +137,7 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC
         T_gait (float): duration of one gait period
         type_MPC (bool): which MPC you want to use (PA's or Thomas')
         predefined (bool): if we are using a predefined reference velocity (True) or a joystick (False)
+        h_init (float): initial height of the robot base
     """
 
     # Create Joystick object
@@ -135,7 +147,7 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_gait, type_MPC
     logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc, n_periods, T_gait, type_MPC)
 
     # Create Estimator object
-    estimator = Estimator.Estimator(dt_tsid, k_max_loop)
+    estimator = Estimator.Estimator(dt_tsid, k_max_loop, h_init)
 
     return joystick, logger, estimator
 

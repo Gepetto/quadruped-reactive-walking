@@ -54,9 +54,11 @@ class Estimator:
 
     Args:
         dt (float): Time step of the estimator update
+        N_simulation (int): maximum number of iterations of the main control loop
+        h_init (float): initial height of the robot base
     """
 
-    def __init__(self, dt, N_simulation):
+    def __init__(self, dt, N_simulation, h_init=0.22294615):
 
         # Sample frequency
         self.dt = dt
@@ -82,7 +84,7 @@ class Estimator:
 
         # Forward Kinematics data
         self.FK_lin_vel = np.zeros((3, ))  # Linear velocity
-        self.FK_h = 0.22294615  # Default base height of the FK
+        self.FK_h = h_init  # Default base height of the FK
         self.FK_xyz = np.array([0.0, 0.0, self.FK_h])
         self.xyz_mean_feet = np.zeros(3)
         self.filter_xyz_pos.LP_x[2] = self.FK_h

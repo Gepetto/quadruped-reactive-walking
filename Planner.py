@@ -17,7 +17,7 @@ class Planner:
     the user and the current position/velocity of the base in TSID world
     """
 
-    def __init__(self, dt, dt_tsid, n_periods, T_gait, k_mpc, on_solo8, h_ref):
+    def __init__(self, dt, dt_tsid, n_periods, T_gait, k_mpc, on_solo8, h_ref, fsteps_init):
 
         # Time step of the contact sequence
         self.dt = dt
@@ -100,12 +100,12 @@ class Planner:
         self.i_end_gait = -1
         self.t_swing = np.zeros((4, ))  # Total duration of current swing phase for each foot
         self.footsteps_target = (self.shoulders[0:2, :]).copy()
-        self.goals = self.shoulders.copy()  # Store 3D target position for feet
+        self.goals = fsteps_init.copy()  # Store 3D target position for feet
         self.vgoals = np.zeros((3, 4))  # Store 3D target velocity for feet
         self.agoals = np.zeros((3, 4))  # Store 3D target acceleration for feet
         self.mgoals = np.zeros((6, 4))  # Storage variable for the trajectory generator
-        self.mgoals[0, :] = self.shoulders[0, :]
-        self.mgoals[3, :] = self.shoulders[1, :]
+        self.mgoals[0, :] = fsteps_init[0, :]
+        self.mgoals[3, :] = fsteps_init[1, :]
 
     def create_static(self):
         """Create the matrices used to handle the gait and initialize them to keep the 4 feet in contact

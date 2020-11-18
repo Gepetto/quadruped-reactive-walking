@@ -16,7 +16,7 @@ class FootTrajectoryGenerator:
 
         # Position of shoulders in local frame
         self.shoulders = np.array(
-            [[0.19, 0.19, -0.19, -0.19], [0.15005, -0.15005, 0.15005, -0.15005]])
+            [[0.1946, 0.1946, -0.1946, -0.1946], [0.14695, -0.14695, 0.14695, -0.14695]])
 
         # Time step of the trajectory generator
         self.dt = dt

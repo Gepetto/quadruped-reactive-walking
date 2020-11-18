@@ -11,9 +11,9 @@ class Solo12InvKin:
         self.dt = dt
 
         # Inputs to be modified bu the user before calling .compute
-        self.feet_position_ref = [np.array([0.1946,   0.16891, 0.0191028]), np.array(
-            [0.1946,  -0.16891, 0.0191028]), np.array([-0.1946,   0.16891, 0.0191028]),
-            np.array([-0.1946,  -0.16891, 0.0191028])]
+        self.feet_position_ref = [np.array([0.1946,   0.14695, 0.0191028]), np.array(
+            [0.1946,  -0.14695, 0.0191028]), np.array([-0.1946,   0.14695, 0.0191028]),
+            np.array([-0.1946,  -0.14695, 0.0191028])]
         self.feet_velocity_ref = [np.array([0., 0., 0.]), np.array(
             [0., 0., 0.]), np.array([0., 0., 0.]), np.array([0., 0., 0.])]
         self.feet_acceleration_ref = [np.array([0., 0., 0.]), np.array(

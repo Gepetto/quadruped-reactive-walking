@@ -94,14 +94,17 @@ class Controller:
         # Enable/Disable Gepetto viewer
         self.enable_gepetto_viewer = False
 
+        # Initialisation of the solo model/data and of the Gepetto viewer
+        self.solo, self.fsteps_init, self.h_init = utils_mpc.init_robot(q_init, self.enable_gepetto_viewer)
+
         # Create Joystick, FootstepPlanner, Logger and Interface objects
         self.joystick, self.logger, self.estimator = utils_mpc.init_objects(
-            dt_tsid, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC, predefined_vel)
+            dt_tsid, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC, predefined_vel, self.h_init)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True
 
-        h_ref = 0.22294615
+        h_ref = self.h_init
         self.q = np.zeros((19, 1))
         self.q[0:7, 0] = np.array([0.0, 0.0, h_ref, 0.0, 0.0, 0.0, 1.0])
         self.q[7:, 0] = q_init
@@ -109,16 +112,13 @@ class Controller:
         self.b_v = np.zeros((18, 1))
         self.o_v_filt = np.zeros((18, 1))
         self.planner = Planner(dt_mpc, dt_tsid, n_periods,
-                               T_gait, k_mpc, on_solo8, h_ref)
+                               T_gait, k_mpc, on_solo8, h_ref, self.fsteps_init)
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
         self.enable_multiprocessing = True
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, np.int(n_periods*T_gait/dt_mpc),
                                                    k_mpc, T_gait, self.q, self.enable_multiprocessing)
-
-        # Initialisation of the Gepetto viewer
-        self.solo = utils_mpc.init_viewer(self.enable_gepetto_viewer)
 
         # ForceMonitor to display contact forces in PyBullet with red lines
         # import ForceMonitor
