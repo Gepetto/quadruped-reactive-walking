@@ -5,6 +5,7 @@
 #include "example-adder/gepadd.hpp"
 #include "example-adder/MPC.hpp"
 #include "other/st_to_cc.hpp"
+#include "example-adder/Planner.hpp"
 
 int main(int argc, char** argv) {
   if (argc == 3) {
@@ -53,6 +54,25 @@ int main(int argc, char** argv) {
 
     Eigen::Map<Eigen::MatrixXf> M2(M1.data(), M1.size(), 1);
     std::cout << "M2:" << std::endl << M2 << std::endl;*/
+
+    double dt_in = 0.02;
+    double dt_tsid_in = 0.002;
+    int n_periods_in = 1;
+    double T_gait_in = 0.32;
+    int k_mpc_in = 10;
+    bool on_solo8_in= false;
+    double h_ref_in = 0.21;
+    Eigen::MatrixXd fsteps_in(3,4);
+    fsteps_in << 0.1946, 0.1946, -0.1946, -0.1946,
+                 0.14695, -0.14695, 0.14695, -0.14695,
+                 0.0, 0.0, 0.0, 0.0;
+
+    Planner planner(dt_in, dt_tsid_in, n_periods_in, T_gait_in,
+                    k_mpc_in, on_solo8_in, h_ref_in, fsteps_in);
+
+    planner.Print();
+    planner.roll(0);
+    planner.Print();
 
     return EXIT_SUCCESS;
   } else {

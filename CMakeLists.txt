@@ -46,6 +46,7 @@ SEARCH_FOR_BOOST()
 set(${PROJECT_NAME}_HEADERS
   include/${PROJECT_NAME}/gepadd.hpp
   include/${PROJECT_NAME}/MPC.hpp
+  include/${PROJECT_NAME}/Planner.hpp
   include/other/st_to_cc.hpp
   #include/osqp_folder/include/osqp_configure.h
   #include/osqp_folder/include/osqp.h
@@ -57,6 +58,7 @@ set(${PROJECT_NAME}_SOURCES
   src/st_to_cc.cpp
   src/gepadd.cpp
   src/MPC.cpp
+  src/Planner.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
