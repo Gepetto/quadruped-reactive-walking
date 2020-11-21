@@ -1,5 +1,6 @@
 #include "example-adder/gepadd.hpp"
 #include "example-adder/MPC.hpp"
+#include "example-adder/Planner.hpp"
 
 #include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
@@ -8,8 +9,8 @@ namespace bp = boost::python;
 
 template <typename MPC>
 struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC> > {
-  template <class PyClass>
-  void visit(PyClass& cl) const {
+  template <class PyClassMPC>
+  void visit(PyClassMPC& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
         .def(bp::init<double, int, double>(bp::args("dt_in", "n_steps_in", "T_gait_in"),
                                            "Constructor with parameters."))
@@ -30,6 +31,31 @@ struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC> > {
 
 void exposeMPC() { MPCPythonVisitor<MPC>::expose(); }
 
+template <typename Planner>
+struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planner> > {
+  template <class PyClassPlanner>
+  void visit(PyClassPlanner& cl) const {
+    cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+        .def(bp::init<double, double, int, double, int, bool, double, const Eigen::MatrixXd &>(bp::args("dt_in", "dt_tsid_in", "n_periods_in", "T_gait_in", "k_mpc_in", "on_solo8_in", "h_ref_in", "fsteps_in"),
+                                           "Constructor with parameters."))
+        
+        .def("get_xref", &Planner::get_xref, "Get xref matrix.\n")
+        .def("get_fsteps", &Planner::get_fsteps, "Get fsteps matrix.\n")
+        //.add_property("xref", &Planner::get_xref)
+
+        // Run Planner from Python
+        .def("run_planner", &Planner::run_planner, bp::args("k", "q", "v", "b_vref", "h_estim", "z_average"), "Run Planner from Python.\n");
+  }
+
+  static void expose() {
+    bp::class_<Planner>("Planner", bp::no_init).def(PlannerPythonVisitor<Planner>());
+
+    ENABLE_SPECIFIC_MATRIX_TYPE(matXd);
+  }
+};
+
+void exposePlanner() { PlannerPythonVisitor<Planner>::expose(); }
+
 BOOST_PYTHON_MODULE(libexample_adder) {
   boost::python::def("add", gepetto::example::add);
   boost::python::def("sub", gepetto::example::sub);
@@ -37,4 +63,5 @@ BOOST_PYTHON_MODULE(libexample_adder) {
   eigenpy::enableEigenPy();
 
   exposeMPC();
+  exposePlanner();
 }

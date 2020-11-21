@@ -37,7 +37,7 @@ class Planner {
 
   // Constant sized matrices
   Eigen::Matrix<double, N0_gait, 5> gait = Eigen::Matrix<double, N0_gait, 5>::Zero();
-  Eigen::Matrix<double, N0_gait, 13> fsteps = Eigen::Matrix<double, N0_gait, 13>::Zero();
+  Eigen::MatrixXd fsteps = Eigen::MatrixXd::Zero(N0_gait, 13);
   Eigen::Matrix<double, N0_gait, 5> desired_gait = Eigen::Matrix<double, N0_gait, 5>::Zero();
   Eigen::Matrix<double, N0_gait, 5> new_desired_gait = Eigen::Matrix<double, N0_gait, 5>::Zero();
   Eigen::Matrix<double, 3, 4> shoulders = Eigen::Matrix<double, 3, 4>::Zero();  // Position of shoulders in local frame
@@ -46,6 +46,8 @@ class Planner {
   Eigen::Matrix<double, 1, 12> o_feet_contact = Eigen::Matrix<double, 1, 12>::Zero();  // Feet matrix in world frame
   Eigen::Matrix<double, 3, 4> next_footstep = Eigen::Matrix<double, 3, 4>::Zero(); // To store the result of the compute_next_footstep function
   Eigen::Matrix<double, 3, 3> R = Eigen::Matrix<double, 3, 3>::Zero(); // Predefined matrices for compute_footstep function
+  Eigen::Matrix<double, 3, 3> R_1 = Eigen::Matrix<double, 3, 3>::Zero(); // Predefined matrices for compute_next_footstep function
+  Eigen::Matrix<double, 3, 3> R_2 = Eigen::Matrix<double, 3, 3>::Zero();
   Eigen::Matrix<double, N0_gait, 1> dt_cum = Eigen::Matrix<double, N0_gait, 1>::Zero();
   Eigen::Matrix<double, N0_gait, 1> angle = Eigen::Matrix<double, N0_gait, 1>::Zero();
   Eigen::Matrix<double, N0_gait, 1> dx = Eigen::Matrix<double, N0_gait, 1>::Zero();
@@ -53,13 +55,17 @@ class Planner {
   Eigen::Matrix<double, 3, 1> q_tmp = Eigen::Matrix<double, 3, 1>::Zero();
   Eigen::Matrix<double, 3, 1> q_dxdy = Eigen::Matrix<double, 3, 1>::Zero();
   Eigen::Matrix<double, 3, 1> RPY = Eigen::Matrix<double, 3, 1>::Zero();
+  Eigen::Matrix<double, 3, 1> b_v_cur = Eigen::Matrix<double, 3, 1>::Zero();
+  Eigen::Matrix<double, 3, 1> b_v_ref = Eigen::Matrix<double, 3, 1>::Zero();
+  Eigen::Matrix<double, 3, 1> cross = Eigen::Matrix<double, 3, 1>::Zero();
+  Eigen::Matrix<double, 6, 1> vref_in = Eigen::Matrix<double, 6, 1>::Zero();
 
   // Time interval vector
   Eigen::Matrix<double, 1, Eigen::Dynamic> dt_vector;
 
   // Reference trajectory matrix of size 12 by (1 + N)  with the current state of
   // the robot in column 0 and the N steps of the prediction horizon in the others
-  Eigen::Matrix<double, 12, Eigen::Dynamic> xref;
+  Eigen::MatrixXd xref;
 
   // Foot trajectory generator
   double max_height_feet = 0.05;
@@ -85,7 +91,17 @@ class Planner {
   
   int create_trot();
   int roll(int k);
-  int compute_footsteps(Eigen::Matrix<double, 7, 1> q_cur, Eigen::Matrix<double, 6, 1> v_cur, Eigen::Matrix<double, 7, 1> v_ref);
+  int compute_footsteps(Eigen::MatrixXd q_cur, Eigen::MatrixXd v_cur, Eigen::MatrixXd v_ref);
+  int compute_next_footstep(int j);
+  int getRefStates(Eigen::MatrixXd q, Eigen::MatrixXd v, Eigen::MatrixXd vref, double z_average);
+  int update_target_footsteps();
+  int run_planner(int k, const Eigen::MatrixXd & q, const Eigen::MatrixXd &v, const Eigen::MatrixXd &b_vref,
+                  double h_estim, double z_average);
+
+
+  // Accessor
+  Eigen::MatrixXd get_xref();
+  Eigen::MatrixXd get_fsteps();
 
 };
 
