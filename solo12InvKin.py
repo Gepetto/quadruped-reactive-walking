@@ -40,6 +40,10 @@ class Solo12InvKin:
         self.dx_ref = np.zeros((6, 1))
         self.dx = np.zeros((6, 1))
 
+        # Matrices initialisation
+        self.invJ = np.zeros((18, 18))
+
+
         # Get frame IDs
         FL_FOOT_ID = self.robot.model.getFrameId('FL_FOOT')
         FR_FOOT_ID = self.robot.model.getFrameId('FR_FOOT')
@@ -173,10 +177,31 @@ class Solo12InvKin:
         x_err = np.concatenate([e_basispos, e_basisrot]+self.pfeet_err)
         dx_ref = np.concatenate([self.base_linearvelocity_ref, self.base_angularvelocity_ref]+vfeet_ref)
 
+        """import time
+        tic = time.time()
+        invR = J[0:3, 0:3].transpose()
+        self.invJ[0:3, 0:3] = invR
+        self.invJ[3:6, 3:6] = invR
+
+        for i in range(4):
+            inv = np.linalg.pinv(J[(6+3*i):(9+3*i), (6+3*i):(9+3*i)])
+            self.invJ[(6+3*i):(9+3*i), 0:3] = - inv
+            self.invJ[(6+3*i):(9+3*i), 3:6] = (- inv @ J[(6+3*i):(9+3*i), 3:6]) @ invR
+            self.invJ[(6+3*i):(9+3*i), (6+3*i):(9+3*i)] = inv
+        tac = time.time()"""
+
         invJ = np.linalg.pinv(J)  # self.dinv(J)  # or np.linalg.inv(J) since full rank
+
+        """toc = time.time()
+        print("Old:", toc - tac)
+        print("New:", tac - tic)"""
+
         ddq = invJ @ acc
         self.q_cmd = pin.integrate(self.robot.model, q, invJ @ x_err)
         self.dq_cmd = invJ @ dx_ref
+
+        """from IPython import embed
+        embed()"""
 
         return ddq
 
