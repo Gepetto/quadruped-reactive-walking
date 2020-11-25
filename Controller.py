@@ -7,7 +7,7 @@ import time
 from QP_WBC import controller
 import MPC_Wrapper
 import pybullet as pyb
-from Planner import Planner
+from Planner import PyPlanner
 import pinocchio as pin
 
 
@@ -111,8 +111,9 @@ class Controller:
         self.v = np.zeros((18, 1))
         self.b_v = np.zeros((18, 1))
         self.o_v_filt = np.zeros((18, 1))
-        self.planner = Planner(dt_mpc, dt_tsid, n_periods,
+        self.planner = PyPlanner(dt_mpc, dt_tsid, n_periods,
                                T_gait, k_mpc, on_solo8, h_ref, self.fsteps_init)
+
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
         # First argument to True to have PA's MPC, to False to have Thomas's MPC

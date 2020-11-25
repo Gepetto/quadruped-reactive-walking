@@ -9,9 +9,9 @@ import pinocchio as pin
 import tsid
 import utils_mpc
 import FootTrajectoryGenerator as ftg
+import libexample_adder as la
 
-
-class Planner:
+class PyPlanner:
     """Planner that outputs current and future locations of footsteps, the reference trajectory of the base and
     the position, velocity, acceleration commands for feet in swing phase based on the reference velocity given by
     the user and the current position/velocity of the base in TSID world
@@ -84,7 +84,8 @@ class Planner:
         # Create gait matrix
         # self.create_walking_trot()
         self.create_trot()
-        # self.create_static()
+        """self.create_static()
+        self.is_static = True"""
         # self.create_custom()
 
         self.desired_gait = self.gait.copy()
@@ -92,12 +93,13 @@ class Planner:
 
         # Foot trajectory generator
         max_height_feet = 0.05
-        t_lock_before_touchdown = 0.07
+        t_lock_before_touchdown = 0.00
         self.ftgs = [ftg.Foot_trajectory_generator(
             max_height_feet, t_lock_before_touchdown, self.shoulders[0, i], self.shoulders[1, i]) for i in range(4)]
 
         # Variables for foot trajectory generator
         self.i_end_gait = -1
+        self.t_stance = np.zeros((4, ))  # Total duration of current stance phase for each foot
         self.t_swing = np.zeros((4, ))  # Total duration of current swing phase for each foot
         self.footsteps_target = (self.shoulders[0:2, :]).copy()
         self.goals = fsteps_init.copy()  # Store 3D target position for feet
@@ -106,6 +108,12 @@ class Planner:
         self.mgoals = np.zeros((6, 4))  # Storage variable for the trajectory generator
         self.mgoals[0, :] = fsteps_init[0, :]
         self.mgoals[3, :] = fsteps_init[1, :]
+
+        # C++ class
+        self.Cplanner = la.Planner(dt, dt_tsid, n_periods, T_gait, k_mpc, on_solo8, h_ref, fsteps_init)
+
+        self.log_debug1 = np.zeros((10001, 3))
+        self.log_debug2 = np.zeros((10001, 3))
 
     def create_static(self):
         """Create the matrices used to handle the gait and initialize them to keep the 4 feet in contact
@@ -196,6 +204,27 @@ class Planner:
             self.gait[2*i+1, [2, 3]] = np.ones((2,))
 
         return 0
+
+    def one_swing_gait(self):
+        """
+        For a gait with only one leg in swing phase at a given time
+        Set stance and swing phases and their duration
+        Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        """
+
+        # Number of timesteps in a half period of gait
+        N = np.int(0.5 * self.T_gait/self.dt)
+
+        # Gait matrix
+        new_desired_gait = np.zeros((self.fsteps.shape[0], 5))
+        new_desired_gait[0:4, 0] = np.array([N/2, N/2, N/2, N/2])
+        new_desired_gait[0, 1] = 1
+        new_desired_gait[1, 4] = 1
+        new_desired_gait[2, 2] = 1
+        new_desired_gait[3, 3] = 1
+
+        return new_desired_gait
 
     def trot_gait(self):
         """
@@ -377,9 +406,9 @@ class Planner:
         # Get future desired position of footsteps
         self.compute_next_footstep(q_cur, v_cur, v_ref)
 
-        if reduced:  # Reduce size of support polygon
+        """if reduced:  # Reduce size of support polygon
             self.next_footstep[0:2, :] -= np.array([[0.00, 0.00, -0.00, -0.00],
-                                                    [0.04, -0.04, 0.04, -0.04]])
+                                                    [0.04, -0.04, 0.04, -0.04]])"""
 
         # Cumulative time by adding the terms in the first column (remaining number of timesteps)
         dt_cum = np.cumsum(self.gait[:, 0]) * self.dt
@@ -400,6 +429,10 @@ class Planner:
             dx = v_cur[0, 0] * dt_cum
             dy = v_cur[1, 0] * dt_cum
 
+        """print(v_cur.ravel())
+        print(v_ref.ravel())
+        print(dt_cum.ravel())"""
+
         # Update the footstep matrix depending on the different phases of the gait (swing & stance)
         while (self.gait[i, 0] != 0):
 
@@ -417,6 +450,7 @@ class Planner:
             A = np.logical_not(rpt_gait[i-1, :]) & rpt_gait[i, :]
             q_tmp = np.array([[q_cur[0, 0]], [q_cur[1, 0]], [0.0]])  # current position without height
             if np.any(A):
+                # self.compute_next_footstep(i, q_cur, v_cur, v_ref)
 
                 # Get desired position of footstep compared to current position
                 next_ft = (np.dot(self.R[:, :, i-1], self.next_footstep) + q_tmp +
@@ -436,7 +470,7 @@ class Planner:
     def compute_next_footstep(self, q_cur, v_cur, v_ref):
         """Compute the desired location of footsteps for a given pair of current/reference velocities
 
-        Compute a 3 by 4 matrix containing the desired location of each feet considering the current velocity of the
+        Compute a 3 by 1 matrix containing the desired location of each feet considering the current velocity of the
         robot and the reference velocity
 
         Args:
@@ -445,29 +479,63 @@ class Planner:
             v_ref (6x1 array): desired velocity vector of the flying base in world frame (linear and angular stacked)
         """
 
-        c, s = math.cos(self.RPY[2, 0]), math.sin(self.RPY[2, 0])
+        """c, s = math.cos(self.RPY[2, 0]), math.sin(self.RPY[2, 0])
         R = np.array([[c, -s, 0], [s, c, 0], [0.0, 0.0, 0.0]])
-        b_v_cur = R.transpose() @ v_cur[0:3, 0:1]
-        b_v_ref = R.transpose() @ v_ref[0:3, 0:1]
+        self.b_v_cur = R.transpose() @ v_cur[0:3, 0:1]
+        self.b_v_ref = R.transpose() @ v_ref[0:3, 0:1]"""
 
         # TODO: Automatic detection of t_stance to handle arbitrary gaits
         t_stance = self.T_gait * 0.5
+        # self.t_stance[:] = np.sum(self.gait[:, 0:1] * self.gait[:, 1:], axis=0) * self.dt
+        """for j in range(4):
+            i = 0
+            t_stance = 0.0
+            while self.gait[i, 1+j] == 1:
+                t_stance += self.gait[i, 0]
+                i += 1
+            if i > 0:
+                self.t_stance[j] = t_stance * self.dt"""
+
+        # for j in range(4):
+        """if self.gait[i, 1+j] == 1:
+            t_stance = 0.0
+            while self.gait[i, 1+j] == 1:
+                t_stance += self.gait[i, 0]
+                i += 1
+            i_end = self.gait.shape[0] - 1
+            while self.gait[i_end, 0] == 0:
+                i_end -= 1
+            if i_end == (i - 1):
+                i = 0
+                while self.gait[i, 1+j] == 1:
+                    t_stance += self.gait[i, 0]
+                    i += 1
+            t_stance *= self.dt"""
 
         # Order of feet: FL, FR, HL, HR
 
         # self.next_footstep = np.zeros((3, 4))
+        #print("Py computing ", j)
 
         # Add symmetry term
-        self.next_footstep[0:2, :] = t_stance * 0.5 * b_v_cur[0:2, 0:1]  # + q_cur[0:2, 0:1]
+        self.next_footstep[0:2, :] = t_stance * 0.5 * self.b_v_cur[0:2, 0:1]  # + q_cur[0:2, 0:1]
+
+        #print(self.next_footstep[0:2, j:(j+1)].ravel())
 
         # Add feedback term
-        self.next_footstep[0:2, :] += self.k_feedback * (b_v_cur[0:2, 0:1] - b_v_ref[0:2, 0:1])
+        self.next_footstep[0:2, :] += self.k_feedback * (self.b_v_cur[0:2, 0:1] - self.b_v_ref[0:2, 0:1])
+
+        #print(self.next_footstep[0:2, j:(j+1)].ravel())
 
         # Add centrifugal term
-        cross = self.cross3(np.array(b_v_cur[0:3, 0]), v_ref[3:6, 0])
+        #print("b_v_cur: ", self.b_v_cur[0:3, 0].ravel())
+        #print("v_ref: ", v_ref[3:6, 0])
+        cross = self.cross3(np.array(self.b_v_cur[0:3, 0]), v_ref[3:6, 0])
         # cross = np.cross(v_cur[0:3, 0:1], v_ref[3:6, 0:1], 0, 0).T
 
         self.next_footstep[0:2, :] += 0.5 * math.sqrt(self.h_ref/self.g) * cross[0:2, 0:1]
+
+        #print(self.next_footstep[0:2, j:(j+1)].ravel())
 
         # Legs have a limited length so the deviation has to be limited
         (self.next_footstep[0:2, :])[(self.next_footstep[0:2, :]) > self.L] = self.L
@@ -482,6 +550,8 @@ class Planner:
         # Add shoulders
         self.next_footstep[0:2, :] += self.shoulders[0:2, :]
 
+        #print(self.next_footstep[0:2, j:(j+1)].ravel())
+
         return 0
 
     def run_planner(self, k, k_mpc, q, v, b_vref, h_estim, z_average, joystick=None):
@@ -491,6 +561,14 @@ class Planner:
         c, s = math.cos(self.RPY[2, 0]), math.sin(self.RPY[2, 0])
         vref = b_vref.copy()
         vref[0:2, 0:1] = np.array([[c, -s], [s, c]]) @ b_vref[0:2, 0:1]
+
+        """if k == 0:
+            self.new_desired_gait = self.static_gait()
+            self.is_static = True
+            self.q_static[0:7, 0:1] = q.copy()"""
+        """elif k == 2000:
+            self.new_desired_gait = self.one_swing_gait()
+            self.is_static = False"""
 
         if joystick is not None:
             if joystick.northButton:
@@ -520,21 +598,100 @@ class Planner:
         """if (k == 5000):
             self.new_desired_gait = self.pacing_gait()"""
 
-        if ((k % k_mpc) == 0):
-            # Move one step further in the gait
-            self.roll_experimental(k, k_mpc)
+        # if ((k % k_mpc) == 0):
+        # Move one step further in the gait
+        # self.roll_experimental(k, k_mpc)
+
+        # Get current and reference velocities in base frame
+        # R = np.array([[c, -s, 0], [s, c, 0], [0.0, 0.0, 0.0]])
+        # self.b_v_cur = R.transpose() @ v[0:3, 0:1]
+        # self.b_v_ref = R.transpose() @ vref[0:3, 0:1]
 
         # Compute the desired location of footsteps over the prediction horizon
-        self.compute_footsteps(q, v, vref, joystick.reduced)
+        # self.compute_footsteps(q, v, vref, joystick.reduced)
 
         # Get the reference trajectory for the MPC
-        self.getRefStates(q, v, vref, z_average)
+        # self.getRefStates(q, v, vref, z_average)
 
         # Update desired location of footsteps on the ground
-        self.update_target_footsteps()
+        # self.update_target_footsteps()
+
+        self.Cplanner.run_planner(k, q, v, b_vref, np.double(h_estim), np.double(z_average))
 
         # Update trajectory generator (3D pos, vel, acc)
-        self.update_trajectory_generator(k, h_estim, q)
+        # self.update_trajectory_generator(k, h_estim, q)
+
+        self.xref = self.Cplanner.get_xref()
+        self.fsteps = self.Cplanner.get_fsteps()
+        self.gait = self.Cplanner.get_gait()
+        self.goals = self.Cplanner.get_goals()
+        self.vgoals = self.Cplanner.get_vgoals()
+        self.agoals = self.Cplanner.get_agoals()
+
+        """self.log_debug1[k, :] = self.goals[:, 1]
+        self.log_debug2[k, :] = (self.Cplanner.get_goals())[:, 1]
+        if (k == 0):
+            for m in range(self.log_debug1.shape[1]):
+                self.log_debug1[m, :] = self.log_debug1[0, :]
+                self.log_debug2[m, :] = self.log_debug1[0, :]"""
+
+        """print("Pytarget")
+        print(self.footsteps_target)
+        print("Pygoals")
+        print(self.goals)
+        print("Cgoals")
+        print(self.Cplanner.get_goals())"""
+
+        """if (k >= 4000):
+            from matplotlib import pyplot as plt
+
+            plt.figure()
+            for i in range(3):
+                if i == 0:
+                    ax0 = plt.subplot(3, 1, 1+i)
+                else:
+                    plt.subplot(3, 1, 1+i, sharex=ax0)
+
+                h1, = plt.plot(self.log_debug1[:, i], "r", linewidth=3)
+                h1, = plt.plot(self.log_debug2[:, i], "b", linewidth=3)
+
+            plt.show(block=True)
+
+            if not np.allclose(self.gait, self.Cplanner.get_gait()):
+                print("gait not equal")
+            else:
+                print("Gait OK")
+            if not np.allclose(self.xref, self.Cplanner.get_xref()):
+                print("xref not equal")
+            else:
+                print("xref OK")
+            tmp = self.fsteps.copy()
+            tmp[np.isnan(tmp)] = 0.0
+            if not np.allclose(tmp, self.Cplanner.get_fsteps()):
+                print("fsteps not equal")
+            else:
+                print("fsteps OK")
+            if not np.allclose(self.goals, self.Cplanner.get_goals()):
+                print("goals not equal")
+                print(self.goals)
+                print(self.Cplanner.get_goals())
+            else:
+                print("goals OK")
+            if not np.allclose(self.vgoals, self.Cplanner.get_vgoals()):
+                print("vgoals not equal")
+            else:
+                print("vgoals OK")
+            if not np.allclose(self.agoals, self.Cplanner.get_agoals()):
+                print("agoals not equal")
+            else:
+                print("agoals OK")
+        
+            from IPython import embed
+            embed()"""
+
+        """print("###")
+        print(self.t_stance)
+        print(self.t_swing)"""
 
         return 0
 
@@ -717,7 +874,8 @@ class Planner:
 
                 # TODO: Fix that. We need to assess properly the duration of the swing phase even during the transition
                 # between two gaits (need to take into account past information)
-                self.t_swing[i] = self.T_gait * 0.5  # - 0.02
+                # print(i, " ", self.T_gait, " ", self.t_stance[i])
+                self.t_swing[i] = self.T_gait * 0.5 # self.T_gait - self.t_stance[i]  # self.T_gait * 0.5  # - 0.02
 
                 self.t0s.append(
                     np.round(np.max((self.t_swing[i] - remaining_iterations * self.dt_tsid - self.dt_tsid, 0.0)), decimals=3))
