@@ -8,9 +8,38 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+#include "pinocchio/math/rpy.hpp"
+#include "curves/fwd.h"
+#include "curves/bezier_curve.h"
+// #include "curves/helpers/effector_spline.h"
+
 typedef Eigen::MatrixXd matXd;
 
 const int N0_gait = 20;
+
+class TrajGen {
+
+  private:
+    double lastCoeffs_x[6];
+    double lastCoeffs_y[6];
+    double h = 0.05;
+    double time_adaptative_disabled = 0.2;
+    double x1 = 0.0;
+    double y1 = 0.0;
+    Eigen::Matrix<double, 11, 1> result = Eigen::Matrix<double, 11, 1>::Zero();
+
+    // Coefficients
+    double Ax5=0.0, Ax4=0.0, Ax3=0.0, Ax2=0.0, Ax1=0.0, Ax0=0.0,
+           Ay5=0.0, Ay4=0.0, Ay3=0.0, Ay2=0.0, Ay1=0.0, Ay0=0.0, Az6=0.0, Az5=0.0, Az4=0.0, Az3=0.0;
+  
+  public:
+    TrajGen();
+    TrajGen(double h_in, double t_lock_in, double x_in, double y_in);
+    Eigen::Matrix<double, 11, 1> get_next_foot(double x0, double dx0, double ddx0, double y0, double dy0, double ddy0,
+                                              double x1_in, double y1_in, double t0, double t1, double dt);
+
+};
+
 
 class Planner {
   private:
@@ -35,8 +64,13 @@ class Planner {
   // Number of time steps in the prediction horizon
   int n_steps;
 
+  // Feet index vector
+  std::vector<int> feet;
+  std::vector<double> t0s;
+  double t_swing[4] = {0.0, 0.0, 0.0, 0.0};
+
   // Constant sized matrices
-  Eigen::Matrix<double, N0_gait, 5> gait = Eigen::Matrix<double, N0_gait, 5>::Zero();
+  Eigen::MatrixXd gait = Eigen::MatrixXd::Zero(N0_gait, 5);
   Eigen::MatrixXd fsteps = Eigen::MatrixXd::Zero(N0_gait, 13);
   Eigen::Matrix<double, N0_gait, 5> desired_gait = Eigen::Matrix<double, N0_gait, 5>::Zero();
   Eigen::Matrix<double, N0_gait, 5> new_desired_gait = Eigen::Matrix<double, N0_gait, 5>::Zero();
@@ -56,7 +90,7 @@ class Planner {
   Eigen::Matrix<double, 3, 1> q_dxdy = Eigen::Matrix<double, 3, 1>::Zero();
   Eigen::Matrix<double, 3, 1> RPY = Eigen::Matrix<double, 3, 1>::Zero();
   Eigen::Matrix<double, 3, 1> b_v_cur = Eigen::Matrix<double, 3, 1>::Zero();
-  Eigen::Matrix<double, 3, 1> b_v_ref = Eigen::Matrix<double, 3, 1>::Zero();
+  Eigen::Matrix<double, 6, 1> b_v_ref = Eigen::Matrix<double, 6, 1>::Zero();
   Eigen::Matrix<double, 3, 1> cross = Eigen::Matrix<double, 3, 1>::Zero();
   Eigen::Matrix<double, 6, 1> vref_in = Eigen::Matrix<double, 6, 1>::Zero();
 
@@ -68,19 +102,31 @@ class Planner {
   Eigen::MatrixXd xref;
 
   // Foot trajectory generator
-  double max_height_feet = 0.05;
+  double max_height_feet = 0.05; // * (1000/312.5);  // height * correction coefficient
   double t_lock_before_touchdown = 0.07;
+  std::vector<TrajGen> myTrajGen;
   // TODO
 
   // Variables for foot trajectory generator
-  int i_end_gait = -1;
+  int i_end_gait = 0;
   Eigen::Matrix<double, 1, 4> t_stance = Eigen::Matrix<double, 1, 4>::Zero(); // Total duration of current stance phase for each foot
-  Eigen::Matrix<double, 1, 4> t_swing = Eigen::Matrix<double, 1, 4>::Zero(); // Total duration of current swing phase for each foot
+  // Eigen::Matrix<double, 1, 4> t_swing = Eigen::Matrix<double, 1, 4>::Zero(); // Total duration of current swing phase for each foot
   Eigen::Matrix<double, 2, 4> footsteps_target = Eigen::Matrix<double, 2, 4>::Zero();
-  Eigen::Matrix<double, 3, 4> goals = Eigen::Matrix<double, 3, 4>::Zero(); // Store 3D target position for feet
-  Eigen::Matrix<double, 3, 4> vgoals = Eigen::Matrix<double, 3, 4>::Zero();  // Store 3D target velocity for feet
-  Eigen::Matrix<double, 3, 4> agoals = Eigen::Matrix<double, 3, 4>::Zero();  // Store 3D target acceleration for feet
+  Eigen::MatrixXd goals = Eigen::MatrixXd::Zero(3, 4); // Store 3D target position for feet
+  Eigen::MatrixXd vgoals = Eigen::MatrixXd::Zero(3, 4);  // Store 3D target velocity for feet
+  Eigen::MatrixXd agoals = Eigen::MatrixXd::Zero(3, 4);  // Store 3D target acceleration for feet
   Eigen::Matrix<double, 6, 4> mgoals = Eigen::Matrix<double, 6, 4>::Zero();  // Storage variable for the trajectory generator
+
+  Eigen::Matrix<double, 11, 4> res_gen = Eigen::Matrix<double, 11, 4>::Zero();
+  /*curves::bezier_t::curve_constraints_t constrts;
+  constrts = curves::bezier_t::curve_constraints_t(3);*/
+
+  std::vector<std::vector<curves::point3_t>> pr_feet;
+  std::vector<curves::bezier_t::num_t> T_min;
+  std::vector<curves::bezier_t::num_t> T_max;
+  std::vector<curves::bezier_t> c_feet;
+  //curves::bezier_t::curve_constraints<point3_t> constraints;
+  curves::bezier_t::curve_constraints_t constraints;
 
  public:
   Planner();
@@ -95,6 +141,7 @@ class Planner {
   int compute_next_footstep(int j);
   int getRefStates(Eigen::MatrixXd q, Eigen::MatrixXd v, Eigen::MatrixXd vref, double z_average);
   int update_target_footsteps();
+  int update_trajectory_generator(int k, double h_estim);
   int run_planner(int k, const Eigen::MatrixXd & q, const Eigen::MatrixXd &v, const Eigen::MatrixXd &b_vref,
                   double h_estim, double z_average);
 
@@ -102,6 +149,10 @@ class Planner {
   // Accessor
   Eigen::MatrixXd get_xref();
   Eigen::MatrixXd get_fsteps();
+  Eigen::MatrixXd get_gait();
+  Eigen::MatrixXd get_goals();
+  Eigen::MatrixXd get_vgoals();
+  Eigen::MatrixXd get_agoals();
 
 };
 

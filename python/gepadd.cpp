@@ -41,6 +41,10 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
         
         .def("get_xref", &Planner::get_xref, "Get xref matrix.\n")
         .def("get_fsteps", &Planner::get_fsteps, "Get fsteps matrix.\n")
+        .def("get_gait", &Planner::get_gait, "Get gait matrix.\n")
+        .def("get_goals", &Planner::get_goals, "Get position goals matrix.\n")
+        .def("get_vgoals", &Planner::get_vgoals, "Get velocity goals matrix.\n")
+        .def("get_agoals", &Planner::get_agoals, "Get acceleration goals matrix.\n")
         //.add_property("xref", &Planner::get_xref)
 
         // Run Planner from Python
