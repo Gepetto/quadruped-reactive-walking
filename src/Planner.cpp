@@ -563,6 +563,64 @@ Eigen::MatrixXd Planner::get_goals() {return goals;}
 Eigen::MatrixXd Planner::get_vgoals() {return vgoals;}
 Eigen::MatrixXd Planner::get_agoals() {return agoals;}
 
+int Planner::roll_exp(int k) {
+
+    // Transfer current gait into past gait
+    // If current gait is the same than the first line of past gait we just increment the counter
+    if ((gait_c.block(0, 1, 1, 4)).isApprox(gait_p.block(0, 1, 1, 4))) {
+        gait_p(0, 0) += 1.0;
+    }
+    else {  // If current gait is not the same than the first line of past gait we have to insert it
+        gait_p.block(1, 0, N0_gait - 1, 5) = gait_p.block(0, 0, N0_gait - 1, 5);
+        gait_p.row(0) = gait_c.row(0);
+    }
+
+    // Transfert future gait into current gait
+    gait_c.row(0) = gait_f.row(0);
+    gait_c(0, 0) = 1.0;
+
+    // Age future gait
+    if (gait_f(0, 0) == 1.0) {
+        gait_f.block(0, 0, N0_gait - 1, 5) = gait_f.block(1, 0, N0_gait - 1, 5);
+
+        // Entering new contact phase, store positions of feet that are now in contact
+        if (k != 0) {
+            for (int i=0; i<4; i++) {
+                if (gait_c(0, 1+i) == 1.0) {
+                    o_feet_contact.block(0, 3*i, 1, 3) = fsteps.block(1, 1+3*i, 1, 3);
+                }
+            }
+        }
+    }
+    else
+    {
+        gait_f(0, 0) -= 1.0;
+    }
+
+    int i = 1;
+    while (gait_f(i, 0) > 0.0) {i++;}
+    if ((gait_f.block(i-1, 1, 1, 4)).isApprox(gait_f_des.block(0, 1, 1, 4))) {
+        gait_f(i-1, 0) += 1.0;
+    }
+    else
+    {
+        gait_f.row(i) = gait_f_des.row(0);
+        gait_f(i, 0) = 1.0;
+    }
+
+    // Age future desired gait
+    if (gait_f_des(0, 0) == 1.0) {
+        gait_f_des.block(0, 0, N0_gait - 1, 5) = gait_f_des.block(1, 0, N0_gait - 1, 5);
+    }
+    else
+    {
+        gait_f_des(0, 0) -= 1.0;
+    }
+
+    return 0;
+}
+
+// Trajectory generator functions (output reference pos, vel and acc of feet in swing phase)
 
 TrajGen::TrajGen() {}
 

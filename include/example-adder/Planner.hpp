@@ -94,6 +94,11 @@ class Planner {
   Eigen::Matrix<double, 3, 1> cross = Eigen::Matrix<double, 3, 1>::Zero();
   Eigen::Matrix<double, 6, 1> vref_in = Eigen::Matrix<double, 6, 1>::Zero();
 
+  Eigen::Matrix<double, N0_gait, 5> gait_p = Eigen::Matrix<double, N0_gait, 5>::Zero(); // Past gait
+  Eigen::MatrixXd gait_c = Eigen::MatrixXd::Zero(1, 5);  // Current gait (MatrixXd for bindings)
+  Eigen::Matrix<double, N0_gait, 5> gait_f = Eigen::Matrix<double, N0_gait, 5>::Zero();  // Future gait
+  Eigen::Matrix<double, N0_gait, 5> gait_f_des = Eigen::Matrix<double, N0_gait, 5>::Zero();  // Future desired gait
+
   // Time interval vector
   Eigen::Matrix<double, 1, Eigen::Dynamic> dt_vector;
 
@@ -144,6 +149,8 @@ class Planner {
   int update_trajectory_generator(int k, double h_estim);
   int run_planner(int k, const Eigen::MatrixXd & q, const Eigen::MatrixXd &v, const Eigen::MatrixXd &b_vref,
                   double h_estim, double z_average);
+
+  int roll_exp(int k);
 
 
   // Accessor
