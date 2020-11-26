@@ -13,9 +13,9 @@
 #include "curves/bezier_curve.h"
 // #include "curves/helpers/effector_spline.h"
 
-typedef Eigen::MatrixXd matXd;
+#define N0_gait 20
 
-const int N0_gait = 20;
+typedef Eigen::MatrixXd matXd;
 
 class TrajGen {
  private:

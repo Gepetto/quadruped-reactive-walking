@@ -60,9 +60,18 @@ Planner::Planner() {}
 void Planner::Print() {
   // std::cout << gait << std::endl;
   // std::cout << next_footstep << std::endl;
-  std::cout << fsteps.block(0, 0, 5, 13) << std::endl;
-  std::cout << "xref:" << std::endl;
-  std::cout << xref.block(0, 0, 12, 5) << std::endl;
+  // std::cout << fsteps.block(0, 0, 5, 13) << std::endl;
+  // std::cout << "xref:" << std::endl;
+  // std::cout << xref.block(0, 0, 12, 5) << std::endl;
+
+  std::cout << "------" << std::endl;
+  std::cout << gait_p.block(0, 0, 6, 5) << std::endl;
+  std::cout << "-" << std::endl;
+  std::cout << gait_c.block(0, 0, 1, 5) << std::endl;
+  std::cout << "-" << std::endl;
+  std::cout << gait_f.block(0, 0, 6, 5) << std::endl;
+  std::cout << "-" << std::endl;
+  std::cout << gait_f_des.block(0, 0, 6, 5) << std::endl;
 }
 
 int Planner::create_trot() {
@@ -82,6 +91,12 @@ int Planner::create_trot() {
   gait(0, 4) = 1.0;
   gait(1, 2) = 1.0;
   gait(1, 3) = 1.0;
+
+  gait_c.block(0, 0, 1, 5) = gait.block(0, 0, 1, 5);
+  gait_c(0, 0) = 1.0;
+  gait_f.block(0, 0, 2, 5) = gait.block(0, 0, 2, 5);
+  gait_f(0, 0) = N - 1.0;
+  gait_f_des.block(0, 0, 2, 5) = gait.block(0, 0, 2, 5);
 
   return 0;
 }
@@ -539,6 +554,7 @@ int Planner::run_planner(int k, const Eigen::MatrixXd &q, const Eigen::MatrixXd 
   // Move one step further in the gait
   if (k % k_mpc == 0) {
     roll(k);
+    roll_exp(k);
   }
 
   // Compute the desired location of footsteps over the prediction horizon
@@ -569,7 +585,8 @@ int Planner::roll_exp(int k) {
   if ((gait_c.block(0, 1, 1, 4)).isApprox(gait_p.block(0, 1, 1, 4))) {
     gait_p(0, 0) += 1.0;
   } else {  // If current gait is not the same than the first line of past gait we have to insert it
-    gait_p.block(1, 0, N0_gait - 1, 5) = gait_p.block(0, 0, N0_gait - 1, 5);
+    Eigen::Matrix<double, 5, 5> tmp = gait_p.block(0, 0, N0_gait - 1, 5);
+    gait_p.block(1, 0, N0_gait - 1, 5) = tmp;
     gait_p.row(0) = gait_c.row(0);
   }
 
@@ -605,6 +622,16 @@ int Planner::roll_exp(int k) {
   }
 
   // Age future desired gait
+  int j = 1;
+  while (gait_f_des(j, 0) > 0.0) {
+    j++;
+  }
+  if ((gait_f_des.block(0, 1, 1, 4)).isApprox(gait_f_des.block(j - 1, 1, 1, 4))) {
+    gait_f_des(j - 1, 0) += 1.0;
+  } else {
+    gait_f_des.row(j) = gait_f_des.row(0);
+    gait_f_des(j, 0) = 1.0;
+  }
   if (gait_f_des(0, 0) == 1.0) {
     gait_f_des.block(0, 0, N0_gait - 1, 5) = gait_f_des.block(1, 0, N0_gait - 1, 5);
   } else {

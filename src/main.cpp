@@ -122,10 +122,20 @@ int main(int argc, char** argv) {
     Eigen::MatrixXd b_vref_in = Eigen::MatrixXd::Zero(6, 1);
     b_vref_in << 0.02, 0.0, 0.0, 0.0, 0.0, 0.05;
 
-    for (int k = 0; k < 0; k++) {
+    /*Eigen::Matrix<double, 6, 5> foo = Eigen::Matrix<double, 6, 5>::Zero();
+    foo.row(0) << 8.0, 1.0, 0.0, 0.0, 1.0;
+    std::cout << "#### " << std::endl << foo << std::endl;
+    foo.block<5, 5>(1, 0) = foo.block<5, 5>(0, 0);
+    std::cout << "#### " << std::endl << foo << std::endl;
+    foo.row(0) << 1.0, 0.0, 1.0, 1.0, 0.0;
+    std::cout << "#### " << std::endl << foo << std::endl;*/
+
+    for (int k = 0; k < 200; k++) {
       planner.run_planner(k, q, v, b_vref_in, 0.21, 0.0);
-      std::cout << "#### " << k << std::endl;
-      planner.Print();
+      if (k % 10 == 0) {
+        std::cout << "#### " << k << std::endl;
+        planner.Print();
+      }
     }
 
     /*typedef std::pair<double, Eigen::Vector3d> Waypoint;
