@@ -1,24 +1,24 @@
 # coding: utf8
 
+import threading
+from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
+from mpctsid.Controller import Controller
+from mpctsid.Estimator import Estimator
+import numpy as np
+import argparse
+import pinocchio as pin
+from utils.logger import Logger
 import os
 import sys
 sys.path.insert(0, './mpctsid')
 
-from utils.logger import Logger
-import tsid as tsid
-import pinocchio as pin
-import argparse
-import numpy as np
-from mpctsid.Estimator import Estimator
-from mpctsid.Controller import Controller
-from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
-import threading
+# import tsid as tsid
 
 SIMULATION = True
 LOGGING = False
 
 if SIMULATION:
-    from mpctsid.utils_mpc import PyBulletSimulator
+    from mpctsid.PyBulletSimulator import PyBulletSimulator
 else:
     # from pynput import keyboard
     from solo12 import Solo12
@@ -29,26 +29,12 @@ DT = 0.0020
 key_pressed = False
 
 
-def on_press(key):
-    """Wait for a specific key press on the keyboard
-
-    Args:
-        key (keyboard.Key): the key we want to wait for
-    """
-    global key_pressed
-    try:
-        if key == keyboard.Key.enter:
-            key_pressed = True
-            # Stop listener
-            return False
-    except AttributeError:
-        print('Unknown key {0} pressed'.format(key))
-
 def get_input():
     global key_pressed
-    keystrk=input('Put the robot on the floor and press Enter \n')
+    keystrk = input('Put the robot on the floor and press Enter \n')
     # thread doesn't continue until key is pressed
-    key_pressed=True
+    key_pressed = True
+
 
 def put_on_the_floor(device, q_init):
     """Make the robot go to the default initial position and wait for the user
@@ -66,7 +52,7 @@ def put_on_the_floor(device, q_init):
     pos = np.zeros(device.nb_motors)
     for motor in range(device.nb_motors):
         pos[motor] = q_init[device.motorToUrdf[motor]] * device.gearRatioSigned[motor]
-    i=threading.Thread(target=get_input)
+    i = threading.Thread(target=get_input)
     i.start()
     while not key_pressed:
         device.UpdateMeasurment()
@@ -93,7 +79,7 @@ def mcapi_playback(name_interface):
     #########################################
 
     envID = 0  # Identifier of the environment to choose in which one the simulation will happen
-    velID = 5  # Identifier of the reference velocity profile to choose which one will be sent to the robot
+    velID = 1  # Identifier of the reference velocity profile to choose which one will be sent to the robot
 
     dt_tsid = 0.0020  # Time step of TSID
     dt_mpc = 0.02  # Time step of the MPC
@@ -101,7 +87,7 @@ def mcapi_playback(name_interface):
     t = 0.0  # Time
     n_periods = 1  # Number of periods in the prediction horizon
     T_gait = 0.32  # Duration of one gait period
-    N_SIMULATION = 4000  # number of simulated TSID time steps
+    N_SIMULATION = 50000  # number of simulated TSID time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -120,12 +106,12 @@ def mcapi_playback(name_interface):
     predefined_vel = False
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = False
+    enable_pyb_GUI = True
     if not SIMULATION:
         enable_pyb_GUI = False
 
     # Default position after calibration
-    q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, +1.6, 0, -0.8, +1.6])
+    q_init = np.array([0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, +1.4, -0.0, -0.7, +1.4])
 
     # Run a scenario and retrieve data thanks to the logger
     controller = Controller(q_init, envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
@@ -145,9 +131,6 @@ def mcapi_playback(name_interface):
 
     # Number of motors
     nb_motors = device.nb_motors
-    q_viewer = np.array((7 + nb_motors) * [0., ])
-    # view = viewerClient()
-    # view.display(q_viewer.copy())
 
     # Initiate communication with the device and calibrate encoders
     if SIMULATION:
@@ -163,29 +146,21 @@ def mcapi_playback(name_interface):
     t = 0.0
     t_max = (N_SIMULATION-2) * dt_tsid
 
-    log_v_est = np.zeros((6, N_SIMULATION))
-    log_v_tsid = np.zeros((6, N_SIMULATION))
-    kk = 0
-    cpt_frames = 0
-    import pybullet as pyb
-
     while ((not device.hardware.IsTimeout()) and (t < t_max)):
 
-        device.UpdateMeasurment()  # Retrieve data from IMU and Motion capture
+        # Update sensor data (IMU, encoders, Motion capture)
+        device.UpdateMeasurment()
 
         # Desired torques
         controller.compute(device)
-        # print(tau[0:3].ravel())
-        # tau = tau.ravel()
-
-        """RPY_test = pin.rpy.matrixToRpy(pin.Quaternion(np.array([device.baseOrientation]).transpose()).toRotationMatrix())
-        print("Orientation robot: ", RPY_test)"""
 
         # Check that the initial position of actuators is not too far from the
         # desired position of actuators to avoid breaking the robot
         if (t == 0.0):
             if np.max(np.abs(controller.result.q_des - device.q_mes)) > 0.15:
                 print("DIFFERENCE: ", controller.result.q_des - device.q_mes)
+                print("q_des: ", controller.result.q_des)
+                print("q_mes: ", device.q_mes)
                 break
 
         # Set desired quantities for the actuators
@@ -198,30 +173,18 @@ def mcapi_playback(name_interface):
         if LOGGING:
             logger.sample(device, qualisys=qc, estimator=controller.estimator)
 
-        # view.display(controller.q[:, 0:1])
-
-        """if kk >= 1500:
-            if kk == 1500:
-                print("FORCE")
-            device.pyb_sim.apply_external_force(kk, 1500, 1000, np.array([0.0, +6.0, 0.0]), np.zeros((3,)))"""
-
-        # view.display(controller.q)
-
         # Send command to the robot
         for i in range(1):
             device.SendCommand(WaitEndOfCycle=True)
         """if ((device.cpt % 1000) == 0):
             device.Print()"""
 
-        # log_v_est[:, kk] = controller.estimator.v_filt[:6, 0]
-        # log_v_tsid[:, kk] = controller.b_v[:6, 0]
-        # kk += 1
-
-        t += DT
-        
         """import os
         from matplotlib import pyplot as plt
-        step = 10
+        import pybullet as pyb
+        if (t == 0.0):
+            cpt_frames = 0
+            step = 10
         if (cpt_frames % step) == 0:
             if (cpt_frames % 1000):
                 print(cpt_frames)
@@ -241,7 +204,7 @@ def mcapi_playback(name_interface):
 
         cpt_frames += 1"""
 
-
+        t += DT  # Increment loop time
 
     # ****************************************************************
 
@@ -249,17 +212,6 @@ def mcapi_playback(name_interface):
     if controller.enable_multiprocessing:
         print("Stopping parallel process")
         controller.mpc_wrapper.stop_parallel_loop()
-
-    """from matplotlib import pyplot as plt
-    index = [1, 3, 5, 2, 4, 6]
-    lgd = ["Linear vel X", "Linear vel Y", "Linear vel Z", "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
-    plt.figure()
-    for i in range(6):
-        plt.subplot(3, 2, index[i])
-        plt.plot(log_v_est[i, :], "r", linewidth=2)
-        plt.plot(log_v_tsid[i, :], "b", linewidth=2)
-        plt.ylabel(lgd[i])
-    plt.show(block=True)"""
 
     # DAMPING TO GET ON THE GROUND PROGRESSIVELY *********************
     t = 0.0
@@ -292,7 +244,7 @@ def mcapi_playback(name_interface):
         print("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.")
     device.hardware.Stop()  # Shut down the interface between the computer and the master board
 
-    #controller.estimator.plot_graphs()
+    # controller.estimator.plot_graphs()
 
     import matplotlib.pylab as plt
     plt.figure()
@@ -321,7 +273,7 @@ def mcapi_playback(name_interface):
     # controller.myController.saveAll(fileName="push_pyb_with_ff", log_date=False)
     if LOGGING:
         controller.myController.saveAll(fileName="data_control", log_date=True)
-    print("-- Controller log saved --")
+        print("-- Controller log saved --")
     controller.myController.show_logs()
 
     # Save the logs of the Logger object
@@ -341,7 +293,6 @@ def mcapi_playback(name_interface):
         elif (controller.error_flag == 3):
             print("-- FEEDFORWARD TORQUES TOO HIGH ERROR --")
         print(controller.error_value)
-
 
     print("End of script")
     quit()
