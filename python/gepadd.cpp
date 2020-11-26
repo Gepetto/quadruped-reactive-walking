@@ -17,7 +17,8 @@ struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC> > {
 
         // Run MPC from Python
         .def("run", &MPC::run, bp::args("num_iter", "xref_in", "fsteps_in"), "Run MPC from Python.\n")
-        .def("get_latest_result", &MPC::get_latest_result, "Get latest result (predicted trajectory + forces to apply).\n")
+        .def("get_latest_result", &MPC::get_latest_result,
+             "Get latest result (predicted trajectory + forces to apply).\n")
         .def("get_gait", &MPC::get_gait, "Get gait matrix.\n")
         .def("get_Sgait", &MPC::get_Sgait, "Get S_gait matrix.\n");
   }
@@ -36,9 +37,11 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
   template <class PyClassPlanner>
   void visit(PyClassPlanner& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
-        .def(bp::init<double, double, int, double, int, bool, double, const Eigen::MatrixXd &>(bp::args("dt_in", "dt_tsid_in", "n_periods_in", "T_gait_in", "k_mpc_in", "on_solo8_in", "h_ref_in", "fsteps_in"),
-                                           "Constructor with parameters."))
-        
+        .def(bp::init<double, double, int, double, int, bool, double, const Eigen::MatrixXd&>(
+            bp::args("dt_in", "dt_tsid_in", "n_periods_in", "T_gait_in", "k_mpc_in", "on_solo8_in", "h_ref_in",
+                     "fsteps_in"),
+            "Constructor with parameters."))
+
         .def("get_xref", &Planner::get_xref, "Get xref matrix.\n")
         .def("get_fsteps", &Planner::get_fsteps, "Get fsteps matrix.\n")
         .def("get_gait", &Planner::get_gait, "Get gait matrix.\n")
@@ -48,7 +51,8 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
         //.add_property("xref", &Planner::get_xref)
 
         // Run Planner from Python
-        .def("run_planner", &Planner::run_planner, bp::args("k", "q", "v", "b_vref", "h_estim", "z_average"), "Run Planner from Python.\n");
+        .def("run_planner", &Planner::run_planner, bp::args("k", "q", "v", "b_vref", "h_estim", "z_average"),
+             "Run Planner from Python.\n");
   }
 
   static void expose() {

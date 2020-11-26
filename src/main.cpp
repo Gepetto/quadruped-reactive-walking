@@ -39,8 +39,6 @@ bool QuasiEqual(const point3_t a, const point3_t b) {
 
 using namespace curves;
 
-
-
 int main(int argc, char** argv) {
   if (argc == 3) {
     int arg_a = std::atoi(argv[1]), arg_b = std::atoi(argv[2]);
@@ -92,14 +90,15 @@ int main(int argc, char** argv) {
     std::cout << "Test quaternion" << std::endl;
     Eigen::MatrixXd qt = Eigen::MatrixXd::Zero(4, 1);
     qt(3, 0) = 1.0;
-    qt <<  0.0342708, 0.1060205, 0.1534393, 0.9818562;
+    qt << 0.0342708, 0.1060205, 0.1534393, 0.9818562;
     Eigen::Quaterniond quat(qt(3, 0), qt(0, 0), qt(1, 0), qt(2, 0));
     std::cout << quat.toRotationMatrix() << std::endl;
     std::cout << pinocchio::rpy::matrixToRpy(quat.toRotationMatrix()) << std::endl;
 
     std::cout << pinocchio::rpy::rpyToMatrix(0.1, 0.2, 0.3) << std::endl;
 
-    quat = Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitZ()) * Eigen::AngleAxisd(0.2, Eigen::Vector3d::UnitY()) * Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitX());
+    quat = Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitZ()) * Eigen::AngleAxisd(0.2, Eigen::Vector3d::UnitY()) *
+           Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitX());
     std::cout << pinocchio::rpy::matrixToRpy(quat.toRotationMatrix()) << std::endl;
 
     std::cout << "Init Starting " << std::endl;
@@ -108,15 +107,12 @@ int main(int argc, char** argv) {
     int n_periods_in = 1;
     double T_gait_in = 0.32;
     int k_mpc_in = 10;
-    bool on_solo8_in= false;
+    bool on_solo8_in = false;
     double h_ref_in = 0.21;
-    Eigen::MatrixXd fsteps_in(3,4);
-    fsteps_in << 0.1946, 0.1946, -0.1946, -0.1946,
-                 0.14695, -0.14695, 0.14695, -0.14695,
-                 0.0, 0.0, 0.0, 0.0;
+    Eigen::MatrixXd fsteps_in(3, 4);
+    fsteps_in << 0.1946, 0.1946, -0.1946, -0.1946, 0.14695, -0.14695, 0.14695, -0.14695, 0.0, 0.0, 0.0, 0.0;
 
-    Planner planner(dt_in, dt_tsid_in, n_periods_in, T_gait_in,
-                    k_mpc_in, on_solo8_in, h_ref_in, fsteps_in);
+    Planner planner(dt_in, dt_tsid_in, n_periods_in, T_gait_in, k_mpc_in, on_solo8_in, h_ref_in, fsteps_in);
     std::cout << "Init OK " << std::endl;
 
     Eigen::MatrixXd q = Eigen::MatrixXd::Zero(7, 1);
@@ -126,12 +122,11 @@ int main(int argc, char** argv) {
     Eigen::MatrixXd b_vref_in = Eigen::MatrixXd::Zero(6, 1);
     b_vref_in << 0.02, 0.0, 0.0, 0.0, 0.0, 0.05;
 
-    for (int k=0; k<0; k++) {
+    for (int k = 0; k < 0; k++) {
       planner.run_planner(k, q, v, b_vref_in, 0.21, 0.0);
       std::cout << "#### " << k << std::endl;
       planner.Print();
     }
-
 
     /*typedef std::pair<double, Eigen::Vector3d> Waypoint;
     typedef std::vector<Waypoint> T_Waypoint;
@@ -152,7 +147,7 @@ int main(int argc, char** argv) {
     std::cout << (*eff_traj)(2.) << std::endl; // (1,1,0)*/
 
     point3_t a(1, 2, 0);
-    point3_t b(2, 3, 0.5);// * (1000/312.5));
+    point3_t b(2, 3, 0.5);  // * (1000/312.5));
     point3_t c(3, 4, 1);
     std::cout << a(0) << " " << a(1) << " " << a(2) << std::endl;
     bezier_t::curve_constraints_t constraints(3);
@@ -187,7 +182,6 @@ int main(int argc, char** argv) {
     std::cout << constraints.end_acc << std::endl;
     std::cout << cf.derivate(T_max, 2) << std::endl;
 
-
     /*// Create waypoints
     // curves::helpers::T_Waypoint waypoints;
     //typedef std::pair<double, Eigen::Vector3d> Waypoint;
@@ -210,12 +204,11 @@ int main(int argc, char** argv) {
     std::cout << cf(15.0)[2] << std::endl;
 
     const float N_test = 100.0;
-    for (float i=0; i<(N_test+1); i++) {
-
-      if (std::abs(i-60)<0.1) {
+    for (float i = 0; i < (N_test + 1); i++) {
+      if (std::abs(i - 60) < 0.1) {
         params[2] = point3_t(3, 4, 1);
         cf = bezier_t(params.begin(), params.end(), constraints, T_min, T_max);
-        }
+      }
 
       std::cout << (cf(i * 30.0 / N_test))[2] << ", ";
     }
@@ -259,9 +252,6 @@ int main(int argc, char** argv) {
     ComparePoints(constraints.init_acc, cf.derivate(T_min, 2), errMsg0, error);
     ComparePoints(constraints.end_vel, cf.derivate(T_max, 1), errMsg0, error);
     ComparePoints(constraints.end_acc, cf.derivate(T_max, 2), errMsg0, error);*/
-
-
-
 
     return EXIT_SUCCESS;
   } else {
