@@ -1,11 +1,12 @@
 #include "example-adder/Planner.hpp"
 
-Planner::Planner(double dt_in, double dt_tsid_in, int n_periods_in, double T_gait_in, int k_mpc_in, bool on_solo8_in,
+Planner::Planner(double dt_in, double dt_tsid_in, int n_periods_in, double T_gait_in, double T_mpc_in, int k_mpc_in, bool on_solo8_in,
                  double h_ref_in, const Eigen::MatrixXd &fsteps_in) {
   dt = dt_in;
   dt_tsid = dt_tsid_in;
   n_periods = n_periods_in;
   T_gait = T_gait_in;
+  T_mpc = T_mpc_in;
   k_mpc = k_mpc_in;
   on_solo8 = on_solo8_in;
   h_ref = h_ref_in;
@@ -92,13 +93,54 @@ int Planner::create_trot() {
   gait(1, 2) = 1.0;
   gait(1, 3) = 1.0;
 
-  gait_c.block(0, 0, 1, 5) = gait.block(0, 0, 1, 5);
+  gait_f_des = Eigen::Matrix<double, N0_gait, 5>::Zero();
+  gait_f_des.block(0, 0, 2, 1) << N, N;
+  fsteps.block(0, 0, 2, 1) = gait_f_des.block(0, 0, 2, 1);
+
+  // Set stance and swing phases
+  // Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+  // Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+  gait_f_des(0, 1) = 1.0;
+  gait_f_des(0, 4) = 1.0;
+  gait_f_des(1, 2) = 1.0;
+  gait_f_des(1, 3) = 1.0;
+
+  gait_c.block(0, 0, 1, 5) = gait_f_des.block(0, 0, 1, 5);
   gait_c(0, 0) = 1.0;
-  gait_f.block(0, 0, 2, 5) = gait.block(0, 0, 2, 5);
-  gait_f(0, 0) = N - 1.0;
-  gait_f_des.block(0, 0, 2, 5) = gait.block(0, 0, 2, 5);
+  /*gait_f.block(0, 0, 2, 5) = gait_f_des.block(0, 0, 2, 5);
+  gait_f(0, 0) = N - 1.0;*/
+  create_gait_f();
 
   return 0;
+}
+
+int Planner::create_gait_f() {
+
+    double sum = 1.0;
+    int i = 1;
+    int j = 1;
+
+    // Handle first line that has already been partially used by gait_c (one time step)
+    if (gait_f_des(0, 0) > 1.0) {
+        gait_f.row(0) = gait_f_des.row(0);
+        gait_f(0, 0) -= 1.0;
+        sum += gait_f_des(0, 0) - 1.0;
+    }
+
+    // Fill future gait matrix
+    while (sum < (T_mpc/dt)) {
+        gait_f.row(j) = gait_f_des.row(i);
+        sum += gait_f_des(i, 0);
+        // std::cout << i << " / " << j << " / " << sum << " / " << (T_mpc/dt) << std::endl;
+        i++;
+        j++;
+        if (gait_f_des(i, 0) == 0) {i = 0;} // Loop back if T_mpc longer than gait duration
+    }
+
+    // Remove excess time steps
+    gait_f(j-1, 0) -= sum - (T_mpc/dt);
+
+    return 0;
 }
 
 int Planner::roll(int k) {

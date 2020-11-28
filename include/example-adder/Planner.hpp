@@ -44,6 +44,7 @@ class Planner {
   double dt;       // Time step of the contact sequence
   double dt_tsid;  // Time step of TSID
   double T_gait;   // Gait period
+  double T_mpc;    // MPC period (prediction horizon)
   double h_ref;    // Reference height for the trunk
   int n_periods;   // Number of gait periods
   int k_mpc;       // Number of TSID iterations for one iteration of the MPC
@@ -137,12 +138,13 @@ class Planner {
 
  public:
   Planner();
-  Planner(double dt_in, double dt_tsid_in, int n_periods_in, double T_gait_in, int k_mpc_in, bool on_solo8_in,
+  Planner(double dt_in, double dt_tsid_in, int n_periods_in, double T_gait_in, double T_mpc_in, int k_mpc_in, bool on_solo8_in,
           double h_ref_in, const Eigen::MatrixXd &fsteps_in);
 
   void Print();
 
   int create_trot();
+  int create_gait_f();
   int roll(int k);
   int compute_footsteps(Eigen::MatrixXd q_cur, Eigen::MatrixXd v_cur, Eigen::MatrixXd v_ref);
   int compute_next_footstep(int j);
