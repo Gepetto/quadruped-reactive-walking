@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
     std::cout << "#### " << std::endl;
     planner.Print();
 
-    for (int k = 0; k < 0; k++) {
+    for (int k = 0; k < 200; k++) {
       planner.run_planner(k, q, v, b_vref_in, 0.21, 0.0);
       if (k % 10 == 0) {
         std::cout << "#### " << k << std::endl;

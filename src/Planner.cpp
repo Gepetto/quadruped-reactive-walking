@@ -105,8 +105,8 @@ int Planner::create_trot() {
   gait_f_des(1, 2) = 1.0;
   gait_f_des(1, 3) = 1.0;
 
-  gait_c.block(0, 0, 1, 5) = gait_f_des.block(0, 0, 1, 5);
-  gait_c(0, 0) = 1.0;
+  // gait_c.block(0, 0, 1, 5) = gait_f_des.block(0, 0, 1, 5);
+  // gait_c(0, 0) = 1.0;
   /*gait_f.block(0, 0, 2, 5) = gait_f_des.block(0, 0, 2, 5);
   gait_f(0, 0) = N - 1.0;*/
   create_gait_f();
@@ -116,31 +116,60 @@ int Planner::create_trot() {
 
 int Planner::create_gait_f() {
 
-    double sum = 1.0;
-    int i = 1;
-    int j = 1;
+  double sum = 0.0;
+  double offset = 0.0;
+  int i = 0;
+  int j = 0;
 
-    // Handle first line that has already been partially used by gait_c (one time step)
-    if (gait_f_des(0, 0) > 1.0) {
-        gait_f.row(0) = gait_f_des.row(0);
-        gait_f(0, 0) -= 1.0;
-        sum += gait_f_des(0, 0) - 1.0;
+  // Handle first line that has already been partially used by gait_c (one time step)
+  /*if (gait_f_des(0, 0) > 1.0) {
+      gait_f.row(0) = gait_f_des.row(0);
+      gait_f(0, 0) -= 1.0;
+      sum += gait_f_des(0, 0) - 1.0;
+  }*/
+
+  // Fill future gait matrix
+  while (sum < (T_mpc/dt)) {
+      gait_f.row(j) = gait_f_des.row(i);
+      sum += gait_f_des(i, 0);
+      offset += gait_f_des(i, 0);
+      //std::cout << i << " / " << j << " / " << sum << " / " << (T_mpc/dt) << std::endl;
+      i++;
+      j++;
+      if (gait_f_des(i, 0) == 0) {i = 0; offset = 0.0;} // Loop back if T_mpc longer than gait duration
+  }
+
+  // Remove excess time steps
+  gait_f(j-1, 0) -= sum - (T_mpc/dt);
+  offset -= sum - (T_mpc/dt);
+
+  // Age future desired gait to take into account what has been put in the future gait matrix
+  j = 1;
+  while (gait_f_des(j, 0) > 0.0) {j++;}
+
+  /*std::cout << i << " / " << j << std::endl;
+  std::cout << gait_f_des.block(0, 0, 6, 5) << std::endl;
+  std::cout << offset << std::endl;
+  std::cout << "=" << std::endl;*/
+  for (double k=0; k<offset; k++) {
+    if ((gait_f_des.block(0, 1, 1, 4)).isApprox(gait_f_des.block(j - 1, 1, 1, 4))) {
+      gait_f_des(j - 1, 0) += 1.0;
+    } else {
+      gait_f_des.row(j) = gait_f_des.row(0);
+      gait_f_des(j, 0) = 1.0;
+      j++;
     }
-
-    // Fill future gait matrix
-    while (sum < (T_mpc/dt)) {
-        gait_f.row(j) = gait_f_des.row(i);
-        sum += gait_f_des(i, 0);
-        // std::cout << i << " / " << j << " / " << sum << " / " << (T_mpc/dt) << std::endl;
-        i++;
-        j++;
-        if (gait_f_des(i, 0) == 0) {i = 0;} // Loop back if T_mpc longer than gait duration
+    if (gait_f_des(0, 0) == 1.0) {
+      gait_f_des.block(0, 0, N0_gait - 1, 5) = gait_f_des.block(1, 0, N0_gait - 1, 5);
+    } else {
+      gait_f_des(0, 0) -= 1.0;
     }
+     /*std::cout << k << std::endl;
+     std::cout << gait_f_des.block(0, 0, 6, 5) << std::endl;
+     std::cout << "=" << std::endl;*/
+  }
 
-    // Remove excess time steps
-    gait_f(j-1, 0) -= sum - (T_mpc/dt);
-
-    return 0;
+  return 0;
 }
 
 int Planner::roll(int k) {
@@ -624,17 +653,18 @@ Eigen::MatrixXd Planner::get_agoals() { return agoals; }
 int Planner::roll_exp(int k) {
   // Transfer current gait into past gait
   // If current gait is the same than the first line of past gait we just increment the counter
-  if ((gait_c.block(0, 1, 1, 4)).isApprox(gait_p.block(0, 1, 1, 4))) {
+  if ((gait_f.block(0, 1, 1, 4)).isApprox(gait_p.block(0, 1, 1, 4))) {
     gait_p(0, 0) += 1.0;
   } else {  // If current gait is not the same than the first line of past gait we have to insert it
     Eigen::Matrix<double, 5, 5> tmp = gait_p.block(0, 0, N0_gait - 1, 5);
     gait_p.block(1, 0, N0_gait - 1, 5) = tmp;
-    gait_p.row(0) = gait_c.row(0);
+    gait_p.row(0) = gait_f.row(0);
+    gait_p(0, 0) = 1.0;
   }
 
   // Transfert future gait into current gait
-  gait_c.row(0) = gait_f.row(0);
-  gait_c(0, 0) = 1.0;
+  /*gait_c.row(0) = gait_f.row(0);
+  gait_c(0, 0) = 1.0;*/
 
   // Age future gait
   if (gait_f(0, 0) == 1.0) {
@@ -643,7 +673,7 @@ int Planner::roll_exp(int k) {
     // Entering new contact phase, store positions of feet that are now in contact
     if (k != 0) {
       for (int i = 0; i < 4; i++) {
-        if (gait_c(0, 1 + i) == 1.0) {
+        if (gait_f(0, 1 + i) == 1.0) {
           o_feet_contact.block(0, 3 * i, 1, 3) = fsteps.block(1, 1 + 3 * i, 1, 3);
         }
       }
