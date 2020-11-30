@@ -46,7 +46,6 @@ class Planner {
   double T_gait;   // Gait period
   double T_mpc;    // MPC period (prediction horizon)
   double h_ref;    // Reference height for the trunk
-  int n_periods;   // Number of gait periods
   int k_mpc;       // Number of TSID iterations for one iteration of the MPC
   bool on_solo8;   //  Whether we are working on solo8 or not
 
@@ -139,7 +138,7 @@ class Planner {
 
  public:
   Planner();
-  Planner(double dt_in, double dt_tsid_in, int n_periods_in, double T_gait_in, double T_mpc_in, int k_mpc_in, bool on_solo8_in,
+  Planner(double dt_in, double dt_tsid_in, double T_gait_in, double T_mpc_in, int k_mpc_in, bool on_solo8_in,
           double h_ref_in, const Eigen::MatrixXd &fsteps_in);
 
   void Print();

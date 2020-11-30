@@ -1,10 +1,9 @@
 #include "example-adder/Planner.hpp"
 
-Planner::Planner(double dt_in, double dt_tsid_in, int n_periods_in, double T_gait_in, double T_mpc_in, int k_mpc_in, bool on_solo8_in,
+Planner::Planner(double dt_in, double dt_tsid_in, double T_gait_in, double T_mpc_in, int k_mpc_in, bool on_solo8_in,
                  double h_ref_in, const Eigen::MatrixXd &fsteps_in) {
   dt = dt_in;
   dt_tsid = dt_tsid_in;
-  n_periods = n_periods_in;
   T_gait = T_gait_in;
   T_mpc = T_mpc_in;
   k_mpc = k_mpc_in;
@@ -18,7 +17,7 @@ Planner::Planner(double dt_in, double dt_tsid_in, int n_periods_in, double T_gai
 
   footsteps_target.block(0, 0, 2, 4) = shoulders.block(0, 0, 2, 4);
 
-  n_steps = n_periods * (int)std::lround(T_mpc / dt);
+  n_steps = (int)std::lround(T_mpc / dt);
   dt_vector = Eigen::VectorXd::LinSpaced(n_steps, dt, T_mpc).transpose();
   R(2, 2) = 1.0;
   R_1(2, 2) = 1.0;
@@ -540,8 +539,6 @@ int Planner::update_target_footsteps() {
 }
 
 int Planner::update_trajectory_generator(int k, double h_estim) {
-  /*int looping = n_periods * (int)std::lround(T_gait / dt_tsid);
-  int k_loop = k % looping;*/
 
   if ((k % k_mpc) == 0) {
     // Indexes of feet in swing phase

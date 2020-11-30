@@ -104,7 +104,6 @@ int main(int argc, char** argv) {
     std::cout << "Init Starting " << std::endl;
     double dt_in = 0.02;
     double dt_tsid_in = 0.002;
-    int n_periods_in = 1;
     double T_gait_in = 0.64;
     double T_mpc_in = 0.40;
     int k_mpc_in = 10;
@@ -113,7 +112,7 @@ int main(int argc, char** argv) {
     Eigen::MatrixXd fsteps_in(3, 4);
     fsteps_in << 0.1946, 0.1946, -0.1946, -0.1946, 0.14695, -0.14695, 0.14695, -0.14695, 0.0, 0.0, 0.0, 0.0;
 
-    Planner planner(dt_in, dt_tsid_in, n_periods_in, T_gait_in, T_mpc_in, k_mpc_in, on_solo8_in, h_ref_in, fsteps_in);
+    Planner planner(dt_in, dt_tsid_in, T_gait_in, T_mpc_in, k_mpc_in, on_solo8_in, h_ref_in, fsteps_in);
     std::cout << "Init OK " << std::endl;
 
     Eigen::MatrixXd q = Eigen::MatrixXd::Zero(7, 1);

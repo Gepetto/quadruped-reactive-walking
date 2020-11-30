@@ -37,8 +37,8 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
   template <class PyClassPlanner>
   void visit(PyClassPlanner& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
-        .def(bp::init<double, double, int, double, double, int, bool, double, const Eigen::MatrixXd&>(
-            bp::args("dt_in", "dt_tsid_in", "n_periods_in", "T_gait_in", "T_mpc_in", "k_mpc_in", "on_solo8_in", "h_ref_in",
+        .def(bp::init<double, double, double, double, int, bool, double, const Eigen::MatrixXd&>(
+            bp::args("dt_in", "dt_tsid_in", "T_gait_in", "T_mpc_in", "k_mpc_in", "on_solo8_in", "h_ref_in",
                      "fsteps_in"),
             "Constructor with parameters."))
 
