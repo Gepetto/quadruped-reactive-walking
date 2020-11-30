@@ -12,3 +12,10 @@ test_2 : Test to check the derivatives using the crocoddyl.ActionModelNumDiff (d
 test_3 : Test to run the simulation using the ddp as foot step planner too. It involves new c++ models with augmented states to  optimises the feet position.  
 
 	-> Run python3 crocoddyl_eval/test_3/run_scenarios.py
+
+
+test_5 : Test to run the simulation using the ddp at the frequency of TSID. The number of node in the ddp has been adjusted to avoid 
+a too large number of them. Each control cycle can be monitored after the log in the analyse_simu file.
+
+	-> Run python3 crocoddyl_eval/test_5/run_scenarios.py
+	-> Run ipython3 crocoddyl_eval/test_5/analyse_simu.py -i
