@@ -64,6 +64,7 @@ class Planner {
   // Feet index vector
   std::vector<int> feet;
   std::vector<double> t0s;
+  double t_remaining = 0.0;
   double t_swing[4] = {0.0, 0.0, 0.0, 0.0};
 
   // Constant sized matrices
@@ -95,8 +96,8 @@ class Planner {
   Eigen::Matrix<double, 6, 1> vref_in = Eigen::Matrix<double, 6, 1>::Zero();
 
   Eigen::Matrix<double, N0_gait, 5> gait_p = Eigen::Matrix<double, N0_gait, 5>::Zero();  // Past gait
-  Eigen::MatrixXd gait_c = Eigen::MatrixXd::Zero(1, 5);  // Current gait (MatrixXd for bindings)
-  Eigen::Matrix<double, N0_gait, 5> gait_f = Eigen::Matrix<double, N0_gait, 5>::Zero();      // Future gait
+  // Eigen::MatrixXd gait_c = Eigen::MatrixXd::Zero(1, 5);  // Current gait (MatrixXd for bindings)
+  Eigen::MatrixXd gait_f = Eigen::MatrixXd::Zero(N0_gait, 5);      // Future gait
   Eigen::Matrix<double, N0_gait, 5> gait_f_des = Eigen::Matrix<double, N0_gait, 5>::Zero();  // Future desired gait
 
   // Time interval vector
@@ -143,11 +144,13 @@ class Planner {
 
   void Print();
 
+  int create_walk();
   int create_trot();
   int create_gait_f();
   int roll(int k);
   int compute_footsteps(Eigen::MatrixXd q_cur, Eigen::MatrixXd v_cur, Eigen::MatrixXd v_ref);
-  int compute_next_footstep(int j);
+  double get_stance_swing_duration(int i, int j, double value);
+  int compute_next_footstep(int i, int j);
   int getRefStates(Eigen::MatrixXd q, Eigen::MatrixXd v, Eigen::MatrixXd vref, double z_average);
   int update_target_footsteps();
   int update_trajectory_generator(int k, double h_estim);

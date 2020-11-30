@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
     double dt_in = 0.02;
     double dt_tsid_in = 0.002;
     int n_periods_in = 1;
-    double T_gait_in = 0.32;
+    double T_gait_in = 0.64;
     double T_mpc_in = 0.40;
     int k_mpc_in = 10;
     bool on_solo8_in = false;
@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
     std::cout << "#### " << std::endl;
     planner.Print();
 
-    for (int k = 0; k < 200; k++) {
+    for (int k = 0; k < 100; k++) {
       planner.run_planner(k, q, v, b_vref_in, 0.21, 0.0);
       if (k % 10 == 0) {
         std::cout << "#### " << k << std::endl;

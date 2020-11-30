@@ -18,17 +18,18 @@ Planner::Planner(double dt_in, double dt_tsid_in, int n_periods_in, double T_gai
 
   footsteps_target.block(0, 0, 2, 4) = shoulders.block(0, 0, 2, 4);
 
-  n_steps = n_periods * (int)std::lround(T_gait / dt);
-  dt_vector = Eigen::VectorXd::LinSpaced(n_steps, dt, T_gait).transpose();
+  n_steps = n_periods * (int)std::lround(T_mpc / dt);
+  dt_vector = Eigen::VectorXd::LinSpaced(n_steps, dt, T_mpc).transpose();
   R(2, 2) = 1.0;
   R_1(2, 2) = 1.0;
 
   xref = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>::Zero(12, 1 + n_steps);
 
   // Create gait matrix
-  create_trot();
-  desired_gait = gait;
-  new_desired_gait = gait;
+  create_walk();
+  // create_trot();
+  desired_gait = gait_f;
+  new_desired_gait = gait_f;
 
   // For foot trajectory generator
   goals << fsteps_in.block(0, 0, 3, 4);
@@ -47,7 +48,7 @@ Planner::Planner(double dt_in, double dt_tsid_in, int n_periods_in, double T_gai
   for (int i = 0; i < 4; i++) {
     pr_feet.push_back(params);
     T_min.push_back(curves::bezier_t::num_t(0.0));
-    T_max.push_back(curves::bezier_t::num_t(0.5 * T_gait));
+    T_max.push_back(curves::bezier_t::num_t(0.5 * T_mpc));
     c_feet.push_back(curves::bezier_t(pr_feet[i].begin(), pr_feet[i].end(), constraints, T_min[i], T_max[i]));
   }
 
@@ -67,12 +68,37 @@ void Planner::Print() {
 
   std::cout << "------" << std::endl;
   std::cout << gait_p.block(0, 0, 6, 5) << std::endl;
-  std::cout << "-" << std::endl;
-  std::cout << gait_c.block(0, 0, 1, 5) << std::endl;
+  //std::cout << "-" << std::endl;
+  //std::cout << gait_c.block(0, 0, 1, 5) << std::endl;
   std::cout << "-" << std::endl;
   std::cout << gait_f.block(0, 0, 6, 5) << std::endl;
   std::cout << "-" << std::endl;
   std::cout << gait_f_des.block(0, 0, 6, 5) << std::endl;
+}
+
+int Planner::create_walk() {
+  // Number of timesteps in 1/4th period of gait
+  int N = (int)std::lround(0.25 * T_gait / dt);
+
+  gait_f_des = Eigen::Matrix<double, N0_gait, 5>::Zero();
+  gait_f_des.block(0, 0, 4, 1) << N, N, N, N;
+  fsteps.block(0, 0, 4, 1) = gait_f_des.block(0, 0, 4, 1);
+
+  // Set stance and swing phases
+  // Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+  // Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+  gait_f_des.block(0, 1, 1, 4) << 0.0, 1.0, 1.0, 1.0;
+  gait_f_des.block(1, 1, 1, 4) << 1.0, 0.0, 1.0, 1.0;
+  gait_f_des.block(2, 1, 1, 4) << 1.0, 1.0, 0.0, 1.0;
+  gait_f_des.block(3, 1, 1, 4) << 1.0, 1.0, 1.0, 0.0;
+
+  // gait_c.block(0, 0, 1, 5) = gait_f_des.block(0, 0, 1, 5);
+  // gait_c(0, 0) = 1.0;
+  /*gait_f.block(0, 0, 2, 5) = gait_f_des.block(0, 0, 2, 5);
+  gait_f(0, 0) = N - 1.0;*/
+  create_gait_f();
+
+  return 0;
 }
 
 int Planner::create_trot() {
@@ -81,7 +107,7 @@ int Planner::create_trot() {
 
   // Starting status of the gait
   // 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
-  gait = Eigen::Matrix<double, N0_gait, 5>::Zero();
+  /*gait = Eigen::Matrix<double, N0_gait, 5>::Zero();
   gait.block(0, 0, 2, 1) << N, N;
   fsteps.block(0, 0, 2, 1) = gait.block(0, 0, 2, 1);
 
@@ -91,7 +117,7 @@ int Planner::create_trot() {
   gait(0, 1) = 1.0;
   gait(0, 4) = 1.0;
   gait(1, 2) = 1.0;
-  gait(1, 3) = 1.0;
+  gait(1, 3) = 1.0;*/
 
   gait_f_des = Eigen::Matrix<double, N0_gait, 5>::Zero();
   gait_f_des.block(0, 0, 2, 1) << N, N;
@@ -161,6 +187,7 @@ int Planner::create_gait_f() {
     }
     if (gait_f_des(0, 0) == 1.0) {
       gait_f_des.block(0, 0, N0_gait - 1, 5) = gait_f_des.block(1, 0, N0_gait - 1, 5);
+      j--;
     } else {
       gait_f_des(0, 0) -= 1.0;
     }
@@ -227,17 +254,17 @@ int Planner::compute_footsteps(Eigen::MatrixXd q_cur, Eigen::MatrixXd v_cur, Eig
 
   // Set current position of feet for feet in stance phase
   for (int j = 0; j < 4; j++) {
-    if (gait(0, 1 + j) == 1.0) {
+    if (gait_f(0, 1 + j) == 1.0) {
       fsteps.block(0, 1 + 3 * j, 1, 3) = o_feet_contact.block(0, 3 * j, 1, 3);
     }
   }
 
   // Cumulative time by adding the terms in the first column (remaining number of timesteps)
   // Get future yaw angle compared to current position
-  dt_cum(0, 0) = gait(0, 0) * dt;
+  dt_cum(0, 0) = gait_f(0, 0) * dt;
   angle(0, 0) = v_ref(5, 0) * dt_cum(0, 0) + RPY(2, 0);
   for (int j = 1; j < N0_gait; j++) {
-    dt_cum(j, 0) = dt_cum(j - 1, 0) + gait(j, 0) * dt;
+    dt_cum(j, 0) = dt_cum(j - 1, 0) + gait_f(j, 0) * dt;
     angle(j, 0) = v_ref(5, 0) * dt_cum(j, 0) + RPY(2, 0);
   }
 
@@ -272,10 +299,10 @@ int Planner::compute_footsteps(Eigen::MatrixXd q_cur, Eigen::MatrixXd v_cur, Eig
 
   // Update the footstep matrix depending on the different phases of the gait (swing & stance)
   int i = 1;
-  while (gait(i, 0) != 0) {
+  while (gait_f(i, 0) != 0) {
     // Feet that were in stance phase and are still in stance phase do not move
     for (int j = 0; j < 4; j++) {
-      if (gait(i - 1, 1 + j) * gait(i, 1 + j) > 0) {
+      if (gait_f(i - 1, 1 + j) * gait_f(i, 1 + j) > 0) {
         fsteps.block(i, 1 + 3 * j, 1, 3) = fsteps.block(i - 1, 1 + 3 * j, 1, 3);
       }
     }
@@ -285,12 +312,12 @@ int Planner::compute_footsteps(Eigen::MatrixXd q_cur, Eigen::MatrixXd v_cur, Eig
 
     // Feet that were in swing phase and are now in stance phase need to be updated
     for (int j = 0; j < 4; j++) {
-      if ((1 - gait(i - 1, 1 + j)) * gait(i, 1 + j) > 0) {
+      if ((1 - gait_f(i - 1, 1 + j)) * gait_f(i, 1 + j) > 0) {
         // Offset to the future position
         q_dxdy << dx(i - 1, 0), dy(i - 1, 0), 0.0;
 
         // Get future desired position of footsteps
-        compute_next_footstep(j);
+        compute_next_footstep(i, j);
 
         // Get desired position of footstep compared to current position
         double c = std::cos(angle(i - 1, 0));
@@ -313,8 +340,72 @@ int Planner::compute_footsteps(Eigen::MatrixXd q_cur, Eigen::MatrixXd v_cur, Eig
   return 0;
 }
 
-int Planner::compute_next_footstep(int j) {
+double Planner::get_stance_swing_duration(int i, int j, double value) {
+
+  double t_phase = gait_f(i, 0);
+  int a = i;
+
+  // Looking for the end of the swing/stance phase in gait_f
+  while ((gait_f(i+1, 0) > 0.0) && (gait_f(i+1, 1+j) == value)) {
+    i++;
+    t_phase += gait_f(i, 0);
+  }
+  // If we reach the end of gait_f we continue looking for the end of the swing/stance phase in gait_f_des
+  if (gait_f(i+1, 0) == 0.0) {
+    int k = 0;
+    while ((gait_f_des(k, 0) > 0.0) && (gait_f_des(k, 1+j) == value)) {
+      t_phase += gait_f_des(k, 0);
+      k++;
+    }
+  }
+  // We suppose that we found the end of the swing/stance phase either in gait_f or gait_f_des
+
+  t_remaining = t_phase;
+
+  // Looking for the beginning of the swing/stance phase in gait_f
+  while ((a > 0) && (gait_f(a-1, 1+j) == value)) {
+    a--;
+    t_phase += gait_f(a, 0);
+  }
+  // If we reach the end of gait_f we continue looking for the beginning of the swing/stance phase in gait_p
+  if (a == 0) {
+    while ((gait_p(a, 0) > 0.0) && (gait_p(a, 1+j) == value)) {
+      t_phase += gait_p(a, 0);
+      a++;
+    }
+  }
+  // We suppose that we found the beginning of the swing/stance phase either in gait_f or gait_p
+
+  return t_phase * dt; // Take into account time step value
+}
+
+int Planner::compute_next_footstep(int i, int j) {
+
+  /*
   double t_stance = 0.5 * T_gait;
+
+  // Looking for the end of the stance phase in gait_f
+  t_stance = gait_f(i, 0);
+  while ((gait_f(i+1, 0) > 0.0) && (gait_f(i+1, 1+j) > 0.0)) {
+    i++;
+    t_stance += gait_f(i, 0);
+  }
+  // If we reach the end of gait_f we continue looking for the end of the stance phase in gait_f_des
+  if (gait_f(i+1, 0) == 0.0) {
+    int k = 0;
+    while ((gait_f_des(k, 0) > 0.0) && (gait_f_des(k, 1+j) > 0.0)) {
+      t_stance += gait_f_des(k, 0);
+      k++;
+    }
+  }
+  // We suppose that we found the end of the stance phase either in gait_f or gait_f_des
+
+  t_stance *= dt; // Take into account time step value
+  */
+
+  double t_stance = get_stance_swing_duration(i, j, 1.0); // 1.0 for stance phase
+
+  // std::cout << "Computed t_stance: " << t_stance << " with i " << i << " and j " << j << std::endl;
 
   // Order of feet: FL, FR, HL, HR
 
@@ -449,14 +540,14 @@ int Planner::update_target_footsteps() {
 }
 
 int Planner::update_trajectory_generator(int k, double h_estim) {
-  int looping = n_periods * (int)std::lround(T_gait / dt_tsid);
-  int k_loop = k % looping;
+  /*int looping = n_periods * (int)std::lround(T_gait / dt_tsid);
+  int k_loop = k % looping;*/
 
-  if ((k_loop % k_mpc) == 0) {
+  if ((k % k_mpc) == 0) {
     // Indexes of feet in swing phase
     feet.clear();
     for (int i = 0; i < 4; i++) {
-      if (gait(0, 1 + i) == 0) {
+      if (gait_f(0, 1 + i) == 0) {
         feet.push_back(i);
       }
     }
@@ -466,7 +557,7 @@ int Planner::update_trajectory_generator(int k, double h_estim) {
     }
 
     // i_end_gait should point to the latest non-zero line
-    if (gait(i_end_gait, 0) == 0) {
+    /*if (gait(i_end_gait, 0) == 0) {
       i_end_gait -= 1;
       while (gait(i_end_gait, 0) == 0) {
         i_end_gait -= 1;
@@ -475,7 +566,7 @@ int Planner::update_trajectory_generator(int k, double h_estim) {
       while (gait(i_end_gait + 1, 0) != 0) {
         i_end_gait += 1;
       }
-    }
+    }*/
 
     // For each foot in swing phase get remaining duration of the swing phase
     t0s.clear();
@@ -483,7 +574,7 @@ int Planner::update_trajectory_generator(int k, double h_estim) {
       int i = feet[j];
 
       // Compute total duration of current swing phase
-      int i_iter = 1;
+      /*int i_iter = 1;
       t_swing[i] = gait(0, 0);
       while (gait(i_iter, 1 + i) == 0) {
         t_swing[i] += gait(i_iter, 0);
@@ -500,9 +591,15 @@ int Planner::update_trajectory_generator(int k, double h_estim) {
       t_swing[i] *= dt_tsid * k_mpc;
 
       // TODO: Fix that
-      t_swing[i] = 0.5 * T_gait;
+      t_swing[i] = 0.5 * T_gait;*/
 
-      double value = t_swing[i] - remaining_iterations * dt_tsid - dt_tsid;
+      t_swing[i] = get_stance_swing_duration(0, feet[j], 0.0); // 0.0 for swing phase
+      //std::cout << "Computed t_swing: " << tmp << " with i " << 0 << " and j " << feet[j] << " / before: " << t_swing[i] << std::endl;
+
+      double value = t_swing[i]  - (t_remaining * k_mpc - ((k + 1) % k_mpc)) * dt_tsid - dt_tsid;
+
+      //double value = t_swing[i] - remaining_iterations * dt_tsid - dt_tsid;
+      //std::cout << "Computed value: " << value_tmp << " with before " << value << std::endl;
       if (value > 0.0) {
         t0s.push_back(value);
       } else {
@@ -624,7 +721,7 @@ int Planner::run_planner(int k, const Eigen::MatrixXd &q, const Eigen::MatrixXd 
 
   // Move one step further in the gait
   if (k % k_mpc == 0) {
-    roll(k);
+    // roll(k);
     roll_exp(k);
   }
 
@@ -645,7 +742,7 @@ int Planner::run_planner(int k, const Eigen::MatrixXd &q, const Eigen::MatrixXd 
 
 Eigen::MatrixXd Planner::get_xref() { return xref; }
 Eigen::MatrixXd Planner::get_fsteps() { return fsteps; }
-Eigen::MatrixXd Planner::get_gait() { return gait; }
+Eigen::MatrixXd Planner::get_gait() { return gait_f; }
 Eigen::MatrixXd Planner::get_goals() { return goals; }
 Eigen::MatrixXd Planner::get_vgoals() { return vgoals; }
 Eigen::MatrixXd Planner::get_agoals() { return agoals; }
