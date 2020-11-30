@@ -47,7 +47,7 @@ class dummyDevice:
 
 class Controller:
 
-    def __init__(self, q_init, envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, T_mpc, N_SIMULATION, type_MPC,
+    def __init__(self, q_init, envID, velID, dt_tsid, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
                  pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI):
         """Function that runs a simulation scenario based on a reference velocity profile, an environment and
         various parameters to define the gait
@@ -59,7 +59,6 @@ class Controller:
             dt_mpc (float): time step of the MPC
             k_mpc (int): number of iterations of inverse dynamics for one iteration of the MPC
             t (float): time of the simulation
-            n_periods (int): number of gait periods in the prediction horizon of the MPC
             T_gait (float): duration of one gait period in seconds
             T_mpc (float): duration of mpc prediction horizon
             N_SIMULATION (int): number of iterations of inverse dynamics during the simulation
@@ -100,7 +99,7 @@ class Controller:
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
         self.joystick, self.logger, self.estimator = utils_mpc.init_objects(
-            dt_tsid, dt_mpc, N_SIMULATION, k_mpc, n_periods, T_gait, type_MPC, predefined_vel, self.h_init)
+            dt_tsid, dt_mpc, N_SIMULATION, k_mpc, T_gait, type_MPC, predefined_vel, self.h_init)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True
@@ -112,14 +111,14 @@ class Controller:
         self.v = np.zeros((18, 1))
         self.b_v = np.zeros((18, 1))
         self.o_v_filt = np.zeros((18, 1))
-        self.planner = PyPlanner(dt_mpc, dt_tsid, n_periods, T_gait, T_mpc,
+        self.planner = PyPlanner(dt_mpc, dt_tsid, T_gait, T_mpc,
                                  k_mpc, on_solo8, h_ref, self.fsteps_init)
 
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
         self.enable_multiprocessing = True
-        self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, np.int(n_periods*T_mpc/dt_mpc),
+        self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, np.int(T_mpc/dt_mpc),
                                                    k_mpc, T_mpc, self.q, self.enable_multiprocessing)
 
         # ForceMonitor to display contact forces in PyBullet with red lines
@@ -135,7 +134,6 @@ class Controller:
         self.dt_mpc = dt_mpc
         self.k_mpc = k_mpc
         self.t = t
-        self.n_periods = n_periods
         self.T_gait = T_gait
         self.T_mpc = T_mpc
         self.N_SIMULATION = N_SIMULATION

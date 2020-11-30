@@ -125,7 +125,7 @@ def init_robot(q_init, enable_viewer):
     return solo, fsteps_init, h_init
 
 
-def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_mpc, type_MPC, predefined, h_init):
+def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, T_mpc, type_MPC, predefined, h_init):
     """Create several objects that are used in the control loop
 
     Args:
@@ -133,7 +133,6 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_mpc, type_MPC,
         dt_mpc (float): time step of the MPC
         k_max_loop (int): maximum number of iterations of the simulation
         k_mpc (int): number of tsid iterations for one iteration of the mpc
-        n_periods (int): number of gait periods in the prediction horizon
         T_mpc (float): duration of mpc prediction horizon
         type_MPC (bool): which MPC you want to use (PA's or Thomas')
         predefined (bool): if we are using a predefined reference velocity (True) or a joystick (False)
@@ -144,7 +143,7 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, n_periods, T_mpc, type_MPC,
     joystick = Joystick.Joystick(predefined)
 
     # Create logger object
-    logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc, n_periods, T_mpc, type_MPC)
+    logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc, T_mpc, type_MPC)
 
     # Create Estimator object
     estimator = Estimator.Estimator(dt_tsid, k_max_loop, h_init)

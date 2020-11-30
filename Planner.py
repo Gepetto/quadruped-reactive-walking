@@ -17,7 +17,7 @@ class PyPlanner:
     the user and the current position/velocity of the base in TSID world
     """
 
-    def __init__(self, dt, dt_tsid, n_periods, T_gait, T_mpc, k_mpc, on_solo8, h_ref, fsteps_init):
+    def __init__(self, dt, dt_tsid, T_gait, T_mpc, k_mpc, on_solo8, h_ref, fsteps_init):
 
         # Time step of the contact sequence
         self.dt = dt
@@ -26,7 +26,6 @@ class PyPlanner:
         self.dt_tsid = dt_tsid
 
         # Gait duration
-        self.n_periods = n_periods
         self.T_gait = T_gait
         self.T_mpc = T_mpc
 
@@ -54,7 +53,7 @@ class PyPlanner:
         self.L = 0.155
 
         # Number of time steps in the prediction horizon
-        self.n_steps = np.int(n_periods*self.T_gait/self.dt)
+        self.n_steps = np.int(self.T_gait/self.dt)
 
         self.dt_vector = np.linspace(self.dt, self.T_gait, self.n_steps)
 
@@ -111,7 +110,7 @@ class PyPlanner:
         self.mgoals[3, :] = fsteps_init[1, :]
 
         # C++ class
-        self.Cplanner = la.Planner(dt, dt_tsid, n_periods, T_gait, T_mpc, k_mpc, on_solo8, h_ref, fsteps_init)
+        self.Cplanner = la.Planner(dt, dt_tsid, T_gait, T_mpc, k_mpc, on_solo8, h_ref, fsteps_init)
 
         self.log_debug1 = np.zeros((10001, 3))
         self.log_debug2 = np.zeros((10001, 3))
@@ -168,17 +167,17 @@ class PyPlanner:
         # Starting status of the gait
         # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
         self.gait = np.zeros((self.fsteps.shape[0], 5))
-        for i in range(self.n_periods):
-            self.gait[(4*i):(4*(i+1)), 0] = np.array([4, N-4, 4, N-4])
-            self.fsteps[(4*i):(4*(i+1)), 0] = self.gait[(4*i):(4*(i+1)), 0]
+        i = 1
+        self.gait[(4*i):(4*(i+1)), 0] = np.array([4, N-4, 4, N-4])
+        self.fsteps[(4*i):(4*(i+1)), 0] = self.gait[(4*i):(4*(i+1)), 0]
 
-            # Set stance and swing phases
-            # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
-            # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
-            self.gait[4*i+0, 1:] = np.ones((4,))
-            self.gait[4*i+1, [1, 4]] = np.ones((2,))
-            self.gait[4*i+2, 1:] = np.ones((4,))
-            self.gait[4*i+3, [2, 3]] = np.ones((2,))
+        # Set stance and swing phases
+        # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        self.gait[4*i+0, 1:] = np.ones((4,))
+        self.gait[4*i+1, [1, 4]] = np.ones((2,))
+        self.gait[4*i+2, 1:] = np.ones((4,))
+        self.gait[4*i+3, [2, 3]] = np.ones((2,))
 
         return 0
 
@@ -194,15 +193,15 @@ class PyPlanner:
         # Starting status of the gait
         # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
         self.gait = np.zeros((self.fsteps.shape[0], 5))
-        for i in range(self.n_periods):
-            self.gait[(2*i):(2*(i+1)), 0] = np.array([N, N])
-            self.fsteps[(2*i):(2*(i+1)), 0] = self.gait[(2*i):(2*(i+1)), 0]
+        i = 1
+        self.gait[(2*i):(2*(i+1)), 0] = np.array([N, N])
+        self.fsteps[(2*i):(2*(i+1)), 0] = self.gait[(2*i):(2*(i+1)), 0]
 
-            # Set stance and swing phases
-            # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
-            # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
-            self.gait[2*i+0, [1, 4]] = np.ones((2,))
-            self.gait[2*i+1, [2, 3]] = np.ones((2,))
+        # Set stance and swing phases
+        # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        self.gait[2*i+0, [1, 4]] = np.ones((2,))
+        self.gait[2*i+1, [2, 3]] = np.ones((2,))
 
         return 0
 
@@ -319,17 +318,17 @@ class PyPlanner:
         # Starting status of the gait
         # 4-stance phase, 2-stance phase, 4-stance phase, 2-stance phase
         self.gait = np.zeros((self.fsteps.shape[0], 5))
-        for i in range(self.n_periods):
-            self.gait[(4*i):(4*(i+1)), 0] = np.array([N/2, N/2, N/2, N/2])
-            self.fsteps[(4*i):(4*(i+1)), 0] = self.gait[(4*i):(4*(i+1)), 0]
+        i = 1
+        self.gait[(4*i):(4*(i+1)), 0] = np.array([N/2, N/2, N/2, N/2])
+        self.fsteps[(4*i):(4*(i+1)), 0] = self.gait[(4*i):(4*(i+1)), 0]
 
-            # Set stance and swing phases
-            # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
-            # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
-            self.gait[4*i+0, [2, 3, 4]] = np.ones((3,))
-            self.gait[4*i+1, [1, 3, 4]] = np.ones((3,))
-            self.gait[4*i+2, [1, 2, 4]] = np.ones((3,))
-            self.gait[4*i+3, [1, 2, 3]] = np.ones((3,))
+        # Set stance and swing phases
+        # Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+        # Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+        self.gait[4*i+0, [2, 3, 4]] = np.ones((3,))
+        self.gait[4*i+1, [1, 3, 4]] = np.ones((3,))
+        self.gait[4*i+2, [1, 2, 4]] = np.ones((3,))
+        self.gait[4*i+3, [1, 2, 3]] = np.ones((3,))
 
         return 0
 
@@ -833,7 +832,7 @@ class PyPlanner:
             k (int): number of time steps since the start of the simulation
         """
 
-        looping = int(self.n_periods*self.T_gait/self.dt_tsid)  # Number of TSID iterations in one gait cycle
+        looping = int(self.T_gait/self.dt_tsid)  # Number of TSID iterations in one gait cycle
         k_loop = (k - 0) % looping  # Current number of iterations since the start of the current gait cycle
 
         if ((k_loop % self.k_mpc) == 0):
@@ -937,7 +936,6 @@ def test_planner():
 
     dt = 0.001
     dt_mpc = 0.02
-    n_periods = 1
     T_gait = 0.64
     on_solo8 = False
     k = 0
@@ -958,7 +956,7 @@ def test_planner():
     b_v = np.zeros((18, 1))
 
     joystick = Joystick.Joystick(False)
-    planner = Planner(dt_mpc, dt, n_periods, T_gait, k_mpc, on_solo8, q[2, 0])
+    planner = Planner(dt_mpc, dt, T_gait, k_mpc, on_solo8, q[2, 0])
 
     plt.ion()
     fig, ax = plt.subplots()
@@ -1101,7 +1099,6 @@ def test_planner_mpc():
 
     dt = 0.0020
     dt_mpc = 0.02
-    n_periods = 1
     T_gait = 0.32
     on_solo8 = False
     k = 0
@@ -1124,7 +1121,7 @@ def test_planner_mpc():
     b_v = np.zeros((18, 1))
 
     joystick = Joystick.Joystick(False)
-    planner = Planner(dt_mpc, dt, n_periods, T_gait, k_mpc, on_solo8, q[2, 0])
+    planner = Planner(dt_mpc, dt, T_gait, k_mpc, on_solo8, q[2, 0])
     mpc_wrapper = MPC_Wrapper.MPC_Wrapper(True, dt_mpc, planner.n_steps, k_mpc, planner.T_gait, q, True)
     solo = utils_mpc.init_viewer(True)
 
@@ -1296,7 +1293,6 @@ def test_planner_mpc_tsid():
 
     dt = 0.002
     dt_mpc = 0.02
-    n_periods = 1
     T_gait = 0.64
     on_solo8 = False
     k = 0
@@ -1323,9 +1319,9 @@ def test_planner_mpc_tsid():
     b_v = np.zeros((18, 1))
 
     joystick = Joystick.Joystick(False)
-    planner = Planner(dt_mpc, dt, n_periods, T_gait, k_mpc, on_solo8, q[2, 0])
+    planner = Planner(dt_mpc, dt, T_gait, k_mpc, on_solo8, q[2, 0])
     mpc_wrapper = MPC_Wrapper.MPC_Wrapper(True, dt_mpc, planner.n_steps, k_mpc, planner.T_gait, q, True)
-    myController = controller(q[7:, 0], int(N), dt, k_mpc, n_periods, T_gait, on_solo8)
+    myController = controller(q[7:, 0], int(N), dt, k_mpc, T_gait, on_solo8)
     solo = utils_mpc.init_viewer(True)
 
     while k < N:

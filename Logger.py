@@ -16,12 +16,11 @@ class Logger:
         dt (float): time step of TSID
         dt_mpc (float): time step of the MPC
         k_mpc (int): number of tsid iterations for one iteration of the mpc
-        n_periods (int): number of gait periods in the prediction horizon
         T_mpc (float): duration of mpc prediction horizon
         type_MPC (bool): which MPC you want to use (PA's or Thomas')
     """
 
-    def __init__(self, k_max_loop, dt, dt_mpc, k_mpc, n_periods, T_mpc, type_MPC):
+    def __init__(self, k_max_loop, dt, dt_mpc, k_mpc, T_mpc, type_MPC):
 
         # Max number of iterations of the main loop
         self.k_max_loop = k_max_loop
@@ -109,12 +108,11 @@ class Logger:
 
         # Store information about the predicted evolution of the optimization vector components
         # Usefull to compare osqp & ddp solver
-        self.n_periods = n_periods
         self.T = T_mpc
-        self.pred_trajectories = np.zeros((12, int(self.n_periods*T_mpc/dt_mpc), int(k_max_loop/k_mpc)))
-        self.pred_forces = np.zeros((12, int(self.n_periods*T_mpc/dt_mpc), int(k_max_loop/k_mpc)))
+        self.pred_trajectories = np.zeros((12, int(T_mpc/dt_mpc), int(k_max_loop/k_mpc)))
+        self.pred_forces = np.zeros((12, int(T_mpc/dt_mpc), int(k_max_loop/k_mpc)))
         self.fsteps = np.zeros((20, 13, int(k_max_loop/k_mpc)))
-        self.xref = np.zeros((12, int(self.n_periods*T_mpc/dt_mpc) + 1, int(k_max_loop/k_mpc)))
+        self.xref = np.zeros((12, int(T_mpc/dt_mpc) + 1, int(k_max_loop/k_mpc)))
 
         # Store information about one of the tracking task
         self.pos = np.zeros((12, k_max_loop))
@@ -660,7 +658,7 @@ class Logger:
         """ Plot information about the predicted evolution of the optimization vector components
         """
 
-        t_pred = np.array([(k)*self.dt_mpc for k in range(np.int(self.n_periods*self.T/self.dt_mpc))])
+        t_pred = np.array([(k)*self.dt_mpc for k in range(np.int(self.T/self.dt_mpc))])
 
         #index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
         index = [1, 4, 7, 2, 5, 8, 3, 6, 9]
