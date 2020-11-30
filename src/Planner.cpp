@@ -35,22 +35,6 @@ Planner::Planner(double dt_in, double dt_tsid_in, double T_gait_in, double T_mpc
   mgoals.row(0) << fsteps_in.block(0, 0, 1, 4);
   mgoals.row(3) << fsteps_in.block(1, 0, 1, 4);
 
-  constraints.init_vel = curves::point3_t(0.0, 0.0, 0.0);
-  constraints.init_acc = curves::point3_t(0.0, 0.0, 0.0);
-  constraints.end_vel = curves::point3_t(0.0, 0.0, 0.0);
-  constraints.end_acc = curves::point3_t(0.0, 0.0, 0.0);
-
-  std::vector<curves::point3_t> params;
-  params.push_back(curves::point3_t(0.0, 0.0, 0.0));
-  params.push_back(curves::point3_t(0.0, 0.0, 0.0));
-  params.push_back(curves::point3_t(0.0, 0.0, 0.0));
-  for (int i = 0; i < 4; i++) {
-    pr_feet.push_back(params);
-    T_min.push_back(curves::bezier_t::num_t(0.0));
-    T_max.push_back(curves::bezier_t::num_t(0.5 * T_mpc));
-    c_feet.push_back(curves::bezier_t(pr_feet[i].begin(), pr_feet[i].end(), constraints, T_min[i], T_max[i]));
-  }
-
   for (int i = 0; i < 4; i++) {
     myTrajGen.push_back(TrajGen(max_height_feet, t_lock_before_touchdown, shoulders(0, i), shoulders(1, i)));
   }
@@ -623,8 +607,6 @@ int Planner::update_trajectory_generator(int k, double h_estim) {
   for (int i = 0; i < feet.size(); i++) {
     int i_foot = feet[i];
 
-    // c_feet[i_foot] = curves::bezier_t(pr_feet[i].begin(), pr_feet[i].end(), constraints, T_min[i], T_max[i]));
-
     // Get desired 3D position, velocity and acceleration
     if ((t0s[i] == 0.000) || (k == 0)) {
       /*std::cout << "PASS 1 ";
@@ -637,13 +619,6 @@ int Planner::update_trajectory_generator(int k, double h_estim) {
 
       mgoals.col(i_foot) << res_gen.block(0, i_foot, 6, 1);
 
-      /*pr_feet[i_foot][0] = curves::point3_t(mgoals(0, i_foot), mgoals(3, i_foot), 0.0);
-      pr_feet[i_foot][2] = curves::point3_t(footsteps_target(0, i_foot), footsteps_target(1, i_foot), 0.0);
-      pr_feet[i_foot][1] = curves::point3_t(((pr_feet[i_foot][0])(0) + (pr_feet[i_foot][2])(0)) * 0.5,
-                                            ((pr_feet[i_foot][0])(1) + (pr_feet[i_foot][2])(1)) * 0.5,
-                                             max_height_feet);
-      T_min[i_foot] = k * dt_tsid;
-      T_max[i_foot] = T_min[i_foot] + t_swing[i_foot];*/
     } else {
       // std::cout << "PASS 2 ";
 
@@ -655,34 +630,7 @@ int Planner::update_trajectory_generator(int k, double h_estim) {
 
       mgoals.col(i_foot) << res_gen.block(0, i_foot, 6, 1);
 
-      /*T_min[i_foot] = k * dt_tsid;
-      pr_feet[i_foot][0] = curves::point3_t(mgoals(0, i_foot), mgoals(3, i_foot), 0.0);
-      pr_feet[i_foot][2] = curves::point3_t(footsteps_target(0, i_foot), footsteps_target(1, i_foot), 0.0);
-      pr_feet[i_foot][1] = curves::point3_t(((pr_feet[i_foot][0])(0) + (pr_feet[i_foot][2])(0)) * 0.5,
-                                            ((pr_feet[i_foot][0])(1) + (pr_feet[i_foot][2])(1)) * 0.5,
-                                             max_height_feet);
-      T_max[i_foot] = T_min[i_foot] + t_swing[i_foot];*/
     }
-
-    /*std::cout << "---- " << std::endl;
-    std::cout << "Processing feet " << i_foot << std::endl;
-    std::cout << "Tmin/max: " <<  T_min[i_foot] << " / " << T_max[i_foot] << std::endl;
-    std::cout << "t_swing: " << t_swing[0] << " / " << t_swing[1] << " / " << t_swing[2] << " / " << t_swing[3] <<
-    std::endl; std::cout << "start: " << (pr_feet[i_foot][0])(0) << " / " << (pr_feet[i_foot][0])(1) << " / "<<
-    (pr_feet[i_foot][0])(2) << std::endl; std::cout << "end  : " << (pr_feet[i_foot][2])(0) << " / " <<
-    (pr_feet[i_foot][2])(1) << " / "<< (pr_feet[i_foot][2])(2) << std::endl; std::cout << "mgoals:" << mgoals(0,
-    i_foot) << " / " << mgoals(3, i_foot) << std::endl; std::cout << "target:" << footsteps_target(0, i_foot) << " / "
-    << footsteps_target(1, i_foot) << std::endl;
-
-
-    c_feet[i_foot] = curves::bezier_t(pr_feet[i_foot].begin(), pr_feet[i_foot].end(), constraints, T_min[i_foot],
-    T_max[i_foot]);
-    // Store desired position, velocity and acceleration for later call to this function
-    goals.col(i_foot) << (c_feet[i_foot])((k+1) * dt_tsid - T_min[i_foot]);
-    vgoals.col(i_foot) << (c_feet[i_foot]).derivate((k+1) * dt_tsid - T_min[i_foot], 1);
-    agoals.col(i_foot) << (c_feet[i_foot]).derivate((k+1) * dt_tsid - T_min[i_foot], 2);
-    mgoals.col(i_foot) << goals(0, i_foot), vgoals(0, i_foot), agoals(0, i_foot), goals(1, i_foot), vgoals(1, i_foot),
-    agoals(1, i_foot);*/
 
     /*std::cout << "---- " << std::endl;
     std::cout << "Processing feet " << i_foot << std::endl;

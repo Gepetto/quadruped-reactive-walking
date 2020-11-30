@@ -75,10 +75,10 @@ add_project_dependency(pinocchio REQUIRED)
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} PUBLIC pinocchio::pinocchio)
 
 # Find parametric curves library and headers
-add_project_dependency(curves REQUIRED)
+# add_project_dependency(curves REQUIRED)
 
 # Link parametric curves library
-target_link_libraries(${PROJECT_NAME} PUBLIC curves::curves)
+# target_link_libraries(${PROJECT_NAME} PUBLIC curves::curves)
 
 # Find OSQP library and headers
 find_package(osqp REQUIRED)

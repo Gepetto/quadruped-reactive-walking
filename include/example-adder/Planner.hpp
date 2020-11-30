@@ -7,11 +7,7 @@
 #include <cmath>
 #include <Eigen/Core>
 #include <Eigen/Dense>
-
 #include "pinocchio/math/rpy.hpp"
-#include "curves/fwd.h"
-#include "curves/bezier_curve.h"
-// #include "curves/helpers/effector_spline.h"
 
 #define N0_gait 20
 
@@ -126,15 +122,6 @@ class Planner {
       Eigen::Matrix<double, 6, 4>::Zero();  // Storage variable for the trajectory generator
 
   Eigen::Matrix<double, 11, 4> res_gen = Eigen::Matrix<double, 11, 4>::Zero();
-  /*curves::bezier_t::curve_constraints_t constrts;
-  constrts = curves::bezier_t::curve_constraints_t(3);*/
-
-  std::vector<std::vector<curves::point3_t>> pr_feet;
-  std::vector<curves::bezier_t::num_t> T_min;
-  std::vector<curves::bezier_t::num_t> T_max;
-  std::vector<curves::bezier_t> c_feet;
-  // curves::bezier_t::curve_constraints<point3_t> constraints;
-  curves::bezier_t::curve_constraints_t constraints;
 
  public:
   Planner();
