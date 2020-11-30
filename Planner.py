@@ -17,7 +17,7 @@ class PyPlanner:
     the user and the current position/velocity of the base in TSID world
     """
 
-    def __init__(self, dt, dt_tsid, n_periods, T_gait, k_mpc, on_solo8, h_ref, fsteps_init):
+    def __init__(self, dt, dt_tsid, n_periods, T_gait, T_mpc, k_mpc, on_solo8, h_ref, fsteps_init):
 
         # Time step of the contact sequence
         self.dt = dt
@@ -28,6 +28,7 @@ class PyPlanner:
         # Gait duration
         self.n_periods = n_periods
         self.T_gait = T_gait
+        self.T_mpc = T_mpc
 
         # Whether we are working on solo8 or not
         self.on_solo8 = on_solo8
@@ -110,7 +111,7 @@ class PyPlanner:
         self.mgoals[3, :] = fsteps_init[1, :]
 
         # C++ class
-        self.Cplanner = la.Planner(dt, dt_tsid, n_periods, T_gait, k_mpc, on_solo8, h_ref, fsteps_init)
+        self.Cplanner = la.Planner(dt, dt_tsid, n_periods, T_gait, T_mpc, k_mpc, on_solo8, h_ref, fsteps_init)
 
         self.log_debug1 = np.zeros((10001, 3))
         self.log_debug2 = np.zeros((10001, 3))
