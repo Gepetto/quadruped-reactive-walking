@@ -79,15 +79,15 @@ def mcapi_playback(name_interface):
     #########################################
 
     envID = 0  # Identifier of the environment to choose in which one the simulation will happen
-    velID = 1  # Identifier of the reference velocity profile to choose which one will be sent to the robot
+    velID = 0  # Identifier of the reference velocity profile to choose which one will be sent to the robot
 
     dt_tsid = 0.0020  # Time step of TSID
     dt_mpc = 0.02  # Time step of the MPC
     k_mpc = int(dt_mpc / dt_tsid)  # dt is dt_tsid, defined in the TSID controller script
     t = 0.0  # Time
-    n_periods = 1  # Number of periods in the prediction horizon
-    T_gait = 0.32  # Duration of one gait period
-    N_SIMULATION = 50000  # number of simulated TSID time steps
+    T_gait = 0.64  # Duration of one gait period
+    T_mpc = 0.32   # Duration of the prediction horizon
+    N_SIMULATION = 5000  # number of simulated TSID time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -103,10 +103,10 @@ def mcapi_playback(name_interface):
     use_flat_plane = True
 
     # If we are using a predefined reference velocity (True) or a joystick (False)
-    predefined_vel = False
+    predefined_vel = True
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = True
+    enable_pyb_GUI = False
     if not SIMULATION:
         enable_pyb_GUI = False
 
@@ -114,7 +114,7 @@ def mcapi_playback(name_interface):
     q_init = np.array([0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, +1.4, -0.0, -0.7, +1.4])
 
     # Run a scenario and retrieve data thanks to the logger
-    controller = Controller(q_init, envID, velID, dt_tsid, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION, type_MPC,
+    controller = Controller(q_init, envID, velID, dt_tsid, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
                             pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
 
     ####
@@ -246,7 +246,7 @@ def mcapi_playback(name_interface):
 
     # controller.estimator.plot_graphs()
 
-    import matplotlib.pylab as plt
+    """import matplotlib.pylab as plt
     plt.figure()
     plt.plot(controller.t_list_filter[1:], 'r+')
     plt.plot(controller.t_list_planner[1:], 'g+')
@@ -258,7 +258,7 @@ def mcapi_playback(name_interface):
     plt.plot(controller.t_list_intlog[1:], 'o', color="darkgoldenrod")
     plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "InvKin", "QP WBC", "Integ + Log"])
     plt.title("Loop time [s]")
-    plt.show(block=True)
+    plt.show(block=True)"""
 
     """import matplotlib.pylab as plt
     N = len(controller.log_tmp2)

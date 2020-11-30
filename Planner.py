@@ -10,6 +10,7 @@ import tsid
 import utils_mpc
 import FootTrajectoryGenerator as ftg
 import libexample_adder as la
+np.set_printoptions(precision=3, linewidth=300)
 
 class PyPlanner:
     """Planner that outputs current and future locations of footsteps, the reference trajectory of the base and
@@ -627,6 +628,18 @@ class PyPlanner:
         self.goals = self.Cplanner.get_goals()
         self.vgoals = self.Cplanner.get_vgoals()
         self.agoals = self.Cplanner.get_agoals()
+
+        """if (k % 10) == 0:
+            print('- xref:')
+            print(self.xref[:, 0:4])
+            print('- fsteps:')
+            print(self.fsteps[0:6, :])
+            print('- gait:')
+            print(self.gait[0:6, :])
+            print('- goals:')
+            print(self.goals)
+            from IPython import embed
+            embed()"""
 
         """self.log_debug1[k, :] = self.goals[:, 1]
         self.log_debug2[k, :] = (self.Cplanner.get_goals())[:, 1]
