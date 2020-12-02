@@ -26,6 +26,10 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
 
 # Compiling the C++ parts
 
+* Initialize the cmake submodule: `git submodule init`
+
+* Update the cmake submodule: `git submodule udpdate`
+
 * Create a build folder: `mkdir build`
 
 * Get inside and cmake: `cd build` then `cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=~/install -DPYTHON_EXECUTABLE=$(which python3.6) -DPYTHON_STANDARD_LAYOUT=ON`
