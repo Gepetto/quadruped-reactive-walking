@@ -1,5 +1,5 @@
 #include <cassert>
-#include "mpc-wbc-cpp/gepadd.hpp"
+#include "quadruped-reactive-walking/gepadd.hpp"
 
 int main() {
   assert(gepetto::example::add(1, 2) == 3);

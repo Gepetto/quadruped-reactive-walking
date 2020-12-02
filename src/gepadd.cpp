@@ -1,4 +1,4 @@
-#include "mpc-wbc-cpp/gepadd.hpp"
+#include "quadruped-reactive-walking/gepadd.hpp"
 
 namespace gepetto {
 namespace example {

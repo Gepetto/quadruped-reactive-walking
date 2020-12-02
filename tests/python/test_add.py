@@ -1,6 +1,6 @@
 import unittest
 
-import mpc_wbc_cpp as exa
+import quadruped_reactive_walking as exa
 
 
 class TestAdder(unittest.TestCase):

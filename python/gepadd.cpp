@@ -1,6 +1,6 @@
-#include "mpc-wbc-cpp/gepadd.hpp"
-#include "mpc-wbc-cpp/MPC.hpp"
-#include "mpc-wbc-cpp/Planner.hpp"
+#include "quadruped-reactive-walking/gepadd.hpp"
+#include "quadruped-reactive-walking/MPC.hpp"
+#include "quadruped-reactive-walking/Planner.hpp"
 
 #include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
@@ -64,7 +64,7 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
 
 void exposePlanner() { PlannerPythonVisitor<Planner>::expose(); }
 
-BOOST_PYTHON_MODULE(libmpc_wbc_cpp) {
+BOOST_PYTHON_MODULE(libquadruped_reactive_walking) {
   boost::python::def("add", gepetto::example::add);
   boost::python::def("sub", gepetto::example::sub);
 

@@ -1,5 +1,5 @@
-#ifndef __mpc_wbc_cpp_gep_add__
-#define __mpc_wbc_cpp_gep_add__
+#ifndef __quadruped_reactive_walking_gep_add__
+#define __quadruped_reactive_walking_gep_add__
 
 namespace gepetto {
 namespace example {

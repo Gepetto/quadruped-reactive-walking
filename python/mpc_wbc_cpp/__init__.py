@@ -1,1 +1,1 @@
-from .libmpc_wbc_cpp import *  # noqa: F401
+from .libquadruped_reactive_walking import *  # noqa: F401

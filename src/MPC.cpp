@@ -1,7 +1,6 @@
-#include "mpc-wbc-cpp/MPC.hpp"
+#include "quadruped-reactive-walking/MPC.hpp"
 
 MPC::MPC(double dt_in, int n_steps_in, double T_gait_in) {
-  // std::cout << "START INIT" << std::endl;
   dt = dt_in;
   n_steps = n_steps_in;
   T_gait = T_gait_in;
@@ -21,11 +20,9 @@ MPC::MPC(double dt_in, int n_steps_in, double T_gait_in) {
   footholds << 0.19, 0.19, -0.19, -0.19, 0.15005, -0.15005, 0.15005, -0.15005, 0.0, 0.0, 0.0, 0.0;
   gI << 3.09249e-2, -8.00101e-7, 1.865287e-5, -8.00101e-7, 5.106100e-2, 1.245813e-4, 1.865287e-5, 1.245813e-4,
       6.939757e-2;
-  // std::cout << gI << std::endl;
   q << 0.0f, 0.0f, 0.2027682f, 0.0f, 0.0f, 0.0f;
   h_ref = q(2, 0);
   g(8, 0) = -9.81f * dt;
-  // std::cout << "END INIT" << std::endl;
 
   osqp_set_default_settings(settings);
 }
@@ -38,15 +35,11 @@ Create the weight matrices P and Q of the MPC solver (cost 1/2 x^T * P * X + X^T
 */
 int MPC::create_matrices() {
   // Create the constraint matrices
-  // std::cout << "ML -- " << std::endl;
   create_ML();
-  // std::cout << "NK -- " << std::endl;
   create_NK();
 
   // Create the weight matrices
-  // std::cout << "Weights -- " << std::endl;
   create_weight_matrices();
-  // std::cout << "END" << std::endl;
 
   return 0;
 }
@@ -124,22 +117,10 @@ int MPC::create_ML() {
     B(11, i) = 8.0;
   }
 
-  /*for (int k = 0; k < 10; k++) {
-    std::cout << v_ML[k] << std::endl;
-  }
-  std::cout << cpt_ML << std::endl;
-  std::cout << "#0#" << std::endl;*/
-
   // Add lines to enable/disable forces
   for (int i = 12 * n_steps; i < 12 * n_steps * 2; i++) {
     add_to_ML(i, i, 1.0, r_ML, c_ML, v_ML);
   }
-
-  /*for (int k = 0; k < 10; k++) {
-    std::cout << v_ML[k] << std::endl;
-  }
-  std::cout << cpt_ML << std::endl;
-  std::cout << "#1#" << std::endl;*/
 
   // Fill ML with F matrices
   int offset_L = 12 * n_steps * 2;
@@ -160,18 +141,6 @@ int MPC::create_ML() {
     }
   }
 
-  /*for (int k = 0; k < 10; k++) {
-    std::cout << r_ML[k] << " " << c_ML[k] << " " << v_ML[k] << std::endl;
-  }
-  std::cout << cpt_ML << std::endl;*/
-
-  /*for (int k = 0; k < 5000; k++) {
-    if ((r_ML[k] == 1) && (c_ML[k] == 1)) {
-      std::cout << "Detect: " << r_ML[k] << " " << c_ML[k] << " " << v_ML[k] << " at " << k << std::endl;
-    }
-  }
-  std::cout << "###" << std::endl;*/
-
   // Creation of CSC matrix
   int *icc;                                  // row indices
   int *ccc;                                  // col indices
@@ -186,9 +155,7 @@ int MPC::create_ML() {
   int j_min = i4vec_min(nst, c_ML);
   int j_max = i4vec_max(nst, c_ML);
 
-  st_header_print(i_min, i_max, j_min, j_max, m, n, nst);
-
-  // std::cout << ncc << std::endl;
+  // st_header_print(i_min, i_max, j_min, j_max, m, n, nst);
 
   // Get the CC indices.
   icc = (int *)malloc(ncc * sizeof(int));
@@ -219,27 +186,6 @@ int MPC::create_ML() {
   // st_print(m, n, 25, r_ML, c_ML, v_ML, rt_char);
   // cc_print ( m, n, 25, icc, ccc, acc, cc_char);
 
-  /*for (int k=0; k<ncc; k++)
-  {
-      if ((icc[k] >= 0) && (icc[k] <= 24) && (ccc[k] >= 0) && (ccc[k] <= 24))
-      {
-          // std::cout << icc[k] << " " << ccc[k] << " " << acc[k] << std::endl;
-          printf ( "  %4d  %4d  %4d  %16.8g\n", k + 1, icc[k], ccc[k], acc[k] );
-      }
-  }*/
-
-  /*ML_triplet = csc_matrix(12*n_steps*2 + 20*n_steps, 12*n_steps*2, size_nz_ML,
-                       v_ML, r_ML, c_ML);
-  ML = triplet_to_csc(ML_triplet, OSQP_NULL);
-  char t_char [1] = {'M'};
-  my_print_csc_matrix(ML, t_char);*/
-
-  /*ML = csc_matrix(12*n_steps*2 + 20*n_steps, 12*n_steps*2, ncc,
-                   acc, icc, ccc);*/
-  /*std::cout << ML->i[0] << " " << ML->p[0] << " " << ML->x[0] << std::endl;
-  char t_char [1] = {'M'};
-  my_print_csc_matrix(ML, t_char);
-  std::cout << " # " << std::endl;*/
   // Create indices list that will be used to update ML
   int i_x_tmp[12] = {6, 9, 10, 11, 7, 9, 10, 11, 8, 9, 10, 11};
   for (int k = 0; k < 4; k++) {
@@ -298,30 +244,10 @@ int MPC::create_ML() {
   for (int k = 1; k < 12 * n_steps; k++) {
     i_off(k, 0) = i_off(k - 1, 0) + i_tmp2(k - 1, 0);
     // ML->x[i_off(k, 0)+ i_start] = S_gait(k, 0);
-    // if (k<12) {std::cout << i_off(k, 0)+ i_start << std::endl;}
   }
   for (int k = 0; k < 12 * n_steps; k++) {
     ML->x[i_off(k, 0) + i_start] = S_gait(k, 0);
-    // if (k<12) {std::cout << i_off(k, 0) + i_start<< std::endl;}
   }
-
-  // double * dense_ML = csc_to_dns(ML);
-  /*char a = 'M';
-  char * p_a = & a;*/
-
-  // my_print_csc_matrix(ML, t_char);
-  /*for (int i=0; i<24; i++)
-  {
-      std::cout << *(dense_ML+i);
-      for (int j=0; j<24; j++)
-      {
-
-      }
-  }*/
-
-  /*char t_char_end [1] = {'H'};
-  my_print_csc_matrix(ML, t_char_end);
-  std::cout << " # " << std::endl;*/
 
   return 0;
 }
@@ -339,14 +265,8 @@ int MPC::create_NK() {
     NK_up(12 * k + 8, 0) = -g(8, 0);  // only 8-th coeff is non zero
   }
 
-  // std::cout << "Step 1" << std::endl;
-  // std::cout << NK_up.block(0, 0, 24, 1) << std::endl;
-
   // Including - A*X0 in the first row of N
   NK_up.block(0, 0, 12, 1) += A * (-x0);
-
-  // std::cout << "Step 1" << std::endl;
-  // std::cout << NK_up.block(0, 0, 24, 1) << std::endl;
 
   // Create matrix D (third term of N) and put identity matrices in it
   D = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>::Identity(12 * n_steps, 12 * n_steps);
@@ -364,16 +284,6 @@ int MPC::create_NK() {
   // Add third term to matrix N
   Eigen::Map<Eigen::MatrixXd> xref_col((xref.block(0, 1, 12, n_steps)).data(), 12 * n_steps, 1);
   NK_up.block(0, 0, 12 * n_steps, 1) += D * xref_col;
-  /*std::cout << "NKo:" << std::endl;
-  for (int k = 0; k < n_steps; k++) {
-    for (int i = 0; i < 12; i++) {
-      std::cout << NK_up(12 * k + i, 0) << " ";
-    }
-    std::cout << std::endl;
-  }*/
-
-  // std::cout << "Step 2" << std::endl;
-  // std::cout << NK_up.block(0, 0, 24, 1) << std::endl;
 
   // Lines to enable/disable forces are already initialized (0 values)
   // Matrix K is already initialized (0 values)
@@ -394,14 +304,6 @@ int MPC::create_NK() {
 
   Eigen::Matrix<double, Eigen::Dynamic, 1>::Map(&v_NK_up[0], NK_up.size()) = NK_up;
   Eigen::Matrix<double, Eigen::Dynamic, 1>::Map(&v_NK_low[0], NK_low.size()) = NK_low;
-
-  /*std::cout << "NK:" << std::endl;
-  for (int k = 0; k < n_steps; k++) {
-    for (int i = 0; i < 12; i++) {
-      std::cout << NK_up(12 * k + i, 0) << " ";
-    }
-    std::cout << std::endl;
-  }*/
 
   return 0;
 }
@@ -451,7 +353,6 @@ int MPC::create_weight_matrices() {
   int ncc = st_to_cc_size(nst, r_P, c_P);  // number of CC values
   int m = 12 * n_steps * 2;                // number of rows
   int n = 12 * n_steps * 2;                // number of columns
-  // std::cout << cpt_P << std::endl;
 
   // Get the CC indices.
   icc = (int *)malloc(ncc * sizeof(int));
@@ -470,8 +371,6 @@ int MPC::create_weight_matrices() {
   P->x = acc;
   P->i = icc;
   P->p = ccc;
-
-  // std::cout << "T: " << P->m << std::endl;
 
   // Free memory
   delete[] r_P;
@@ -531,18 +430,11 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
       footholds_tmp = fsteps.block(j, 1, 1, 12);
       // footholds = footholds_tmp.reshaped(3, 4);
       Eigen::Map<Eigen::MatrixXd> footholds_bis(footholds_tmp.data(), 3, 4);
-      // std::cout << "fsteps_tmp" << std::endl;
 
       lever_arms = footholds_bis - (xref.block(0, k, 3, 1)).replicate<1, 4>();
       for (int i = 0; i < 4; i++) {
         B.block(9, 3 * i, 3, 3) = dt * (I_inv * getSkew(lever_arms.col(i)));
       }
-
-      /*if (j == 0) {
-        std::cout << "footholds" << std::endl << footholds_bis << std::endl;
-        std::cout << "I_inv" << std::endl << I_inv << std::endl;
-        std::cout << "lever_arms" << std::endl << lever_arms << std::endl;
-      }*/
 
       // Replace the coefficient directly in ML.data
       int i_iter = 24 * 4 * k;
@@ -557,7 +449,7 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
 
   // Construct the activation/desactivation matrix based on the current gait
   construct_S();
-  // std::cout << S_gait << std::endl;
+
   // Update lines to enable/disable forces
   int i_start = 30 * n_steps - 18;
   for (int k = 0; k < 12 * n_steps; k++) {
@@ -608,8 +500,6 @@ int MPC::call_solver(int k) {
   warmxf.block(12 * n_steps, 0, 12 * (n_steps - 1), 1) = x.block(12 * (n_steps + 1), 0, 12 * (n_steps - 1), 1);
   warmxf.block(12 * (2 * n_steps - 1), 0, 12, 1) = x.block(12 * n_steps, 0, 12, 1);
   Eigen::Matrix<double, Eigen::Dynamic, 1>::Map(&v_warmxf[0], warmxf.size()) = warmxf;
-
-  // std::cout << "T: " << P->m << std::endl;
 
   // Setup the solver (first iteration) then just update it
   if (k == 0)  // Setup the solver with the matrices
@@ -722,71 +612,26 @@ Run one iteration of the whole MPC by calling all the necessary functions (data 
 update of constraint matrices, update of the solver, running the solver, retrieving result)
 */
 int MPC::run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in) {
-  // std::cout << fsteps_in << std::endl;
-
   // Recontruct the gait based on the computed footsteps
-  // std::cout << "Recontruct gait" << std::endl;
   construct_gait(fsteps_in);
-  // std::cout << "Gait:" << std::endl << gait << std::endl;
-  // std::cout << "Finished" << std::endl;
 
   // Retrieve data required for the MPC
-  // std::cout << "Data retrieval" << std::endl;
   xref = xref_in;
   x0 = xref_in.block(0, 0, 12, 1);
-  // std::cout << "Finished" << std::endl;
 
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + x^T.Q with constraints M.X == N and L.X <= K
   if (num_iter == 0) {
-    // std::cout << "create_matrices" << std::endl;
     create_matrices();
-    // std::cout << "Finished" << std::endl;
   } else {
-    // std::cout << "update_matrices" << std::endl;
     update_matrices(fsteps_in);
-    // std::cout << "Finished" << std::endl;
   }
 
   // Create an initial guess and call the solver to solve the QP problem
-  // std::cout << "call_solver" << std::endl;
   call_solver(num_iter);
-  // std::cout << "Finished" << std::endl;
 
   // Extract relevant information from the output of the QP solver
-  // std::cout << "retrieve_result" << std::endl;
   retrieve_result();
-  // std::cout << "Finished" << std::endl;
-
-  /*std::cout << "ANALYSIS" << std::endl;
-  int k = 1;
-  double uniques [1000] = {};
-  uniques[0] = ML->x[0];
-  for (int i = 0; i < ML->nzmax; i++)
-  {
-    bool flag = false;
-    for (int j = 0; j < k; j++)
-    {
-      if (ML->x[i] == uniques[j])
-      {
-        flag = true;
-      }
-    }
-    if (!flag)
-    {
-      uniques[k] = ML->x[i];
-      k++;
-    }
-
-  }
-
-  std::sort(uniques, uniques+k);
-
-  std::cout << "Unique values in ML" << std::endl;
-  for (int i = 0; i < k; i++)
-  {
-    std::cout << uniques[i] << std::endl;
-  }*/
 
   return 0;
 }
@@ -869,8 +714,6 @@ void MPC::my_print_csc_matrix(csc *M, const char *name) {
       continue;
     else {
       for (i = row_start; i < row_stop; i++) {
-        // std::cout << row_start << " " << i << " " << row_stop << std::endl;
-        // std::cout << M->i[i] << " " << j << " " << M->x[k++] << std::endl;
         int a = (int)M->i[i];
         int b = (int)j;
         double c = M->x[k++];
@@ -899,8 +742,6 @@ void MPC::save_csc_matrix(csc *M, std::string filename) {
       continue;
     else {
       for (i = row_start; i < row_stop; i++) {
-        // std::cout << row_start << " " << i << " " << row_stop << std::endl;
-        // std::cout << M->i[i] << " " << j << " " << M->x[k++] << std::endl;
         int a = (int)M->i[i];
         int b = (int)j;
         double c = M->x[k++];

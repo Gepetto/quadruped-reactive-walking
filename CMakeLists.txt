@@ -4,8 +4,8 @@ set (CMAKE_CXX_STANDARD 11)
 
 # Project properties
 set(PROJECT_NAMESPACE gepetto)
-set(PROJECT_NAME mpc-wbc-cpp)
-set(PROJECT_DESCRIPTION "This is an example project, to show how to use Gepetto's tools")
+set(PROJECT_NAME quadruped-reactive-walking)
+set(PROJECT_DESCRIPTION "Reactive walking control architecture for quadrupeds")
 set(PROJECT_URL https://gitlab.laas.fr/${PROJECT_NAMESPACE}/${PROJECT_NAME})
 
 # Project options
