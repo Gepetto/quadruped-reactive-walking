@@ -1,0 +1,10 @@
+\BOOKMARK [1][-]{section.1}{State Estimator}{}% 1
+\BOOKMARK [1][-]{section.2}{MpcInterface}{}% 2
+\BOOKMARK [1][-]{section.3}{Footstep Planner}{}% 3
+\BOOKMARK [1][-]{section.4}{Foot trajectory generator}{}% 4
+\BOOKMARK [1][-]{section.5}{State vector}{}% 5
+\BOOKMARK [1][-]{section.6}{Dynamics equations and constraints}{}% 6
+\BOOKMARK [1][-]{section.7}{MPC matrices for dynamics and constraints}{}% 7
+\BOOKMARK [1][-]{section.8}{MPC cost function}{}% 8
+\BOOKMARK [1][-]{section.9}{Output of the MPC}{}% 9
+\BOOKMARK [1][-]{section.10}{Inverse dynamics}{}% 10
