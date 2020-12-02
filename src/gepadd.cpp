@@ -1,4 +1,4 @@
-#include "example-adder/gepadd.hpp"
+#include "mpc-wbc-cpp/gepadd.hpp"
 
 namespace gepetto {
 namespace example {

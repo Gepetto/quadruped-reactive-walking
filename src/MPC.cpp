@@ -1,4 +1,4 @@
-#include "example-adder/MPC.hpp"
+#include "mpc-wbc-cpp/MPC.hpp"
 
 MPC::MPC(double dt_in, int n_steps_in, double T_gait_in) {
   // std::cout << "START INIT" << std::endl;

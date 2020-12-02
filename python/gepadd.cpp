@@ -1,6 +1,6 @@
-#include "example-adder/gepadd.hpp"
-#include "example-adder/MPC.hpp"
-#include "example-adder/Planner.hpp"
+#include "mpc-wbc-cpp/gepadd.hpp"
+#include "mpc-wbc-cpp/MPC.hpp"
+#include "mpc-wbc-cpp/Planner.hpp"
 
 #include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
@@ -64,7 +64,7 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
 
 void exposePlanner() { PlannerPythonVisitor<Planner>::expose(); }
 
-BOOST_PYTHON_MODULE(libexample_adder) {
+BOOST_PYTHON_MODULE(libmpc_wbc_cpp) {
   boost::python::def("add", gepetto::example::add);
   boost::python::def("sub", gepetto::example::sub);
 

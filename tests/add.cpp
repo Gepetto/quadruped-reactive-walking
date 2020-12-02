@@ -1,5 +1,5 @@
 #include <cassert>
-#include "example-adder/gepadd.hpp"
+#include "mpc-wbc-cpp/gepadd.hpp"
 
 int main() {
   assert(gepetto::example::add(1, 2) == 3);

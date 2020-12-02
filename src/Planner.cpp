@@ -1,4 +1,4 @@
-#include "example-adder/Planner.hpp"
+#include "mpc-wbc-cpp/Planner.hpp"
 
 Planner::Planner(double dt_in, double dt_tsid_in, double T_gait_in, double T_mpc_in, int k_mpc_in, bool on_solo8_in,
                  double h_ref_in, const Eigen::MatrixXd &fsteps_in) {

@@ -1,6 +1,6 @@
 #include <boost/test/unit_test.hpp>
 
-#include "example-adder/gepadd.hpp"
+#include "mpc-wbc-cpp/gepadd.hpp"
 
 BOOST_AUTO_TEST_SUITE(BOOST_TEST_MODULE)
 

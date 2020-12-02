@@ -3,10 +3,10 @@
 #include <boost/smart_ptr/shared_ptr.hpp>
 
 #include <Eigen/Core>
-#include "example-adder/gepadd.hpp"
-#include "example-adder/MPC.hpp"
+#include "mpc-wbc-cpp/gepadd.hpp"
+#include "mpc-wbc-cpp/MPC.hpp"
 #include "other/st_to_cc.hpp"
-#include "example-adder/Planner.hpp"
+#include "mpc-wbc-cpp/Planner.hpp"
 #include "pinocchio/math/rpy.hpp"
 
 int main(int argc, char** argv) {

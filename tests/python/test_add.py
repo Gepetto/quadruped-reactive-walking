@@ -1,6 +1,6 @@
 import unittest
 
-import example_adder as exa
+import mpc_wbc_cpp as exa
 
 
 class TestAdder(unittest.TestCase):
