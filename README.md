@@ -24,6 +24,8 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
 
 * Install TSID: https://github.com/stack-of-tasks/tsid#installation You can put the repo in another folder if you want, like `cd ~/install/` instead of `cd $DEVEL/openrobots/src/` for the first line.
 
+* Clone interface repository: in `/scripts`, `git clone https://github.com/paLeziart/solopython`
+
 # Compiling the C++ parts
 
 * Initialize the cmake submodule: `git submodule init`
