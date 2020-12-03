@@ -73,7 +73,7 @@ class pybullet_simulator:
         if envID == 1:
 
             # Add stairs with platform and bridge
-            self.stairsId = pyb.loadURDF("../../../../../git/paleziart/solopython/mpctsid/bauzil_stairs.urdf")  # ,
+            self.stairsId = pyb.loadURDF("bauzil_stairs.urdf")  # ,
             """basePosition=[-1.25, 3.5, -0.1],
                                  baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))"""
             pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)

@@ -48,6 +48,10 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
 
 * In `main_solo12_control.py`, you can change some of the parameters defined at the beginning of the `control_loop` function.
 
+* Set `envID` to 1 to load obstacles and stairs.
+
+* Set `use_flat_plane` to False to load a ground with lots of small bumps.
+
 * If you have a gamepad you can control the robot with two joysticks by turning `predefined_vel` to False in `main_solo12_control.py`. Velocity limits with the joystick are defined in `Joystick.py` by `self.VxScale` (maximul lateral velocity), `self.VyScale` (maximum forward velocity) and `self.vYawScale` (maximum yaw velocity).
 
 * If `predefined_vel = True` the robot follows the reference velocity pattern velID. Velocity patterns are defined in `Joystick.py`, you can modify them or add new ones. Each profile defines forward, lateral and yaw velocities that should be reached at the associated loop iterations (in `self.k_switch`). There is an automatic interpolation between milestones to have a smooth reference velocity command.
