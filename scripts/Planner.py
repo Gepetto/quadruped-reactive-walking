@@ -9,7 +9,7 @@ import pinocchio as pin
 import tsid
 import utils_mpc
 import FootTrajectoryGenerator as ftg
-import libexample_adder as la
+import libquadruped_reactive_walking as la
 np.set_printoptions(precision=3, linewidth=300)
 
 class PyPlanner:

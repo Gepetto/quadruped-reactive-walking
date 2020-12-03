@@ -1,16 +1,16 @@
 # coding: utf8
 
 import threading
-from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
-from mpctsid.Controller import Controller
-from mpctsid.Estimator import Estimator
+from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
+from solopython.utils.logger import Logger
+from Controller import Controller
+from Estimator import Estimator
 import numpy as np
 import argparse
 import pinocchio as pin
-from utils.logger import Logger
-import os
-import sys
-sys.path.insert(0, './mpctsid')
+#import os
+#import sys
+#sys.path.insert(0, './mpctsid')
 
 # import tsid as tsid
 
@@ -18,11 +18,11 @@ SIMULATION = True
 LOGGING = False
 
 if SIMULATION:
-    from mpctsid.PyBulletSimulator import PyBulletSimulator
+    from PyBulletSimulator import PyBulletSimulator
 else:
     # from pynput import keyboard
-    from solo12 import Solo12
-    from utils.qualisysClient import QualisysClient
+    from solopython.solo12 import Solo12
+    from solopython.utils.qualisysClient import QualisysClient
 
 DT = 0.0020
 
@@ -106,7 +106,7 @@ def mcapi_playback(name_interface):
     predefined_vel = True
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = False
+    enable_pyb_GUI = True
     if not SIMULATION:
         enable_pyb_GUI = False
 

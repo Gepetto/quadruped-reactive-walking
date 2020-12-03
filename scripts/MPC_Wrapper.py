@@ -1,7 +1,7 @@
 # coding: utf8
 
 import numpy as np
-import libexample_adder as MPC
+import libquadruped_reactive_walking as MPC
 from multiprocessing import Process, Value, Array
 from utils_mpc import quaternionToRPY
 # import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
