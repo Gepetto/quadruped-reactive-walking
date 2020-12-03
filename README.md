@@ -37,3 +37,17 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
 * Compile and and install Python bindings: `make install`
 
 * If at some point you want to uninstall the bindings: `make uninstall`
+
+# Run the simulation
+
+* Run `python3.6 main_solo12_openloop.py -i test` while being in the `scripts` folder
+
+# Tune the simulation
+
+* In `main_solo12_control.py`, you can change some of the parameters defined at the beginning of the `control_loop` function.
+
+* You can define a new gait in `src/Planner.cpp` using `create_trot` or `create_walk` as models. Create a new function (like `create_bounding` for a bounding gait) and call it inside the Planner constructor before `create_gait_f()`.
+
+* For the MPC QP problem you can tune weights of the Q and P matrices in the `create_weight_matrices` function of `src/MPC.cpp`.
+
+* Remember that if you change C++ code you need to recompile the library.

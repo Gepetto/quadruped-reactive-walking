@@ -62,7 +62,7 @@ def put_on_the_floor(device, q_init):
     print("Start the motion.")
 
 
-def mcapi_playback(name_interface):
+def control_loop(name_interface):
     """Main function that calibrates the robot, get it into a default waiting position then launch
     the main control loop once the user has pressed the Enter key
 
@@ -304,7 +304,7 @@ def main():
                         required=True,
                         help='Name of the interface (use ifconfig in a terminal), for instance "enp1s0"')
 
-    mcapi_playback(parser.parse_args().interface)
+    control_loop(parser.parse_args().interface)
 
 
 if __name__ == "__main__":

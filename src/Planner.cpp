@@ -30,8 +30,8 @@ Planner::Planner(double dt_in, double dt_tsid_in, double T_gait_in, double T_mpc
   xref = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>::Zero(12, 1 + n_steps);
 
   // Create gait matrix
-  create_walk();
-  // create_trot();
+  // create_walk();
+  create_trot();
 
   // Initialisation of other gait matrices based on previous gait matrix
   create_gait_f();
