@@ -46,8 +46,12 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
 
 * In `main_solo12_control.py`, you can change some of the parameters defined at the beginning of the `control_loop` function.
 
+* If you have a gamepad you can control the robot with two joysticks by turning `predefined_vel` to False in `main_solo12_control.py`. Velocity limits with the joystick are defined in `Joystick.py` by `self.VxScale` (maximul lateral velocity), `self.VyScale` (maximum forward velocity) and `self.vYawScale` (maximum yaw velocity).
+
+* If `predefined_vel = True` the robot follows the reference velocity pattern velID. Velocity patterns are defined in `Joystick.py`, you can modify them or add new ones. Each profile defines forward, lateral and yaw velocities that should be reached at the associated loop iterations (in `self.k_switch`). There is an automatic interpolation between milestones to have a smooth reference velocity command.
+
 * You can define a new gait in `src/Planner.cpp` using `create_trot` or `create_walk` as models. Create a new function (like `create_bounding` for a bounding gait) and call it inside the Planner constructor before `create_gait_f()`.
 
 * For the MPC QP problem you can tune weights of the Q and P matrices in the `create_weight_matrices` function of `src/MPC.cpp`.
 
-* Remember that if you change C++ code you need to recompile the library.
+* Remember that if you modify C++ code you need to recompile the library.
