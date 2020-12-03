@@ -8,11 +8,7 @@ from Estimator import Estimator
 import numpy as np
 import argparse
 import pinocchio as pin
-#import os
-#import sys
-#sys.path.insert(0, './mpctsid')
 
-# import tsid as tsid
 
 SIMULATION = True
 LOGGING = False
@@ -74,20 +70,20 @@ def mcapi_playback(name_interface):
         name_interface (string): name of the interface that is used to communicate with the robot
     """
 
-    #########################################
-    # PARAMETERS OF THE MPC-TSID CONTROLLER #
-    #########################################
+    ################################
+    # PARAMETERS OF THE CONTROLLER #
+    ################################
 
     envID = 0  # Identifier of the environment to choose in which one the simulation will happen
     velID = 0  # Identifier of the reference velocity profile to choose which one will be sent to the robot
 
-    dt_tsid = 0.0020  # Time step of TSID
-    dt_mpc = 0.02  # Time step of the MPC
-    k_mpc = int(dt_mpc / dt_tsid)  # dt is dt_tsid, defined in the TSID controller script
+    dt_wbc = 0.0020  # Time step of the whole body control
+    dt_mpc = 0.02  # Time step of the model predictive control
+    k_mpc = int(dt_mpc / dt_wbc)
     t = 0.0  # Time
-    T_gait = 0.64  # Duration of one gait period
+    T_gait = 0.32  # Duration of one gait period
     T_mpc = 0.32   # Duration of the prediction horizon
-    N_SIMULATION = 5000  # number of simulated TSID time steps
+    N_SIMULATION = 5000  # number of simulated wbc time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -114,7 +110,7 @@ def mcapi_playback(name_interface):
     q_init = np.array([0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, +1.4, -0.0, -0.7, +1.4])
 
     # Run a scenario and retrieve data thanks to the logger
-    controller = Controller(q_init, envID, velID, dt_tsid, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
+    controller = Controller(q_init, envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
                             pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
 
     ####
@@ -135,7 +131,7 @@ def mcapi_playback(name_interface):
     # Initiate communication with the device and calibrate encoders
     if SIMULATION:
         device.Init(calibrateEncoders=True, q_init=q_init, envID=envID,
-                    use_flat_plane=use_flat_plane, enable_pyb_GUI=enable_pyb_GUI, dt=dt_tsid)
+                    use_flat_plane=use_flat_plane, enable_pyb_GUI=enable_pyb_GUI, dt=dt_wbc)
     else:
         device.Init(calibrateEncoders=True, q_init=q_init)
 
@@ -144,7 +140,7 @@ def mcapi_playback(name_interface):
 
     # CONTROL LOOP ***************************************************
     t = 0.0
-    t_max = (N_SIMULATION-2) * dt_tsid
+    t_max = (N_SIMULATION-2) * dt_wbc
 
     while ((not device.hardware.IsTimeout()) and (t < t_max)):
 
