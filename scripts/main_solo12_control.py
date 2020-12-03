@@ -77,7 +77,7 @@ def control_loop(name_interface):
     envID = 0  # Identifier of the environment to choose in which one the simulation will happen
     velID = 1  # Identifier of the reference velocity profile to choose which one will be sent to the robot
 
-    dt_wbc = 0.0020  # Time step of the whole body control
+    dt_wbc = DT  # Time step of the whole body control
     dt_mpc = 0.02  # Time step of the model predictive control
     k_mpc = int(dt_mpc / dt_wbc)
     t = 0.0  # Time
