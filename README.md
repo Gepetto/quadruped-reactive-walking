@@ -42,6 +42,8 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
 
 * Run `python3.6 main_solo12_openloop.py -i test` while being in the `scripts` folder
 
+* Sometimes the parallel process that runs the MPC does not end properly so it will keep running in the background forever, you can manually end all python processes with `pkill -9 python3`
+
 # Tune the simulation
 
 * In `main_solo12_control.py`, you can change some of the parameters defined at the beginning of the `control_loop` function.

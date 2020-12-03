@@ -75,7 +75,7 @@ def control_loop(name_interface):
     ################################
 
     envID = 0  # Identifier of the environment to choose in which one the simulation will happen
-    velID = 0  # Identifier of the reference velocity profile to choose which one will be sent to the robot
+    velID = 1  # Identifier of the reference velocity profile to choose which one will be sent to the robot
 
     dt_wbc = 0.0020  # Time step of the whole body control
     dt_mpc = 0.02  # Time step of the model predictive control
@@ -83,7 +83,7 @@ def control_loop(name_interface):
     t = 0.0  # Time
     T_gait = 0.32  # Duration of one gait period
     T_mpc = 0.32   # Duration of the prediction horizon
-    N_SIMULATION = 5000  # number of simulated wbc time steps
+    N_SIMULATION = 50000  # number of simulated wbc time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
