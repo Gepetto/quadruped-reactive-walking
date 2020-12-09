@@ -105,6 +105,7 @@ class Solo12InvKin:
         afeet = []
         self.pfeet_err = []
         vfeet_ref = []
+        pin.computeJointJacobians(self.rmodel, self.rdata, q)
         pin.forwardKinematics(self.rmodel, self.rdata, q, dq, np.zeros(self.rmodel.nv))
         pin.updateFramePlacements(self.rmodel, self.rdata)
 
@@ -116,7 +117,9 @@ class Solo12InvKin:
             vref = self.feet_velocity_ref[i_ee]
             aref = self.feet_acceleration_ref[i_ee]
 
-            J1 = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, idx, pin.LOCAL_WORLD_ALIGNED)[:3]
+            J1 = pin.getFrameJacobian(self.robot.model, self.robot.data, idx, pin.LOCAL_WORLD_ALIGNED)[:3]
+            # J1 = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, idx, pin.LOCAL_WORLD_ALIGNED)[:3]
+            # print(np.array_equal(J1, J1b))
             e1 = ref-pos
             acc1 = -self.Kp_flyingfeet*(pos-ref) - self.Kd_flyingfeet*(nu.linear-vref) + aref
             if self.flag_in_contact[i_ee]:
@@ -137,7 +140,7 @@ class Solo12InvKin:
         pos = self.rdata.oMf[idx].translation
         nu = pin.getFrameVelocity(self.rmodel, self.rdata, idx, pin.LOCAL_WORLD_ALIGNED)
         ref = self.base_position_ref
-        Jbasis = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, idx, pin.LOCAL_WORLD_ALIGNED)[:3]
+        Jbasis = pin.getFrameJacobian(self.robot.model, self.robot.data, idx, pin.LOCAL_WORLD_ALIGNED)[:3]
         e_basispos = ref - pos
         accbasis = -self.Kp_base_position*(pos-ref) - self.Kd_base_position*(nu.linear-self.base_linearvelocity_ref)
         drift = np.zeros(3)
@@ -157,7 +160,7 @@ class Solo12InvKin:
         rot = self.rdata.oMf[idx].rotation
         nu = pin.getFrameVelocity(self.rmodel, self.rdata, idx, pin.LOCAL_WORLD_ALIGNED)
         rotref = self.base_orientation_ref
-        Jwbasis = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, idx, pin.LOCAL_WORLD_ALIGNED)[3:]
+        Jwbasis = pin.getFrameJacobian(self.robot.model, self.robot.data, idx, pin.LOCAL_WORLD_ALIGNED)[3:]
         e_basisrot = -rotref @ pin.log3(rotref.T@rot)
         accwbasis = -self.Kp_base_orientation * \
             rotref @ pin.log3(rotref.T@rot) - self.Kd_base_orientation*(nu.angular - self.base_angularvelocity_ref)

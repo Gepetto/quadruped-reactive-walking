@@ -17,6 +17,7 @@ class controller():
 
         self.invKin = Solo12InvKin(dt)  # Inverse Kinematics object
         self.qp_wbc = QP_WBC()  # QP of the WBC
+        self.box_qp_wbc = BOX_QP_WBC()  # QP of the WBC
         self.x = np.zeros(18)  # solution of WBC QP
 
         self.error = False  # Set to True when an error happens in the controller
@@ -74,7 +75,7 @@ class controller():
         ddq_cmd = np.array([self.invKin.refreshAndCompute(q.copy(), dq.copy(), x_cmd, contacts, planner)]).T
 
         # Log position, velocity and acceleration references for the feet
-        indexes = [10, 18, 26, 34]
+        """indexes = [10, 18, 26, 34]
         for i in range(4):
             self.log_feet_pos[:, i, self.k_log] = self.invKin.rdata.oMf[indexes[i]].translation
             self.log_feet_err[:, i, self.k_log] = self.invKin.pfeet_err[i]
@@ -83,26 +84,38 @@ class controller():
         # + np.array([[0.0, 0.0, q[2, 0] - planner.h_ref]]).T
         self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :]
         self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
-        self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]
+        self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]"""
 
         self.tac = time()
+
+        """self.box_qp_wbc.compute_matrices(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd, np.array([f_cmd]).T, contacts)
+        self.box_qp_wbc.create_weight_matrices()"""
         # Solve QP problem
-        self.qp_wbc.compute(self.invKin.robot.model, self.invKin.robot.data,
+        self.box_qp_wbc.compute(self.invKin.rmodel, self.invKin.rdata,
+                            q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
+
+        # Solve QP problem
+        self.qp_wbc.compute(self.invKin.rmodel, self.invKin.rdata,
                             q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
 
         """if dq[0, 0] > 0.4:
             from IPython import embed
             embed()"""
 
+
         # Retrieve joint torques
+        tmp_res = self.box_qp_wbc.get_joint_torques(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd)
         self.tau_ff[:] = self.qp_wbc.get_joint_torques().ravel()
         self.toc = time()
+
+        """from IPython import embed
+        embed()"""
 
         # Retrieve desired positions and velocities
         self.vdes[:, 0] = self.invKin.dq_cmd  # (dq + ddq_cmd * self.dt).ravel()  # v des in world frame
         self.qdes[:] = self.invKin.q_cmd  # pin.integrate(self.invKin.robot.model, q, self.vdes * self.dt)
 
-        # Double integration of ddq_cmd + delta_ddq
+        """# Double integration of ddq_cmd + delta_ddq
         # dq[2, 0] = 0.0 self.qdes[2]
         self.vint[:, 0] = (dq + ddq_cmd * self.dt).ravel()  # in world frame
         # self.vint[0:3, 0:1] = self.invKin.rot.transpose() @ self.vint[0:3, 0:1]  # velocity needs to be in base frame for pin.integrate
@@ -134,7 +147,7 @@ class controller():
         self.log_vdes[:, self.k_log] = self.vdes[6:, 0]
         self.log_contacts[:, self.k_log] = contacts
 
-        self.log_tstamps[self.k_log] = clock()
+        self.log_tstamps[self.k_log] = clock()"""
 
         """if dq[0, 0] > 0.02:
             from IPython import embed
@@ -143,6 +156,11 @@ class controller():
         self.k_log += 1
 
         self.tuc = time()
+
+        """self.tic = 0.0
+        self.tac = 0.0
+        self.toc = 0.0
+        self.tuc = 0.0"""
 
         return 0
 
@@ -404,9 +422,8 @@ class QP_WBC():
         self.JcT = np.zeros((18, 12))
         for i in range(4):
             if contacts[i]:
-                self.JcT[:, (3*i):(3*(i+1))] = pin.computeFrameJacobian(model, data, q, indexes[i],
-                                                                        pin.LOCAL_WORLD_ALIGNED)[:3, :].transpose()
-
+                self.JcT[:, (3*i):(3*(i+1))] = pin.getFrameJacobian(model, data, indexes[i],
+                                                                    pin.LOCAL_WORLD_ALIGNED)[:3, :].transpose()
         self.ML_full[:6, :6] = - self.A[:6, :6]
         self.ML_full[:6, 6:] = self.JcT[:6, :]
 
@@ -495,6 +512,204 @@ class QP_WBC():
 
         return (self.A @ (self.ddq_cmd + self.delta_ddq) + np.array([self.NLE]).transpose()
                 - self.JcT @ (self.f_cmd + np.array([self.x[6:]]).transpose()))[6:, ]
+
+
+class BOX_QP_WBC():
+
+    def __init__(self):
+
+        # Set to True after the creation of the QP problem during the first call of the solver
+        self.initialized = False
+
+        # Weight matrices
+        self.Q1 = 0.1 * np.eye(6)
+        self.Q2 = 1.0 * np.eye(12)
+
+        # Friction coefficient
+        self.mu = 0.9
+
+        # Generatrix matrix
+        self.Gk = np.array([[self.mu, self.mu, -self.mu, -self.mu],
+                           [self.mu, -self.mu, self.mu, -self.mu],
+                           [1.0, 1.0, 1.0, 1.0]])
+        self.G = np.zeros((12, 16))
+        for k in range(4):
+            self.G[(3*k):(3*(k+1)), (4*k):(4*(k+1))] = self.Gk
+
+        # QP OSQP object
+        self.prob = osqp.OSQP()
+
+        # ML matrix
+        self.ML = scipy.sparse.csc.csc_matrix(
+            np.ones((6 + 20, 18)), shape=(6 + 20, 18))
+        self.ML_full = np.zeros((6 + 20, 18))
+
+        self.C = np.zeros((5, 3))  # Force constraints
+        self.C[[0, 1, 2, 3] * 2 + [4], [0, 0, 1, 1, 2, 2, 2, 2, 2]
+               ] = np.array([1, -1, 1, -1, -self.mu, -self.mu, -self.mu, -self.mu, -1])
+        for i in range(4):
+            self.ML_full[(6+5*i): (6+5*(i+1)), (6+3*i): (6+3*(i+1))] = self.C
+
+        # Relaxation of acceleration
+        self.delta_ddq = np.zeros((18, 1))
+
+        # NK matrix
+        self.NK = np.zeros((6 + 20, 1))
+
+        # NK_inf is the lower bound
+        self.NK_inf = np.zeros((6 + 20, ))
+        self.inf_lower_bound = -np.inf * np.ones((20,))
+        self.inf_lower_bound[4:: 5] = - 25.0  # - maximum normal force
+        self.NK_inf[: 6] = self.NK[: 6, 0]
+        self.NK_inf[6:] = self.inf_lower_bound
+
+        # Mass matrix
+        self.M = np.zeros((18, 18))
+        self.RNEA = np.zeros((6, 1))
+
+        # Indexes of feet frames in this order: [FL, FR, HL, HR]
+        self.indexes = [10, 18, 26, 34]
+
+        # Create weight matrices
+        self.create_weight_matrices()
+
+    def compute_matrices(self, model, data, q, v, ddq_cmd, f_cmd, contacts):
+        """TODO
+        """
+
+        # Compute the joint space inertia matrix M by using the Composite Rigid Body Algorithm
+        self.M = pin.crba(model, data, q)
+
+        # Contact Jacobian
+        self.Jc = np.zeros((12, 18))
+        for i in range(4):
+            if contacts[i]:
+                self.Jc[(3*i):(3*(i+1)), :] = pin.getFrameJacobian(model, data, self.indexes[i],
+                                                                   pin.LOCAL_WORLD_ALIGNED)[:3, :]
+
+        # Compute all matrices of the Box QP problem
+        self.f_cmd = f_cmd
+        self.Y = self.M[:6, :6]
+        self.X = self.Jc[:, :6].transpose()
+        self.Yinv = np.linalg.pinv(self.Y)
+        self.A = self.Yinv @ self.X
+        self.RNEA[:, 0] = pin.rnea(model, data, q, v, ddq_cmd)[:6]
+        self.gamma = self.Yinv @ ((self.X @ f_cmd) - self.RNEA)
+        self.H = (self.A.transpose() @ self.Q1) @ self.A + self.Q2
+        self.g = (self.A.transpose() @ self.Q1) @ self.gamma
+        self.Pw = (self.G.transpose() @ self.H) @ self.G
+        self.Qw = (self.G.transpose() @ self.g) - ((self.G.transpose() @ self.H) @ f_cmd)
+
+        """from IPython import embed
+        embed()"""
+
+        return 0
+
+    def create_weight_matrices(self):
+        """Create the weight matrices P and q in the cost function 1/2 x^T.P.x + x^T.q of the QP problem
+        """
+
+        # Number of states
+        n_x = 16
+
+        # Declaration of the P matrix in "x^T.P.x + x^T.q"
+        # P_row, _col and _data satisfy the relationship P[P_row[k], P_col[k]] = P_data[k]
+        P_row = np.array([], dtype=np.int64)
+        P_col = np.array([], dtype=np.int64)
+        P_data = np.array([], dtype=np.float64)
+
+        # Define weights for the x-x_ref components of the optimization vector
+        P_row = np.tile(np.arange(0, n_x, 1), n_x)
+        P_col = np.repeat(np.arange(0, n_x, 1), n_x)
+        P_data = np.ones((n_x*n_x,))
+
+        # Convert P into a csc matrix for the solver
+        self.P = scipy.sparse.csc.csc_matrix(
+            (P_data, (P_row, P_col)), shape=(n_x, n_x))
+
+        # Declaration of the Q matrix in "x^T.P.x + x^T.Q"
+        self.Q = np.zeros(n_x,)
+
+        self.box_sup = 25.0 * np.ones((16, ))
+        self.box_low = np.zeros((16, ))
+
+        return 0
+
+    def update_matrices(self):
+        """Update the weight matrices P and q in the cost function 1/2 x^T.P.x + x^T.q of the QP problem
+        """
+
+        #if self.initialized:
+        self.Pw[np.abs(self.Pw) < 1e-6] = 0.0
+        self.Qw[np.abs(self.Qw) < 1e-6] = 0.0
+
+        self.P.data[:] = self.Pw.ravel(order="F")
+        self.Q[:] = self.Qw.ravel()
+
+    def call_solver(self):
+        """Create an initial guess and call the solver to solve the QP problem
+
+        Args:
+            k (int): number of MPC iterations since the start of the simulation
+        """
+
+        """from IPython import embed
+        embed()"""
+        # Setup the solver (first iteration) then just update it
+        if not self.initialized:  # Setup the solver with the matrices
+            self.prob.setup(P=self.P, q=self.Q, A=scipy.sparse.csc.csc_matrix(np.eye(16), shape=(16, 16)),
+                            l=self.box_low, u=self.box_sup, verbose=False)
+            #self.prob.update_settings(eps_abs=1e-5)
+            #self.prob.update_settings(eps_rel=1e-5)
+            # self.prob.update_settings(time_limit=5e-4)
+            self.initialized = True
+            """from IPython import embed
+            embed()
+            self.update_matrices()
+            self.prob.update(Px=self.P.data, Px_idx=np.arange(0, len(self.P.data), 1), q=self.Q[:])"""
+        else:  # Code to update the QP problem without creating it again
+            try:
+                #self.prob.update(Px=self.P.data, Px_idx=np.arange(0, len(self.P.data), 1), q=self.Q[:])
+                self.prob.setup(P=self.P, q=self.Q, A=scipy.sparse.csc.csc_matrix(np.eye(16), shape=(16, 16)),
+                            l=self.box_low, u=self.box_sup, verbose=False)
+                a = 1
+            except ValueError:
+                print("Bound Problem")
+            # self.prob.warm_start(x=self.x)
+
+        # Run the solver to solve the QP problem
+        self.sol = self.prob.solve()
+        self.x = self.sol.x
+
+        self.f_res = self.G @ self.x.reshape((16, 1))
+        self.ddq_res = self.A @ (self.f_res - self.f_cmd) + self.gamma
+        """from IPython import embed
+        embed()"""
+        print(self.f_res.ravel())
+        print(self.x.ravel())
+        from IPython import embed
+        embed()
+
+        return 0
+
+    def compute(self, model, data, q, dq, ddq_cmd, f_cmd, contacts):
+
+        self.compute_matrices(model, data, q, dq, ddq_cmd, f_cmd, contacts)
+        self.update_matrices()
+        self.call_solver()
+
+        return 0
+
+    def get_joint_torques(self, model, data, q, v, ddq_cmd):
+
+        self.delta_ddq[:6, 0:1] = self.ddq_res
+
+        return (pin.rnea(model, data, q, v, ddq_cmd+self.delta_ddq) + (self.Jc.transpose() @ self.f_res).ravel())[6:, ]
+
+        """self.delta_ddq[:6, 0] = self.x[:6]
+
+        return (self.A @ (self.ddq_cmd + self.delta_ddq) + np.array([self.NLE]).transpose()
+                - self.JcT @ (self.f_cmd + np.array([self.x[6:]]).transpose()))[6:, ]"""
 
 
 if __name__ == "__main__":
