@@ -1,6 +1,7 @@
 #include "quadruped-reactive-walking/gepadd.hpp"
 #include "quadruped-reactive-walking/MPC.hpp"
 #include "quadruped-reactive-walking/Planner.hpp"
+#include "quadruped-reactive-walking/InvKin.hpp"
 
 #include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
@@ -64,6 +65,32 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
 
 void exposePlanner() { PlannerPythonVisitor<Planner>::expose(); }
 
+template <typename InvKin>
+struct InvKinPythonVisitor : public bp::def_visitor<InvKinPythonVisitor<InvKin> > {
+  template <class PyClassInvKin>
+  void visit(PyClassInvKin& cl) const {
+    cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+        .def(bp::init<double>(bp::args("dt_in"), "Constructor with parameters."))
+
+        .def("get_q_step", &InvKin::get_q_step, "Get velocity goals matrix.\n")
+        .def("get_dq_cmd", &InvKin::get_dq_cmd, "Get acceleration goals matrix.\n")
+
+        // Run InvKin from Python
+        .def("refreshAndCompute", &InvKin::refreshAndCompute, 
+             bp::args("x_cmd", "contacts", "goals", "vgoals", "agoals", "posf", "vf", "wf", "af", "Jf",
+                      "posb", "rotb", "vb", "ab", "Jb"),
+             "Run InvKin from Python.\n");
+  }
+
+  static void expose() {
+    bp::class_<InvKin>("InvKin", bp::no_init).def(InvKinPythonVisitor<InvKin>());
+
+    ENABLE_SPECIFIC_MATRIX_TYPE(matXd);
+  }
+};
+
+void exposeInvKin() { InvKinPythonVisitor<InvKin>::expose(); }
+
 BOOST_PYTHON_MODULE(libquadruped_reactive_walking) {
   boost::python::def("add", gepetto::example::add);
   boost::python::def("sub", gepetto::example::sub);
@@ -72,4 +99,5 @@ BOOST_PYTHON_MODULE(libquadruped_reactive_walking) {
 
   exposeMPC();
   exposePlanner();
+  exposeInvKin();
 }

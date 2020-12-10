@@ -8,44 +8,9 @@
 #include <iostream>
 #include <string>
 #include "pinocchio/math/rpy.hpp"
+#include "pinocchio/spatial/explog.hpp"
 
-#define N0_gait 20
-// Number of rows in the gait matrix. Arbitrary value that should be set high
-// enough so that there is always at least one empty line at the end of the gait
-// matrix
-
-typedef Eigen::MatrixXd matXd;
-
-class TrajGen {
-  /* Class that generates a reference trajectory in position, velocity and
-     acceleration that feet it swing phase should follow */
-
- private:
-  double lastCoeffs_x[6];  // Coefficients for the X component
-  double lastCoeffs_y[6];  // Coefficients for the Y component
-  double h = 0.05;         // Apex height of the swinging trajectory
-  double time_adaptative_disabled = 0.2;  // Target lock before the touchdown
-  double x1 = 0.0;                        // Target for the X component
-  double y1 = 0.0;                        // Target for the Y component
-  Eigen::Matrix<double, 11, 1> result =
-      Eigen::Matrix<double, 11, 1>::Zero();  // Output of the generator
-
-  // Coefficients
-  double Ax5 = 0.0, Ax4 = 0.0, Ax3 = 0.0, Ax2 = 0.0, Ax1 = 0.0, Ax0 = 0.0,
-         Ay5 = 0.0, Ay4 = 0.0, Ay3 = 0.0, Ay2 = 0.0, Ay1 = 0.0, Ay0 = 0.0,
-         Az6 = 0.0, Az5 = 0.0, Az4 = 0.0, Az3 = 0.0;
-
- public:
-  TrajGen();  // Empty constructor
-  TrajGen(double h_in, double t_lock_in, double x_in,
-          double y_in);  // Default constructor
-  Eigen::Matrix<double, 11, 1> get_next_foot(double x0, double dx0, double ddx0,
-                                             double y0, double dy0, double ddy0,
-                                             double x1_in, double y1_in,
-                                             double t0, double t1, double dt);
-};
-
-class Planner {
+class InvKin {
   /* Planner that outputs current and future locations of footsteps, the
      reference trajectory of the base and the position, velocity, acceleration
      commands for feet in swing phase based on the reference velocity given by
@@ -144,10 +109,65 @@ class Planner {
   // Inputs of the constructor
   double dt;  // Time step of the contact sequence (time step of the MPC)
 
+  // Matrices initialisation
+  Eigen::Matrix<double, 4, 3> feet_position_ref = Eigen::Matrix<double, 4, 3>::Zero();
+  Eigen::Matrix<double, 4, 3> feet_velocity_ref = Eigen::Matrix<double, 4, 3>::Zero();
+  Eigen::Matrix<double, 4, 3> feet_acceleration_ref = Eigen::Matrix<double, 4, 3>::Zero();
+  Eigen::Matrix<double, 1, 4> flag_in_contact = Eigen::Matrix<double, 1, 4>::Zero();
+  Eigen::Matrix<double, 3, 3> base_orientation_ref = Eigen::Matrix<double, 3, 3>::Zero();
+  Eigen::Matrix<double, 1, 3> base_angularvelocity_ref = Eigen::Matrix<double, 1, 3>::Zero();
+  Eigen::Matrix<double, 1, 3> base_angularacceleration_ref = Eigen::Matrix<double, 1, 3>::Zero();
+  Eigen::Matrix<double, 1, 3> base_position_ref = Eigen::Matrix<double, 1, 3>::Zero();
+  Eigen::Matrix<double, 1, 3> base_linearvelocity_ref = Eigen::Matrix<double, 1, 3>::Zero();
+  Eigen::Matrix<double, 1, 3> base_linearacceleration_ref = Eigen::Matrix<double, 1, 3>::Zero();
+  Eigen::Matrix<double, 6, 1> x_ref = Eigen::Matrix<double, 6, 1>::Zero();
+  Eigen::Matrix<double, 6, 1> x = Eigen::Matrix<double, 6, 1>::Zero();
+  Eigen::Matrix<double, 6, 1> dx_ref = Eigen::Matrix<double, 6, 1>::Zero();
+  Eigen::Matrix<double, 6, 1> dx = Eigen::Matrix<double, 6, 1>::Zero();
+  Eigen::Matrix<double, 18, 18> J = Eigen::Matrix<double, 18, 18>::Zero();
+  Eigen::Matrix<double, 18, 18> invJ = Eigen::Matrix<double, 18, 18>::Zero();
+  Eigen::Matrix<double, 1, 18> acc = Eigen::Matrix<double, 1, 18>::Zero();
+  Eigen::Matrix<double, 1, 18> x_err = Eigen::Matrix<double, 1, 18>::Zero();
+  Eigen::Matrix<double, 1, 18> dx_r = Eigen::Matrix<double, 1, 18>::Zero();
+
+  Eigen::Matrix<double, 4, 3> pfeet_err = Eigen::Matrix<double, 4, 3>::Zero();
+  Eigen::Matrix<double, 4, 3> vfeet_ref = Eigen::Matrix<double, 4, 3>::Zero();
+  Eigen::Matrix<double, 4, 3> afeet = Eigen::Matrix<double, 4, 3>::Zero();
+  Eigen::Matrix<double, 1, 3> e_basispos = Eigen::Matrix<double, 1, 3>::Zero();
+  Eigen::Matrix<double, 1, 3> abasis = Eigen::Matrix<double, 1, 3>::Zero();
+  Eigen::Matrix<double, 1, 3> e_basisrot = Eigen::Matrix<double, 1, 3>::Zero();
+  Eigen::Matrix<double, 1, 3> awbasis = Eigen::Matrix<double, 1, 3>::Zero();
+
+  Eigen::MatrixXd ddq = Eigen::MatrixXd::Zero(18, 1);
+  Eigen::MatrixXd q_step = Eigen::MatrixXd::Zero(18, 1);
+  Eigen::MatrixXd dq_cmd = Eigen::MatrixXd::Zero(18, 1);
+
+  // Gains
+  double Kp_base_orientation = 100.0;
+  double Kd_base_orientation = 2.0 * std::sqrt(Kp_base_orientation);
+  
+  double Kp_base_position = 100.0;
+  double Kd_base_position = 2.0 * std::sqrt(Kp_base_position);
+
+  double Kp_flyingfeet = 100.0;
+  double Kd_flyingfeet = 2.0 * std::sqrt(Kp_flyingfeet);
+
  public:
   InvKin();
-  Invkin(double dt_in);
+  InvKin(double dt_in);
+  
+  Eigen::Matrix<double, 1, 3> cross3(Eigen::Matrix<double, 1, 3> left, Eigen::Matrix<double, 1, 3> right);
 
+  Eigen::MatrixXd refreshAndCompute(const Eigen::MatrixXd &x_cmd, const Eigen::MatrixXd &contacts,
+                                    const Eigen::MatrixXd &goals, const Eigen::MatrixXd &vgoals, const Eigen::MatrixXd &agoals,
+                                    const Eigen::MatrixXd &posf, const Eigen::MatrixXd &vf, const Eigen::MatrixXd &wf, const Eigen::MatrixXd &af,
+                                    const Eigen::MatrixXd &Jf, const Eigen::MatrixXd &posb, const Eigen::MatrixXd &rotb, const Eigen::MatrixXd &vb,
+                                    const Eigen::MatrixXd &ab, const Eigen::MatrixXd &Jb);
+  Eigen::MatrixXd computeInvKin(const Eigen::MatrixXd &posf, const Eigen::MatrixXd &vf, const Eigen::MatrixXd &wf, const Eigen::MatrixXd &af,
+                                const Eigen::MatrixXd &Jf, const Eigen::MatrixXd &posb, const Eigen::MatrixXd &rotb, const Eigen::MatrixXd &vb, const Eigen::MatrixXd &ab,
+                                const Eigen::MatrixXd &Jb);
+  Eigen::MatrixXd get_q_step();
+  Eigen::MatrixXd get_dq_cmd();
   /*void Print();
 
   int create_walk();

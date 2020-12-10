@@ -3,12 +3,14 @@ from example_robot_data import load
 import time
 import numpy as np
 import pinocchio as pin
-
+import libquadruped_reactive_walking as lrw
 
 class Solo12InvKin:
     def __init__(self, dt):
         self.robot = load('solo12')
         self.dt = dt
+
+        self.InvKinCpp = lrw.InvKin(dt)
 
         # Inputs to be modified bu the user before calling .compute
         self.feet_position_ref = [np.array([0.1946,   0.14695, 0.0191028]), np.array(
@@ -43,6 +45,21 @@ class Solo12InvKin:
         # Matrices initialisation
         self.invJ = np.zeros((18, 18))
 
+        self.cpp_posf = np.zeros((4, 3))
+        self.cpp_vf = np.zeros((4, 3))
+        self.cpp_wf = np.zeros((4, 3))
+        self.cpp_af = np.zeros((4, 3))
+        self.cpp_Jf = np.zeros((12, 18))
+
+        self.cpp_posb = np.zeros((1, 3))
+        self.cpp_rotb = np.zeros((3, 3))
+        self.cpp_vb = np.zeros((1, 6))
+        self.cpp_ab = np.zeros((1, 6))
+        self.cpp_Jb = np.zeros((6, 18))
+
+        self.cpp_ddq = np.zeros((18,))
+        self.cpp_q_cmd = np.zeros((19,))
+        self.cpp_dq_cmd = np.zeros((18,))
 
         # Get frame IDs
         FL_FOOT_ID = self.robot.model.getFrameId('FL_FOOT')
@@ -92,12 +109,52 @@ class Solo12InvKin:
             self.feet_acceleration_ref[i] = planner.agoals[0:3, i]
 
         # Update position and velocity reference for the base
-        self.base_position_ref[:] = x_cmd[0:3]
+        """self.base_position_ref[:] = x_cmd[0:3]
         self.base_orientation_ref = pin.utils.rpyToMatrix(x_cmd[3:6])
         self.base_linearvelocity_ref[:] = x_cmd[6:9]
         self.base_angularvelocity_ref[:] = x_cmd[9:12]
 
-        return self.compute(q, dq)
+        ddq = self.compute(q, dq)"""
+
+        # Update model and data
+        pin.computeJointJacobians(self.rmodel, self.rdata, q)
+        pin.forwardKinematics(self.rmodel, self.rdata, q, dq, np.zeros(self.rmodel.nv))
+        pin.updateFramePlacements(self.rmodel, self.rdata)
+
+        # Get data required by IK with Pinocchio
+        for i_ee in range(4):
+            idx = int(self.foot_ids[i_ee])
+            self.cpp_posf[i_ee, :] = self.rdata.oMf[idx].translation
+            nu = pin.getFrameVelocity(self.rmodel, self.rdata, idx, pin.LOCAL_WORLD_ALIGNED)
+            self.cpp_vf[i_ee, :] = nu.linear
+            self.cpp_wf[i_ee, :] = nu.angular
+            self.cpp_af[i_ee, :] = pin.getFrameAcceleration(self.rmodel, self.rdata, idx, pin.LOCAL_WORLD_ALIGNED).linear
+            self.cpp_Jf[(3*i_ee):(3*(i_ee+1)), :] = pin.getFrameJacobian(self.robot.model, self.robot.data, idx, pin.LOCAL_WORLD_ALIGNED)[:3]
+
+        self.cpp_posb[:] = self.rdata.oMf[self.BASE_ID].translation
+        self.cpp_rotb[:, :] = self.rdata.oMf[self.BASE_ID].rotation
+        nu = pin.getFrameVelocity(self.rmodel, self.rdata, self.BASE_ID, pin.LOCAL_WORLD_ALIGNED)
+        self.cpp_vb[0, 0:3] = nu.linear
+        self.cpp_vb[0, 3:6] = nu.angular
+        acc = pin.getFrameAcceleration(self.rmodel, self.rdata, self.BASE_ID, pin.LOCAL_WORLD_ALIGNED)
+        self.cpp_ab[0, 0:3] = acc.linear
+        self.cpp_ab[0, 3:6] = acc.angular
+        self.cpp_Jb[:, :] = pin.getFrameJacobian(self.robot.model, self.robot.data, self.BASE_ID, pin.LOCAL_WORLD_ALIGNED)
+
+        self.cpp_ddq[:] = self.InvKinCpp.refreshAndCompute(np.array([x_cmd]), np.array([contacts]), planner.goals, planner.vgoals, planner.agoals,
+                                                           self.cpp_posf, self.cpp_vf, self.cpp_wf, self.cpp_af, self.cpp_Jf,
+                                                           self.cpp_posb, self.cpp_rotb, self.cpp_vb, self.cpp_ab, self.cpp_Jb)
+
+        self.cpp_q_cmd[:] = pin.integrate(self.robot.model, q, self.InvKinCpp.get_q_step())
+        self.cpp_dq_cmd[:] = self.InvKinCpp.get_dq_cmd()
+
+        self.q_cmd = self.cpp_q_cmd
+        self.dq_cmd = self.cpp_dq_cmd
+
+        """from IPython import embed
+        embed()"""
+
+        return self.cpp_ddq
 
     def compute(self, q, dq):
         # FEET
@@ -134,6 +191,7 @@ class Solo12InvKin:
 
             self.pfeet_err.append(e1)
             vfeet_ref.append(vref)
+
 
         # BASE POSITION
         idx = self.BASE_ID
@@ -193,16 +251,27 @@ class Solo12InvKin:
             self.invJ[(6+3*i):(9+3*i), (6+3*i):(9+3*i)] = inv
         tac = time.time()"""
 
+        print("J:")
+        print(J)
         invJ = np.linalg.pinv(J)  # self.dinv(J)  # or np.linalg.inv(J) since full rank
 
         """toc = time.time()
         print("Old:", toc - tac)
         print("New:", tac - tic)"""
 
+        print("invJ:")
+        print(invJ)
+        print("acc:")
+        print(acc)
+        
         ddq = invJ @ acc
         self.q_cmd = pin.integrate(self.robot.model, q, invJ @ x_err)
         self.dq_cmd = invJ @ dx_ref
 
+        print("q_step")
+        print(invJ @ x_err)
+        print("dq_cmd:")
+        print(self.dq_cmd)
         """from IPython import embed
         embed()"""
 
