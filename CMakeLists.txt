@@ -48,6 +48,7 @@ set(${PROJECT_NAME}_HEADERS
   include/${PROJECT_NAME}/MPC.hpp
   include/${PROJECT_NAME}/Planner.hpp
   include/${PROJECT_NAME}/InvKin.hpp
+  include/${PROJECT_NAME}/QP_WBC.hpp
   include/other/st_to_cc.hpp
   #include/osqp_folder/include/osqp_configure.h
   #include/osqp_folder/include/osqp.h
@@ -61,6 +62,7 @@ set(${PROJECT_NAME}_SOURCES
   src/MPC.cpp
   src/Planner.cpp
   src/InvKin.cpp
+  src/QP_WBC.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
