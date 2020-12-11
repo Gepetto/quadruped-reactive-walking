@@ -1,7 +1,7 @@
-#include "quadruped-reactive-walking/QP_WBC.hpp"
+#include "quadruped-reactive-walking/QPWBC.hpp"
 
 
-QP_WBC::QP_WBC() {
+QPWBC::QPWBC() {
 
     // Initialization of the generatrix G
     Eigen::Matrix<double, 3, 4> Gk;
@@ -24,7 +24,7 @@ QP_WBC::QP_WBC() {
 Create the constraint matrices of the MPC (M.X = N and L.X <= K)
 Create the weight matrices P and Q of the MPC solver (cost 1/2 x^T * P * X + X^T * Q)
 */
-int QP_WBC::create_matrices() {
+int QPWBC::create_matrices() {
   // Create the constraint matrices
   create_ML();
 
@@ -37,7 +37,7 @@ int QP_WBC::create_matrices() {
 /*
 Add a new non-zero coefficient to the ML matrix by filling the triplet r_ML / c_ML / v_ML
 */
-inline void QP_WBC::add_to_ML(int i, int j, double v, int *r_ML, int *c_ML, double *v_ML) {
+inline void QPWBC::add_to_ML(int i, int j, double v, int *r_ML, int *c_ML, double *v_ML) {
   r_ML[cpt_ML] = i;  // row index
   c_ML[cpt_ML] = j;  // column index
   v_ML[cpt_ML] = v;  // value of coefficient
@@ -47,7 +47,7 @@ inline void QP_WBC::add_to_ML(int i, int j, double v, int *r_ML, int *c_ML, doub
 /*
 Add a new non-zero coefficient to the P matrix by filling the triplet r_P / c_P / v_P
 */
-inline void QP_WBC::add_to_P(int i, int j, double v, int *r_P, int *c_P, double *v_P) {
+inline void QPWBC::add_to_P(int i, int j, double v, int *r_P, int *c_P, double *v_P) {
   r_P[cpt_P] = i;  // row index
   c_P[cpt_P] = j;  // column index
   v_P[cpt_P] = v;  // value of coefficient
@@ -57,7 +57,7 @@ inline void QP_WBC::add_to_P(int i, int j, double v, int *r_P, int *c_P, double 
 /*
 Create the M and L matrices involved in the MPC constraint equations M.X = N and L.X <= K
 */
-int QP_WBC::create_ML() {
+int QPWBC::create_ML() {
   int *r_ML = new int[size_nz_ML];        // row indexes of non-zero values in matrix ML
   int *c_ML = new int[size_nz_ML];        // col indexes of non-zero values in matrix ML
   double *v_ML = new double[size_nz_ML];  // non-zero values in matrix ML
@@ -116,7 +116,7 @@ int QP_WBC::create_ML() {
 /*
 Create the weight matrices P and q in the cost function x^T.P.x + x^T.q of the QP problem
 */
-int QP_WBC::create_weight_matrices() {
+int QPWBC::create_weight_matrices() {
   int *r_P = new int[size_nz_P];        // row indexes of non-zero values in matrix P
   int *c_P = new int[size_nz_P];        // col indexes of non-zero values in matrix P
   double *v_P = new double[size_nz_P];  // non-zero values in matrix P
@@ -177,7 +177,7 @@ int QP_WBC::create_weight_matrices() {
 /*
 Create an initial guess and call the solver to solve the QP problem
 */
-int QP_WBC::call_solver(int k) {
+int QPWBC::call_solver(int k) {
   // Initial guess for forces (mass evenly supported by all legs in contact)
   //warmxf.block(0, 0, 12 * (n_steps - 1), 1) = x.block(12, 0, 12 * (n_steps - 1), 1);
   //warmxf.block(12 * n_steps, 0, 12 * (n_steps - 1), 1) = x.block(12 * (n_steps + 1), 0, 12 * (n_steps - 1), 1);
@@ -243,7 +243,7 @@ int QP_WBC::call_solver(int k) {
 /*
 Extract relevant information from the output of the QP solver
 */
-int QP_WBC::retrieve_result() {
+int QPWBC::retrieve_result() {
   // Retrieve the "contact forces" part of the solution of the QP problem
   for (int k = 0; k < 16; k++) {
     lambdas(k, 0) = (workspce->solution->x)[k];
@@ -275,19 +275,19 @@ int QP_WBC::retrieve_result() {
 /*
 Return the latest desired contact forces that have been computed
 */
-Eigen::MatrixXd QP_WBC::get_latest_result() { return x_f_applied; }
+Eigen::MatrixXd QPWBC::get_latest_result() { return x_f_applied; }
 
 /*
 Return the next predicted state of the base
 */
-Eigen::MatrixXd QP_WBC::get_f_res() { return f_res; }
-Eigen::MatrixXd QP_WBC::get_ddq_res() { return ddq_res; }
+Eigen::MatrixXd QPWBC::get_f_res() { return f_res; }
+Eigen::MatrixXd QPWBC::get_ddq_res() { return ddq_res; }
 
 /*
 Run one iteration of the whole MPC by calling all the necessary functions (data retrieval,
 update of constraint matrices, update of the solver, running the solver, retrieving result)
 */
-int QP_WBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA) {
+int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA) {
 
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + x^T.Q with constraints M.X == N and L.X <= K
@@ -312,7 +312,7 @@ Set all the parameters of the OSQP solver
 */
 int set_settings() { return 0; }
 
-void QP_WBC::my_print_csc_matrix(csc *M, const char *name) {
+void QPWBC::my_print_csc_matrix(csc *M, const char *name) {
   c_int j, i, row_start, row_stop;
   c_int k = 0;
 
@@ -339,7 +339,7 @@ void QP_WBC::my_print_csc_matrix(csc *M, const char *name) {
   }
 }
 
-void QP_WBC::save_csc_matrix(csc *M, std::string filename) {
+void QPWBC::save_csc_matrix(csc *M, std::string filename) {
   c_int j, i, row_start, row_stop;
   c_int k = 0;
 
@@ -365,7 +365,7 @@ void QP_WBC::save_csc_matrix(csc *M, std::string filename) {
   myfile.close();
 }
 
-void QP_WBC::save_dns_matrix(double *M, int size, std::string filename) {
+void QPWBC::save_dns_matrix(double *M, int size, std::string filename) {
   // Open file
   std::ofstream myfile;
   myfile.open(filename + ".csv");
@@ -378,7 +378,7 @@ void QP_WBC::save_dns_matrix(double *M, int size, std::string filename) {
 }
 
 
-void QP_WBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA) {
+void QPWBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA) {
 
     // Compute all matrices of the Box QP problem
     Y = M.block(0, 0, 6, 6);
@@ -393,7 +393,7 @@ void QP_WBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &J
 
 }
 
-void QP_WBC::update_PQ() {
+void QPWBC::update_PQ() {
 
   // Update P and Q weight matrices
   for (int i = 0; i < 16; i++) {

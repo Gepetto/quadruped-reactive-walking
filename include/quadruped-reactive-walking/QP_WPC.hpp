@@ -1,5 +1,5 @@
-#ifndef QP_WBC_H_INCLUDED
-#define QP_WBC_H_INCLUDED
+#ifndef QPWBC_H_INCLUDED
+#define QPWBC_H_INCLUDED
 
 #include <iostream>
 #include <fstream>
@@ -16,7 +16,7 @@
 #include "osqp_folder/include/osqp_configure.h"
 #include "other/st_to_cc.hpp"
 
-class QP_WBC {
+class QPWBC {
  private:
   
   int cpt_ML = 0;
@@ -65,7 +65,7 @@ class QP_WBC {
 
  public:
   
-  QP_WBC(); // Constructor
+  QPWBC(); // Constructor
 
   // Functions
   inline void add_to_ML(int i, int j, double v, int *r_ML, int *c_ML, double *v_ML); // function to fill the triplet r/c/v
@@ -80,8 +80,8 @@ class QP_WBC {
   int run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA);
 
   // Getters
-  Eigen::MatrixXd QP_WBC::get_f_res();
-  Eigen::MatrixXd QP_WBC::get_dsqq_res();
+  Eigen::MatrixXd QPWBC::get_f_res();
+  Eigen::MatrixXd QPWBC::get_dsqq_res();
 
   // Utils
   void my_print_csc_matrix(csc *M, const char *name);
@@ -90,4 +90,4 @@ class QP_WBC {
 
 };
 
-#endif  // QP_WBC_H_INCLUDED
+#endif  // QPWBC_H_INCLUDED
