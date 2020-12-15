@@ -2,6 +2,7 @@
 #include "quadruped-reactive-walking/MPC.hpp"
 #include "quadruped-reactive-walking/Planner.hpp"
 #include "quadruped-reactive-walking/InvKin.hpp"
+#include "quadruped-reactive-walking/QPWBC.hpp"
 
 #include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
@@ -91,6 +92,28 @@ struct InvKinPythonVisitor : public bp::def_visitor<InvKinPythonVisitor<InvKin> 
 
 void exposeInvKin() { InvKinPythonVisitor<InvKin>::expose(); }
 
+template <typename QPWBC>
+struct QPWBCPythonVisitor : public bp::def_visitor<QPWBCPythonVisitor<QPWBC> > {
+  template <class PyClassQPWBC>
+  void visit(PyClassQPWBC& cl) const {
+    cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+
+        .def("get_f_res", &QPWBC::get_f_res, "Get velocity goals matrix.\n")
+        .def("get_ddq_res", &QPWBC::get_ddq_res, "Get acceleration goals matrix.\n")
+
+        // Run QPWBC from Python
+        .def("run", &QPWBC::run, bp::args("M", "Jc", "f_cmd", "RNEA"), "Run QPWBC from Python.\n");
+  }
+
+  static void expose() {
+    bp::class_<QPWBC>("QPWBC", bp::no_init).def(QPWBCPythonVisitor<QPWBC>());
+
+    ENABLE_SPECIFIC_MATRIX_TYPE(matXd);
+  }
+};
+
+void exposeQPWBC() { QPWBCPythonVisitor<QPWBC>::expose(); }
+
 BOOST_PYTHON_MODULE(libquadruped_reactive_walking) {
   boost::python::def("add", gepetto::example::add);
   boost::python::def("sub", gepetto::example::sub);
@@ -100,4 +123,5 @@ BOOST_PYTHON_MODULE(libquadruped_reactive_walking) {
   exposeMPC();
   exposePlanner();
   exposeInvKin();
+  exposeQPWBC();
 }

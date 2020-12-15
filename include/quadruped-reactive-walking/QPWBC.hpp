@@ -1,6 +1,7 @@
 #ifndef QPWBC_H_INCLUDED
 #define QPWBC_H_INCLUDED
 
+#include "quadruped-reactive-walking/InvKin.hpp" // For pseudoinverse
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -15,6 +16,8 @@
 #include "osqp_folder/include/util.h"
 #include "osqp_folder/include/osqp_configure.h"
 #include "other/st_to_cc.hpp"
+
+
 
 class QPWBC {
  private:
@@ -34,6 +37,17 @@ class QPWBC {
 
   // Generatrix of the linearized friction cone
   Eigen::Matrix<double, 12, 16> G = 1.0 * Eigen::Matrix<double, 12, 16>::Zero();
+
+  // Transformation matrices
+  Eigen::Matrix<double, 6, 6> Y = Eigen::Matrix<double, 6, 6>::Zero();
+  Eigen::Matrix<double, 6, 12> X = Eigen::Matrix<double, 6, 12>::Zero();
+  Eigen::Matrix<double, 6, 6> Yinv = Eigen::Matrix<double, 6, 6>::Zero();
+  Eigen::Matrix<double, 6, 12> A = Eigen::Matrix<double, 6, 12>::Zero();
+  Eigen::Matrix<double, 6, 1> gamma = Eigen::Matrix<double, 6, 1>::Zero();
+  Eigen::Matrix<double, 12, 12>  H = Eigen::Matrix<double, 12, 12>::Zero();
+  Eigen::Matrix<double, 12, 1> g = Eigen::Matrix<double, 12, 1>::Zero();
+  Eigen::Matrix<double, 16, 16> Pw = Eigen::Matrix<double, 16, 16>::Zero();
+  Eigen::Matrix<double, 16, 1> Qw = Eigen::Matrix<double, 16, 1>::Zero();
 
   // Results
   Eigen::Matrix<double, 16, 1> lambdas = Eigen::Matrix<double, 16, 1>::Zero();
@@ -73,15 +87,15 @@ class QPWBC {
   int create_matrices();
   int create_ML();
   int create_weight_matrices();
-  int compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA);
+  void compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA);
   void update_PQ();
-  int call_solver(int);
-  int retrieve_result();
+  int call_solver();
+  int retrieve_result(const Eigen::MatrixXd &f_cmd);
   int run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA);
 
   // Getters
-  Eigen::MatrixXd QPWBC::get_f_res();
-  Eigen::MatrixXd QPWBC::get_dsqq_res();
+  Eigen::MatrixXd get_f_res();
+  Eigen::MatrixXd get_ddq_res();
 
   // Utils
   void my_print_csc_matrix(csc *M, const char *name);

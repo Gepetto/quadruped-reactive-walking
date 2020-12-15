@@ -48,7 +48,7 @@ set(${PROJECT_NAME}_HEADERS
   include/${PROJECT_NAME}/MPC.hpp
   include/${PROJECT_NAME}/Planner.hpp
   include/${PROJECT_NAME}/InvKin.hpp
-  include/${PROJECT_NAME}/QP_WBC.hpp
+  include/${PROJECT_NAME}/QPWBC.hpp
   include/other/st_to_cc.hpp
   #include/osqp_folder/include/osqp_configure.h
   #include/osqp_folder/include/osqp.h
@@ -62,7 +62,7 @@ set(${PROJECT_NAME}_SOURCES
   src/MPC.cpp
   src/Planner.cpp
   src/InvKin.cpp
-  src/QP_WBC.cpp
+  src/QPWBC.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
@@ -83,6 +83,12 @@ TARGET_LINK_LIBRARIES(${PROJECT_NAME} PUBLIC pinocchio::pinocchio)
 
 # Link parametric curves library
 # target_link_libraries(${PROJECT_NAME} PUBLIC curves::curves)
+
+# Find eiquadprog library and headers
+add_project_dependency(eiquadprog REQUIRED)
+
+# Link eiquadprog library
+target_link_libraries(${PROJECT_NAME} PUBLIC eiquadprog::eiquadprog)
 
 # Find OSQP library and headers
 find_package(osqp REQUIRED)

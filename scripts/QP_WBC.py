@@ -7,7 +7,7 @@ from example_robot_data import load
 import osqp as osqp
 from solo12InvKin import Solo12InvKin
 from time import clock, time
-
+import libquadruped_reactive_walking as lrw
 
 class controller():
 
@@ -17,7 +17,8 @@ class controller():
 
         self.invKin = Solo12InvKin(dt)  # Inverse Kinematics object
         self.qp_wbc = QP_WBC()  # QP of the WBC
-        self.box_qp_wbc = BOX_QP_WBC()  # QP of the WBC
+        # self.box_qp_wbc = BOX_QP_WBC()  # QP of the WBC
+        self.box_qp = lrw.QPWBC()
         self.x = np.zeros(18)  # solution of WBC QP
 
         self.error = False  # Set to True when an error happens in the controller
@@ -91,12 +92,30 @@ class controller():
         """self.box_qp_wbc.compute_matrices(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd, np.array([f_cmd]).T, contacts)
         self.box_qp_wbc.create_weight_matrices()"""
         # Solve QP problem
-        self.box_qp_wbc.compute(self.invKin.rmodel, self.invKin.rdata,
-                            q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
+        # self.box_qp_wbc.compute(self.invKin.rmodel, self.invKin.rdata,
+        #                     q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
 
         # Solve QP problem
         self.qp_wbc.compute(self.invKin.rmodel, self.invKin.rdata,
                             q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
+
+        # Compute the joint space inertia matrix M by using the Composite Rigid Body Algorithm
+        M = pin.crba(self.invKin.rmodel, self.invKin.rdata, q)
+
+        # Contact Jacobian
+        # Indexes of feet frames in this order: [FL, FR, HL, HR]
+        indexes = [10, 18, 26, 34]
+        Jc = np.zeros((12, 18))
+        for i in range(4):
+            if contacts[i]:
+                Jc[(3*i):(3*(i+1)), :] = pin.getFrameJacobian(self.invKin.rmodel, self.invKin.rdata, indexes[i],
+                                                                   pin.LOCAL_WORLD_ALIGNED)[:3, :]
+        RNEA = pin.rnea(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd)[:6]
+
+        from IPython import embed
+        embed()
+
+        self.box_qp.run(M.copy(), Jc.copy(), f_cmd.reshape((-1, 1)).copy(), RNEA.reshape((-1, 1)).copy())
 
         """if dq[0, 0] > 0.4:
             from IPython import embed
@@ -104,7 +123,7 @@ class controller():
 
 
         # Retrieve joint torques
-        tmp_res = self.box_qp_wbc.get_joint_torques(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd)
+        # tmp_res = self.box_qp_wbc.get_joint_torques(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd)
         self.tau_ff[:] = self.qp_wbc.get_joint_torques().ravel()
         self.toc = time()
 
@@ -687,8 +706,8 @@ class BOX_QP_WBC():
         embed()"""
         print(self.f_res.ravel())
         print(self.x.ravel())
-        from IPython import embed
-        embed()
+        """from IPython import embed
+        embed()"""
 
         return 0
 

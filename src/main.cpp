@@ -9,6 +9,9 @@
 #include "quadruped-reactive-walking/Planner.hpp"
 #include "pinocchio/math/rpy.hpp"
 
+#include "eiquadprog/eiquadprog-rt.hpp"
+using namespace eiquadprog::solvers;
+
 int main(int argc, char** argv) {
   if (argc == 3) {
     int arg_a = std::atoi(argv[1]), arg_b = std::atoi(argv[2]);
@@ -23,7 +26,48 @@ int main(int argc, char** argv) {
                               Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitX());
     std::cout << pinocchio::rpy::matrixToRpy(quat.toRotationMatrix()) << std::endl;
 
-    std::cout << "-- Test Planner --" << std::endl;
+    std::cout << "-- Test Eiquadprog --" << std::endl;
+
+    RtEiquadprog<2, 0, 2> qp;
+
+    RtMatrixX<2, 2>::d Q;
+    Q.setZero();
+    Q(0, 0) = 1.0;
+    Q(1, 1) = 1.0;
+
+    RtVectorX<2>::d C;
+    C.setZero();
+
+    RtMatrixX<0, 2>::d Aeq;
+
+    RtVectorX<0>::d Beq(0);
+
+    RtMatrixX<2, 2>::d Aineq;
+    Aineq.setZero();
+    Aineq(0, 0) = 1.;
+    Aineq(1, 1) = 1.;
+
+    RtVectorX<2>::d Bineq;
+    Bineq(0) = -1.;
+    Bineq(1) = -1.;
+
+    RtVectorX<2>::d x;
+
+    RtVectorX<2>::d solution;
+    solution(0) = 1.;
+    solution(1) = 1.;
+
+    double val = 1.;
+
+    RtEiquadprog_status expected = RT_EIQUADPROG_OPTIMAL;
+
+    RtEiquadprog_status status = qp.solve_quadprog(Q, C, Aeq, Beq, Aineq, Bineq, x);
+
+    std::cout << "Solution: " << std::endl;
+    std::cout << x << std::endl;
+
+
+    /*std::cout << "-- Test Planner --" << std::endl;
 
     double dt_in = 0.02;              // Time step of the MPC
     double dt_wbc_in = 0.002;         // Time step of the WBC
@@ -54,7 +98,7 @@ int main(int argc, char** argv) {
         std::cout << "#### " << k << std::endl;
         planner.Print();
       }
-    }
+    }*/
 
     return EXIT_SUCCESS;
   } else {
