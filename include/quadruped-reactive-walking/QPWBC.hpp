@@ -17,7 +17,9 @@
 #include "osqp_folder/include/osqp_configure.h"
 #include "other/st_to_cc.hpp"
 
+#include "eiquadprog/eiquadprog-rt.hpp"
 
+using namespace eiquadprog::solvers;
 
 class QPWBC {
  private:
@@ -76,6 +78,17 @@ class QPWBC {
   OSQPWorkspace *workspce = new OSQPWorkspace();
   OSQPData *data;
   OSQPSettings *settings = (OSQPSettings *)c_malloc(sizeof(OSQPSettings));
+
+  //using namespace eiquadprog::solvers;
+  RtEiquadprog<16, 0, 16> qp;
+  RtMatrixX<16, 16>::d Q_qp;
+  RtVectorX<16>::d C_qp;
+  RtMatrixX<0, 16>::d Aeq;
+  RtVectorX<0>::d Beq;
+  RtMatrixX<16, 16>::d Aineq;
+  RtVectorX<16>::d Bineq;
+  RtVectorX<16>::d x_qp;
+  
 
  public:
   

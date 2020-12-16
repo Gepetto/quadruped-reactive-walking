@@ -18,6 +18,16 @@ QPWBC::QPWBC() {
 
     // Set OSQP settings to default
     osqp_set_default_settings(settings);
+
+    Q_qp.setZero();
+    C_qp.setZero();
+    Beq.setZero();
+
+    Aineq.setZero();
+    for (int i = 0; i < 16; i++) {
+      Aineq(i, i) = 1.;
+      Bineq(i) = 0.0;
+    }
 }
 
 /*
@@ -292,7 +302,7 @@ Extract relevant information from the output of the QP solver
 int QPWBC::retrieve_result(const Eigen::MatrixXd &f_cmd) {
   // Retrieve the "contact forces" part of the solution of the QP problem
   for (int k = 0; k < 16; k++) {
-    lambdas(k, 0) = (workspce->solution->x)[k];
+    lambdas(k, 0) = x_qp(k); // (workspce->solution->x)[k];
   }
 
   f_res = G * lambdas;
@@ -333,9 +343,9 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
 
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + x^T.Q with constraints M.X == N and L.X <= K
-  if (not initialized) {
-    create_matrices();
-  }
+  // if (not initialized) {
+  //   create_matrices();
+  // }
   
   std::cout << "Creation done" << std::endl;
 
@@ -348,12 +358,29 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
   std::cout << "update_PQ done" << std::endl;
 
   // Create an initial guess and call the solver to solve the QP problem
-  call_solver();
+  //call_solver();
+  qp.solve_quadprog(Q_qp, C_qp, Aeq, Beq, Aineq, Bineq, x_qp);
+
+  std::cout << "A:" << std::endl << A << std::endl << "--" << std::endl;
+  std::cout << "Xf:" << std::endl << (X * f_cmd) << std::endl << "--" << std::endl;
+  std::cout << "RNEA:" << std::endl << RNEA << std::endl << "--" << std::endl;
+  std::cout << "B:" << std::endl << gamma << std::endl << "--" << std::endl;
+  std::cout << "AT Q1:" << std::endl << A.transpose() * Q1 << std::endl << "--" << std::endl;
+  std::cout << "g:" << std::endl << g << std::endl << "--" << std::endl;
+  std::cout << "H:" << std::endl << H << std::endl << "--" << std::endl;
+  std::cout << Q_qp << std::endl;
+  std::cout << C_qp << std::endl;
+  std::cout << Aeq << std::endl;
+  std::cout << Beq << std::endl;
+  std::cout << Aineq << std::endl;
+  std::cout << Bineq << std::endl;
 
   std::cout << "call_solver done" << std::endl;
 
+  std::cout << "Raw result: " << std::endl << x_qp << std::endl;
+
   // Extract relevant information from the output of the QP solver
-  // retrieve_result(f_cmd);
+  retrieve_result(f_cmd);
 
   std::cout << "retrieve done" << std::endl;
 
@@ -445,7 +472,7 @@ void QPWBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc
 void QPWBC::update_PQ() {
 
   // Update P and Q weight matrices
-  for (int i = 0; i < 16; i++) {
+  /*for (int i = 0; i < 16; i++) {
     for (int j = 0; j < 16; j++) {
        P->x[i * 16 + j] = Pw(j, i);
     }
@@ -453,6 +480,12 @@ void QPWBC::update_PQ() {
 
   for (int i = 0; i < 16; i++) {
     Q[i] = Qw(i, 0);
+  }*/
+
+  // Update P and Q weight matrices
+  Q_qp = Pw;
+  for (int i = 0; i < 16; i++) {
+    C_qp(i) = Qw(i, 0);
   }
 
 }
