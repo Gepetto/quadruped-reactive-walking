@@ -53,7 +53,7 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
         //.add_property("xref", &Planner::get_xref)
 
         // Run Planner from Python
-        .def("run_planner", &Planner::run_planner, bp::args("k", "q", "v", "b_vref", "h_estim", "z_average"),
+        .def("run_planner", &Planner::run_planner, bp::args("k", "q", "v", "b_vref", "h_estim", "z_average", "joystick_code"),
              "Run Planner from Python.\n");
   }
 

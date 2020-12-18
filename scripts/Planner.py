@@ -571,20 +571,25 @@ class PyPlanner:
             self.new_desired_gait = self.one_swing_gait()
             self.is_static = False"""
 
+        joystick_code = 0
         if joystick is not None:
             if joystick.northButton:
+                joystick_code = 1
                 self.new_desired_gait = self.pacing_gait()
                 self.is_static = False
                 joystick.northButton = False
             elif joystick.eastButton:
+                joystick_code = 2
                 self.new_desired_gait = self.bounding_gait()
                 self.is_static = False
                 joystick.eastButton = False
             elif joystick.southButton:
+                joystick_code = 3
                 self.new_desired_gait = self.trot_gait()
                 self.is_static = False
                 joystick.southButton = False
             elif joystick.westButton:
+                joystick_code = 4
                 self.new_desired_gait = self.static_gait()
                 self.is_static = True
                 self.q_static[0:7, 0:1] = q.copy()
@@ -617,7 +622,7 @@ class PyPlanner:
         # Update desired location of footsteps on the ground
         # self.update_target_footsteps()
 
-        self.Cplanner.run_planner(k, q, v, b_vref, np.double(h_estim), np.double(z_average))
+        self.Cplanner.run_planner(k, q, v, b_vref, np.double(h_estim), np.double(z_average), joystick_code)
 
         # Update trajectory generator (3D pos, vel, acc)
         # self.update_trajectory_generator(k, h_estim, q)

@@ -102,6 +102,69 @@ int Planner::create_trot() {
   return 0;
 }
 
+int Planner::create_pacing() {
+  /* Create a pacing gait with legs on the same side (left or right) moving at the same time */
+
+  // Number of timesteps in a half period of gait
+  int N = (int)std::lround(0.5 * T_gait / dt);
+
+  gait_f_des = Eigen::Matrix<double, N0_gait, 5>::Zero();
+  gait_f_des.block(0, 0, 2, 1) << N, N;
+  fsteps.block(0, 0, 2, 1) = gait_f_des.block(0, 0, 2, 1);
+
+  // Set stance and swing phases
+  // Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+  // Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+  gait_f_des(0, 1) = 1.0;
+  gait_f_des(0, 3) = 1.0;
+  gait_f_des(1, 2) = 1.0;
+  gait_f_des(1, 4) = 1.0;
+
+  return 0;
+}
+
+int Planner::create_bounding() {
+  /* Create a bounding gait with legs on the same side (front or hind) moving at the same time */
+
+  // Number of timesteps in a half period of gait
+  int N = (int)std::lround(0.5 * T_gait / dt);
+
+  gait_f_des = Eigen::Matrix<double, N0_gait, 5>::Zero();
+  gait_f_des.block(0, 0, 2, 1) << N, N;
+  fsteps.block(0, 0, 2, 1) = gait_f_des.block(0, 0, 2, 1);
+
+  // Set stance and swing phases
+  // Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+  // Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+  gait_f_des(0, 1) = 1.0;
+  gait_f_des(0, 2) = 1.0;
+  gait_f_des(1, 3) = 1.0;
+  gait_f_des(1, 4) = 1.0;
+
+  return 0;
+}
+
+int Planner::create_static() {
+  /* Create a static gait with all legs in stance phase */
+
+  // Number of timesteps in a half period of gait
+  int N = (int)std::lround(T_gait / dt);
+
+  gait_f_des = Eigen::Matrix<double, N0_gait, 5>::Zero();
+  gait_f_des(0, 0) = N;
+  fsteps(0, 0) = gait_f_des(0, 0);
+
+  // Set stance and swing phases
+  // Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
+  // Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
+  gait_f_des(0, 1) = 1.0;
+  gait_f_des(0, 2) = 1.0;
+  gait_f_des(0, 3) = 1.0;
+  gait_f_des(0, 4) = 1.0;
+
+  return 0;
+}
+
 int Planner::create_gait_f() {
   /* Initialize content of the gait matrix based on the desired gait, the gait period and
   the length of the prediciton horizon */
@@ -400,11 +463,13 @@ int Planner::getRefStates(Eigen::MatrixXd q, Eigen::MatrixXd v, Eigen::MatrixXd 
   }
 
   if (is_static) {
+    Eigen::Matrix<double, 3, 1> RPY;
+    Eigen::Quaterniond quat(q_static(6, 0), q_static(3, 0), q_static(4, 0), q_static(5, 0));  // w, x, y, z
+    RPY << pinocchio::rpy::matrixToRpy(quat.toRotationMatrix());
     for (int i = 0; i < n_steps; i++) {
       xref.block(0, 1 + i, 3, 1) = q_static.block(0, 0, 3, 1);
+      xref.block(3, 1 + i, 3, 1) = RPY;
     }
-    xref.block(3, 1, 3, n_steps) = Eigen::Matrix<double, 3, Eigen::Dynamic>::Zero(
-        3, n_steps);  // (utils_mpc.quaternionToRPY(self.q_static[3:7, 0])).reshape((3, 1))
   }
 
   return 0;
@@ -514,7 +579,7 @@ int Planner::update_trajectory_generator(int k, double h_estim) {
 }
 
 int Planner::run_planner(int k, const Eigen::MatrixXd &q, const Eigen::MatrixXd &v, const Eigen::MatrixXd &b_vref_in,
-                         double h_estim, double z_average) {
+                         double h_estim, double z_average, int joystick_code) {
   /* Run the planner for one iteration of the main control loop
 
   Args:
@@ -524,6 +589,7 @@ int Planner::run_planner(int k, const Eigen::MatrixXd &q, const Eigen::MatrixXd 
     b_vref_in (6x1 array): desired velocity vector of the flying base in base frame (linear and angular stacked)
     h_estim (double): estimated height of the base
     z_average (double): average height of feet currently in stance phase
+    joystick_code (int): integer to trigger events with the joystick
   */
 
   // Get the reference velocity in world frame (given in base frame)
@@ -535,6 +601,9 @@ int Planner::run_planner(int k, const Eigen::MatrixXd &q, const Eigen::MatrixXd 
   R_2(2, 2) = 1.0;
   vref_in.block(0, 0, 3, 1) = R_2 * b_vref_in.block(0, 0, 3, 1);
   vref_in.block(3, 0, 3, 1) = b_vref_in.block(3, 0, 3, 1);
+
+  // Handle joystick events
+  handle_joystick(joystick_code, q);
 
   // Move one step further in the gait
   if (k % k_mpc == 0) {
@@ -631,6 +700,38 @@ int Planner::roll(int k) {
     gait_f_des.block(0, 0, N0_gait - 1, 5) = gait_f_des.block(1, 0, N0_gait - 1, 5);
   } else {
     gait_f_des(0, 0) -= 1.0;
+  }
+
+  return 0;
+}
+
+int Planner::handle_joystick(int code, const Eigen::MatrixXd &q) {
+  /* Handle the joystick code to trigger events (change of gait for instance)
+  
+  Args:
+    code (int): integer to trigger events with the joystick
+    q (7x1 array): current position vector of the flying base in world frame (linear and angular stacked)
+  */
+
+  if (code == 0) {
+    return 0;
+  }
+  else if (code == 1) {
+    create_pacing();
+    is_static = false;
+  }
+  else if (code == 2) {
+    create_bounding();
+    is_static = false;
+  }
+  else if (code == 3) {
+    create_trot();
+    is_static = false;
+  }
+  else if (code == 4) {
+    create_static();
+    q_static.block(0, 0, 7, 1) = q.block(0, 0, 7, 1);
+    is_static = true;
   }
 
   return 0;

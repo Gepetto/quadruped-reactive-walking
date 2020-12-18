@@ -132,8 +132,12 @@ class Planner {
 
   int create_walk();
   int create_trot();
+  int create_pacing();
+  int create_bounding();
+  int create_static();
   int create_gait_f();
   int roll(int k);
+  int handle_joystick(int code, const Eigen::MatrixXd &q);
   int compute_footsteps(Eigen::MatrixXd q_cur, Eigen::MatrixXd v_cur, Eigen::MatrixXd v_ref);
   double get_stance_swing_duration(int i, int j, double value);
   int compute_next_footstep(int i, int j);
@@ -141,7 +145,7 @@ class Planner {
   int update_target_footsteps();
   int update_trajectory_generator(int k, double h_estim);
   int run_planner(int k, const Eigen::MatrixXd &q, const Eigen::MatrixXd &v, const Eigen::MatrixXd &b_vref,
-                  double h_estim, double z_average);
+                  double h_estim, double z_average, int joystick_code);
 
   // Accessors (to retrieve C data from Python)
   Eigen::MatrixXd get_xref();
