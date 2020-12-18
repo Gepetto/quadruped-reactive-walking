@@ -3,8 +3,19 @@
 
 QPWBC::QPWBC() {
 
+    // Slipping constraints
+    /*Eigen::Matrix<double, 5, 3> SC;
+    int a[9] = {0, 1, 2, 3, 0, 1, 2, 3, 4};
+    int b[9] = {0, 0, 1, 1, 2, 2, 2, 2, 2};
+    double c[9] = {1.0, -1.0, 1.0, -1.0, -mu, -mu, -mu, -mu, -1};
+    for (int i = 0; i < 8; i++) {
+      SC(a[i], b[i]) = -c[i];
+    }*/
+    
+    qp.reset(16, 0, 16);
+
     // Initialization of the generatrix G
-    Eigen::Matrix<double, 3, 4> Gk;
+    
     Gk.row(0) << mu,  mu, -mu, -mu;
     Gk.row(1) << mu, -mu,  mu, -mu;
     Gk.row(2) << 1.0, 1.0, 1.0, 1.0;
@@ -27,7 +38,14 @@ QPWBC::QPWBC() {
     for (int i = 0; i < 16; i++) {
       Aineq(i, i) = 1.;
       Bineq(i) = 0.0;
+      x_qp(i) = 3.0;
     }
+    /*for (int i = 0; i < 4; i++) {
+      Aineq.block(5*i, 3*i, 5, 3) = SC;
+    }*/
+
+    
+
 }
 
 /*
@@ -140,7 +158,7 @@ int QPWBC::create_weight_matrices() {
   // Fill P with 1.0 so that the sparse creation process considers that all coeffs
   // can have a non zero value
   for (int i = 0; i < 16; i++) {
-    for (int j = 0; j < 16; j++) {
+    for (int j = i; j < 16; j++) {
       add_to_P(i, j, 1.0, r_P, c_P, v_P);
     }
   }
@@ -236,18 +254,18 @@ int QPWBC::call_solver() {
     // settings->rho = 0.1f;
     // settings->sigma = 1e-6f;
     // settings->max_iter = 4000;
-    /*settings->eps_abs = (float)1e-5;*/
-    //settings->eps_rel = (float)1e-5;
+    settings->eps_abs = (float)1e-5;
+    settings->eps_rel = (float)1e-5;
     /*settings->eps_prim_inf = 1e-4f;
     settings->eps_dual_inf = 1e-4f;
     settings->alpha = 1.6f;
     settings->delta = 1e-6f;
     settings->polish = 0;
     settings->polish_refine_iter = 3;*/
-    /*settings->adaptive_rho = (c_int)1;
+    settings->adaptive_rho = (c_int)1;
     settings->adaptive_rho_interval = (c_int)200;
     settings->adaptive_rho_tolerance = (float)5.0;
-    settings->adaptive_rho_fraction = (float)0.7;*/
+    settings->adaptive_rho_fraction = (float)0.7;
     settings->verbose = true;
     int exitflag = 0;
     exitflag = osqp_setup(&workspce, data, settings);
@@ -302,7 +320,7 @@ Extract relevant information from the output of the QP solver
 int QPWBC::retrieve_result(const Eigen::MatrixXd &f_cmd) {
   // Retrieve the "contact forces" part of the solution of the QP problem
   for (int k = 0; k < 16; k++) {
-    lambdas(k, 0) = x_qp(k); // (workspce->solution->x)[k];
+    lambdas(k, 0) = x_qp(k, 0); // (workspce->solution->x)[k];
   }
 
   f_res = G * lambdas;
@@ -334,6 +352,10 @@ Return the next predicted state of the base
 */
 Eigen::MatrixXd QPWBC::get_f_res() { return f_res; }
 Eigen::MatrixXd QPWBC::get_ddq_res() { return ddq_res; }
+Eigen::MatrixXd QPWBC::get_P() { 
+  Eigen::MatrixXd Pxd = Eigen::MatrixXd::Zero(16, 16); 
+  Pxd = Pw;
+  return Pxd; }
 
 /*
 Run one iteration of the whole MPC by calling all the necessary functions (data retrieval,
@@ -343,9 +365,9 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
 
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + x^T.Q with constraints M.X == N and L.X <= K
-  // if (not initialized) {
-  //   create_matrices();
-  // }
+  if (not initialized) {
+    create_matrices();
+  }
   
   std::cout << "Creation done" << std::endl;
 
@@ -354,12 +376,34 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
   std::cout << "compute_matrices done" << std::endl;
 
   update_PQ();
+  // Bineq = Aineq * f_cmd;
   
   std::cout << "update_PQ done" << std::endl;
 
   // Create an initial guess and call the solver to solve the QP problem
   //call_solver();
+
+  for (int i = 0; i < 4; i++) {
+    double testou = f_cmd(3*i+2, 0) * 0.25;
+    for (int j = 0; j < 4; j++) {
+      x_qp(4*i+j) = testou;
+    }
+  }
   qp.solve_quadprog(Q_qp, C_qp, Aeq, Beq, Aineq, Bineq, x_qp);
+
+  Eigen::MatrixXd dx = Eigen::MatrixXd::Zero(16, 1);
+  dx(0, 0) = 0.01;
+  dx(1, 0) = 0.01;
+  dx(2, 0) = 0.01;
+  dx(3, 0) = 0.01;
+  dx(12, 0) = 0.01;
+  dx(13, 0) = 0.01;
+  dx(14, 0) = 0.01;
+  dx(15, 0) = 0.01;
+  std::cout << 0.5 * x_qp.transpose() * Q_qp * x_qp + x_qp.transpose() * C_qp << std::endl;
+  std::cout << 0.5 * (x_qp-dx).transpose() * Q_qp * (x_qp-dx) + (x_qp-dx).transpose() * C_qp << std::endl;
+  std::cout << 0.5 * (x_qp+dx).transpose() * Q_qp * (x_qp+dx) + (x_qp+dx).transpose() * C_qp << std::endl;
+
 
   std::cout << "A:" << std::endl << A << std::endl << "--" << std::endl;
   std::cout << "Xf:" << std::endl << (X * f_cmd) << std::endl << "--" << std::endl;
@@ -368,6 +412,7 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
   std::cout << "AT Q1:" << std::endl << A.transpose() * Q1 << std::endl << "--" << std::endl;
   std::cout << "g:" << std::endl << g << std::endl << "--" << std::endl;
   std::cout << "H:" << std::endl << H << std::endl << "--" << std::endl;
+  std::cout << "Qw:" << std::endl << Qw << std::endl << "--" << std::endl;
   std::cout << Q_qp << std::endl;
   std::cout << C_qp << std::endl;
   std::cout << Aeq << std::endl;
@@ -378,9 +423,34 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
   std::cout << "call_solver done" << std::endl;
 
   std::cout << "Raw result: " << std::endl << x_qp << std::endl;
-
+  // std::cout << "F result  : " << std::endl << f_cmd + x_qp << std::endl;
   // Extract relevant information from the output of the QP solver
   retrieve_result(f_cmd);
+
+  Eigen::MatrixXd df = Eigen::MatrixXd::Zero(12, 1);
+  df = f_res - f_cmd;
+  std::cout << "Cost df H df + df g" << std::endl;
+  std::cout << df.transpose() * H * df + 2 * df.transpose() * g << std::endl;
+  std::cout << "Cost lambda Q lambda + 2 * lambda * C" << std::endl;
+  std::cout << 0.5 * x_qp.transpose() * Q_qp * x_qp + x_qp.transpose() * C_qp << std::endl;
+  std::cout << "Cost dev :" << std::endl;
+  std::cout << (x_qp.transpose() * G.transpose() - f_cmd.transpose()) * H * (G * x_qp - f_cmd) + 2 * (x_qp.transpose() * G.transpose() - f_cmd.transpose()) * g << std::endl; 
+  std::cout << "Cost dev 2 :" << std::endl;
+  std::cout << x_qp.transpose() * G.transpose() * H * G * x_qp + 2 * (G.transpose() * g - G.transpose() * H * f_cmd).transpose() * x_qp << std::endl;
+  std::cout << "Removed:" << f_cmd.transpose() * H * f_cmd - 2 * f_cmd.transpose() * g << std::endl;
+
+  for (int i = 0; i < 4; i++) {
+    double testou = f_cmd(3*i+2, 0) * 0.25;
+    for (int j = 0; j < 4; j++) {
+      x_qp(4*i+j) = testou;
+    }
+  }
+  std::cout << f_cmd << std::endl;
+  std::cout << G * x_qp << std::endl;
+  std::cout << "-#-" << std::endl;
+  std::cout << G << std::endl;
+  std::cout << x_qp << std::endl;
+  std::cout << "Cost: " << 0.5 * x_qp.transpose() * Q_qp * x_qp +  x_qp.transpose() * C_qp << std::endl;
 
   std::cout << "retrieve done" << std::endl;
 
@@ -464,6 +534,17 @@ void QPWBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc
     gamma = Yinv * ((X * f_cmd) - RNEA);
     H = A.transpose() * Q1 * A + Q2;
     g = A.transpose() * Q1 * gamma;
+
+    for (int i = 0; i < 4; i++) {
+        if (f_cmd(3*i+2, 0) > 1e-4) {
+          G.block(3*i, 4*i, 3, 4) = Gk;
+        }
+        else
+        {
+          G.block(3*i, 4*i, 3, 4) = Eigen::Matrix<double, 3, 4>::Zero();
+        }    
+    }
+
     Pw = G.transpose() * H * G;
     Qw = (G.transpose() * g) - (G.transpose() * H * f_cmd);
 
@@ -472,15 +553,22 @@ void QPWBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc
 void QPWBC::update_PQ() {
 
   // Update P and Q weight matrices
-  /*for (int i = 0; i < 16; i++) {
-    for (int j = 0; j < 16; j++) {
-       P->x[i * 16 + j] = Pw(j, i);
+  int cpt = 0;
+  for (int i = 0; i < 16; i++) {
+    for (int j = i; j < 16; j++) {
+       P->x[cpt] = Pw(i, j);
+       cpt++;
     }
   }
 
+  std::cout << "Eigenvalues" << Pw.eigenvalues() << std::endl;
+
+  //char t_char[1] = {'P'};
+  //my_print_csc_matrix(P, t_char);
+
   for (int i = 0; i < 16; i++) {
     Q[i] = Qw(i, 0);
-  }*/
+  }
 
   // Update P and Q weight matrices
   Q_qp = Pw;

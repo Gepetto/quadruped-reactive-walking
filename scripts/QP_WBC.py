@@ -100,9 +100,9 @@ class controller():
                             q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
 
         # Compute the joint space inertia matrix M by using the Composite Rigid Body Algorithm
-        Mfull = pin.crba(self.invKin.rmodel, self.invKin.rdata, q)
-        M = np.zeros(Mfull.shape)
-        M[:6, :6] = Mfull[:6, :6]
+        M = pin.crba(self.invKin.rmodel, self.invKin.rdata, q)
+        # M = np.zeros(Mfull.shape)
+        # M[:6, :6] = Mfull[:6, :6]
 
         # Contact Jacobian
         # Indexes of feet frames in this order: [FL, FR, HL, HR]
@@ -120,7 +120,7 @@ class controller():
 
         deltaddq = self.box_qp.get_ddq_res()
         f_with_delta = self.box_qp.get_f_res().reshape((-1, 1))
-        ddq_with_delta = ddq_cmd_tmp.copy()
+        ddq_with_delta = ddq_cmd.copy()
         ddq_with_delta[:6, 0] += deltaddq
         RNEA_delta = pin.rnea(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_with_delta)[6:]
         Ja = Jc[:, 6:].transpose()
