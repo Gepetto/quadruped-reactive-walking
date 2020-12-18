@@ -142,7 +142,7 @@ def control_loop(name_interface):
     t = 0.0
     t_max = (N_SIMULATION-2) * dt_wbc
 
-    while ((not device.hardware.IsTimeout()) and (t < t_max)):
+    while ((not device.hardware.IsTimeout()) and (t < t_max) and (not controller.myController.error)):
 
         # Update sensor data (IMU, encoders, Motion capture)
         device.UpdateMeasurment()
