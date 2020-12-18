@@ -100,7 +100,7 @@ struct QPWBCPythonVisitor : public bp::def_visitor<QPWBCPythonVisitor<QPWBC> > {
 
         .def("get_f_res", &QPWBC::get_f_res, "Get velocity goals matrix.\n")
         .def("get_ddq_res", &QPWBC::get_ddq_res, "Get acceleration goals matrix.\n")
-        .def("get_P", &QPWBC::get_P, "Get P weight matrix.\n")
+        .def("get_H", &QPWBC::get_H, "Get H weight matrix.\n")
 
         // Run QPWBC from Python
         .def("run", &QPWBC::run, bp::args("M", "Jc", "f_cmd", "RNEA"), "Run QPWBC from Python.\n");

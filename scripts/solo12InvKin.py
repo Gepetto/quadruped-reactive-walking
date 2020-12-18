@@ -154,6 +154,10 @@ class Solo12InvKin:
         """from IPython import embed
         embed()"""
 
+        """print("###")
+        print("Python: ", ddq.ravel())
+        print("C++   : ", self.cpp_ddq.ravel())"""
+
         return self.cpp_ddq
 
     def compute(self, q, dq):

@@ -39,8 +39,8 @@ class QPWBC {
   const double mu = 0.9;
 
   // Generatrix of the linearized friction cone
-  Eigen::Matrix<double, 12, 16> G = 0.0 * Eigen::Matrix<double, 12, 16>::Zero();
-  Eigen::Matrix<double, 3, 4> Gk = Eigen::Matrix<double, 3, 4>::Zero();
+  Eigen::Matrix<double, 20, 12> G = 0.0 * Eigen::Matrix<double, 20, 12>::Zero();
+  // Eigen::Matrix<double, 3, 4> Gk = Eigen::Matrix<double, 3, 4>::Zero();
 
   // Transformation matrices
   Eigen::Matrix<double, 6, 6> Y = Eigen::Matrix<double, 6, 6>::Zero();
@@ -50,30 +50,30 @@ class QPWBC {
   Eigen::Matrix<double, 6, 1> gamma = Eigen::Matrix<double, 6, 1>::Zero();
   Eigen::Matrix<double, 12, 12>  H = Eigen::Matrix<double, 12, 12>::Zero();
   Eigen::Matrix<double, 12, 1> g = Eigen::Matrix<double, 12, 1>::Zero();
-  Eigen::Matrix<double, 16, 16> Pw = Eigen::Matrix<double, 16, 16>::Zero();
-  Eigen::Matrix<double, 16, 1> Qw = Eigen::Matrix<double, 16, 1>::Zero();
+  // Eigen::Matrix<double, 16, 16> Pw = Eigen::Matrix<double, 16, 16>::Zero();
+  // Eigen::Matrix<double, 16, 1> Qw = Eigen::Matrix<double, 16, 1>::Zero();
 
   // Results
-  Eigen::Matrix<double, 16, 1> lambdas = Eigen::Matrix<double, 16, 1>::Zero();
+  // Eigen::Matrix<double, 12, 1> lambdas = Eigen::Matrix<double, 12, 1>::Zero();
   Eigen::MatrixXd f_res = Eigen::MatrixXd::Zero(12, 1);
   Eigen::MatrixXd ddq_res = Eigen::MatrixXd::Zero(12, 1);
   
   // Matrix ML
-  const static int size_nz_ML = 16;
+  const static int size_nz_ML = 20*12;//4 * (4 * 2 + 1);
   csc *ML;  // Compressed Sparse Column matrix
 
   // Matrix NK
-  const static int size_nz_NK = 16;
+  const static int size_nz_NK = 20;
   double v_NK_up[size_nz_NK] = {};   // matrix NK (upper bound)
   double v_NK_low[size_nz_NK] = {};  // matrix NK (lower bound)
   double v_warmxf[size_nz_NK] = {};  // matrix NK (lower bound)
 
   // Matrix P
-  const static int size_nz_P = 8*17; // 16*17/2;
+  const static int size_nz_P = 6*13; // 12*13/2;
   csc *P;  // Compressed Sparse Column matrix
 
   // Matrix Q
-  const static int size_nz_Q = 16;
+  const static int size_nz_Q = 12;
   double Q[size_nz_Q] = {};  // Q is full of zeros
 
   // OSQP solver variables
@@ -91,14 +91,14 @@ class QPWBC {
   RtVectorX<16>::d Bineq;
   RtVectorX<16>::d x_qp;*/
 
-  EiquadprogFast qp;
+  /*EiquadprogFast qp;
   Eigen::MatrixXd Q_qp = Eigen::MatrixXd::Zero(16,16);
   Eigen::VectorXd C_qp = Eigen::VectorXd::Zero(16);
   Eigen::MatrixXd Aeq = Eigen::MatrixXd::Zero(0, 16);
   Eigen::VectorXd Beq = Eigen::VectorXd::Zero(0);
   Eigen::MatrixXd Aineq = Eigen::MatrixXd::Zero(16, 16);
   Eigen::VectorXd Bineq = Eigen::VectorXd::Zero(16);
-  Eigen::VectorXd x_qp = Eigen::VectorXd::Zero(16);
+  Eigen::VectorXd x_qp = Eigen::VectorXd::Zero(16);*/
 
   /*RtEiquadprog<12, 0, 20> qp;
   RtMatrixX<12, 12>::d Q_qp;
@@ -129,7 +129,7 @@ class QPWBC {
   // Getters
   Eigen::MatrixXd get_f_res();
   Eigen::MatrixXd get_ddq_res();
-  Eigen::MatrixXd get_P();
+  Eigen::MatrixXd get_H();
 
   // Utils
   void my_print_csc_matrix(csc *M, const char *name);

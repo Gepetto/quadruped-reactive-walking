@@ -71,7 +71,7 @@ class controller():
             planner (object): Object that contains the pos, vel and acc references for feet
         """
 
-        self.tic = time()
+        #self.tic = time()
         # Compute Inverse Kinematics
         ddq_cmd = np.array([self.invKin.refreshAndCompute(q.copy(), dq.copy(), x_cmd, contacts, planner)]).T
 
@@ -87,7 +87,7 @@ class controller():
         self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
         self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]"""
 
-        self.tac = time()
+        #self.tac = time()
 
         """self.box_qp_wbc.compute_matrices(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd, np.array([f_cmd]).T, contacts)
         self.box_qp_wbc.create_weight_matrices()"""
@@ -96,8 +96,8 @@ class controller():
         #                     q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
 
         # Solve QP problem
-        self.qp_wbc.compute(self.invKin.rmodel, self.invKin.rdata,
-                            q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)
+        """self.qp_wbc.compute(self.invKin.rmodel, self.invKin.rdata,
+                            q.copy(), dq.copy(), ddq_cmd, np.array([f_cmd]).T, contacts)"""
 
         # Compute the joint space inertia matrix M by using the Composite Rigid Body Algorithm
         M = pin.crba(self.invKin.rmodel, self.invKin.rdata, q)
@@ -114,7 +114,7 @@ class controller():
                                                                    pin.LOCAL_WORLD_ALIGNED)[:3, :]
         ddq_cmd_tmp = np.zeros((18, 1))
         ddq_cmd_tmp[:6, 0] = ddq_cmd[:6, 0]
-        RNEA = pin.rnea(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd_tmp)[:6]
+        RNEA = pin.rnea(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd)[:6]
 
         self.box_qp.run(M.copy(), Jc.copy(), f_cmd.reshape((-1, 1)).copy(), RNEA.reshape((-1, 1)).copy())
 
@@ -126,10 +126,10 @@ class controller():
         Ja = Jc[:, 6:].transpose()
         tauff = RNEA_delta - (Ja @ f_with_delta).ravel()
 
-        ta = pin.rnea(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_with_delta)[:6]
+        """ta = pin.rnea(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_with_delta)[:6]
         tb = Jc[:, :6].transpose()
         tc = ta - (tb @ f_with_delta).ravel()
-        print(tc)
+        print(tc)"""
         
 
         #return (self.A @ (self.ddq_cmd + self.delta_ddq) + np.array([self.NLE]).transpose()
@@ -143,19 +143,19 @@ class controller():
 
         # Retrieve joint torques
         # tmp_res = self.box_qp_wbc.get_joint_torques(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd)
-        self.tau_ff[:] = self.qp_wbc.get_joint_torques().ravel()
+        self.tau_ff[:] = tauff[:] # self.qp_wbc.get_joint_torques().ravel()
 
-        print("f python:", self.qp_wbc.f_cmd.ravel() + np.array(self.qp_wbc.x[6:]))
+        """print("f python:", self.qp_wbc.f_cmd.ravel() + np.array(self.qp_wbc.x[6:]))
         print("f cpp   :", f_with_delta.ravel())
 
         print("ddq python:", (self.qp_wbc.ddq_cmd + self.qp_wbc.delta_ddq).ravel())
-        print("ddq cpp   :", ddq_with_delta.ravel())
+        print("ddq cpp   :", ddq_with_delta.ravel())"""
 
 
-        from IPython import embed
-        embed()
+        """from IPython import embed
+        embed()"""
 
-        self.toc = time()
+        #self.toc = time()
 
         """from IPython import embed
         embed()"""
@@ -204,12 +204,12 @@ class controller():
 
         self.k_log += 1
 
-        self.tuc = time()
+        #self.tuc = time()
 
-        """self.tic = 0.0
+        self.tic = 0.0
         self.tac = 0.0
         self.toc = 0.0
-        self.tuc = 0.0"""
+        self.tuc = 0.0
 
         return 0
 
