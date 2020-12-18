@@ -17,11 +17,6 @@
 #include "osqp_folder/include/osqp_configure.h"
 #include "other/st_to_cc.hpp"
 
-// #include "eiquadprog/eiquadprog-rt.hpp"
-#include "eiquadprog/eiquadprog-fast.hpp"
-
-using namespace eiquadprog::solvers;
-
 class QPWBC {
  private:
   
@@ -39,8 +34,7 @@ class QPWBC {
   const double mu = 0.9;
 
   // Generatrix of the linearized friction cone
-  Eigen::Matrix<double, 20, 12> G = 0.0 * Eigen::Matrix<double, 20, 12>::Zero();
-  // Eigen::Matrix<double, 3, 4> Gk = Eigen::Matrix<double, 3, 4>::Zero();
+  Eigen::Matrix<double, 20, 12> G = Eigen::Matrix<double, 20, 12>::Zero();
 
   // Transformation matrices
   Eigen::Matrix<double, 6, 6> Y = Eigen::Matrix<double, 6, 6>::Zero();
@@ -50,8 +44,6 @@ class QPWBC {
   Eigen::Matrix<double, 6, 1> gamma = Eigen::Matrix<double, 6, 1>::Zero();
   Eigen::Matrix<double, 12, 12>  H = Eigen::Matrix<double, 12, 12>::Zero();
   Eigen::Matrix<double, 12, 1> g = Eigen::Matrix<double, 12, 1>::Zero();
-  // Eigen::Matrix<double, 16, 16> Pw = Eigen::Matrix<double, 16, 16>::Zero();
-  // Eigen::Matrix<double, 16, 1> Qw = Eigen::Matrix<double, 16, 1>::Zero();
 
   // Results
   // Eigen::Matrix<double, 12, 1> lambdas = Eigen::Matrix<double, 12, 1>::Zero();
@@ -59,7 +51,7 @@ class QPWBC {
   Eigen::MatrixXd ddq_res = Eigen::MatrixXd::Zero(12, 1);
   
   // Matrix ML
-  const static int size_nz_ML = 20*12;//4 * (4 * 2 + 1);
+  const static int size_nz_ML = 20*12; //4 * (4 * 2 + 1);
   csc *ML;  // Compressed Sparse Column matrix
 
   // Matrix NK
@@ -80,35 +72,6 @@ class QPWBC {
   OSQPWorkspace *workspce = new OSQPWorkspace();
   OSQPData *data;
   OSQPSettings *settings = (OSQPSettings *)c_malloc(sizeof(OSQPSettings));
-
-  //using namespace eiquadprog::solvers;
-  /*RtEiquadprog<16, 0, 16> qp;
-  RtMatrixX<16, 16>::d Q_qp;
-  RtVectorX<16>::d C_qp;
-  RtMatrixX<0, 16>::d Aeq;
-  RtVectorX<0>::d Beq;
-  RtMatrixX<16, 16>::d Aineq;
-  RtVectorX<16>::d Bineq;
-  RtVectorX<16>::d x_qp;*/
-
-  /*EiquadprogFast qp;
-  Eigen::MatrixXd Q_qp = Eigen::MatrixXd::Zero(16,16);
-  Eigen::VectorXd C_qp = Eigen::VectorXd::Zero(16);
-  Eigen::MatrixXd Aeq = Eigen::MatrixXd::Zero(0, 16);
-  Eigen::VectorXd Beq = Eigen::VectorXd::Zero(0);
-  Eigen::MatrixXd Aineq = Eigen::MatrixXd::Zero(16, 16);
-  Eigen::VectorXd Bineq = Eigen::VectorXd::Zero(16);
-  Eigen::VectorXd x_qp = Eigen::VectorXd::Zero(16);*/
-
-  /*RtEiquadprog<12, 0, 20> qp;
-  RtMatrixX<12, 12>::d Q_qp;
-  RtVectorX<12>::d C_qp;
-  RtMatrixX<0, 12>::d Aeq;
-  RtVectorX<0>::d Beq;
-  RtMatrixX<20, 12>::d Aineq;
-  RtVectorX<20>::d Bineq;
-  RtVectorX<12>::d x_qp;*/
-  
 
  public:
   
