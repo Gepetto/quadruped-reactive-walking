@@ -114,7 +114,6 @@ class Controller:
         self.planner = PyPlanner(dt_mpc, dt_tsid, T_gait, T_mpc,
                                  k_mpc, on_solo8, h_ref, self.fsteps_init)
 
-
         # Wrapper that makes the link with the solver that you want to use for the MPC
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
         self.enable_multiprocessing = True
@@ -176,7 +175,7 @@ class Controller:
             device (object): Interface with the masterboard or the simulation
         """
 
-        tic = time.time()
+        t_start = time.time()
 
         # Update the reference velocity coming from the gamepad
         self.joystick.update_v_ref(self.k, self.velID)
@@ -184,9 +183,7 @@ class Controller:
         # Process state estimator
         self.estimator.run_filter(self.k, self.planner.gait[0, 1:],
                                   device, self.planner.goals, self.planner.gait[0, 0])
-
         t_filter = time.time()
-        self.t_list_filter[self.k] = t_filter - tic
 
         # Update state for the next iteration of the whole loop
         if self.k > 1:
@@ -213,23 +210,10 @@ class Controller:
             oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
             self.v_estim = self.v.copy()
 
-        # Update position of PyBullet camera on the robot position to do as if it was attached to the robot
-        if self.k > 10 and self.enable_pyb_GUI:
-            # pyb.resetDebugVisualizerCamera(cameraDistance=0.8, cameraYaw=45, cameraPitch=-30,
-            #                                cameraTargetPosition=[1.0, 0.3, 0.25])
-            pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
-                                           cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])
-
-        # Update reference height
-        """if self.k < 1000:
-            self.planner.h_ref += 0.00005"""
-
         # Run planner
         self.planner.run_planner(self.k, self.k_mpc, self.q[0:7, 0:1],
                                  self.v[0:6, 0:1].copy(), self.joystick.v_ref, self.q_estim[2, 0], 0.0, self.joystick)
-
         t_planner = time.time()
-        self.t_list_planner[self.k] = t_planner - t_filter
 
         # Process MPC once every k_mpc iterations of TSID
         if (self.k % self.k_mpc) == 0:
@@ -244,11 +228,10 @@ class Controller:
             self.x_f_mpc = self.mpc_wrapper.get_latest_result()
         else:
             print("TODO: Check non multiprocessing mode.")
-            if (self.k % self.k_mpc) == 2:  # Mimic a 4 ms delay
-                self.f_applied = self.mpc_wrapper.get_latest_result()
-
+            self.joystick.stop = True
+            # if (self.k % self.k_mpc) == 2:  # Mimic a 4 ms delay
+            #     self.f_applied = self.mpc_wrapper.get_latest_result()
         t_mpc = time.time()
-        self.t_list_mpc[self.k] = t_mpc - t_planner
 
         # Target state for the whole body control
         if not self.planner.is_static:
@@ -258,7 +241,7 @@ class Controller:
             self.x_f_mpc[3] = 0.0
             self.x_f_mpc[4] = 0.0
             self.x_f_mpc[5] = self.yaw_estim
-        else:
+        else:  # Sort of position control to avoid slow drift
             self.x_f_mpc[0:3] = self.planner.q_static[0:3, 0]
             self.x_f_mpc[3:6] = self.planner.RPY_static[:, 0]
         self.x_f_mpc[6:12] = self.planner.xref[6:, 1]
@@ -275,7 +258,7 @@ class Controller:
             self.b_v[6:, 0] = self.v[6:, 0]
 
             # Run InvKin + WBC QP
-            self.myController.compute(self.q, self.b_v, self.v, self.x_f_mpc[:12],
+            self.myController.compute(self.q, self.b_v, self.x_f_mpc[:12],
                                       self.x_f_mpc[12:], self.planner.gait[0, 1:], self.planner)
 
             # Quantities sent to the control board
@@ -289,6 +272,27 @@ class Controller:
                 self.solo.display(self.q)"""
 
         # Security check
+        self.security_check()
+
+        # Logs
+        self.log_misc(t_start, t_filter, t_planner, t_mpc)
+
+        # Increment loop counter
+        self.k += 1
+
+        return 0.0
+
+    def pyb_camera(self, device):
+
+        # Update position of PyBullet camera on the robot position to do as if it was attached to the robot
+        if self.k > 10 and self.enable_pyb_GUI:
+            # pyb.resetDebugVisualizerCamera(cameraDistance=0.8, cameraYaw=45, cameraPitch=-30,
+            #                                cameraTargetPosition=[1.0, 0.3, 0.25])
+            pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
+                                           cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])
+
+    def security_check(self):
+
         if (self.error_flag == 0) and (not self.myController.error) and (not self.joystick.stop):
             if np.any(np.abs(self.estimator.q_filt[7:, 0]) > self.q_security):
                 self.myController.error = True
@@ -313,20 +317,17 @@ class Controller:
             self.result.v_des[:] = np.zeros(12)
             self.result.tau_ff[:] = np.zeros(12)
 
+    def log_misc(self, tic, t_filter, t_planner, t_mpc):
+
         # Log joystick command
         if self.joystick is not None:
             self.estimator.v_ref = self.joystick.v_ref
 
+        self.t_list_filter[self.k] = t_filter - tic
+        self.t_list_planner[self.k] = t_planner - t_filter
+        self.t_list_mpc[self.k] = t_mpc - t_planner
         self.t_list_wbc[self.k] = time.time() - t_mpc
         self.t_list_loop[self.k] = time.time() - tic
-        self.t_list_InvKin[self.k] = self.myController.tac - \
-            self.myController.tic
-        self.t_list_QPWBC[self.k] = self.myController.toc - \
-            self.myController.tac
-        self.t_list_intlog[self.k] = self.myController.tuc - \
-            self.myController.toc
-
-        # Increment loop counter
-        self.k += 1
-
-        return 0.0
+        self.t_list_InvKin[self.k] = self.myController.tac - self.myController.tic
+        self.t_list_QPWBC[self.k] = self.myController.toc - self.myController.tac
+        self.t_list_intlog[self.k] = self.myController.tuc - self.myController.toc
