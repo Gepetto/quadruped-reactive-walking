@@ -61,7 +61,7 @@ class controller():
         self.log_contacts = np.zeros((4, N_SIMULATION))
         self.log_tstamps = np.zeros((N_SIMULATION))
 
-    def compute(self, q, dq, o_dq, x_cmd, f_cmd, contacts, planner):
+    def compute(self, q, dq, x_cmd, f_cmd, contacts, planner):
         """ Call Inverse Kinematics to get an acceleration command then
         solve a QP problem to get the feedforward torques
 
@@ -136,7 +136,7 @@ class controller():
         self.vdes[:, 0] = self.invKin.dq_cmd  # (dq + ddq_cmd * self.dt).ravel()  # v des in world frame
         self.qdes[:] = self.invKin.q_cmd  # pin.integrate(self.invKin.robot.model, q, self.vdes * self.dt)
 
-        """# Double integration of ddq_cmd + delta_ddq
+        # Double integration of ddq_cmd + delta_ddq
         # dq[2, 0] = 0.0 self.qdes[2]
         self.vint[:, 0] = (dq + ddq_cmd * self.dt).ravel()  # in world frame
         # self.vint[0:3, 0:1] = self.invKin.rot.transpose() @ self.vint[0:3, 0:1]  # velocity needs to be in base frame for pin.integrate
@@ -168,7 +168,7 @@ class controller():
         self.log_vdes[:, self.k_log] = self.vdes[6:, 0]
         self.log_contacts[:, self.k_log] = contacts
 
-        self.log_tstamps[self.k_log] = clock()"""
+        self.log_tstamps[self.k_log] = clock()
 
         """from IPython import embed
         embed()"""
