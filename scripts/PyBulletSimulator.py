@@ -543,7 +543,9 @@ class PyBulletSimulator():
         self.baseOrientation = np.zeros(4)
         self.baseLinearAcceleration = np.zeros(3)
         self.baseAccelerometer = np.zeros(3)
-        self.prev_b_baseVel = np.zeros(3)
+        self.o_baseVel = np.zeros((3, 1))
+        self.o_imuVel = np.zeros((3, 1))
+        self.prev_o_imuVel = np.zeros((3, 1))
 
         # PD+ quantities
         self.P = 0.0
@@ -571,6 +573,17 @@ class PyBulletSimulator():
         self.time_loop = time.time()
 
         return
+
+    def cross3(self, left, right):
+        """Numpy is inefficient for this
+
+        Args:
+            left (3x0 array): left term of the cross product
+            right (3x0 array): right term of the cross product
+        """
+        return np.array([[left[1] * right[2] - left[2] * right[1]],
+                         [left[2] * right[0] - left[0] * right[2]],
+                         [left[0] * right[1] - left[1] * right[0]]])
 
     def UpdateMeasurment(self):
         """Retrieve data about the robot from the simulation to mimic what the masterboard does
@@ -600,16 +613,20 @@ class PyBulletSimulator():
         self.hardware.roll = RPY[0]
         self.hardware.pitch = RPY[1]
         self.hardware.yaw = RPY[2]
-        self.rot_oMb = pin.Quaternion(np.array([self.baseState[1]]).transpose()).toRotationMatrix()
+        self.rot_oMb = pin.Quaternion(np.array([self.baseOrientation]).transpose()).toRotationMatrix()
         self.oMb = pin.SE3(self.rot_oMb, np.array([self.dummyHeight]).transpose())
 
         # Angular velocities of the base
         self.baseAngularVelocity[:] = (self.oMb.rotation.transpose() @ np.array([self.baseVel[1]]).transpose()).ravel()
 
         # Linear Acceleration of the base
-        self.b_baseVel = (self.oMb.rotation.transpose() @ np.array([self.baseVel[0]]).transpose()).ravel()
-        self.baseLinearAcceleration[:] = (self.b_baseVel.ravel() - self.prev_b_baseVel) / self.dt
-        self.prev_b_baseVel[:] = self.b_baseVel.ravel()
+        self.o_baseVel = np.array([self.baseVel[0]]).transpose()
+        self.b_baseVel = (self.oMb.rotation.transpose() @ self.o_baseVel).ravel()
+
+        self.o_imuVel = self.o_baseVel + self.oMb.rotation @ self.cross3(np.array([0.1163, 0.0, 0.02]), self.baseAngularVelocity[:])
+
+        self.baseLinearAcceleration[:] = (self.oMb.rotation.transpose() @ (self.o_imuVel - self.prev_o_imuVel)).ravel() / self.dt
+        self.prev_o_imuVel[:, 0:1] = self.o_imuVel
         self.baseAccelerometer[:] = self.baseLinearAcceleration[:] + \
             (self.oMb.rotation.transpose() @ np.array([[0.0], [0.0], [-9.81]])).ravel()
 
