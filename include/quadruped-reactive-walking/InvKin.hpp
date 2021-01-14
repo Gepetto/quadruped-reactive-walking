@@ -149,7 +149,7 @@ class InvKin {
   double Kp_base_position = 100.0;
   double Kd_base_position = 2.0 * std::sqrt(Kp_base_position);
 
-  double Kp_flyingfeet = 100.0;
+  double Kp_flyingfeet = 1000.0;
   double Kd_flyingfeet = 2.0 * std::sqrt(Kp_flyingfeet);
 
  public:
