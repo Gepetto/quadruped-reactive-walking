@@ -148,6 +148,7 @@ class Estimator:
         fc = 50.0  # Cut frequency
         y = 1 - np.cos(2*np.pi*fc*dt)
         self.alpha_v = -y+np.sqrt(y*y+2*y)
+        self.alpha_v = 1.0  # TOREMOVE
 
         # Filtering velocities used for security checks
         fc = 6.0
@@ -230,6 +231,8 @@ class Estimator:
         self.rotated_FK = np.zeros((3, N_simulation))
         self.k_log = 0
 
+        self.debug_o_lin_vel = np.zeros((3, 1))
+
     def get_configurations(self):
         return self.q_filt.reshape((19,)), self.v_filt.reshape((18,))
 
@@ -248,9 +251,11 @@ class Estimator:
 
         # Angular position of the trunk (local frame)
         self.RPY = self.quaternionToRPY(device.baseOrientation)
-        if (self.k_log == 0):
-            self.offset_yaw_IMU = self.RPY[2]
+
+        if (self.k_log <= 1):
+            self.offset_yaw_IMU = self.RPY[2, 0] #.copy()
         self.RPY[2] -= self.offset_yaw_IMU  # Remove initial offset of IMU
+
         self.IMU_ang_pos[:] = self.EulerToQuaternion([self.RPY[0],
                                                       self.RPY[1],
                                                       self.RPY[2]])
@@ -316,6 +321,12 @@ class Estimator:
                 vel_est += vel_estimated_baseframe[:, 0]  # Linear velocity
                 xyz_est += xyz_estimated  # Position
 
+                r_foot = 0.0155  # 31mm of diameter on meshlab
+                if i <= 1:
+                    vel_est[0] += r_foot * (self.actuators_vel[1+3*i] - self.actuators_vel[2+3*i])
+                else:
+                    vel_est[0] += r_foot * (self.actuators_vel[1+3*i] + self.actuators_vel[2+3*i])
+
         # If at least one foot is in contact, we do the average of feet results
         if cpt > 0:
             self.FK_lin_vel = vel_est / cpt
@@ -379,19 +390,23 @@ class Estimator:
         a = np.ceil(np.max(self.k_since_contact)/10) - 1
         b = remaining_steps
         n = 1  # Nb of steps of margin around contact switch
-        v = 0.97  # Minimum alpha value
+        v = 0.0  # Minimum alpha value
         c = ((a + b) - 2 * n) * 0.5
         if (a <= (n-1)) or (b <= n):  # If we are close from contact switch
             self.alpha = 1.0  # Only trust IMU data
             self.close_from_contact = True  # Raise flag
         else:
             self.alpha = v + (1 - v) * np.abs(c - (a - n)) / c
+            self.alpha = 0.99
             self.close_from_contact = False  # Lower flag
 
         if not self.kf_enabled:  # Use cascade of complementary filters
 
             # Rotation matrix to go from base frame to world frame
             oRb = pin.Quaternion(np.array([self.IMU_ang_pos]).T).toRotationMatrix()
+
+            """self.debug_o_lin_vel += 0.002 * (oRb @ np.array([self.IMU_lin_acc]).T)  # TOREMOVE
+            self.filt_lin_vel[:] = (oRb.T @ self.debug_o_lin_vel).ravel()"""
 
             # Get FK estimated velocity at IMU location (base frame)
             cross_product = self.cross3(self._1Mi.translation.ravel(), self.IMU_ang_vel).ravel()
@@ -416,10 +431,10 @@ class Estimator:
 
             # Position of the center of the base from FGeometry and filtered velocity (world frame)
             self.filt_lin_pos[:] = self.filter_xyz_pos.compute(
-                self.FK_xyz[:] + self.xyz_mean_feet[:], ob_filt_lin_vel, alpha=0.995)
+                self.FK_xyz[:] + self.xyz_mean_feet[:], ob_filt_lin_vel, alpha=np.array([1.0, 1.0, 0.9]))
 
             # Velocity of the center of the base (base frame)
-            self.filt_lin_vel[:] = b_filt_lin_vel
+            self.filt_lin_vel[:] = b_filt_lin_vel 
 
         else:  # Use Kalman filter
 
