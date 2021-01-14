@@ -79,16 +79,17 @@ class controller():
         ddq_cmd = np.array([self.invKin.refreshAndCompute(q.copy(), dq.copy(), x_cmd, contacts, planner)]).T
 
         # Log position, velocity and acceleration references for the feet
-        """indexes = [10, 18, 26, 34]
+        indexes = [10, 18, 26, 34]
+
         for i in range(4):
             self.log_feet_pos[:, i, self.k_log] = self.invKin.rdata.oMf[indexes[i]].translation
-            self.log_feet_err[:, i, self.k_log] = self.invKin.pfeet_err[i]
+            self.log_feet_err[:, i, self.k_log] = self.invKin.feet_position_ref[i] - self.invKin.rdata.oMf[indexes[i]].translation # self.invKin.pfeet_err[i]
             self.log_feet_vel[:, i, self.k_log] = pin.getFrameVelocity(self.invKin.rmodel, self.invKin.rdata,
                                                                        indexes[i], pin.LOCAL_WORLD_ALIGNED).linear
         # + np.array([[0.0, 0.0, q[2, 0] - planner.h_ref]]).T
         self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :]
         self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
-        self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]"""
+        self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]
 
         #self.tac = time()
 
