@@ -262,7 +262,7 @@ class Controller:
                                       self.x_f_mpc[12:], self.planner.gait[0, 1:], self.planner)
 
             # Quantities sent to the control board
-            self.result.P = 3.0 * np.ones(12)
+            self.result.P = 6.0 * np.ones(12)
             self.result.D = 0.2 * np.ones(12)
             self.result.q_des[:] = self.myController.qdes[7:]
             self.result.v_des[:] = self.myController.vdes[6:, 0]
@@ -273,6 +273,9 @@ class Controller:
 
         # Security check
         self.security_check()
+
+        # Update PyBullet camera
+        self.pyb_camera(device)
 
         # Logs
         self.log_misc(t_start, t_filter, t_planner, t_mpc)
