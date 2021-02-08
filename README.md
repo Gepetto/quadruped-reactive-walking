@@ -19,16 +19,26 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
 * Install PyBullet: `pip3 install --user pybullet`
 
 * Install OSQP solver: [https://osqp.org/docs/get_started/sources.html#build-the-binaries]
-⋅⋅⋅ git clone --recursive https://github.com/oxfordcontrol/osqp
-⋅⋅⋅ cd osqp
-⋅⋅⋅ Edit CMakeLists.txt 
-⋅⋅⋅ Add `set(PRINTING OFF)` just above `message(STATUS "Printing is ${PRINTING}")`
-⋅⋅⋅ Add `set(PROFILING OFF)` just above `message(STATUS "Profiling is ${PROFILING}")`
-⋅⋅⋅ Turn DLONG off `option (DLONG "Use long integers (64bit) for indexing" OFF)`
-⋅⋅⋅ mkdir build
-⋅⋅⋅ cd build
-⋅⋅⋅ cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=~/install -DPYTHON_EXECUTABLE=$(which python3.6) -DPYTHON_STANDARD_LAYOUT=ON (to install in ~/install folder)
-⋅⋅⋅ make install
+
+ * git clone --recursive https://github.com/oxfordcontrol/osqp
+
+ * cd osqp
+
+ * Edit CMakeLists.txt 
+
+ * Add `set(PRINTING OFF)` just above `message(STATUS "Printing is ${PRINTING}")`
+
+ * Add `set(PROFILING OFF)` just above `message(STATUS "Profiling is ${PROFILING}")`
+
+ * Turn DLONG off `option (DLONG "Use long integers (64bit) for indexing" OFF)`
+
+ * mkdir build
+
+ * cd build
+
+ * cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=~/install -DPYTHON_EXECUTABLE=$(which python3.6) -DPYTHON_STANDARD_LAYOUT=ON (to install in ~/install folder)
+ 
+ * make install
 
 * Install package that handles the gamepad: `pip3 install --user inputs`
 
