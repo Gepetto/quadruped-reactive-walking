@@ -676,6 +676,11 @@ class PyBulletSimulator():
             WaitEndOfCycle (bool): wait to have simulation time = real time
         """
 
+        # Position and velocity of actuators
+        jointStates = pyb.getJointStates(self.pyb_sim.robotId, self.revoluteJointIndices)  # State of all joints
+        self.q_mes[:] = np.array([state[0] for state in jointStates])
+        self.v_mes[:] = np.array([state[1] for state in jointStates])
+
         # Compute PD torques
         tau_pd = self.P * (self.q_des - self.q_mes) + self.D * (self.v_des - self.v_mes)
 
