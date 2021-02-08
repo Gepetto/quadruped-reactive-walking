@@ -87,7 +87,7 @@ class QPWBC {
   void update_PQ();
   int call_solver();
   int retrieve_result(const Eigen::MatrixXd &f_cmd);
-  int run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA);
+  int run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA, const Eigen::MatrixXd &k_contact);
 
   // Getters
   Eigen::MatrixXd get_f_res();

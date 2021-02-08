@@ -11,7 +11,7 @@ QPWBC::QPWBC() {
   int a[9] = {0, 1, 2, 3, 0, 1, 2, 3, 4};
   int b[9] = {0, 0, 1, 1, 2, 2, 2, 2, 2};
   double c[9] = {1.0, -1.0, 1.0, -1.0, -mu, -mu, -mu, -mu, -1};
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i <= 8; i++) {
     SC(a[i], b[i]) = -c[i];
   }
 
@@ -228,6 +228,10 @@ int QPWBC::call_solver() {
     data->l = v_NK_low;  // dense array for lower bound (size m)
     data->u = v_NK_up;   // dense array for upper bound (size m)
 
+    /*std::cout << data->l << std::endl;
+    std::cout << data->A << std::endl;
+    std::cout << data->u << std::endl;*/
+
     // Tuning parameters of the OSQP solver
     // settings->rho = 0.1f;
     // settings->sigma = 1e-6f;
@@ -255,6 +259,10 @@ int QPWBC::call_solver() {
 
     // Update Q matrix of the OSQP solver
     osqp_update_lin_cost(workspce, &Q[0]);
+
+    // Update upper bound of the OSQP solver
+    osqp_update_upper_bound(workspce, &v_NK_up[0]);
+    osqp_update_lower_bound(workspce, &v_NK_low[0]);
 
   }
 
@@ -299,7 +307,8 @@ Eigen::MatrixXd QPWBC::get_H() {
   return Hxd; 
 }
 
-int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA) {
+int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA,
+               const Eigen::MatrixXd &k_contact) {
   /*
   Run one iteration of the whole WBC QP problem by calling all the necessary functions (data retrieval,
   update of constraint matrices, update of the solver, running the solver, retrieving result)
@@ -309,12 +318,14 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
     - Jc (Eigen::MatrixXd): Jacobian of contact points
     - f_cmd (Eigen::MatrixXd): reference contact forces coming from the MPC
     - RNEA (Eigen::MatrixXd): joint torques according to the current state of the system and the desired joint accelerations
+    - k_contact (Eigen::MatrixXd): nb of iterations since contact has been enabled for each foot
   */
 
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + 2 x^T.Q with constraints M.X == N and L.X <= K
   if (not initialized) {
     create_matrices();
+    // std::cout << G << std::endl;
   }
   
   // Compute the different matrices involved in the box QP
@@ -322,6 +333,32 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
 
   // Update P and Q matrices of the cost function xT P x + 2 xT g
   update_PQ();
+
+  const double Nz_max = 20.0;
+  Eigen::Matrix<double, 20, 1> Gf = G * f_cmd;
+  
+  for (int i = 0; i < G.rows(); i++) {
+    v_NK_low[i] = - Gf(i, 0);
+    v_NK_up[i] = - Gf(i, 0) + Nz_max;
+  }
+
+  const double k_max = 15.0;
+  for (int i = 0; i < 4; i++) {
+    if (k_contact(0, i) < k_max) {
+      v_NK_up[5*i+4] -= Nz_max * (1.0 - k_contact(0, i) / k_max);
+    }
+    /*else if (k_contact(0, i) == (k_max+10))
+    {
+      //char t_char[1] = {'M'};
+      //cc_print( (data->A)->m, (data->A)->n, (data->A)->nzmax, (data->A)->i, (data->A)->p, (data->A)->x, t_char);
+      std::cout << " ### " << k_contact(0, i) << std::endl;
+
+      for (int i = 0; i < data->m; i++) {
+        std::cout << data->l[i] << " | " << data->u[i] << " | " << f_cmd(i, 0) << std::endl;
+      }
+    }*/
+    
+  }
 
   // Create an initial guess and call the solver to solve the QP problem
   call_solver();

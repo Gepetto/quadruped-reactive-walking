@@ -103,7 +103,7 @@ struct QPWBCPythonVisitor : public bp::def_visitor<QPWBCPythonVisitor<QPWBC> > {
         .def("get_H", &QPWBC::get_H, "Get H weight matrix.\n")
 
         // Run QPWBC from Python
-        .def("run", &QPWBC::run, bp::args("M", "Jc", "f_cmd", "RNEA"), "Run QPWBC from Python.\n");
+        .def("run", &QPWBC::run, bp::args("M", "Jc", "f_cmd", "RNEA", "k_contacts"), "Run QPWBC from Python.\n");
   }
 
   static void expose() {

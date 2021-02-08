@@ -26,6 +26,8 @@ class controller():
 
         self.error = False  # Set to True when an error happens in the controller
 
+        self.k_since_contact = np.zeros((1, 4))
+
         # Arrays to store results (for solo12)
         self.qdes = np.zeros((19, ))
         self.vdes = np.zeros((18, 1))
@@ -45,8 +47,8 @@ class controller():
         self.log_f_cmd = np.zeros((12, N_SIMULATION))
         self.log_f_out = np.zeros((12, N_SIMULATION))
         self.log_x = np.zeros((12, N_SIMULATION))
-        self.log_q = np.zeros((6, N_SIMULATION))
-        self.log_dq = np.zeros((6, N_SIMULATION))
+        self.log_q = np.zeros((18, N_SIMULATION))
+        self.log_dq = np.zeros((18, N_SIMULATION))
         self.log_x_ref_invkin = np.zeros((6, N_SIMULATION))
         self.log_x_invkin = np.zeros((6, N_SIMULATION))
         self.log_dx_ref_invkin = np.zeros((6, N_SIMULATION))
@@ -74,7 +76,11 @@ class controller():
             planner (object): Object that contains the pos, vel and acc references for feet
         """
 
-        #self.tic = time()
+        # Update nb of iterations since contact
+        self.k_since_contact += contacts  # Increment feet in stance phase
+        self.k_since_contact *= contacts  # Reset feet in swing phase
+
+        # self.tic = time()
         # Compute Inverse Kinematics
         ddq_cmd = np.array([self.invKin.refreshAndCompute(q.copy(), dq.copy(), x_cmd, contacts, planner)]).T
 
@@ -113,7 +119,7 @@ class controller():
         RNEA = pin.rnea(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd)[:6]
 
         # Solve the QP problem with C++ bindings
-        self.box_qp.run(self.M, self.Jc, f_cmd.reshape((-1, 1)), RNEA.reshape((-1, 1)))
+        self.box_qp.run(self.M, self.Jc, f_cmd.reshape((-1, 1)), RNEA.reshape((-1, 1)), self.k_since_contact)
 
         # Add deltas found by the QP problem to reference quantities
         deltaddq = self.box_qp.get_ddq_res()
@@ -147,7 +153,7 @@ class controller():
 
         self.log_x_cmd[:, self.k_log] = x_cmd[:]  # Input of the WBC block (reference pos/ori/linvel/angvel)
         self.log_f_cmd[:, self.k_log] = f_cmd[:]  # Input of the WBC block (contact forces)
-        self.log_f_out[:, self.k_log] = f_cmd[:] + np.array(self.x[6:])  # Input of the WBC block (contact forces)
+        self.log_f_out[:, self.k_log] = f_with_delta[:, 0]  # Input of the WBC block (contact forces)
         self.log_x[0:3, self.k_log] = self.qint[0:3]  # Output of the WBC block (pos)
         self.log_x[3:6, self.k_log] = quaternionToRPY(self.qint[3:7]).ravel()  # Output of the WBC block (ori)
         oMb = pin.SE3(pin.Quaternion(np.array([self.qint[3:7]]).transpose()), np.zeros((3, 1)))
@@ -155,7 +161,10 @@ class controller():
         self.log_x[9:12, self.k_log] = oMb.rotation @ self.vint[3:6, 0]  # Output of the WBC block (ang vel)
         self.log_q[0:3, self.k_log] = q[0:3, 0]  # Input of the WBC block (current pos)
         self.log_q[3:6, self.k_log] = quaternionToRPY(q[3:7, 0]).ravel()  # Input of the WBC block (current ori)
-        self.log_dq[:, self.k_log] = dq[0:6, 0]  # Input of the WBC block (current linvel/angvel)
+        self.log_dq[:6, self.k_log] = dq[0:6, 0]  # Input of the WBC block (current linvel/angvel)
+
+        self.log_q[6:, self.k_log] = q[7:, 0].copy()
+        self.log_dq[6:, self.k_log] = dq[6:, 0].copy()
 
         self.log_x_ref_invkin[:, self.k_log] = self.invKin.x_ref[:, 0]  # Position task reference
         # Position task state (reconstruct with pin.forwardKinematics)
@@ -324,6 +333,7 @@ class controller():
             else:
                 plt.subplot(3, 4, index12[i], sharex=ax0)
             plt.plot(t_range, self.log_qdes[i, :], color='r', linewidth=3)
+            plt.plot(t_range, self.log_q[6+i, :], color='b', linewidth=3)
             plt.legend(["Qdes"], prop={'size': 8})
 
         plt.show(block=True)
