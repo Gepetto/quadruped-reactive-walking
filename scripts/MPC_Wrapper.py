@@ -43,6 +43,7 @@ class MPC_Wrapper:
         self.dt = dt
         self.n_steps = n_steps
         self.T_gait = T_gait
+        self.gait_memory = np.zeros(4)
 
         self.mpc_type = mpc_type
         self.multiprocessing = multiprocessing
@@ -80,6 +81,16 @@ class MPC_Wrapper:
             self.run_MPC_asynchronous(k, fstep_planner)
         else:  # Run in the same process than main loop
             self.run_MPC_synchronous(k, fstep_planner)
+
+        if k > 2 and not np.array_equal(self.gait_memory, fstep_planner.gait[0, 1:]):
+            self.gait_memory = (fstep_planner.gait[0, 1:]).copy()
+            mass = 2.5
+            nb_ctc = np.sum(fstep_planner.gait[0, 1:])
+            F = 9.81 * mass / nb_ctc
+            self.last_available_result[12:] = np.zeros(12)
+            for i in range(4):
+                if (fstep_planner.gait[0, 1+i] == 1):
+                    self.last_available_result[12+3*i+2] = F
 
         return 0
 
