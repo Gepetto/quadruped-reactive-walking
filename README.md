@@ -18,11 +18,23 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
 
 * Install PyBullet: `pip3 install --user pybullet`
 
-* Install OSQP solver: `pip3 install --user osqp`
+* Install OSQP solver: [https://osqp.org/docs/get_started/sources.html#build-the-binaries]
+⋅⋅⋅ git clone --recursive https://github.com/oxfordcontrol/osqp
+⋅⋅⋅ cd osqp
+⋅⋅⋅ Edit CMakeLists.txt 
+⋅⋅⋅ Add `set(PRINTING OFF)` just above `message(STATUS "Printing is ${PRINTING}")`
+⋅⋅⋅ Add `set(PROFILING OFF)` just above `message(STATUS "Profiling is ${PROFILING}")`
+⋅⋅⋅ Turn DLONG off `option (DLONG "Use long integers (64bit) for indexing" OFF)`
+⋅⋅⋅ mkdir build
+⋅⋅⋅ cd build
+⋅⋅⋅ cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=~/install -DPYTHON_EXECUTABLE=$(which python3.6) -DPYTHON_STANDARD_LAYOUT=ON (to install in ~/install folder)
+⋅⋅⋅ make install
 
 * Install package that handles the gamepad: `pip3 install --user inputs`
 
-* Install TSID: https://github.com/stack-of-tasks/tsid#installation You can put the repo in another folder if you want, like `cd ~/install/` instead of `cd $DEVEL/openrobots/src/` for the first line.
+* Install eiquadprog: `sudo apt install robotpkg-eiquadprog`
+
+* Install TSID: [https://github.com/stack-of-tasks/tsid#installation] You can put the repo in another folder if you want, like `cd ~/install/` instead of `cd $DEVEL/openrobots/src/` for the first line.
 
 * Clone interface repository: in `/scripts`, `git clone https://github.com/paLeziart/solopython`
 
@@ -36,9 +48,9 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
 
 * Get inside and cmake: `cd build` then `cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=~/install -DPYTHON_EXECUTABLE=$(which python3.6) -DPYTHON_STANDARD_LAYOUT=ON`
 
-* Compile and and install Python bindings: `make install`
+* Compile Python bindings: `make`
 
-* If at some point you want to uninstall the bindings: `make uninstall`
+* Copy them to the script folder so that the scripts can access the compiled code: `cp python/quadruped_reactive_walking/libquadruped_reactive_walking.so ../scripts/`
 
 # Run the simulation
 
