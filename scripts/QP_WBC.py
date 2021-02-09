@@ -92,6 +92,10 @@ class controller():
             self.log_feet_err[:, i, self.k_log] = self.invKin.feet_position_ref[i] - self.invKin.rdata.oMf[indexes[i]].translation # self.invKin.pfeet_err[i]
             self.log_feet_vel[:, i, self.k_log] = pin.getFrameVelocity(self.invKin.rmodel, self.invKin.rdata,
                                                                        indexes[i], pin.LOCAL_WORLD_ALIGNED).linear
+        self.feet_pos = self.log_feet_pos[:, :, self.k_log]
+        self.feet_err = self.log_feet_err[:, :, self.k_log]
+        self.feet_vel = self.log_feet_vel[:, :, self.k_log]
+
         # + np.array([[0.0, 0.0, q[2, 0] - planner.h_ref]]).T
         self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :]
         self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
@@ -123,13 +127,13 @@ class controller():
 
         # Add deltas found by the QP problem to reference quantities
         deltaddq = self.box_qp.get_ddq_res()
-        f_with_delta = self.box_qp.get_f_res().reshape((-1, 1))
+        self.f_with_delta = self.box_qp.get_f_res().reshape((-1, 1))
         ddq_with_delta = ddq_cmd.copy()
         ddq_with_delta[:6, 0] += deltaddq
 
         # Compute joint torques from contact forces and desired accelerations
         RNEA_delta = pin.rnea(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_with_delta)[6:]
-        self.tau_ff[:] = RNEA_delta - ((self.Jc[:, 6:].transpose()) @ f_with_delta).ravel()
+        self.tau_ff[:] = RNEA_delta - ((self.Jc[:, 6:].transpose()) @ self.f_with_delta).ravel()
 
         """print("f python:", self.qp_wbc.f_cmd.ravel() + np.array(self.qp_wbc.x[6:]))
         print("f cpp   :", f_with_delta.ravel())
@@ -153,7 +157,7 @@ class controller():
 
         self.log_x_cmd[:, self.k_log] = x_cmd[:]  # Input of the WBC block (reference pos/ori/linvel/angvel)
         self.log_f_cmd[:, self.k_log] = f_cmd[:]  # Input of the WBC block (contact forces)
-        self.log_f_out[:, self.k_log] = f_with_delta[:, 0]  # Input of the WBC block (contact forces)
+        self.log_f_out[:, self.k_log] = self.f_with_delta[:, 0]  # Input of the WBC block (contact forces)
         self.log_x[0:3, self.k_log] = self.qint[0:3]  # Output of the WBC block (pos)
         self.log_x[3:6, self.k_log] = quaternionToRPY(self.qint[3:7]).ravel()  # Output of the WBC block (ori)
         oMb = pin.SE3(pin.Quaternion(np.array([self.qint[3:7]]).transpose()), np.zeros((3, 1)))

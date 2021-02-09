@@ -234,19 +234,20 @@ class Controller:
         t_mpc = time.time()
 
         # Target state for the whole body control
+        self.x_f_wbc = self.x_f_mpc.copy()
         if not self.planner.is_static:
-            self.x_f_mpc[0] = self.q_estim[0, 0]
-            self.x_f_mpc[1] = self.q_estim[1, 0]
-            self.x_f_mpc[2] = self.planner.h_ref
-            self.x_f_mpc[3] = 0.0
-            self.x_f_mpc[4] = 0.0
-            self.x_f_mpc[5] = self.yaw_estim
+            self.x_f_wbc[0] = self.q_estim[0, 0]
+            self.x_f_wbc[1] = self.q_estim[1, 0]
+            self.x_f_wbc[2] = self.planner.h_ref
+            self.x_f_wbc[3] = 0.0
+            self.x_f_wbc[4] = 0.0
+            self.x_f_wbc[5] = self.yaw_estim
         else:  # Sort of position control to avoid slow drift
-            self.x_f_mpc[0:3] = self.planner.q_static[0:3, 0]
-            self.x_f_mpc[3:6] = self.planner.RPY_static[:, 0]
-        self.x_f_mpc[6:12] = self.planner.xref[6:, 1]
+            self.x_f_wbc[0:3] = self.planner.q_static[0:3, 0]
+            self.x_f_wbc[3:6] = self.planner.RPY_static[:, 0]
+        self.x_f_wbc[6:12] = self.planner.xref[6:, 1]
 
-        self.estimator.x_f_mpc = self.x_f_mpc.copy()  # For logging
+        self.estimator.x_f_mpc = self.x_f_wbc.copy()  # For logging
 
         # Whole Body Control
         # If nothing wrong happened yet in the WBC controller
@@ -258,8 +259,8 @@ class Controller:
             self.b_v[6:, 0] = self.v[6:, 0]
 
             # Run InvKin + WBC QP
-            self.myController.compute(self.q, self.b_v, self.x_f_mpc[:12],
-                                      self.x_f_mpc[12:], self.planner.gait[0, 1:], self.planner)
+            self.myController.compute(self.q, self.b_v, self.x_f_wbc[:12],
+                                      self.x_f_wbc[12:], self.planner.gait[0, 1:], self.planner)
 
             # Quantities sent to the control board
             self.result.P = 6.0 * np.ones(12)

@@ -100,6 +100,8 @@ class ComplementaryFilter:
         y = 1 - np.cos(2*np.pi*fc*dt)
         self.alpha = -y+np.sqrt(y*y+2*y)
 
+        self.x = np.zeros(3)
+        self.dx = np.zeros(3)
         self.HP_x = np.zeros(3)
         self.LP_x = np.zeros(3)
         self.filt_x = np.zeros(3)
@@ -116,6 +118,10 @@ class ComplementaryFilter:
         # Update alpha value if the user desires it
         if alpha is not None:
             self.alpha = alpha
+
+        # For logging
+        self.x = x
+        self.dx = dx
 
         # Process high pass filter
         self.HP_x[:] = self.alpha * (self.HP_x + dx * self.dt)
@@ -180,7 +186,8 @@ class Estimator:
 
         # Boolean to disable FK and FG near contact switches
         self.close_from_contact = False
-        self.contactStatus = np.zeros(4)
+        self.feet_status = np.zeros(4)
+        self.feet_goals = np.zeros((3, 4))
         self.k_since_contact = np.zeros(4)
 
         # Load the URDF model to get Pinocchio data and model structures
@@ -455,7 +462,8 @@ class Estimator:
 
         # Logging
         self.log_alpha[self.k_log] = self.alpha
-        self.contactStatus[:] = feet_status  # Save contact status sent to the estimator for logging
+        self.feet_status[:] = feet_status  # Save contact status sent to the estimator for logging
+        self.feet_goals[:, :] = goals.copy()  # Save feet goals sent to the estimator for logging
         self.log_IMU_lin_acc[:, self.k_log] = self.IMU_lin_acc[:]
         self.log_HP_lin_vel[:, self.k_log] = self.HP_lin_vel[:]
         self.log_LP_lin_vel[:, self.k_log] = self.LP_lin_vel[:]
@@ -472,6 +480,22 @@ class Estimator:
         self.v_filt[0:3, 0] = (1 - self.alpha_v) * self.v_filt[0:3, 0] + self.alpha_v * self.filt_lin_vel
         self.v_filt[3:6, 0] = self.filt_ang_vel
         self.v_filt[6:, 0] = self.actuators_vel
+
+        ###
+
+        # Update model used for the forward kinematics
+        """pin.forwardKinematics(self.model, self.data, self.q_filt, self.v_filt)
+        pin.updateFramePlacements(self.model, self.data)
+
+        z_min = 100
+        for i in (np.where(feet_status == 1))[0]:  # Consider only feet in contact
+            # Estimated position of the base using the considered foot
+            framePlacement = pin.updateFramePlacement(self.model, self.data, self.indexes[i])
+            z_min = np.min((framePlacement.translation[2], z_min))
+        self.q_filt[2, 0] -= z_min"""
+
+        ###
+
 
         # Output filtered actuators velocity for security checks
         self.v_secu[:] = (1 - self.alpha_secu) * self.actuators_vel + self.alpha_secu * self.v_secu[:]
