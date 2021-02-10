@@ -2,6 +2,7 @@
 import numpy as np
 from datetime import datetime as datetime
 from time import time
+from utils_mpc import quaternionToRPY
 
 
 class LoggerControl():
@@ -55,7 +56,8 @@ class LoggerControl():
         self.planner_h_ref = np.zeros([logSize])  # reference height of the planner
 
         # Model Predictive Control
-        self.mpc_x_f = np.zeros([logSize, 24])  # output vector of the MPC (next state + reference contact force)
+        # output vector of the MPC (next state + reference contact force)
+        self.mpc_x_f = np.zeros([logSize, 24, planner.n_steps])
 
         # Whole body control
         self.wbc_x_f = np.zeros([logSize, 24])  # input vector of the WBC (next state + reference contact force)
@@ -143,6 +145,22 @@ class LoggerControl():
 
         self.i += 1
 
+    def processMocap(self, N, loggerSensors):
+
+        self.mocap_b_v = np.zeros([N, 3])
+        self.mocap_b_w = np.zeros([N, 3])
+        self.mocap_RPY = np.zeros([N, 3])
+
+        for i in range(N):
+            oRb = loggerSensors.mocapOrientationMat9[i]
+
+            """from IPython import embed
+            embed()"""
+
+            self.mocap_b_v[i] = (oRb.transpose() @ loggerSensors.mocapVelocity[i].reshape((3, 1))).ravel()
+            self.mocap_b_w[i] = (oRb.transpose() @ loggerSensors.mocapAngularVelocity[i].reshape((3, 1))).ravel()
+            self.mocap_RPY[i] = quaternionToRPY(loggerSensors.mocapOrientationQuat[i])[:, 0]
+
     def plotAll(self, loggerSensors):
 
         from matplotlib import pyplot as plt
@@ -150,8 +168,23 @@ class LoggerControl():
         N = self.tstamps.shape[0]
         t_range = np.array([k*self.dt for k in range(N)])
 
+        self.processMocap(N, loggerSensors)
+
         index6 = [1, 3, 5, 2, 4, 6]
         index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+
+        """plt.figure()
+        for i in range(4):
+            if i == 0:
+                ax0 = plt.subplot(2, 2, i+1)
+            else:
+                plt.subplot(2, 2, i+1, sharex=ax0)
+            switch = np.diff(self.esti_feet_status[:, i])
+            tmp = self.wbc_feet_pos[:-1, 2, i]
+            tmp_y = tmp[switch > 0]
+            tmp_x = t_range[:-1]
+            tmp_x = tmp_x[switch > 0]
+            plt.plot(tmp_x, tmp_y, linewidth=3)"""
 
         lgd_X = ["FL", "FR", "HL", "HR"]
         lgd_Y = ["Pos X", "Pos Y", "Pos Z"]
@@ -165,7 +198,8 @@ class LoggerControl():
             plt.plot(t_range, self.wbc_feet_pos[:, i % 3, np.int(i/3)], color='b', linewidth=3, marker='')
             plt.plot(t_range, self.wbc_feet_err[:, i % 3, np.int(i/3)], color='g', linewidth=3, marker='')
             plt.plot(t_range, self.planner_goals[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
-            plt.plot(t_range, self.wbc_feet_pos_invkin[:, i % 3, np.int(i/3)], color='darkviolet', linewidth=3, linestyle="--", marker='')
+            plt.plot(t_range, self.wbc_feet_pos_invkin[:, i % 3, np.int(i/3)],
+                     color='darkviolet', linewidth=3, linestyle="--", marker='')
             if (i % 3) == 2:
                 plt.plot(t_range, self.planner_gait[:, 0, 1+np.int(
                     i/3)] * np.max(self.wbc_feet_pos[:, i % 3, np.int(i/3)]), color='k', linewidth=3, marker='')
@@ -183,8 +217,10 @@ class LoggerControl():
                 plt.subplot(3, 4, index12[i], sharex=ax0)
             plt.plot(t_range, self.wbc_feet_vel[:, i % 3, np.int(i/3)], color='b', linewidth=3, marker='')
             plt.plot(t_range, self.planner_vgoals[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
-            plt.plot(t_range, self.wbc_feet_vel_invkin[:, i % 3, np.int(i/3)], color='darkviolet', linewidth=3, linestyle="--", marker='')
-            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)], lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"], prop={'size': 8})
+            plt.plot(t_range, self.wbc_feet_vel_invkin[:, i % 3, np.int(i/3)],
+                     color='darkviolet', linewidth=3, linestyle="--", marker='')
+            plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)], lgd_Y[i %
+                                                                       3] + " " + lgd_X[np.int(i/3)]+" Ref"], prop={'size': 8})
         plt.suptitle("Measured and Reference feet velocities (world frame)")
 
         lgd_X = ["FL", "FR", "HL", "HR"]
@@ -209,6 +245,10 @@ class LoggerControl():
                 plt.subplot(3, 2, index6[i], sharex=ax0)
             plt.plot(t_range, self.planner_xref[:, i, 0], "b", linewidth=2)
             plt.plot(t_range, self.planner_xref[:, i, 1], "r", linewidth=3)
+            if i < 3:
+                plt.plot(t_range, loggerSensors.mocapPosition[:, i], "k", linewidth=3)
+            else:
+                plt.plot(t_range, self.mocap_RPY[:, i-3], "k", linewidth=3)
             # plt.plot(t_range, self.log_q[i, :], "grey", linewidth=4)
             # plt.plot(t_range[:-2], self.log_x_invkin[i, :-2], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_x_ref_invkin[i, :-2], "violet", linewidth=2, linestyle="--")
@@ -227,10 +267,16 @@ class LoggerControl():
                 plt.subplot(3, 2, index6[i], sharex=ax0)
             plt.plot(t_range, self.esti_v_filt[:, i], "b", linewidth=2)
             plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
+            if i < 3:
+                plt.plot(t_range, self.mocap_b_v[:, i], "k", linewidth=3)
+                plt.plot(t_range, self.esti_FK_lin_vel[:, i], "violet", linewidth=3, linestyle="--")
+            else:
+                plt.plot(t_range, self.mocap_b_w[:, i-3], "k", linewidth=3)
+
             # plt.plot(t_range, self.log_dq[i, :], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_invkin[i, :-2], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_ref_invkin[i, :-2], "violet", linewidth=2, linestyle="--")
-            plt.legend(["WBC integrated output state", "Robot reference state"], prop={'size': 8})
+            plt.legend(["Robot state", "Robot reference state"], prop={'size': 8})
             plt.ylabel(lgd[i])
         plt.suptitle("Measured & Reference linear and angular velocities")
 
@@ -255,7 +301,8 @@ class LoggerControl():
             h1, = plt.plot(t_range, self.wbc_tau_ff[:, i], "r", linewidth=3)
             h2, = plt.plot(t_range, tau_fb, "b", linewidth=3)
             h3, = plt.plot(t_range, self.wbc_tau_ff[:, i] + tau_fb, "g", linewidth=3)
-            h4, = plt.plot(t_range[:-1], loggerSensors.torquesFromCurrentMeasurment[1:, i], "violet", linewidth=3, linestyle="--")
+            h4, = plt.plot(t_range[:-1], loggerSensors.torquesFromCurrentMeasurment[1:, i],
+                           "violet", linewidth=3, linestyle="--")
             plt.xlabel("Time [s]")
             plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)]+" [Nm]")
             tmp = lgd1[i % 3]+" "+lgd2[int(i/3)]
@@ -271,11 +318,12 @@ class LoggerControl():
                 ax0 = plt.subplot(3, 4, index12[i])
             else:
                 plt.subplot(3, 4, index12[i], sharex=ax0)
-            h1, = plt.plot(t_range, self.mpc_x_f[:, 12+i], "r", linewidth=3)
+            h1, = plt.plot(t_range, self.mpc_x_f[:, 12+i, 0], "r", linewidth=3)
             h2, = plt.plot(t_range, self.wbc_f_ctc[:, i], "b", linewidth=3, linestyle="--")
             plt.xlabel("Time [s]")
             plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)]+" [N]")
-            plt.legend([h1, h2], ["MPC " + lgd1[i % 3]+" "+lgd2[int(i/3)], "WBC " + lgd1[i % 3]+" "+lgd2[int(i/3)]], prop={'size': 8})
+            plt.legend([h1, h2], ["MPC " + lgd1[i % 3]+" "+lgd2[int(i/3)],
+                                  "WBC " + lgd1[i % 3]+" "+lgd2[int(i/3)]], prop={'size': 8})
             if (i % 3) == 2:
                 plt.ylim([-0.0, 26.0])
             else:
@@ -298,7 +346,98 @@ class LoggerControl():
                                   lgd1[i % 3]+" "+lgd2[int(i/3)]], prop={'size': 8})
         plt.suptitle("Desired actuator positions & Measured actuator positions")
 
+        # Evolution of predicted trajectory along time
+        log_t_pred = np.array([k*self.dt*10 for k in range(self.mpc_x_f.shape[2])])
+        log_t_ref = np.array([k*self.dt*10 for k in range(self.planner_xref.shape[2])])
+
+        """from IPython import embed
+        embed()"""
+
+        titles = ["X", "Y", "Z", "Roll", "Pitch", "Yaw"]
+        step = 200
+        plt.figure()
+        for j in range(6):
+            plt.subplot(3, 2, index6[j])
+            c = [[i/(self.mpc_x_f.shape[0]+5), 0.0, i/(self.mpc_x_f.shape[0]+5)]
+                 for i in range(0, self.mpc_x_f.shape[0], step)]
+            for i in range(0, self.mpc_x_f.shape[0], step):
+                h1, = plt.plot(log_t_pred+(i+10)*self.dt,
+                               self.mpc_x_f[i, j, :], "b", linewidth=2, color=c[int(i/step)])
+                h2, = plt.plot(log_t_ref+i*self.dt,
+                               self.planner_xref[i, j, :], linestyle="--", marker='x', color="g", linewidth=2)
+            h3, = plt.plot(np.array([k*self.dt for k in range(self.mpc_x_f.shape[0])]),
+                           self.planner_xref[:, j, 0], linestyle=None, marker='x', color="r", linewidth=1)
+            plt.xlabel("Time [s]")
+            plt.legend([h1, h2, h3], ["Output trajectory of MPC",
+                                      "Input trajectory of planner", "Actual robot trajectory"])
+            plt.title("Predicted trajectory for " + titles[j])
+        plt.suptitle("Analysis of trajectories in position and orientation computed by the MPC")
+
+        plt.figure()
+        for j in range(6):
+            plt.subplot(3, 2, index6[j])
+            c = [[i/(self.mpc_x_f.shape[0]+5), 0.0, i/(self.mpc_x_f.shape[0]+5)]
+                 for i in range(0, self.mpc_x_f.shape[0], step)]
+            for i in range(0, self.mpc_x_f.shape[0], step):
+                h1, = plt.plot(log_t_pred+(i+10)*self.dt,
+                               self.mpc_x_f[i, j+6, :], "b", linewidth=2, color=c[int(i/step)])
+                h2, = plt.plot(log_t_ref+i*self.dt,
+                               self.planner_xref[i, j+6, :], linestyle="--", marker='x', color="g", linewidth=2)
+            h3, = plt.plot(np.array([k*self.dt for k in range(self.mpc_x_f.shape[0])]),
+                           self.planner_xref[:, j+6, 0], linestyle=None, marker='x', color="r", linewidth=1)
+            plt.xlabel("Time [s]")
+            plt.legend([h1, h2, h3], ["Output trajectory of MPC",
+                                      "Input trajectory of planner", "Actual robot trajectory"])
+            plt.title("Predicted trajectory for velocity in " + titles[j])
+        plt.suptitle("Analysis of trajectories of linear and angular velocities computed by the MPC")
+
+        lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]
+        lgd2 = ["FL", "FR", "HL", "HR"]
+        plt.figure()
+        for i in range(12):
+            if i == 0:
+                ax0 = plt.subplot(3, 4, index12[i])
+            else:
+                plt.subplot(3, 4, index12[i], sharex=ax0)
+            h1, = plt.plot(t_range, self.mpc_x_f[:, 12+i, 0], "r", linewidth=3)
+            h2, = plt.plot(t_range, self.wbc_f_ctc[:, i], "b", linewidth=3, linestyle="--")
+            plt.xlabel("Time [s]")
+            plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)]+" [N]")
+            plt.legend([h1, h2], ["MPC " + lgd1[i % 3]+" "+lgd2[int(i/3)],
+                                  "WBC " + lgd1[i % 3]+" "+lgd2[int(i/3)]], prop={'size': 8})
+            if (i % 3) == 2:
+                plt.ylim([-0.0, 26.0])
+            else:
+                plt.ylim([-26.0, 26.0])
+        plt.suptitle("Contact forces (MPC command) & WBC QP output")
+
+        lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]
+        lgd2 = ["FL", "FR", "HL", "HR"]
+        plt.figure()
+        for i in range(12):
+            if i == 0:
+                ax0 = plt.subplot(3, 4, index12[i])
+            else:
+                plt.subplot(3, 4, index12[i], sharex=ax0)
+
+            for k in range(0, self.mpc_x_f.shape[0], step):
+                h2, = plt.plot(log_t_pred+k*self.dt, self.mpc_x_f[k, 12+i, :], linestyle="--", marker='x', color="g", linewidth=2)
+            h1, = plt.plot(t_range, self.mpc_x_f[:, 12+i, 0], "r", linewidth=3)
+            # h3, = plt.plot(t_range, self.wbc_f_ctc[:, i], "b", linewidth=3, linestyle="--")
+            plt.xlabel("Time [s]")
+            plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)]+" [N]")
+            plt.legend([h1, h2], ["MPC " + lgd1[i % 3]+" "+lgd2[int(i/3)],
+                                      "MPC " + lgd1[i % 3]+" "+lgd2[int(i/3)]+" trajectory"])
+            if (i % 3) == 2:
+                plt.ylim([-0.0, 26.0])
+            else:
+                plt.ylim([-26.0, 26.0])
+        plt.suptitle("Contact forces trajectories & Actual forces trajectories")
+
         plt.show(block=True)
+
+        from IPython import embed
+        embed()
 
     def saveAll(self, loggerSensors, fileName="data"):
         date_str = datetime.now().strftime('_%Y_%m_%d_%H_%M')
