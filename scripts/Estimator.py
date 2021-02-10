@@ -298,7 +298,7 @@ class Estimator:
         # Update model used for the forward kinematics
         self.q_FK[3:7, 0] = np.array([0.0, 0.0, 0.0, 1.0])
         pin.forwardKinematics(self.model, self.data, self.q_FK, self.v_FK)
-        pin.updateFramePlacements(self.model, self.data)
+        # pin.updateFramePlacements(self.model, self.data)
 
         # Update model used for the forward geometry
         self.q_FK[3:7, 0] = self.IMU_ang_pos[:]
