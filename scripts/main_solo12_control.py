@@ -8,6 +8,8 @@ from Estimator import Estimator
 import numpy as np
 import argparse
 import pinocchio as pin
+from LoggerSensors import LoggerSensors
+from LoggerControl import LoggerControl
 
 
 SIMULATION = True
@@ -125,6 +127,10 @@ def control_loop(name_interface):
     if LOGGING:
         logger = Logger(device, qualisys=qc, logSize=N_SIMULATION)
 
+    loggerSensors = LoggerSensors(device, qualisys=qc, logSize=N_SIMULATION-3)
+    loggerControl = LoggerControl(dt_wbc, joystick=controller.joystick, estimator=controller.estimator,
+                                  loop=controller, planner=controller.planner, logSize=N_SIMULATION-3)
+
     # Number of motors
     nb_motors = device.nb_motors
 
@@ -168,6 +174,9 @@ def control_loop(name_interface):
         # Call logger
         if LOGGING:
             logger.sample(device, qualisys=qc, estimator=controller.estimator)
+        loggerSensors.sample(device, qc)
+        loggerControl.sample(controller.joystick, controller.estimator,
+                             controller, controller.planner, controller.myController)
 
         # Send command to the robot
         for i in range(1):
@@ -270,7 +279,8 @@ def control_loop(name_interface):
     if LOGGING:
         controller.myController.saveAll(fileName="data_control", log_date=True)
         print("-- Controller log saved --")
-    controller.myController.show_logs()
+    # controller.myController.show_logs()
+    loggerControl.plotAll(loggerSensors)
 
     # Save the logs of the Logger object
     if LOGGING:
