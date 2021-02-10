@@ -36,7 +36,7 @@ class MPC {
   Eigen::Matrix<double, 12, 12> B = Eigen::Matrix<double, 12, 12>::Zero();
   Eigen::Matrix<double, 12, 1> x0 = Eigen::Matrix<double, 12, 1>::Zero();
   double x_next[12] = {};
-  Eigen::MatrixXd x_f_applied = Eigen::MatrixXd::Zero(1, 24);
+  Eigen::MatrixXd x_f_applied;
 
   // Matrix ML
   const static int size_nz_ML = 5000;

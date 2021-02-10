@@ -234,7 +234,7 @@ class Controller:
         t_mpc = time.time()
 
         # Target state for the whole body control
-        self.x_f_wbc = self.x_f_mpc.copy()
+        self.x_f_wbc = (self.x_f_mpc[:, 0]).copy()
         if not self.planner.is_static:
             self.x_f_wbc[0] = self.q_estim[0, 0]
             self.x_f_wbc[1] = self.q_estim[1, 0]

@@ -51,7 +51,7 @@ class MPC_Wrapper:
             self.newData = Value('b', False)
             self.newResult = Value('b', False)
             self.dataIn = Array('d', [0.0] * (1 + (np.int(self.n_steps)+1) * 12 + 13*20))
-            self.dataOut = Array('d', [0] * 24)
+            self.dataOut = Array('d', [0] * 24 * (np.int(self.n_steps)))
             self.fsteps_future = np.zeros((20, 13))
             self.running = Value('b', True)
         else:
@@ -66,7 +66,8 @@ class MPC_Wrapper:
         x_init = np.zeros(12)
         x_init[0:3] = q_init[0:3, 0]
         x_init[3:6] = quaternionToRPY(q_init[3:7, 0]).ravel()
-        self.last_available_result = np.hstack((x_init, np.array([0.0, 0.0, 8.0] * 4)))
+        self.last_available_result = np.zeros((24, (np.int(self.n_steps))))
+        self.last_available_result[:, 0] = np.hstack((x_init, np.array([0.0, 0.0, 8.0] * 4)))
 
     def solve(self, k, fstep_planner):
         """Call either the asynchronous MPC or the synchronous MPC depending on the value of multiprocessing during
@@ -87,10 +88,10 @@ class MPC_Wrapper:
             mass = 2.5
             nb_ctc = np.sum(fstep_planner.gait[0, 1:])
             F = 9.81 * mass / nb_ctc
-            self.last_available_result[12:] = np.zeros(12)
+            self.last_available_result[12:, 0] = np.zeros(12)
             for i in range(4):
                 if (fstep_planner.gait[0, 1+i] == 1):
-                    self.last_available_result[12+3*i+2] = F
+                    self.last_available_result[12+3*i+2, 0] = F
 
         return 0
 
@@ -206,7 +207,10 @@ class MPC_Wrapper:
                     loop_mpc.solve(k, dummy_fstep_planner)
 
                 # Store the result (predicted state + desired forces) in the shared memory
-                self.dataOut[:] = loop_mpc.get_latest_result().tolist()
+                # print(len(self.dataOut))
+                # print((loop_mpc.get_latest_result()).shape)
+
+                self.dataOut[:] = loop_mpc.get_latest_result().ravel(order='F')
 
                 # Set shared variable to true to signal that a new result is available
                 newResult.value = True
@@ -250,7 +254,7 @@ class MPC_Wrapper:
         """Return the result of the asynchronous MPC (desired contact forces) that is stored in the shared memory
         """
 
-        return np.array(self.dataOut[:])
+        return np.array(self.dataOut[:]).reshape((24, -1), order='F')
 
     def roll_asynchronous(self, fsteps):
         """Move one step further in the gait cycle. Since the output of the asynchronous MPC is retrieved by

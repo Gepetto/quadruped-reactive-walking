@@ -9,6 +9,7 @@ MPC::MPC(double dt_in, int n_steps_in, double T_gait_in) {
   x = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12 * n_steps * 2, 1);
   S_gait = Eigen::Matrix<int, Eigen::Dynamic, 1>::Zero(12 * n_steps, 1);
   warmxf = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12 * n_steps * 2, 1);
+  x_f_applied = Eigen::MatrixXd::Zero(24, n_steps);
 
   // Predefined variables
   mass = 2.50000279f;
@@ -560,10 +561,14 @@ Extract relevant information from the output of the QP solver
 */
 int MPC::retrieve_result() {
   // Retrieve the "contact forces" part of the solution of the QP problem
+  for (int i = 0; i < (n_steps); i++) {
+    for (int k = 0; k < 12; k++) {
+      x_f_applied(k, i) = (workspce->solution->x)[k + 12*i] + xref(k, 1+i);
+      x_f_applied(k + 12, i) = (workspce->solution->x)[12 * (n_steps+i) + k];
+    }
+  }
   for (int k = 0; k < 12; k++) {
     x_next[k] = (workspce->solution->x)[k];
-    x_f_applied(0, k) = (workspce->solution->x)[k] + xref(k, 1);
-    x_f_applied(0, k + 12) = (workspce->solution->x)[12 * n_steps + k];
   }
 
   /*std::cout << "SOLUTION States" << std::endl;
