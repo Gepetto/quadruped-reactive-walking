@@ -120,7 +120,7 @@ class MPC {
   void save_dns_matrix(double *M, int size, std::string filename);
 
   // Bindings
-  void run_python(int num_iter, const matXd &xref_py, const matXd &fsteps_py);
+  void run_python(const matXd &xref_py, const matXd &fsteps_py);
 
   // Eigen::Matrix<double, 12, 12> getA() { return A; }
   // Eigen::MatrixXf getML() { return ML; }

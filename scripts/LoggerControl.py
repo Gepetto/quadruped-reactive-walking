@@ -354,7 +354,7 @@ class LoggerControl():
         embed()"""
 
         titles = ["X", "Y", "Z", "Roll", "Pitch", "Yaw"]
-        step = 200
+        step = 2000
         plt.figure()
         for j in range(6):
             plt.subplot(3, 2, index6[j])
@@ -391,6 +391,7 @@ class LoggerControl():
             plt.title("Predicted trajectory for velocity in " + titles[j])
         plt.suptitle("Analysis of trajectories of linear and angular velocities computed by the MPC")
 
+        step = 1000
         lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]
         lgd2 = ["FL", "FR", "HL", "HR"]
         plt.figure()
@@ -414,24 +415,22 @@ class LoggerControl():
         lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]
         lgd2 = ["FL", "FR", "HL", "HR"]
         plt.figure()
-        for i in range(12):
+        for i in range(4):
             if i == 0:
-                ax0 = plt.subplot(3, 4, index12[i])
+                ax0 = plt.subplot(1, 4, i+1)
             else:
-                plt.subplot(3, 4, index12[i], sharex=ax0)
+                plt.subplot(1, 4, i+1, sharex=ax0)
 
             for k in range(0, self.mpc_x_f.shape[0], step):
-                h2, = plt.plot(log_t_pred+k*self.dt, self.mpc_x_f[k, 12+i, :], linestyle="--", marker='x', color="g", linewidth=2)
-            h1, = plt.plot(t_range, self.mpc_x_f[:, 12+i, 0], "r", linewidth=3)
+                h2, = plt.plot(log_t_pred+k*self.dt, self.mpc_x_f[k, 12+(3*i+2), :], linestyle="--", marker='x', linewidth=2)
+            h1, = plt.plot(t_range, self.mpc_x_f[:, 12+(3*i+2), 0], "r", linewidth=3)
             # h3, = plt.plot(t_range, self.wbc_f_ctc[:, i], "b", linewidth=3, linestyle="--")
+            plt.plot(t_range, self.esti_feet_status[:, i], "k", linestyle="--")
             plt.xlabel("Time [s]")
-            plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)]+" [N]")
-            plt.legend([h1, h2], ["MPC " + lgd1[i % 3]+" "+lgd2[int(i/3)],
-                                      "MPC " + lgd1[i % 3]+" "+lgd2[int(i/3)]+" trajectory"])
-            if (i % 3) == 2:
-                plt.ylim([-0.0, 26.0])
-            else:
-                plt.ylim([-26.0, 26.0])
+            plt.ylabel(lgd2[i]+" [N]")
+            plt.legend([h1, h2], ["MPC "+lgd2[i],
+                                  "MPC "+lgd2[i]+" trajectory"])
+            plt.ylim([-1.0, 26.0])
         plt.suptitle("Contact forces trajectories & Actual forces trajectories")
 
         plt.show(block=True)

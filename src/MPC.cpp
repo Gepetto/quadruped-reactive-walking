@@ -148,15 +148,14 @@ int MPC::create_ML() {
   double *acc;                               // coeff values
   int nst = cpt_ML;                          // number of non zero elements
   int ncc = st_to_cc_size(nst, r_ML, c_ML);  // number of CC values
-  int m = 12 * n_steps * 2 + 20 * n_steps;   // number of rows
+  // int m = 12 * n_steps * 2 + 20 * n_steps;   // number of rows
   int n = 12 * n_steps * 2;                  // number of columns
 
-  int i_min = i4vec_min(nst, r_ML);
+  /*int i_min = i4vec_min(nst, r_ML);
   int i_max = i4vec_max(nst, r_ML);
   int j_min = i4vec_min(nst, c_ML);
   int j_max = i4vec_max(nst, c_ML);
-
-  // st_header_print(i_min, i_max, j_min, j_max, m, n, nst);
+  st_header_print(i_min, i_max, j_min, j_max, m, n, nst);*/
 
   // Get the CC indices.
   icc = (int *)malloc(ncc * sizeof(int));
@@ -182,8 +181,8 @@ int MPC::create_ML() {
   delete[] v_ML;
 
   // Print CC matrix
-  char rt_char[2] = {'R', 'T'};
-  char cc_char[2] = {'C', 'C'};
+  // char rt_char[2] = {'R', 'T'};
+  // char cc_char[2] = {'C', 'C'};
   // st_print(m, n, 25, r_ML, c_ML, v_ML, rt_char);
   // cc_print ( m, n, 25, icc, ccc, acc, cc_char);
 
@@ -340,9 +339,9 @@ int MPC::create_weight_matrices() {
   // Define weights for the force components of the optimization vector
   for (int k = n_steps; k < (2 * n_steps); k++) {
     for (int i = 0; i < 4; i++) {
-      add_to_P(12 * k + 3 * i + 0, 12 * k + 3 * i + 0, 1e-4f, r_P, c_P, v_P);
-      add_to_P(12 * k + 3 * i + 1, 12 * k + 3 * i + 1, 1e-4f, r_P, c_P, v_P);
-      add_to_P(12 * k + 3 * i + 2, 12 * k + 3 * i + 2, 1e-4f, r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 0, 12 * k + 3 * i + 0, 1e-5f, r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 1, 12 * k + 3 * i + 1, 1e-5f, r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 2, 12 * k + 3 * i + 2, 1e-5f, r_P, c_P, v_P);
     }
   }
 
@@ -352,7 +351,7 @@ int MPC::create_weight_matrices() {
   double *acc;                             // coeff values
   int nst = cpt_P;                         // number of non zero elements
   int ncc = st_to_cc_size(nst, r_P, c_P);  // number of CC values
-  int m = 12 * n_steps * 2;                // number of rows
+  // int m = 12 * n_steps * 2;                // number of rows
   int n = 12 * n_steps * 2;                // number of columns
 
   // Get the CC indices.
@@ -604,7 +603,7 @@ double *MPC::get_x_next() { return x_next; }
 /*
 Run function with arrays as input for compatibility between Python and C++
 */
-void MPC::run_python(int num_iter, const matXd &xref_py, const matXd &fsteps_py) {
+void MPC::run_python(const matXd &xref_py, const matXd &fsteps_py) {
   printf("Trigger bindings \n");
   printf("xref: %f %f %f \n", xref_py(0, 0), xref_py(1, 0), xref_py(2, 0));
   printf("fsteps: %f %f %f \n", fsteps_py(0, 0), fsteps_py(1, 0), fsteps_py(2, 0));
