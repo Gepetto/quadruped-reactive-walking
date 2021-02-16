@@ -24,7 +24,7 @@ class Joystick:
         y = 1 - np.cos(2*np.pi*fc*dT)
         self.alpha = -y+np.sqrt(y*y+2*y)
 
-        tc = 0.04  #  cutoff frequency at 50 Hz
+        tc = 0.02  #  cutoff frequency at 50 Hz
         dT = 0.0020  # velocity reference is updated every ms
         self.alpha = dT / tc
 
@@ -39,9 +39,9 @@ class Joystick:
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 0.4
-        self.VyScale = 0.8
-        self.vYawScale = 1.2
+        self.VxScale = 0.8
+        self.VyScale = 1.2
+        self.vYawScale = 1.6
 
         self.Vx_ref = 0.3
         self.Vy_ref = 0.0
@@ -128,7 +128,7 @@ class Joystick:
 
         # Low pass filter to slow down the changes of velocity when moving the joysticks
         self.v_ref = self.alpha * self.v_gp + (1-self.alpha) * self.v_ref
-        self.v_ref[(self.v_ref < 0.001) & (self.v_ref > -0.001)] = 0.0
+        self.v_ref[(self.v_ref < 0.005) & (self.v_ref > -0.005)] = 0.0
 
         return 0
 
@@ -204,13 +204,13 @@ class Joystick:
                                                 0.0, 0.0, 0.0, 0.0, 0.3, 0.3, 0.0, 0.0,
                                                 -0.3, 0.0])
         elif velID == 2:
-            self.k_switch = np.array([0, 10000, 15000, 20000])
-            self.v_switch = np.array([[0.0, 1.0, 0.5, 1.0],
-                                      [0.0, 0.0, 0.5, 0.0],
+            self.k_switch = np.array([0, 10000, 20000, 30000])
+            self.v_switch = np.array([[0.0, 1.5, 0.0, 0.0],
                                       [0.0, 0.0, 0.0, 0.0],
                                       [0.0, 0.0, 0.0, 0.0],
                                       [0.0, 0.0, 0.0, 0.0],
-                                      [0.0, 0.0, 0.0, 0.4]])
+                                      [0.0, 0.0, 0.0, 0.0],
+                                      [0.0, 0.0, 0.0, 0.0]])
         elif velID == 3:
             if (k_loop == 0):
                 self.k_switch = np.array([0, 1000, 2000, 7000, 26000, 30000])
