@@ -14,6 +14,7 @@ from LoggerControl import LoggerControl
 
 SIMULATION = True
 LOGGING = False
+PLOTTING = False
 
 if SIMULATION:
     from PyBulletSimulator import PyBulletSimulator
@@ -77,7 +78,7 @@ def control_loop(name_interface):
     ################################
 
     envID = 0  # Identifier of the environment to choose in which one the simulation will happen
-    velID = 1  # Identifier of the reference velocity profile to choose which one will be sent to the robot
+    velID = 2  # Identifier of the reference velocity profile to choose which one will be sent to the robot
 
     dt_wbc = DT  # Time step of the whole body control
     dt_mpc = 0.02  # Time step of the model predictive control
@@ -85,7 +86,7 @@ def control_loop(name_interface):
     t = 0.0  # Time
     T_gait = 0.32  # Duration of one gait period
     T_mpc = 0.32   # Duration of the prediction horizon
-    N_SIMULATION = 50000  # number of simulated wbc time steps
+    N_SIMULATION = 20000  # number of simulated wbc time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -103,6 +104,9 @@ def control_loop(name_interface):
     # If we are using a predefined reference velocity (True) or a joystick (False)
     predefined_vel = True
 
+    # Use complementary filter (False) or kalman filter (True) for the estimator
+    kf_enabled = False
+
     # Enable or disable PyBullet GUI
     enable_pyb_GUI = True
     if not SIMULATION:
@@ -113,7 +117,7 @@ def control_loop(name_interface):
 
     # Run a scenario and retrieve data thanks to the logger
     controller = Controller(q_init, envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
-                            pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI)
+                            pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled)
 
     ####
 
@@ -124,12 +128,10 @@ def control_loop(name_interface):
         device = Solo12(name_interface, dt=DT)
         qc = QualisysClient(ip="140.93.16.160", body_id=0)
 
-    if LOGGING:
-        logger = Logger(device, qualisys=qc, logSize=N_SIMULATION)
-
-    loggerSensors = LoggerSensors(device, qualisys=qc, logSize=N_SIMULATION-3)
-    loggerControl = LoggerControl(dt_wbc, joystick=controller.joystick, estimator=controller.estimator,
-                                  loop=controller, planner=controller.planner, logSize=N_SIMULATION-3)
+    if LOGGING or PLOTTING:
+        loggerSensors = LoggerSensors(device, qualisys=qc, logSize=N_SIMULATION-3)
+        loggerControl = LoggerControl(dt_wbc, joystick=controller.joystick, estimator=controller.estimator,
+                                      loop=controller, planner=controller.planner, logSize=N_SIMULATION-3)
 
     # Number of motors
     nb_motors = device.nb_motors
@@ -148,10 +150,27 @@ def control_loop(name_interface):
     t = 0.0
     t_max = (N_SIMULATION-2) * dt_wbc
 
+    """log_cpt = 0
+    log_o_v = np.zeros((3, N_SIMULATION))
+    log_b_v = np.zeros((3, N_SIMULATION))
+    log_o_v_truth = np.zeros((3, N_SIMULATION))
+    log_b_v_truth = np.zeros((3, N_SIMULATION))
+    o_v = np.zeros((3, 1))
+    b_v = np.zeros((3, 1))"""
     while ((not device.hardware.IsTimeout()) and (t < t_max) and (not controller.myController.error)):
 
         # Update sensor data (IMU, encoders, Motion capture)
         device.UpdateMeasurment()
+
+        """rot_oMb = pin.Quaternion(np.array([device.baseOrientation]).transpose()).toRotationMatrix()
+        a = np.array([device.baseLinearAcceleration]).T
+        o_v[:, 0:1] += 0.002 * (rot_oMb @ a)
+        b_v[:, 0:1] = rot_oMb.T @ o_v
+        log_o_v[:, log_cpt] = o_v[:, 0]
+        log_b_v[:, log_cpt] = b_v[:, 0]
+        log_o_v_truth[:, log_cpt] = device.o_baseVel[:, 0]
+        log_b_v_truth[:, log_cpt] = device.b_baseVel[:]
+        log_cpt += 1"""
 
         # Desired torques
         controller.compute(device)
@@ -172,11 +191,10 @@ def control_loop(name_interface):
         device.SetDesiredJointTorque(controller.result.tau_ff.ravel())
 
         # Call logger
-        if LOGGING:
-            logger.sample(device, qualisys=qc, estimator=controller.estimator)
-        loggerSensors.sample(device, qc)
-        loggerControl.sample(controller.joystick, controller.estimator,
-                             controller, controller.planner, controller.myController)
+        if LOGGING or PLOTTING:
+            loggerSensors.sample(device, qc)
+            loggerControl.sample(controller.joystick, controller.estimator,
+                                 controller, controller.planner, controller.myController)
 
         # Send command to the robot
         for i in range(1):
@@ -251,7 +269,25 @@ def control_loop(name_interface):
 
     # controller.estimator.plot_graphs()
 
-    """import matplotlib.pylab as plt
+    """from matplotlib import pyplot as plt
+        
+    index6 = [1, 3, 5, 2, 4, 6]
+    plt.figure()
+    for i in range(6):
+        if i == 0:
+            ax0 = plt.subplot(3, 2, index6[i])
+        else:
+            plt.subplot(3, 2, index6[i], sharex=ax0)
+
+        if i < 3:
+            plt.plot(log_o_v_truth[i, :], c='r', linewidth=3)
+            plt.plot(log_o_v[i, :], c='b', linewidth=3)
+        else:
+            plt.plot(log_b_v_truth[i-3, :], c='r', linewidth=3)
+            plt.plot(log_b_v[i-3, :], c='b', linewidth=3)
+    plt.show()"""
+
+    """from matplotlib import pyplot as plt
     plt.figure()
     plt.plot(controller.t_list_filter[1:], 'r+')
     plt.plot(controller.t_list_planner[1:], 'g+')
@@ -265,7 +301,7 @@ def control_loop(name_interface):
     plt.title("Loop time [s]")
     plt.show(block=True)"""
 
-    """import matplotlib.pylab as plt
+    """from matplotlib import pyplot as plt
     N = len(controller.log_tmp2)
     t_range = np.array([k*0.002 for k in range(N)])
     plt.figure()
@@ -275,16 +311,13 @@ def control_loop(name_interface):
     plt.plot(t_range, controller.log_tmp4, 'g')
     # plt.show(block=True)"""
 
-    # controller.myController.saveAll(fileName="push_pyb_with_ff", log_date=False)
-    if LOGGING:
-        controller.myController.saveAll(fileName="data_control", log_date=True)
-        print("-- Controller log saved --")
-    # controller.myController.show_logs()
-    loggerControl.plotAll(loggerSensors)
+    # Plot recorded data
+    if PLOTTING:
+        loggerControl.plotAll(loggerSensors)
 
     # Save the logs of the Logger object
     if LOGGING:
-        logger.saveAll()
+        loggerControl.saveAll(loggerSensors)
         print("Log saved")
 
     if SIMULATION and enable_pyb_GUI:

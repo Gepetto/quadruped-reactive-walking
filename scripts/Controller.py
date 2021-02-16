@@ -48,7 +48,7 @@ class dummyDevice:
 class Controller:
 
     def __init__(self, q_init, envID, velID, dt_tsid, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
-                 pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI):
+                 pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled):
         """Function that runs a simulation scenario based on a reference velocity profile, an environment and
         various parameters to define the gait
 
@@ -68,6 +68,7 @@ class Controller:
             use_flat_plane (bool): to use either a flat ground or a rough ground
             predefined_vel (bool): to use either a predefined velocity profile or a gamepad
             enable_pyb_GUI (bool): to display PyBullet GUI or not
+            kf_enabled (bool): complementary filter (False) or kalman filter (True)
         """
 
         ########################################################################
@@ -99,7 +100,7 @@ class Controller:
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
         self.joystick, self.logger, self.estimator = utils_mpc.init_objects(
-            dt_tsid, dt_mpc, N_SIMULATION, k_mpc, T_gait, type_MPC, predefined_vel, self.h_init)
+            dt_tsid, dt_mpc, N_SIMULATION, k_mpc, T_gait, type_MPC, predefined_vel, self.h_init, kf_enabled)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True

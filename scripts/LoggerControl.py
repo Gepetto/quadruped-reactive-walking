@@ -39,6 +39,9 @@ class LoggerControl():
         self.esti_LP_alpha = np.zeros([logSize, 3])  # alpha parameter of the position complementary filter
         self.esti_LP_filt_x = np.zeros([logSize, 3])  # filtered output of the position complementary filter
 
+        self.esti_kf_X = np.zeros([logSize, 18])  # state of the Kalman filter
+        self.esti_kf_Z = np.zeros([logSize, 16])  # measurement for the Kalman filter
+
         # Loop
         self.loop_o_q_int = np.zeros([logSize, 19])  # position in world frame (esti_q_filt + dt * loop_o_v)
         self.loop_o_v = np.zeros([logSize, 18])  # estimated velocity in world frame
@@ -96,16 +99,19 @@ class LoggerControl():
         self.esti_FK_lin_vel[self.i] = estimator.FK_lin_vel[:]
         self.esti_FK_xyz[self.i] = estimator.FK_xyz[:]
         self.esti_xyz_mean_feet[self.i] = estimator.xyz_mean_feet[:]
+        if not estimator.kf_enabled:
+            self.esti_HP_x[self.i] = estimator.filter_xyz_vel.x
+            self.esti_HP_dx[self.i] = estimator.filter_xyz_vel.dx
+            self.esti_HP_alpha[self.i] = estimator.filter_xyz_vel.alpha
+            self.esti_HP_filt_x[self.i] = estimator.filter_xyz_vel.filt_x
 
-        self.esti_HP_x[self.i] = estimator.filter_xyz_vel.x
-        self.esti_HP_dx[self.i] = estimator.filter_xyz_vel.dx
-        self.esti_HP_alpha[self.i] = estimator.filter_xyz_vel.alpha
-        self.esti_HP_filt_x[self.i] = estimator.filter_xyz_vel.filt_x
-
-        self.esti_LP_x[self.i] = estimator.filter_xyz_pos.x
-        self.esti_LP_dx[self.i] = estimator.filter_xyz_pos.dx
-        self.esti_LP_alpha[self.i] = estimator.filter_xyz_pos.alpha
-        self.esti_LP_filt_x[self.i] = estimator.filter_xyz_pos.filt_x
+            self.esti_LP_x[self.i] = estimator.filter_xyz_pos.x
+            self.esti_LP_dx[self.i] = estimator.filter_xyz_pos.dx
+            self.esti_LP_alpha[self.i] = estimator.filter_xyz_pos.alpha
+            self.esti_LP_filt_x[self.i] = estimator.filter_xyz_pos.filt_x
+        else:
+            self.esti_kf_X[self.i] = estimator.kf.X[:, 0]
+            self.esti_kf_Z[self.i] = estimator.Z[:, 0]
 
         # Logging from the main loop
         self.loop_o_q_int[self.i] = loop.q_estim[:, 0]
@@ -465,11 +471,14 @@ class LoggerControl():
                  esti_LP_alpha=self.esti_LP_alpha,
                  esti_LP_filt_x=self.esti_LP_filt_x,
 
+                 esti_kf_X=self.esti_kf_X,
+                 esti_kf_Z=self.esti_kf_Z,
+
                  loop_o_q_int=self.loop_o_q_int,
                  loop_o_v=self.loop_o_v,
-                 loop_q_static=self.loop_q_static,
-                 loop_RPY_static=self.loop_RPY_static,
 
+                 planner_q_static=self.planner_q_static,
+                 planner_RPY_static=self.planner_RPY_static,
                  planner_xref=self.planner_xref,
                  planner_fsteps=self.planner_fsteps,
                  planner_gait=self.planner_gait,
