@@ -4,7 +4,7 @@ import numpy as np
 import utils_mpc
 import time
 
-from QP_WBC import controller
+from QP_WBC import wbc_controller
 import MPC_Wrapper
 import pybullet as pyb
 from Planner import PyPlanner
@@ -84,7 +84,6 @@ class Controller:
 
         self.t_list_InvKin = [0] * int(N_SIMULATION)
         self.t_list_QPWBC = [0] * int(N_SIMULATION)
-        self.t_list_intlog = [0] * int(N_SIMULATION)
 
         # Init joint torques to correct shape
         self.jointTorques = np.zeros((12, 1))
@@ -126,7 +125,7 @@ class Controller:
         # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
         # Define the default controller
-        self.myController = controller(dt_tsid, int(N_SIMULATION))
+        self.myController = wbc_controller(dt_tsid, int(N_SIMULATION))
 
         self.envID = envID
         self.velID = velID
@@ -335,4 +334,3 @@ class Controller:
         self.t_list_loop[self.k] = time.time() - tic
         self.t_list_InvKin[self.k] = self.myController.tac - self.myController.tic
         self.t_list_QPWBC[self.k] = self.myController.toc - self.myController.tac
-        self.t_list_intlog[self.k] = self.myController.tuc - self.myController.toc

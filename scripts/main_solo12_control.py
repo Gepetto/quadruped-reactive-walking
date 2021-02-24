@@ -296,8 +296,7 @@ def control_loop(name_interface):
     plt.plot(controller.t_list_loop[1:], 'k+')
     plt.plot(controller.t_list_InvKin[1:], 'o', color="darkgreen")
     plt.plot(controller.t_list_QPWBC[1:], 'o', color="royalblue")
-    plt.plot(controller.t_list_intlog[1:], 'o', color="darkgoldenrod")
-    plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "InvKin", "QP WBC", "Integ + Log"])
+    plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "InvKin", "QP WBC", "Integ"])
     plt.title("Loop time [s]")
     plt.show(block=True)"""
 
