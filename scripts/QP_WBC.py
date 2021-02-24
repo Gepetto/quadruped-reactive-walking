@@ -8,8 +8,13 @@ import libquadruped_reactive_walking as lrw
 
 
 class wbc_controller():
+    """Whole body controller which contains an Inverse Kinematics step and a BoxQP step
 
-    def __init__(self, dt, N_SIMULATION):
+    Args:
+        dt (float): time step of the whole body control
+    """
+
+    def __init__(self, dt):
 
         self.dt = dt  # Time step
 
@@ -48,12 +53,12 @@ class wbc_controller():
         self.k_since_contact += contacts  # Increment feet in stance phase
         self.k_since_contact *= contacts  # Reset feet in swing phase
 
-        # self.tic = time()
+        self.tic = time()
 
         # Compute Inverse Kinematics
         ddq_cmd = np.array([self.invKin.refreshAndCompute(q.copy(), dq.copy(), x_cmd, contacts, planner)]).T
 
-        # self.tac = time()
+        self.tac = time()
 
         # Compute the joint space inertia matrix M by using the Composite Rigid Body Algorithm
         self.M = pin.crba(self.invKin.rmodel, self.invKin.rdata, q)
@@ -86,10 +91,10 @@ class wbc_controller():
         self.vdes[:, 0] = self.invKin.dq_cmd
         self.qdes[:] = self.invKin.q_cmd
 
-        # self.toc = time()
+        self.toc = time()
 
-        self.tic = 0.0
+        """self.tic = 0.0
         self.tac = 0.0
-        self.toc = 0.0
+        self.toc = 0.0"""
 
         return 0

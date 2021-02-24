@@ -47,7 +47,7 @@ class dummyDevice:
 
 class Controller:
 
-    def __init__(self, q_init, envID, velID, dt_tsid, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
+    def __init__(self, q_init, envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
                  pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled):
         """Function that runs a simulation scenario based on a reference velocity profile, an environment and
         various parameters to define the gait
@@ -55,7 +55,7 @@ class Controller:
         Args:
             envID (int): identifier of the current environment to be able to handle different scenarios
             velID (int): identifier of the current velocity profile to be able to handle different scenarios
-            dt_tsid (float): time step of TSID
+            dt_wbc (float): time step of the whole body control
             dt_mpc (float): time step of the MPC
             k_mpc (int): number of iterations of inverse dynamics for one iteration of the MPC
             t (float): time of the simulation
@@ -99,7 +99,7 @@ class Controller:
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
         self.joystick, self.logger, self.estimator = utils_mpc.init_objects(
-            dt_tsid, dt_mpc, N_SIMULATION, k_mpc, T_gait, type_MPC, predefined_vel, self.h_init, kf_enabled)
+            dt_wbc, dt_mpc, N_SIMULATION, k_mpc, T_gait, type_MPC, predefined_vel, self.h_init, kf_enabled)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True
@@ -111,7 +111,7 @@ class Controller:
         self.v = np.zeros((18, 1))
         self.b_v = np.zeros((18, 1))
         self.o_v_filt = np.zeros((18, 1))
-        self.planner = PyPlanner(dt_mpc, dt_tsid, T_gait, T_mpc,
+        self.planner = PyPlanner(dt_mpc, dt_wbc, T_gait, T_mpc,
                                  k_mpc, on_solo8, h_ref, self.fsteps_init)
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
@@ -125,11 +125,11 @@ class Controller:
         # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
         # Define the default controller
-        self.myController = wbc_controller(dt_tsid, int(N_SIMULATION))
+        self.myController = wbc_controller(dt_wbc)
 
         self.envID = envID
         self.velID = velID
-        self.dt_tsid = dt_tsid
+        self.dt_wbc = dt_wbc
         self.dt_mpc = dt_mpc
         self.k_mpc = k_mpc
         self.t = t
@@ -271,6 +271,8 @@ class Controller:
 
             """if self.k % 5 == 0:
                 self.solo.display(self.q)"""
+            
+        t_wbc = time.time()
 
         # Security check
         self.security_check()
@@ -279,7 +281,7 @@ class Controller:
         self.pyb_camera(device)
 
         # Logs
-        self.log_misc(t_start, t_filter, t_planner, t_mpc)
+        self.log_misc(t_start, t_filter, t_planner, t_mpc, t_wbc)
 
         # Increment loop counter
         self.k += 1
@@ -321,7 +323,7 @@ class Controller:
             self.result.v_des[:] = np.zeros(12)
             self.result.tau_ff[:] = np.zeros(12)
 
-    def log_misc(self, tic, t_filter, t_planner, t_mpc):
+    def log_misc(self, tic, t_filter, t_planner, t_mpc, t_wbc):
 
         # Log joystick command
         if self.joystick is not None:
@@ -330,7 +332,7 @@ class Controller:
         self.t_list_filter[self.k] = t_filter - tic
         self.t_list_planner[self.k] = t_planner - t_filter
         self.t_list_mpc[self.k] = t_mpc - t_planner
-        self.t_list_wbc[self.k] = time.time() - t_mpc
+        self.t_list_wbc[self.k] = t_wbc - t_mpc
         self.t_list_loop[self.k] = time.time() - tic
         self.t_list_InvKin[self.k] = self.myController.tac - self.myController.tic
         self.t_list_QPWBC[self.k] = self.myController.toc - self.myController.tac

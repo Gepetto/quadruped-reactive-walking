@@ -86,7 +86,7 @@ def control_loop(name_interface):
     t = 0.0  # Time
     T_gait = 0.32  # Duration of one gait period
     T_mpc = 0.32   # Duration of the prediction horizon
-    N_SIMULATION = 20000  # number of simulated wbc time steps
+    N_SIMULATION = 4000  # number of simulated wbc time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -108,7 +108,7 @@ def control_loop(name_interface):
     kf_enabled = False
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = True
+    enable_pyb_GUI = False
     if not SIMULATION:
         enable_pyb_GUI = False
 
@@ -287,7 +287,7 @@ def control_loop(name_interface):
             plt.plot(log_b_v[i-3, :], c='b', linewidth=3)
     plt.show()"""
 
-    """from matplotlib import pyplot as plt
+    from matplotlib import pyplot as plt
     plt.figure()
     plt.plot(controller.t_list_filter[1:], 'r+')
     plt.plot(controller.t_list_planner[1:], 'g+')
@@ -296,9 +296,9 @@ def control_loop(name_interface):
     plt.plot(controller.t_list_loop[1:], 'k+')
     plt.plot(controller.t_list_InvKin[1:], 'o', color="darkgreen")
     plt.plot(controller.t_list_QPWBC[1:], 'o', color="royalblue")
-    plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "InvKin", "QP WBC", "Integ"])
+    plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "InvKin", "QP WBC"])
     plt.title("Loop time [s]")
-    plt.show(block=True)"""
+    plt.show(block=True)
 
     """from matplotlib import pyplot as plt
     N = len(controller.log_tmp2)
