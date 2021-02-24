@@ -80,7 +80,7 @@ class KFilter:
         # Correct the prediction, using measurement
         # Z : measurement vector
 
-        self.K = self.P @ self.H.T @ np.linalg.inv(self.H @ self.P @ self.H.T + self.R)
+        self.K = self.P @ self.H.T @ np.linalg.pinv(self.H @ self.P @ self.H.T + self.R)
         self.X = self.X + self.K @ (Z - self.H @ self.X)
         self.P = self.P - self.K @ self.H @ self.P
 
