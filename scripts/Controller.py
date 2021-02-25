@@ -9,7 +9,7 @@ import MPC_Wrapper
 import pybullet as pyb
 from Planner import PyPlanner
 import pinocchio as pin
-
+from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
 
 class Result:
     """Object to store the result of the control loop
@@ -92,7 +92,9 @@ class Controller:
         self.ID_deb_lines = []
 
         # Enable/Disable Gepetto viewer
-        self.enable_gepetto_viewer = False
+        self.enable_gepetto_viewer = True
+        '''if self.enable_gepetto_viewer:
+            self.view = viewerClient()'''
 
         # Initialisation of the solo model/data and of the Gepetto viewer
         self.solo, self.fsteps_init, self.h_init = utils_mpc.init_robot(q_init, self.enable_gepetto_viewer)
@@ -125,7 +127,7 @@ class Controller:
         # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
         # Define the default controller
-        self.myController = wbc_controller(dt_wbc)
+        self.myController = wbc_controller(dt_wbc, N_SIMULATION)
 
         self.envID = envID
         self.velID = velID
@@ -258,19 +260,25 @@ class Controller:
                                       self.x_f_wbc[12:], self.planner.gait[0, 1:], self.planner)
 
             # Quantities sent to the control board
-            self.result.P = 6.0 * np.ones(12)
-            self.result.D = 0.2 * np.ones(12)
+            self.result.P =  3.0 * np.ones(12)
+            self.result.D =  0.2 * np.ones(12)
             self.result.q_des[:] = self.myController.qdes[7:]
             self.result.v_des[:] = self.myController.vdes[6:, 0]
-            self.result.tau_ff[:] = self.myController.tau_ff
+            self.result.tau_ff[:] = 0.0 * self.myController.tau_ff
 
             """if self.k % 5 == 0:
-                self.solo.display(self.q)"""
+                self.solo.display(self.q)
+                #self.view.display(self.q)
+                #print("Pass")
+                np.set_printoptions(linewidth=200, precision=2)
+                print("###")
+                #print(self.q.ravel())
+                print(self.myController.tau_ff)"""
             
         t_wbc = time.time()
 
         # Security check
-        self.security_check()
+        self.security_check() # WARNING ENABLE AGAIN
 
         # Update PyBullet camera
         self.pyb_camera(device)

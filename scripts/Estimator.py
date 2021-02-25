@@ -492,15 +492,15 @@ class Estimator:
         # Tune alpha depending on the state of the gait (close to contact switch or not)
         a = np.ceil(np.max(self.k_since_contact)/10) - 1
         b = remaining_steps
-        n = 10  # Nb of steps of margin around contact switch
-        v = 0.0  # Minimum alpha value
+        n = 1  # Nb of steps of margin around contact switch
+        v = 0.97  # Minimum alpha value
         c = ((a + b) - 2 * n) * 0.5
         if (a <= (n-1)) or (b <= n):  # If we are close from contact switch
             self.alpha = 1.0  # Only trust IMU data
             self.close_from_contact = True  # Raise flag
         else:
             self.alpha = v + (1 - v) * np.abs(c - (a - n)) / c
-            self.alpha = 0.997
+            #self.alpha = 0.997
             self.close_from_contact = False  # Lower flag
 
         if not self.kf_enabled:  # Use cascade of complementary filters
@@ -534,7 +534,7 @@ class Estimator:
 
             # Position of the center of the base from FGeometry and filtered velocity (world frame)
             self.filt_lin_pos[:] = self.filter_xyz_pos.compute(
-                self.FK_xyz[:] + self.xyz_mean_feet[:], ob_filt_lin_vel, alpha=np.array([1.0, 1.0, 0.9]))
+                self.FK_xyz[:] + self.xyz_mean_feet[:], ob_filt_lin_vel, alpha=0.995)
 
             # Velocity of the center of the base (base frame)
             self.filt_lin_vel[:] = b_filt_lin_vel 

@@ -97,17 +97,21 @@ def init_robot(q_init, enable_viewer):
     """
 
     # Load robot model and data
-    solo = load('solo12')
+    # Initialisation of the Gepetto viewer
+    print(enable_viewer)
+    solo = load('solo12', display=enable_viewer)
     q = solo.q0.reshape((-1, 1))
     q[7:, 0] = q_init
 
-    # Initialisation of the Gepetto viewer
-    if enable_viewer:
-        solo.initDisplay(loadModel=True)
+    
+    """if enable_viewer:
+        solo.initViewer(loadModel=True)
         if ('viewer' in solo.viz.__dict__):
             solo.viewer.gui.addFloor('world/floor')
-            solo.viewer.gui.setRefreshIsSynchronous(False)
+            solo.viewer.gui.setRefreshIsSynchronous(False)"""
+    if enable_viewer:
         solo.display(q)
+    print("PASS")
 
     # Initialisation of model quantities
     pin.centerOfMass(solo.model, solo.data, q, np.zeros((18, 1)))

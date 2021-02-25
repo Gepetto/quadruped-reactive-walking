@@ -14,7 +14,7 @@ class wbc_controller():
         dt (float): time step of the whole body control
     """
 
-    def __init__(self, dt):
+    def __init__(self, dt, N_SIMULATION):
 
         self.dt = dt  # Time step
 
@@ -27,6 +27,15 @@ class wbc_controller():
         self.error = False  # Set to True when an error happens in the controller
 
         self.k_since_contact = np.zeros((1, 4))
+
+        # Logging
+        self.k_log = 0
+        self.log_feet_pos = np.zeros((3, 4, N_SIMULATION))
+        self.log_feet_err = np.zeros((3, 4, N_SIMULATION))
+        self.log_feet_vel = np.zeros((3, 4, N_SIMULATION))
+        self.log_feet_pos_target = np.zeros((3, 4, N_SIMULATION))
+        self.log_feet_vel_target = np.zeros((3, 4, N_SIMULATION))
+        self.log_feet_acc_target = np.zeros((3, 4, N_SIMULATION))
 
         # Arrays to store results (for solo12)
         self.qdes = np.zeros((19, ))
@@ -57,6 +66,19 @@ class wbc_controller():
 
         # Compute Inverse Kinematics
         ddq_cmd = np.array([self.invKin.refreshAndCompute(q.copy(), dq.copy(), x_cmd, contacts, planner)]).T
+
+        for i in range(4):
+            self.log_feet_pos[:, i, self.k_log] = self.invKin.rdata.oMf[self.indexes[i]].translation
+            self.log_feet_err[:, i, self.k_log] = self.invKin.feet_position_ref[i] - self.invKin.rdata.oMf[self.indexes[i]].translation # self.invKin.pfeet_err[i]
+            self.log_feet_vel[:, i, self.k_log] = pin.getFrameVelocity(self.invKin.rmodel, self.invKin.rdata,
+                                                                       self.indexes[i], pin.LOCAL_WORLD_ALIGNED).linear
+        self.feet_pos = self.log_feet_pos[:, :, self.k_log]
+        self.feet_err = self.log_feet_err[:, :, self.k_log]
+        self.feet_vel = self.log_feet_vel[:, :, self.k_log]
+
+        self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :]
+        self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
+        self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]
 
         self.tac = time()
 

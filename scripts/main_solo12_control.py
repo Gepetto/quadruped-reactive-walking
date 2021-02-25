@@ -1,5 +1,11 @@
 # coding: utf8
 
+import os
+import sys
+
+sys.path.insert(0, './solopython')
+
+
 import threading
 from Controller import Controller
 import numpy as np
@@ -8,8 +14,8 @@ from LoggerSensors import LoggerSensors
 from LoggerControl import LoggerControl
 
 
-SIMULATION = True
-LOGGING = False
+SIMULATION = False
+LOGGING = True
 PLOTTING = False
 
 if SIMULATION:
@@ -108,7 +114,7 @@ def control_loop(name_interface, name_interface_clone=None):
     t = 0.0  # Time
     T_gait = 0.32  # Duration of one gait period
     T_mpc = 0.32   # Duration of the prediction horizon
-    N_SIMULATION = 1000  # number of simulated wbc time steps
+    N_SIMULATION = 5000  # number of simulated wbc time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -124,13 +130,13 @@ def control_loop(name_interface, name_interface_clone=None):
     use_flat_plane = True
 
     # If we are using a predefined reference velocity (True) or a joystick (False)
-    predefined_vel = True
+    predefined_vel = False
 
     # Use complementary filter (False) or kalman filter (True) for the estimator
     kf_enabled = False
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = False
+    enable_pyb_GUI = True
     if not SIMULATION:
         enable_pyb_GUI = False
 
@@ -258,6 +264,7 @@ def control_loop(name_interface, name_interface_clone=None):
     if controller.enable_multiprocessing:
         print("Stopping parallel process")
         controller.mpc_wrapper.stop_parallel_loop()
+    # controller.view.stop()  # Stop viewer
 
     # DAMPING TO GET ON THE GROUND PROGRESSIVELY *********************
     t = 0.0
