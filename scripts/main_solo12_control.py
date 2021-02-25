@@ -1,13 +1,9 @@
 # coding: utf8
 
 import threading
-from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
-from solopython.utils.logger import Logger
 from Controller import Controller
-from Estimator import Estimator
 import numpy as np
 import argparse
-import pinocchio as pin
 from LoggerSensors import LoggerSensors
 from LoggerControl import LoggerControl
 
@@ -65,12 +61,38 @@ def put_on_the_floor(device, q_init):
     print("Start the motion.")
 
 
-def control_loop(name_interface):
+def clone_movements(name_interface_clone, q_init, cloneP, cloneD, cloneQdes, cloneDQdes, cloneRunning, cloneResult):
+
+    print("-- Launching clone interface --")
+
+    print(name_interface_clone, DT)
+    clone = Solo12(name_interface_clone, dt=DT)
+    clone.Init(calibrateEncoders=True, q_init=q_init)
+
+    while cloneRunning.value and not clone.hardware.IsTimeout():
+
+        # print(cloneP[:], cloneD[:], cloneQdes[:], cloneDQdes[:], cloneRunning.value, cloneResult.value)
+        if cloneResult.value:
+
+            clone.SetDesiredJointPDgains(cloneP[:], cloneD[:])
+            clone.SetDesiredJointPosition(cloneQdes[:])
+            clone.SetDesiredJointVelocity(cloneDQdes[:])
+            clone.SetDesiredJointTorque([0.0] * 12)
+
+            clone.SendCommand(WaitEndOfCycle=True)
+
+            cloneResult.value = False
+
+    return 0
+
+
+def control_loop(name_interface, name_interface_clone=None):
     """Main function that calibrates the robot, get it into a default waiting position then launch
     the main control loop once the user has pressed the Enter key
 
     Args:
         name_interface (string): name of the interface that is used to communicate with the robot
+        name_interface_clone (string): name of the interface that will mimic the movements of the first
     """
 
     ################################
@@ -86,7 +108,7 @@ def control_loop(name_interface):
     t = 0.0  # Time
     T_gait = 0.32  # Duration of one gait period
     T_mpc = 0.32   # Duration of the prediction horizon
-    N_SIMULATION = 4000  # number of simulated wbc time steps
+    N_SIMULATION = 1000  # number of simulated wbc time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -128,6 +150,20 @@ def control_loop(name_interface):
         device = Solo12(name_interface, dt=DT)
         qc = QualisysClient(ip="140.93.16.160", body_id=0)
 
+    if name_interface_clone is not None:
+        print("PASS")
+        from multiprocessing import Process, Array, Value
+        cloneP = Array('d', [0] * 12)
+        cloneD = Array('d', [0] * 12)
+        cloneQdes = Array('d', [0] * 12)
+        cloneDQdes = Array('d', [0] * 12)
+        cloneRunning = Value('b', True)
+        cloneResult = Value('b', True)
+        clone = Process(target=clone_movements, args=(name_interface_clone, q_init, cloneP,
+                        cloneD, cloneQdes, cloneDQdes, cloneRunning, cloneResult))
+        clone.start()
+        print(cloneResult.value)
+
     if LOGGING or PLOTTING:
         loggerSensors = LoggerSensors(device, qualisys=qc, logSize=N_SIMULATION-3)
         loggerControl = LoggerControl(dt_wbc, joystick=controller.joystick, estimator=controller.estimator,
@@ -150,34 +186,17 @@ def control_loop(name_interface):
     t = 0.0
     t_max = (N_SIMULATION-2) * dt_wbc
 
-    """log_cpt = 0
-    log_o_v = np.zeros((3, N_SIMULATION))
-    log_b_v = np.zeros((3, N_SIMULATION))
-    log_o_v_truth = np.zeros((3, N_SIMULATION))
-    log_b_v_truth = np.zeros((3, N_SIMULATION))
-    o_v = np.zeros((3, 1))
-    b_v = np.zeros((3, 1))"""
     while ((not device.hardware.IsTimeout()) and (t < t_max) and (not controller.myController.error)):
 
         # Update sensor data (IMU, encoders, Motion capture)
         device.UpdateMeasurment()
-
-        """rot_oMb = pin.Quaternion(np.array([device.baseOrientation]).transpose()).toRotationMatrix()
-        a = np.array([device.baseLinearAcceleration]).T
-        o_v[:, 0:1] += 0.002 * (rot_oMb @ a)
-        b_v[:, 0:1] = rot_oMb.T @ o_v
-        log_o_v[:, log_cpt] = o_v[:, 0]
-        log_b_v[:, log_cpt] = b_v[:, 0]
-        log_o_v_truth[:, log_cpt] = device.o_baseVel[:, 0]
-        log_b_v_truth[:, log_cpt] = device.b_baseVel[:]
-        log_cpt += 1"""
 
         # Desired torques
         controller.compute(device)
 
         # Check that the initial position of actuators is not too far from the
         # desired position of actuators to avoid breaking the robot
-        if (t == 0.0):
+        if (t <= 10 * DT):
             if np.max(np.abs(controller.result.q_des - device.q_mes)) > 0.15:
                 print("DIFFERENCE: ", controller.result.q_des - device.q_mes)
                 print("q_des: ", controller.result.q_des)
@@ -231,6 +250,10 @@ def control_loop(name_interface):
 
     # ****************************************************************
 
+    # Stop clone interface running in parallel process
+    if not SIMULATION and name_interface_clone is not None:
+        cloneResult.value = False
+
     # Stop MPC running in a parallel process
     if controller.enable_multiprocessing:
         print("Stopping parallel process")
@@ -267,26 +290,7 @@ def control_loop(name_interface):
         print("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.")
     device.hardware.Stop()  # Shut down the interface between the computer and the master board
 
-    # controller.estimator.plot_graphs()
-
-    """from matplotlib import pyplot as plt
-        
-    index6 = [1, 3, 5, 2, 4, 6]
-    plt.figure()
-    for i in range(6):
-        if i == 0:
-            ax0 = plt.subplot(3, 2, index6[i])
-        else:
-            plt.subplot(3, 2, index6[i], sharex=ax0)
-
-        if i < 3:
-            plt.plot(log_o_v_truth[i, :], c='r', linewidth=3)
-            plt.plot(log_o_v[i, :], c='b', linewidth=3)
-        else:
-            plt.plot(log_b_v_truth[i-3, :], c='r', linewidth=3)
-            plt.plot(log_b_v[i-3, :], c='b', linewidth=3)
-    plt.show()"""
-
+    # Plot estimated computation time for each step for the control architecture
     from matplotlib import pyplot as plt
     plt.figure()
     plt.plot(controller.t_list_filter[1:], 'r+')
@@ -299,16 +303,6 @@ def control_loop(name_interface):
     plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "InvKin", "QP WBC"])
     plt.title("Loop time [s]")
     plt.show(block=True)
-
-    """from matplotlib import pyplot as plt
-    N = len(controller.log_tmp2)
-    t_range = np.array([k*0.002 for k in range(N)])
-    plt.figure()
-    plt.plot(t_range, controller.log_tmp1, 'b')
-    plt.plot(t_range, controller.log_tmp2, 'r')
-    plt.plot(t_range, controller.log_tmp3, 'g')
-    plt.plot(t_range, controller.log_tmp4, 'g')
-    # plt.show(block=True)"""
 
     # Plot recorded data
     if PLOTTING:
@@ -345,8 +339,13 @@ def main():
                         '--interface',
                         required=True,
                         help='Name of the interface (use ifconfig in a terminal), for instance "enp1s0"')
+    parser.add_argument('-c',
+                        '--clone',
+                        required=False,
+                        help='Name of the clone interface that will reproduce the movement of the first one \
+                              (use ifconfig in a terminal), for instance "enp1s0"')
 
-    control_loop(parser.parse_args().interface)
+    control_loop(parser.parse_args().interface, parser.parse_args().clone)
 
 
 if __name__ == "__main__":
