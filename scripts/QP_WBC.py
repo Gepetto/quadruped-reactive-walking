@@ -64,12 +64,12 @@ class wbc_controller():
         self.M = pin.crba(self.invKin.rmodel, self.invKin.rdata, q)
 
         # Compute Jacobian of contact points
+        #print("##")
         self.Jc = np.zeros((12, 18))
         for i in range(4):
             if contacts[i]:
-                self.Jc[(3*i):(3*(i+1)), :] = pin.getFrameJacobian(self.invKin.rmodel, self.invKin.rdata,
-                                                                   self.indexes[i],
-                                                                   pin.LOCAL_WORLD_ALIGNED)[:3, :]
+                # Feet Jacobian were already retrieved in InvKin so no need to call getFrameJacobian
+                self.Jc[(3*i):(3*(i+1)), :] = (self.invKin.cpp_Jf[(3*i):(3*(i+1)), :]).copy()
 
         # Compute joint torques according to the current state of the system and the desired joint accelerations
         RNEA = pin.rnea(self.invKin.rmodel, self.invKin.rdata, q, dq, ddq_cmd)[:6]

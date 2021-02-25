@@ -108,14 +108,6 @@ class Solo12InvKin:
             self.feet_velocity_ref[i] = planner.vgoals[0:3, i]
             self.feet_acceleration_ref[i] = planner.agoals[0:3, i]
 
-        # Update position and velocity reference for the base
-        """self.base_position_ref[:] = x_cmd[0:3]
-        self.base_orientation_ref = pin.utils.rpyToMatrix(x_cmd[3:6])
-        self.base_linearvelocity_ref[:] = x_cmd[6:9]
-        self.base_angularvelocity_ref[:] = x_cmd[9:12]
-
-        ddq = self.compute(q, dq)"""
-
         # Update model and data
         pin.computeJointJacobians(self.rmodel, self.rdata, q)
         pin.forwardKinematics(self.rmodel, self.rdata, q, dq, np.zeros(self.rmodel.nv))
@@ -150,13 +142,6 @@ class Solo12InvKin:
 
         self.q_cmd = self.cpp_q_cmd
         self.dq_cmd = self.cpp_dq_cmd
-
-        """from IPython import embed
-        embed()"""
-
-        """print("###")
-        print("Python: ", ddq.ravel())
-        print("C++   : ", self.cpp_ddq.ravel())"""
 
         return self.cpp_ddq
 

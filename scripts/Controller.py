@@ -151,11 +151,6 @@ class Controller:
         self.error_flag = 0
         self.q_security = np.array([np.pi*0.4, np.pi*80/180, np.pi] * 4)
 
-        self.log_tmp1 = [0] * int(N_SIMULATION)
-        self.log_tmp2 = [0] * int(N_SIMULATION)
-        self.log_tmp3 = [0] * int(N_SIMULATION)
-        self.log_tmp4 = [0] * int(N_SIMULATION)
-
         # Interface with the PD+ on the control board
         self.result = Result()
 
