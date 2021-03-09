@@ -52,9 +52,9 @@ public:
     /// \param[in] z_average average height of feet currently in stance phase
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void computeRefStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, double z_average);
+    void computeReferenceStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, double z_average);
 
-    MatrixN getXReference() { return xref_; }
+    MatrixN getReferenceStates() { return referenceStates_; }
 
 private:
     double dt_;         // Time step of the contact sequence (time step of the MPC)
@@ -65,7 +65,7 @@ private:
 
     // Reference trajectory matrix of size 12 by (1 + N)  with the current state of
     // the robot in column 0 and the N steps of the prediction horizon in the others
-    MatrixN xref_;
+    MatrixN referenceStates_;
 
     VectorN dt_vector_;  // Vector containing all time steps in the prediction horizon
 

@@ -14,7 +14,6 @@ from LoggerSensors import LoggerSensors
 from LoggerControl import LoggerControl
 
 
-
 SIMULATION = True
 LOGGING = False
 PLOTTING = False

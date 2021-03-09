@@ -52,13 +52,13 @@ struct StatePlannerPythonVisitor : public bp::def_visitor<StatePlannerPythonVisi
     {
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
-            .def("getXReference", &StatePlanner::getXReference, "Get xref matrix.\n")
+            .def("getReferenceStates", &StatePlanner::getReferenceStates, "Get xref matrix.\n")
 
             .def("initialize", &StatePlanner::initialize, bp::args("dt_in", "T_mpc_in", "h_ref_in"),
                  "Initialize StatePlanner from Python.\n")
 
             // Run StatePlanner from Python
-            .def("computeRefStates", &StatePlanner::computeRefStates, bp::args("q", "v", "b_vref", "z_average"),
+            .def("computeReferenceStates", &StatePlanner::computeReferenceStates, bp::args("q", "v", "b_vref", "z_average"),
                  "Run StatePlanner from Python.\n");
     }
 

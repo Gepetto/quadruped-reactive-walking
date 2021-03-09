@@ -27,102 +27,53 @@ void Gait::initialize(double dt_in, double T_gait_in, double T_mpc_in)
 }
 
 
-int Gait::create_walk()
+void Gait::create_walk()
 {
-    // Number of timesteps in 1/4th period of gait
+    desiredGait_ = MatrixN::Zero(N0_gait, 5);
+
     int N = (int)std::lround(0.25 * T_gait_ / dt_);
-
-    desiredGait_ = Eigen::Matrix<double, N0_gait, 5>::Zero();
-    desiredGait_.block(0, 0, 4, 1) << N, N, N, N;
-
-    // Set stance and swing phases
-    // Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
-    // Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
-    desiredGait_.block(0, 1, 1, 4) << 0.0, 1.0, 1.0, 1.0;
-    desiredGait_.block(1, 1, 1, 4) << 1.0, 0.0, 1.0, 1.0;
-    desiredGait_.block(2, 1, 1, 4) << 1.0, 1.0, 0.0, 1.0;
-    desiredGait_.block(3, 1, 1, 4) << 1.0, 1.0, 1.0, 0.0;
-
-    return 0;
+    desiredGait_.row(0) << N, 0.0, 1.0, 1.0, 1.0;
+    desiredGait_.row(1) << N, 1.0, 0.0, 1.0, 1.0;
+    desiredGait_.row(2) << N, 1.0, 1.0, 0.0, 1.0;
+    desiredGait_.row(3) << N, 1.0, 1.0, 1.0, 0.0;
 }
 
-int Gait::create_trot()
+void Gait::create_trot()
 {
-    // Number of timesteps in a half period of gait
+    desiredGait_ = MatrixN::Zero(N0_gait, 5);
+
+    int N = (int)std::lround(0.5 * T_gait_ / dt_);
+    desiredGait_.row(0) << N, 1.0, 0.0, 0.0, 1.0;
+    desiredGait_.row(1) << N, 0.0, 1.0, 1.0, 0.0;
+}
+
+void Gait::create_pacing()
+{
+    desiredGait_ = MatrixN::Zero(N0_gait, 5);
+
+    int N = (int)std::lround(0.5 * T_gait_ / dt_);
+    desiredGait_.row(0) << N, 1.0, 0.0, 1.0, 0.0;
+    desiredGait_.row(1) << N, 0.0, 1.0, 0.0, 1.0;
+}
+
+void Gait::create_bounding()
+{
     int N = (int)std::lround(0.5 * T_gait_ / dt_);
 
-    desiredGait_ = Eigen::Matrix<double, N0_gait, 5>::Zero();
-    desiredGait_.block(0, 0, 2, 1) << N, N;
-
-    // Set stance and swing phases
-    // Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
-    // Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
-    desiredGait_(0, 1) = 1.0;
-    desiredGait_(0, 4) = 1.0;
-    desiredGait_(1, 2) = 1.0;
-    desiredGait_(1, 3) = 1.0;
-
-    return 0;
+    desiredGait_ = MatrixN::Zero(N0_gait, 5);
+    desiredGait_.row(0) << N, 1.0, 1.0, 0.0, 0.0;
+    desiredGait_.row(1) << N, 0.0, 0.0, 1.0, 1.0;
 }
 
-int Gait::create_pacing()
+void Gait::create_static()
 {
-    // Number of timesteps in a half period of gait
-    int N = (int)std::lround(0.5 * T_gait_ / dt_);
+    desiredGait_ = MatrixN::Zero(N0_gait, 5);
 
-    desiredGait_ = Eigen::Matrix<double, N0_gait, 5>::Zero();
-    desiredGait_.block(0, 0, 2, 1) << N, N;
-
-    // Set stance and swing phases
-    // Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
-    // Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
-    desiredGait_(0, 1) = 1.0;
-    desiredGait_(0, 3) = 1.0;
-    desiredGait_(1, 2) = 1.0;
-    desiredGait_(1, 4) = 1.0;
-
-    return 0;
-}
-
-int Gait::create_bounding()
-{
-    // Number of timesteps in a half period of gait
-    int N = (int)std::lround(0.5 * T_gait_ / dt_);
-
-    desiredGait_ = Eigen::Matrix<double, N0_gait, 5>::Zero();
-    desiredGait_.block(0, 0, 2, 1) << N, N;
-
-    // Set stance and swing phases
-    // Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
-    // Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
-    desiredGait_(0, 1) = 1.0;
-    desiredGait_(0, 2) = 1.0;
-    desiredGait_(1, 3) = 1.0;
-    desiredGait_(1, 4) = 1.0;
-
-    return 0;
-}
-
-int Gait::create_static()
-{
-    // Number of timesteps in a half period of gait
     int N = (int)std::lround(T_gait_ / dt_);
-
-    desiredGait_ = Eigen::Matrix<double, N0_gait, 5>::Zero();
-    desiredGait_(0, 0) = N;
-
-    // Set stance and swing phases
-    // Coefficient (i, j) is equal to 0.0 if the j-th feet is in swing phase during the i-th phase
-    // Coefficient (i, j) is equal to 1.0 if the j-th feet is in stance phase during the i-th phase
-    desiredGait_(0, 1) = 1.0;
-    desiredGait_(0, 2) = 1.0;
-    desiredGait_(0, 3) = 1.0;
-    desiredGait_(0, 4) = 1.0;
-
-    return 0;
+    desiredGait_.row(0) << N, 1.0, 1.0, 1.0, 1.0;
 }
 
-int Gait::create_gait_f()
+void Gait::create_gait_f()
 {
     double sum = 0.0;
     double offset = 0.0;
@@ -177,8 +128,6 @@ int Gait::create_gait_f()
             desiredGait_(0, 0) -= 1.0;
         }
     }
-
-    return 0;
 }
 
 double Gait::getPhaseDuration(int i, int j, double value)

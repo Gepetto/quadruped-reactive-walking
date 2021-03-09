@@ -260,9 +260,9 @@ class Controller:
         self.agoals = self.planner.get_agoals()"""
 
         # Run state planner (outputs the reference trajectory of the CoM / base)
-        self.statePlanner.computeRefStates(self.q[0:7, 0:1], self.v[0:6, 0:1].copy(), o_v_ref, 0.0)
-        # Result can be retrieved with self.statePlanner.getXReference()
-        xref = self.statePlanner.getXReference()
+        self.statePlanner.computeReferenceStates(self.q[0:7, 0:1], self.v[0:6, 0:1].copy(), o_v_ref, 0.0)
+        # Result can be retrieved with self.statePlanner.getReferenceStates()
+        xref = self.statePlanner.getReferenceStates()
         fsteps = self.footstepPlanner.getFootsteps()
         gait = self.gait.getCurrentGait()
 

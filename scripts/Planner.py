@@ -2,7 +2,6 @@ import time
 import numpy as np
 import libquadruped_reactive_walking as la
 
-
 class PyPlanner:
     def __init__(self, dt, dt_tsid, T_gait, T_mpc, k_mpc, on_solo8, h_ref, fsteps_init):
         # Reference height for the trunk
