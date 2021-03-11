@@ -15,7 +15,7 @@ from LoggerControl import LoggerControl
 
 
 SIMULATION = False
-LOGGING = True
+LOGGING = False
 PLOTTING = False
 
 if SIMULATION:
@@ -106,7 +106,7 @@ def control_loop(name_interface, name_interface_clone=None):
     ################################
 
     envID = 0  # Identifier of the environment to choose in which one the simulation will happen
-    velID = 2  # Identifier of the reference velocity profile to choose which one will be sent to the robot
+    velID = 0  # Identifier of the reference velocity profile to choose which one will be sent to the robot
 
     dt_wbc = DT  # Time step of the whole body control
     dt_mpc = 0.02  # Time step of the model predictive control
@@ -114,7 +114,7 @@ def control_loop(name_interface, name_interface_clone=None):
     t = 0.0  # Time
     T_gait = 0.32  # Duration of one gait period
     T_mpc = 0.32   # Duration of the prediction horizon
-    N_SIMULATION = 5000  # number of simulated wbc time steps
+    N_SIMULATION = 12000  # number of simulated wbc time steps
 
     # Which MPC solver you want to use
     # True to have PA's MPC, to False to have Thomas's MPC
@@ -224,7 +224,7 @@ def control_loop(name_interface, name_interface_clone=None):
         # Send command to the robot
         for i in range(1):
             device.SendCommand(WaitEndOfCycle=True)
-        """if ((device.cpt % 1000) == 0):
+        """if ((device.cpt % 100) == 0):
             device.Print()"""
 
         """import os

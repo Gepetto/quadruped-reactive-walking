@@ -250,7 +250,7 @@ class Estimator:
         fc = 50.0  # Cut frequency
         y = 1 - np.cos(2*np.pi*fc*dt)
         self.alpha_v = -y+np.sqrt(y*y+2*y)
-        self.alpha_v = 1.0  # TOREMOVE
+        # self.alpha_v = 1.0  # TOREMOVE
 
         # Filtering velocities used for security checks
         fc = 6.0
@@ -493,13 +493,15 @@ class Estimator:
         a = np.ceil(np.max(self.k_since_contact)/10) - 1
         b = remaining_steps
         n = 1  # Nb of steps of margin around contact switch
-        v = 0.97  # Minimum alpha value
+
+        v_max = 1.00
+        v_min = 0.97  # Minimum alpha value
         c = ((a + b) - 2 * n) * 0.5
         if (a <= (n-1)) or (b <= n):  # If we are close from contact switch
-            self.alpha = 1.0  # Only trust IMU data
+            self.alpha = v_max  # Only trust IMU data
             self.close_from_contact = True  # Raise flag
         else:
-            self.alpha = v + (1 - v) * np.abs(c - (a - n)) / c
+            self.alpha = v_min + (v_max - v_min) * np.abs(c - (a - n)) / c
             #self.alpha = 0.997
             self.close_from_contact = False  # Lower flag
 
@@ -534,7 +536,7 @@ class Estimator:
 
             # Position of the center of the base from FGeometry and filtered velocity (world frame)
             self.filt_lin_pos[:] = self.filter_xyz_pos.compute(
-                self.FK_xyz[:] + self.xyz_mean_feet[:], ob_filt_lin_vel, alpha=0.995)
+                self.FK_xyz[:] + self.xyz_mean_feet[:], ob_filt_lin_vel, alpha=np.array([0.995, 0.995, 0.9]))
 
             # Velocity of the center of the base (base frame)
             self.filt_lin_vel[:] = b_filt_lin_vel 

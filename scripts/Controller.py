@@ -264,7 +264,7 @@ class Controller:
             self.result.D =  0.2 * np.ones(12)
             self.result.q_des[:] = self.myController.qdes[7:]
             self.result.v_des[:] = self.myController.vdes[6:, 0]
-            self.result.tau_ff[:] = 0.0 * self.myController.tau_ff
+            self.result.tau_ff[:] = 0.5 * self.myController.tau_ff
 
             """if self.k % 5 == 0:
                 self.solo.display(self.q)

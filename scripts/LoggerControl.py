@@ -439,6 +439,48 @@ class LoggerControl():
             plt.ylim([-1.0, 26.0])
         plt.suptitle("Contact forces trajectories & Actual forces trajectories")
 
+        # Analysis of the complementary filter behaviour
+        clr = ["b", "darkred", "forestgreen"]
+        # Velocity complementary filter
+        lgd_Y = ["dx", "ddx", "alpha dx", "dx_out", "dy", "ddy", "alpha dy", "dy_out", "dz", "ddz", "alpha dz", "dz_out"]
+        plt.figure()
+        for i in range(12):
+            if i == 0:
+                ax0 = plt.subplot(3, 4, i+1)
+            else:
+                plt.subplot(3, 4, i+1, sharex=ax0)
+            if i % 4 == 0:
+                plt.plot(t_range, self.esti_HP_x[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # x input of the velocity complementary filter
+            elif i % 4 == 1:
+                plt.plot(t_range, self.esti_HP_dx[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # dx input of the velocity complementary filter
+            elif i % 4 == 2:
+                plt.plot(t_range, self.esti_HP_alpha[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # alpha parameter of the velocity complementary filter
+            else:
+                plt.plot(t_range, self.esti_HP_filt_x[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # filtered output of the velocity complementary filter
+            
+            plt.legend([lgd_Y[i]], prop={'size': 8})
+        plt.suptitle("Evolution of the quantities of the velocity complementary filter")
+
+        # Position complementary filter
+        lgd_Y = ["x", "dx", "alpha x", "x_out", "y", "dy", "alpha y", "y_out", "z", "dz", "alpha z", "z_out"]
+        plt.figure()
+        for i in range(12):
+            if i == 0:
+                ax0 = plt.subplot(3, 4, i+1)
+            else:
+                plt.subplot(3, 4, i+1, sharex=ax0)
+            if i % 4 == 0:
+                plt.plot(t_range, self.esti_LP_x[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # x input of the position complementary filter
+            elif i % 4 == 1:
+                plt.plot(t_range, self.esti_LP_dx[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # dx input of the position complementary filter
+            elif i % 4 == 2:
+                plt.plot(t_range, self.esti_LP_alpha[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # alpha parameter of the position complementary filter
+            else:
+                plt.plot(t_range, self.esti_LP_filt_x[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # filtered output of the position complementary filter
+            
+            plt.legend([lgd_Y[i]], prop={'size': 8})
+        plt.suptitle("Evolution of the quantities of the position complementary filter")
+
         plt.show(block=True)
 
         from IPython import embed
