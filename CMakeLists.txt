@@ -44,22 +44,25 @@ SEARCH_FOR_BOOST()
 
 # Main Library
 set(${PROJECT_NAME}_HEADERS
-  include/${PROJECT_NAME}/gepadd.hpp
-  include/${PROJECT_NAME}/MPC.hpp
-  include/${PROJECT_NAME}/Planner.hpp
-  include/${PROJECT_NAME}/InvKin.hpp
-  include/${PROJECT_NAME}/QPWBC.hpp
+  include/qrw/gepadd.hpp
+  include/qrw/MPC.hpp
+  include/qrw/Planner.hpp
+  include/qrw/Gait.hpp
+  include/qrw/FootTrajectoryGenerator.hpp
+  include/qrw/FootstepPlanner.hpp
+  include/qrw/Types.h
+  include/qrw/InvKin.hpp
+  include/qrw/QPWBC.hpp
   include/other/st_to_cc.hpp
-  #include/osqp_folder/include/osqp_configure.h
-  #include/osqp_folder/include/osqp.h
-  #include/osqp_folder/include/cs.h
-  #include/osqp_folder/include/util.h
   )
 
 set(${PROJECT_NAME}_SOURCES
   src/st_to_cc.cpp
   src/gepadd.cpp
   src/MPC.cpp
+  src/Gait.cpp
+  src/FootTrajectoryGenerator.cpp
+  src/FootstepPlanner.cpp
   src/Planner.cpp
   src/InvKin.cpp
   src/QPWBC.cpp

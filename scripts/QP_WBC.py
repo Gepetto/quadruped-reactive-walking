@@ -3,7 +3,8 @@
 import numpy as np
 import pinocchio as pin
 from solo12InvKin import Solo12InvKin
-from time import clock, time
+from time import perf_counter as clock
+from time import time
 import libquadruped_reactive_walking as lrw
 
 

@@ -1,4 +1,4 @@
-#include "quadruped-reactive-walking/InvKin.hpp"
+#include "qrw/InvKin.hpp"
 
 InvKin::InvKin(double dt_in) {
 

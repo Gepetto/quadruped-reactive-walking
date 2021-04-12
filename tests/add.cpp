@@ -1,5 +1,5 @@
 #include <cassert>
-#include "quadruped-reactive-walking/gepadd.hpp"
+#include "qrw/gepadd.hpp"
 
 int main() {
   assert(gepetto::example::add(1, 2) == 3);

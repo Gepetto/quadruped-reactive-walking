@@ -3,10 +3,10 @@
 #include <boost/smart_ptr/shared_ptr.hpp>
 
 #include <Eigen/Core>
-#include "quadruped-reactive-walking/gepadd.hpp"
-#include "quadruped-reactive-walking/MPC.hpp"
+#include "qrw/gepadd.hpp"
+#include "qrw/MPC.hpp"
 #include "other/st_to_cc.hpp"
-#include "quadruped-reactive-walking/Planner.hpp"
+#include "qrw/Planner.hpp"
 #include "pinocchio/math/rpy.hpp"
 
 #include "eiquadprog/eiquadprog-rt.hpp"

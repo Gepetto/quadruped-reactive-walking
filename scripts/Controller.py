@@ -198,7 +198,7 @@ class Controller:
                                                    self.q, self.v_estim * self.myController.dt)
                 self.yaw_estim = (utils_mpc.quaternionToRPY(self.q_estim[3:7, 0]))[2, 0]
             else:
-                self.planner.q_static[:, 0] = pin.integrate(self.solo.model,
+                self.planner.q_static[:] = pin.integrate(self.solo.model,
                                                             self.planner.q_static, self.v_estim * self.myController.dt)
                 self.planner.RPY_static[:, 0:1] = utils_mpc.quaternionToRPY(self.planner.q_static[3:7, 0])
         else:

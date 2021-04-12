@@ -1,4 +1,4 @@
-#include "quadruped-reactive-walking/gepadd.hpp"
+#include "qrw/gepadd.hpp"
 
 namespace gepetto {
 namespace example {

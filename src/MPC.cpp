@@ -1,4 +1,4 @@
-#include "quadruped-reactive-walking/MPC.hpp"
+#include "qrw/MPC.hpp"
 
 MPC::MPC(double dt_in, int n_steps_in, double T_gait_in) {
   dt = dt_in;

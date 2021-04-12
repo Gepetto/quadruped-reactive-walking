@@ -1,7 +1,7 @@
 #ifndef QPWBC_H_INCLUDED
 #define QPWBC_H_INCLUDED
 
-#include "quadruped-reactive-walking/InvKin.hpp" // For pseudoinverse
+#include "qrw/InvKin.hpp" // For pseudoinverse
 #include <iostream>
 #include <fstream>
 #include <string>

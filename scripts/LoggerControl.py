@@ -118,7 +118,7 @@ class LoggerControl():
         self.loop_o_v[self.i] = loop.v_estim[:, 0]
 
         # Logging from the planner
-        self.planner_q_static[self.i] = planner.q_static[:, 0]
+        self.planner_q_static[self.i] = planner.q_static[:]
         self.planner_RPY_static[self.i] = planner.RPY_static[:, 0]
         self.planner_xref[self.i] = planner.xref
         self.planner_fsteps[self.i] = planner.fsteps

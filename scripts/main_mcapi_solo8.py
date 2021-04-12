@@ -2,7 +2,8 @@
 import numpy as np
 import argparse
 import math
-from time import clock, sleep
+from time import perf_counter as clock
+from time import sleep
 from solo12 import Solo12
 from pynput import keyboard
 

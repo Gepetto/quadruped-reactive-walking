@@ -14,9 +14,10 @@ from LoggerSensors import LoggerSensors
 from LoggerControl import LoggerControl
 
 
-SIMULATION = False
+
+SIMULATION = True
 LOGGING = False
-PLOTTING = False
+PLOTTING = True
 
 if SIMULATION:
     from PyBulletSimulator import PyBulletSimulator
@@ -130,7 +131,7 @@ def control_loop(name_interface, name_interface_clone=None):
     use_flat_plane = True
 
     # If we are using a predefined reference velocity (True) or a joystick (False)
-    predefined_vel = False
+    predefined_vel = True
 
     # Use complementary filter (False) or kalman filter (True) for the estimator
     kf_enabled = False

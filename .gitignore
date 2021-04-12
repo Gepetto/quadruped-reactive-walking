@@ -16,6 +16,7 @@ cprofile.txt
 # Distribution / packaging
 .Python
 build/
+cmake/
 develop-eggs/
 dist/
 downloads/
@@ -134,3 +135,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+.clang-format
+.vscode/
+scripts/solopython

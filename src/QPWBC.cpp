@@ -1,4 +1,4 @@
-#include "quadruped-reactive-walking/QPWBC.hpp"
+#include "qrw/QPWBC.hpp"
 
 
 QPWBC::QPWBC() {

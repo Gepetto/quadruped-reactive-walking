@@ -1,6 +1,6 @@
 #include <boost/test/unit_test.hpp>
 
-#include "quadruped-reactive-walking/gepadd.hpp"
+#include "qrw/gepadd.hpp"
 
 BOOST_AUTO_TEST_SUITE(BOOST_TEST_MODULE)
 
