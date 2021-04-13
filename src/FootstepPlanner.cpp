@@ -22,7 +22,7 @@ FootstepPlanner::FootstepPlanner()
 }
 
 void FootstepPlanner::initialize(double dt_in,
-                                 double k_mpc_in,
+                                 int k_mpc_in,
                                  double T_mpc_in,
                                  double h_ref_in,
                                  Matrix34 const& shouldersIn,

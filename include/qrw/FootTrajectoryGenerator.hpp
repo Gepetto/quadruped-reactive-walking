@@ -74,20 +74,20 @@ public:
     MatrixN getFootAcceleration() { return acceleration_; }  ///< Get the next foot acceleration
 
 private:
+    std::shared_ptr<Gait> gait_;         ///< Target lock before the touchdown
     double dt_tsid;     ///<
     int k_mpc;          ///<
     double maxHeight_;  ///< Apex height of the swinging trajectory
     double lockTime_;   ///< Target lock before the touchdown
-    std::shared_ptr<Gait> gait_;         ///< Target lock before the touchdown
 
     std::vector<int> feet;
     Vector4 t0s;
     Vector4 t_swing;
 
+    Matrix34 targetFootstep_;  // Target for the X component
+
     Matrix64 Ax;  ///< Coefficients for the X component
     Matrix64 Ay;  ///< Coefficients for the Y component
-
-    Matrix34 targetFootstep_;  // Target for the X component
 
     Matrix34 position_;      // position computed in updateFootPosition
     Matrix34 velocity_;      // velocity computed in updateFootPosition

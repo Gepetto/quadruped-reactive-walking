@@ -31,7 +31,7 @@ void FootTrajectoryGenerator::initialize(double const maxHeightIn,
     dt_tsid = dt_tsid_in;
     k_mpc = k_mpc_in;
     maxHeight_ = maxHeightIn;
-    lockTime_ = lockTime_;
+    lockTime_ = lockTimeIn;
     targetFootstep_ = targetFootstepIn;
     position_ = initialFootPosition;
     gait_ = gaitIn;
