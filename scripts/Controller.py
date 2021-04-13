@@ -10,6 +10,7 @@ import pybullet as pyb
 from Planner import PyPlanner
 import pinocchio as pin
 from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
+import libquadruped_reactive_walking as lqrw
 
 class Result:
     """Object to store the result of the control loop
@@ -116,6 +117,9 @@ class Controller:
         self.planner = PyPlanner(dt_mpc, dt_wbc, T_gait, T_mpc,
                                  k_mpc, on_solo8, h_ref, self.fsteps_init)
 
+        self.statePlanner = lqrw.StatePlanner()
+        self.statePlanner.initialize(dt_mpc, T_mpc, h_ref)
+
         # Wrapper that makes the link with the solver that you want to use for the MPC
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
         self.enable_multiprocessing = True
@@ -211,11 +215,16 @@ class Controller:
         self.planner.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick)
 
         # Run planner
-        self.planner.run_planner(self.k, self.k_mpc, self.q[0:7, 0:1],
-                                 self.v[0:6, 0:1].copy(), self.joystick.v_ref, self.q_estim[2, 0], 0.0)
+        self.planner.run_planner(self.k, self.q[0:7, 0:1], self.v[0:6, 0:1].copy(), self.joystick.v_ref)
+
+        # Run state planner (outputs the reference trajectory of the CoM / base)
+        self.statePlanner.computeRefStates(self.q[0:7, 0:1], self.v[0:6, 0:1].copy(), self.joystick.v_ref, 0.0)
+        # Result can be retrieved with self.statePlanner.getXReference()
+        self.planner.xref = self.statePlanner.getXReference()
+
         t_planner = time.time()
 
-        self.planner.setGait(self.planner.gait)
+        # self.planner.setGait(self.planner.gait)
 
         # Process MPC once every k_mpc iterations of TSID
         if (self.k % self.k_mpc) == 0:

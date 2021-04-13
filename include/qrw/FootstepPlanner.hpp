@@ -59,8 +59,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////////////////////////
     MatrixN computeTargetFootstep(VectorN const& q,
                                   Vector6 const& v,
-                                  Vector6 const& b_vref,
-                                  double const z_average);
+                                  Vector6 const& b_vref);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -73,7 +72,7 @@ public:
     void rollGait(int const k,
                   int const k_mpc);
 
-    MatrixN getXReference();
+    // MatrixN getXReference();
     MatrixN getFootsteps();
     MatrixN getTargetFootsteps();
 
@@ -102,22 +101,6 @@ private:
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
     void compute_next_footstep(int i, int j);
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    ///
-    /// \brief Compute the reference trajectory of the CoM for each time step of the
-    ///        predition horizon. The ouput is a matrix of size 12 by (N+1) with N the number
-    ///        of time steps in the gait cycle (T_gait/dt) and 12 the position, orientation,
-    ///        linear velocity and angular velocity vertically stacked. The first column contains
-    ///        the current state while the remaining N columns contains the desired future states.
-    ///
-    /// \param[in] q current position vector of the flying base in world frame (linear and angular stacked)
-    /// \param[in] v current velocity vector of the flying base in world frame (linear and angular stacked)
-    /// \param[in] vref desired velocity vector of the flying base in world frame (linear and angular stacked)
-    /// \param[in] z_average average height of feet currently in stance phase
-    ///
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    int getRefStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, double z_average);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///

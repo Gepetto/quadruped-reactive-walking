@@ -68,14 +68,12 @@ public:
     ///  \param[in] q  current position vector of the flying base in world frame (linear and angular stacked)
     ///  \param[in] v  current velocity vector of the flying base in world frame (linear and angular stacked)
     ///  \param[in] b_vref  desired velocity vector of the flying base in base frame (linear and angular stacked)
-    ///  \param[in] z_average  average height of feet currently in stance phase
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
     void run_planner(int const k,
                      VectorN const& q,
                      Vector6 const& v,
-                     Vector6 const& b_vref,
-                     double const z_average);
+                     Vector6 const& b_vref);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -102,7 +100,6 @@ public:
     void setGait(MatrixN const& gaitMatrix);
 
     // Accessors (to retrieve C data from Python)
-    MatrixN get_xref();
     MatrixN get_fsteps();
     MatrixN get_gait();
     Matrix3N get_goals();

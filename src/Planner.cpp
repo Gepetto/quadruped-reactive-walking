@@ -27,11 +27,11 @@ Planner::Planner(double dt_in,
 void Planner::run_planner(int const k,
                           VectorN const& q,
                           Vector6 const& v,
-                          Vector6 const& b_vref,
-                          double const z_average)
+                          Vector6 const& b_vref)
 {
-    targetFootstep_ = footstepPlanner_.computeTargetFootstep(q, v, b_vref, z_average);
+    targetFootstep_ = footstepPlanner_.computeTargetFootstep(q, v, b_vref);
     fooTrajectoryGenerator_.update(k, targetFootstep_);
+
 }
 
 void Planner::updateGait(int const k,
@@ -48,7 +48,6 @@ void Planner::setGait(MatrixN const& gaitMatrix)
     gait_->setGait(gaitMatrix);
 }
 
-MatrixN Planner::get_xref() { return footstepPlanner_.getXReference(); }
 MatrixN Planner::get_fsteps() { return footstepPlanner_.getFootsteps(); }
 MatrixN Planner::get_gait() { return gait_->getCurrentGait(); }
 Matrix3N Planner::get_goals() { return fooTrajectoryGenerator_.getFootPosition(); }

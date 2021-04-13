@@ -2,6 +2,7 @@
 #include "qrw/InvKin.hpp"
 #include "qrw/MPC.hpp"
 #include "qrw/Planner.hpp"
+#include "qrw/StatePlanner.hpp"
 #include "qrw/QPWBC.hpp"
 
 #include <boost/python.hpp>
@@ -37,7 +38,9 @@ struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC>>
 
 void exposeMPC() { MPCPythonVisitor<MPC>::expose(); }
 
-
+/////////////////////////////////
+/// Binding Planner class
+/////////////////////////////////
 template <typename Planner>
 struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planner>>
 {
@@ -50,7 +53,6 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
                          "fsteps_in", "shoulders positions"),
                 "Constructor with parameters."))
 
-            .def("get_xref", &Planner::get_xref, "Get xref matrix.\n")
             .def("get_fsteps", &Planner::get_fsteps, "Get fsteps matrix.\n")
             .def("get_gait", &Planner::get_gait, "Get gait matrix.\n")
             .def("get_goals", &Planner::get_goals, "Get position goals matrix.\n")
@@ -58,7 +60,7 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
             .def("get_agoals", &Planner::get_agoals, "Get acceleration goals matrix.\n")
 
             // Run Planner from Python
-            .def("run_planner", &Planner::run_planner, bp::args("k", "q", "v", "b_vref", "z_average"),
+            .def("run_planner", &Planner::run_planner, bp::args("k", "q", "v", "b_vref"),
                  "Run Planner from Python.\n")
 
             // Update gait matrix from Python
@@ -79,7 +81,39 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
 };
 void exposePlanner() { PlannerPythonVisitor<Planner>::expose(); }
 
+/////////////////////////////////
+/// Binding StatePlanner class
+/////////////////////////////////
+template <typename StatePlanner>
+struct StatePlannerPythonVisitor : public bp::def_visitor<StatePlannerPythonVisitor<StatePlanner>>
+{
+    template <class PyClassStatePlanner>
+    void visit(PyClassStatePlanner& cl) const
+    {
+        cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
+            .def("getXReference", &StatePlanner::getXReference, "Get xref matrix.\n")
+
+            .def("initialize", &StatePlanner::initialize, bp::args("dt_in", "T_mpc_in", "h_ref_in"),
+                 "Initialize StatePlanner from Python.\n")
+
+            // Run StatePlanner from Python
+            .def("computeRefStates", &StatePlanner::computeRefStates, bp::args("q", "v", "b_vref", "z_average"),
+                 "Run StatePlanner from Python.\n");
+    }
+
+    static void expose()
+    {
+        bp::class_<StatePlanner>("StatePlanner", bp::no_init).def(StatePlannerPythonVisitor<StatePlanner>());
+
+        ENABLE_SPECIFIC_MATRIX_TYPE(MatrixN);
+    }
+};
+void exposeStatePlanner() { StatePlannerPythonVisitor<StatePlanner>::expose(); }
+
+/////////////////////////////////
+/// Binding InvKin class
+/////////////////////////////////
 template <typename InvKin>
 struct InvKinPythonVisitor : public bp::def_visitor<InvKinPythonVisitor<InvKin>>
 {
@@ -144,6 +178,7 @@ BOOST_PYTHON_MODULE(libquadruped_reactive_walking)
 
     exposeMPC();
     exposePlanner();
+    exposeStatePlanner();
     exposeInvKin();
     exposeQPWBC();
 }

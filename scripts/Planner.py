@@ -32,12 +32,11 @@ class PyPlanner:
         shoulders[1, :] = [0.14695, -0.14695, 0.14695, -0.14695]
         self.planner = la.Planner(dt, dt_tsid, T_gait, T_mpc, k_mpc, h_ref, fsteps_init, shoulders)
 
-    def run_planner(self, k, k_mpc, q, v, b_vref, h_estim, z_average):
+    def run_planner(self, k, q, v, b_vref):
         # Run C++ planner
-        self.planner.run_planner(k, q, v, b_vref, np.double(z_average))
+        self.planner.run_planner(k, q, v, b_vref)
 
         # Retrieve data from C++ planner
-        self.xref = self.planner.get_xref()
         self.fsteps = self.planner.get_fsteps()
         self.gait = self.planner.get_gait()
         self.goals = self.planner.get_goals()

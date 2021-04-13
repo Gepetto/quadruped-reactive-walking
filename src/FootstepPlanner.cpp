@@ -159,81 +159,6 @@ void FootstepPlanner::compute_next_footstep(int i, int j)
     nextFootstep_.row(2) = Vector4::Zero().transpose();
 }
 
-int FootstepPlanner::getRefStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, double z_average)
-{
-    VectorN dt_vector = VectorN::LinSpaced(n_steps, dt, T_mpc);
-
-    // Update yaw and yaw velocity
-    xref.block(5, 1, 1, n_steps) = vref(5) * dt_vector.transpose();
-    for (int i = 0; i < n_steps; i++)
-    {
-        xref(11, 1 + i) = vref(5);
-    }
-
-    // Update x and y velocities taking into account the rotation of the base over the prediction horizon
-    for (int i = 0; i < n_steps; i++)
-    {
-        xref(6, 1 + i) = vref(0) * std::cos(xref(5, 1 + i)) - vref(1) * std::sin(xref(5, 1 + i));
-        xref(7, 1 + i) = vref(0) * std::sin(xref(5, 1 + i)) + vref(1) * std::cos(xref(5, 1 + i));
-    }
-
-    // Update x and y depending on x and y velocities (cumulative sum)
-    if (vref(5) != 0)
-    {
-        for (int i = 0; i < n_steps; i++)
-        {
-            xref(0, 1 + i) = (vref(0) * std::sin(vref(5) * dt_vector(i)) + vref(1) * (std::cos(vref(5) * dt_vector(i)) - 1.0)) / vref(5);
-            xref(1, 1 + i) = (vref(1) * std::sin(vref(5) * dt_vector(i)) - vref(0) * (std::cos(vref(5) * dt_vector(i)) - 1.0)) / vref(5);
-        }
-    }
-    else
-    {
-        for (int i = 0; i < n_steps; i++)
-        {
-            xref(0, 1 + i) = vref(0) * dt_vector(i);
-            xref(1, 1 + i) = vref(1) * dt_vector(i);
-        }
-    }
-
-    for (int i = 0; i < n_steps; i++)
-    {
-        xref(5, 1 + i) += RPY(2);
-        xref(2, 1 + i) = h_ref + z_average;
-        xref(8, 1 + i) = 0.0;
-    }
-
-    // No need to update Z velocity as the reference is always 0
-    // No need to update roll and roll velocity as the reference is always 0 for those
-    // No need to update pitch and pitch velocity as the reference is always 0 for those
-
-    // Update the current state
-    xref.block(0, 0, 3, 1) = q.head(3);
-    xref.block(3, 0, 3, 1) = RPY;
-    xref.block(6, 0, 3, 1) = v.head(3);
-    xref.block(9, 0, 3, 1) = v.tail(3);
-
-    for (int i = 0; i < n_steps; i++)
-    {
-        xref(0, 1 + i) += xref(0, 0);
-        xref(1, 1 + i) += xref(1, 0);
-    }
-
-    if (gait_->getIsStatic())
-    {
-        Vector19 q_static = gait_->getQStatic();
-        Eigen::Quaterniond quat(q_static(6, 0), q_static(3, 0), q_static(4, 0), q_static(5, 0));  // w, x, y, z
-        RPY << pinocchio::rpy::matrixToRpy(quat.toRotationMatrix());
-
-        for (int i = 0; i < n_steps; i++)
-        {
-            xref.block(0, 1 + i, 3, 1) = q_static.block(0, 0, 3, 1);
-            xref.block(3, 1 + i, 3, 1) = RPY;
-        }
-    }
-
-    return 0;
-}
-
 void FootstepPlanner::update_target_footsteps()
 {
     for (int i = 0; i < 4; i++)
@@ -249,8 +174,7 @@ void FootstepPlanner::update_target_footsteps()
 
 MatrixN FootstepPlanner::computeTargetFootstep(VectorN const& q,
                                                Vector6 const& v,
-                                               Vector6 const& b_vref,
-                                               double const z_average)
+                                               Vector6 const& b_vref)
 {
     // Get the reference velocity in world frame (given in base frame)
     Eigen::Quaterniond quat(q(6), q(3), q(4), q(5));  // w, x, y, z
@@ -267,11 +191,6 @@ MatrixN FootstepPlanner::computeTargetFootstep(VectorN const& q,
     // Compute the desired location of footsteps over the prediction horizon
     compute_footsteps(q, v, vref);
 
-
-    // Get the reference trajectory for the MPC
-    getRefStates(q, v, vref, z_average);
-
-
     // Update desired location of footsteps on the ground
     update_target_footsteps();
     return targetFootstep_;
@@ -284,7 +203,6 @@ void FootstepPlanner::rollGait(int const k,
         gait_->roll(k, footsteps_[1], currentFootstep_);
 }
 
-MatrixN FootstepPlanner::getXReference() { return xref; }
 MatrixN FootstepPlanner::getFootsteps() { return vectorToMatrix(footsteps_); }
 MatrixN FootstepPlanner::getTargetFootsteps() { return targetFootstep_; }
 

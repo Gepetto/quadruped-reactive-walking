@@ -50,6 +50,7 @@ set(${PROJECT_NAME}_HEADERS
   include/qrw/Gait.hpp
   include/qrw/FootTrajectoryGenerator.hpp
   include/qrw/FootstepPlanner.hpp
+  include/qrw/StatePlanner.hpp
   include/qrw/Types.h
   include/qrw/InvKin.hpp
   include/qrw/QPWBC.hpp
@@ -63,6 +64,7 @@ set(${PROJECT_NAME}_SOURCES
   src/Gait.cpp
   src/FootTrajectoryGenerator.cpp
   src/FootstepPlanner.cpp
+  src/StatePlanner.cpp
   src/Planner.cpp
   src/InvKin.cpp
   src/QPWBC.cpp
