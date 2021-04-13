@@ -122,6 +122,15 @@ public:
     ////////////////////////////////////////////////////////////////////////////////////////////////
     bool changeGait(int const code, VectorN const& q);
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///
+    /// \brief Update the gait matrix externally (directly set the gait matrix)
+    ///
+    ///  \param[in] gaitMatrix  gait matrix that should be used for the incoming timesteps
+    ///
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    bool setGait(MatrixN const& gaitMatrix);
+
     MatrixN getPastGait() { return pastGait_; }
     MatrixN getCurrentGait() { return currentGait_; }
     MatrixN getDesiredGait() { return desiredGait_; }

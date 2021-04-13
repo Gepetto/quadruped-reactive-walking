@@ -32,7 +32,21 @@ class PyPlanner:
         shoulders[1, :] = [0.14695, -0.14695, 0.14695, -0.14695]
         self.planner = la.Planner(dt, dt_tsid, T_gait, T_mpc, k_mpc, h_ref, fsteps_init, shoulders)
 
-    def run_planner(self, k, k_mpc, q, v, b_vref, h_estim, z_average, joystick=None):
+    def run_planner(self, k, k_mpc, q, v, b_vref, h_estim, z_average):
+        # Run C++ planner
+        self.planner.run_planner(k, q, v, b_vref, np.double(z_average))
+
+        # Retrieve data from C++ planner
+        self.xref = self.planner.get_xref()
+        self.fsteps = self.planner.get_fsteps()
+        self.gait = self.planner.get_gait()
+        self.goals = self.planner.get_goals()
+        self.vgoals = self.planner.get_vgoals()
+        self.agoals = self.planner.get_agoals()
+        return 0
+
+    def updateGait(self, k, k_mpc, q, joystick=None):
+        # Check joystick buttons to trigger a change of gait type
         joystick_code = 0
         if joystick is not None:
             if joystick.northButton:
@@ -53,13 +67,10 @@ class PyPlanner:
                 self.q_static[0:7, 0:1] = q.copy()
                 joystick.westButton = False
 
-        self.planner.run_planner(k, q, v, b_vref, np.double(z_average), joystick_code)
-
-        self.xref = self.planner.get_xref()
-        self.fsteps = self.planner.get_fsteps()
-        self.gait = self.planner.get_gait()
-        self.goals = self.planner.get_goals()
-        self.vgoals = self.planner.get_vgoals()
-        self.agoals = self.planner.get_agoals()
-        
+        # Update gait internally with functions of the gait class
+        self.planner.updateGait(k, k_mpc, q, joystick_code)
         return 0
+
+    def setGait(self, gaitMatrix):
+        # Directly set the gait matrix from Python
+        self.planner.setGait(gaitMatrix)

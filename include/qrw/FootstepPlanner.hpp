@@ -15,9 +15,6 @@
 #include "qrw/Gait.hpp"
 #include "qrw/Types.h"
 
-#define N0_gait 20
-// Number of rows in the gait matrix. Arbitrary value that should be set high enough so that there is always at
-// least one empty line at the end of the gait matrix
 
 // Order of feet/legs: FL, FR, HL, HR
 
@@ -60,11 +57,21 @@ public:
     ///
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    MatrixN computeTargetFootstep(int const k,
-                                  VectorN const& q,
+    MatrixN computeTargetFootstep(VectorN const& q,
                                   Vector6 const& v,
                                   Vector6 const& b_vref,
                                   double const z_average);
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///
+    /// \brief Update desired location of footsteps using information coming from the footsteps planner
+    ///
+    ///  \param[in] k  number of time steps since the start of the simulation
+    ///  \param[in] k_mpc  number of wbc time steps for one time step of the MPC
+    ///
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    void rollGait(int const k,
+                  int const k_mpc);
 
     MatrixN getXReference();
     MatrixN getFootsteps();

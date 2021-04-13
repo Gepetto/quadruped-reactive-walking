@@ -58,8 +58,16 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
             .def("get_agoals", &Planner::get_agoals, "Get acceleration goals matrix.\n")
 
             // Run Planner from Python
-            .def("run_planner", &Planner::run_planner, bp::args("k", "q", "v", "b_vref", "z_average", "joystick_code"),
-                 "Run Planner from Python.\n");
+            .def("run_planner", &Planner::run_planner, bp::args("k", "q", "v", "b_vref", "z_average"),
+                 "Run Planner from Python.\n")
+
+            // Update gait matrix from Python
+            .def("updateGait", &Planner::updateGait, bp::args("k", "k_mpc", "q", "joystickCode"),
+                 "Update gait matrix from Python.\n")
+
+            // Set gait matrix from Python
+            .def("setGait", &Planner::setGait, bp::args("gaitMatrix"),
+                 "Set gait matrix from Python.\n");
     }
 
     static void expose()

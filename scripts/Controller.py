@@ -207,10 +207,15 @@ class Controller:
             oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
             self.v_estim = self.v.copy()
 
+        # Update gait
+        self.planner.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick)
+
         # Run planner
         self.planner.run_planner(self.k, self.k_mpc, self.q[0:7, 0:1],
-                                 self.v[0:6, 0:1].copy(), self.joystick.v_ref, self.q_estim[2, 0], 0.0, self.joystick)
+                                 self.v[0:6, 0:1].copy(), self.joystick.v_ref, self.q_estim[2, 0], 0.0)
         t_planner = time.time()
+
+        self.planner.setGait(self.planner.gait)
 
         # Process MPC once every k_mpc iterations of TSID
         if (self.k % self.k_mpc) == 0:

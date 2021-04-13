@@ -28,13 +28,24 @@ void Planner::run_planner(int const k,
                           VectorN const& q,
                           Vector6 const& v,
                           Vector6 const& b_vref,
-                          double const z_average,
-                          int const joystickCode)
+                          double const z_average)
+{
+    targetFootstep_ = footstepPlanner_.computeTargetFootstep(q, v, b_vref, z_average);
+    fooTrajectoryGenerator_.update(k, targetFootstep_);
+}
+
+void Planner::updateGait(int const k,
+                         int const k_mpc,
+                         VectorN const& q,
+                         int const joystickCode)
 {
     gait_->changeGait(joystickCode, q);
+    footstepPlanner_.rollGait(k, k_mpc);
+}
 
-    targetFootstep_ = footstepPlanner_.computeTargetFootstep(k, q, v, b_vref, z_average);
-    fooTrajectoryGenerator_.update(k, targetFootstep_);
+void Planner::setGait(MatrixN const& gaitMatrix)
+{
+    gait_->setGait(gaitMatrix);
 }
 
 MatrixN Planner::get_xref() { return footstepPlanner_.getXReference(); }

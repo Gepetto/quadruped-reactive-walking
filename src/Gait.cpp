@@ -329,3 +329,12 @@ bool Gait::changeGait(int const code, VectorN const& q)
     }
     return is_static_;
 }
+
+bool Gait::setGait(MatrixN const& gaitMatrix)
+{
+    std::cout << "Gait matrix received by setGait:" << std::endl;
+    std::cout << gaitMatrix << std::endl;
+
+    // Todo: Check if the matrix is a static gait (only ones)
+    return false;
+}

@@ -247,8 +247,7 @@ void FootstepPlanner::update_target_footsteps()
     }
 }
 
-MatrixN FootstepPlanner::computeTargetFootstep(int const k,
-                                               VectorN const& q,
+MatrixN FootstepPlanner::computeTargetFootstep(VectorN const& q,
                                                Vector6 const& v,
                                                Vector6 const& b_vref,
                                                double const z_average)
@@ -265,9 +264,6 @@ MatrixN FootstepPlanner::computeTargetFootstep(int const k,
     vref.head(3) = Rz * b_vref.head(3);
     
 
-    if (k % k_mpc == 0)
-        gait_->roll(k, footsteps_[1], currentFootstep_);
-
     // Compute the desired location of footsteps over the prediction horizon
     compute_footsteps(q, v, vref);
 
@@ -279,6 +275,13 @@ MatrixN FootstepPlanner::computeTargetFootstep(int const k,
     // Update desired location of footsteps on the ground
     update_target_footsteps();
     return targetFootstep_;
+}
+
+void FootstepPlanner::rollGait(int const k,
+                               int const k_mpc)
+{
+    if (k % k_mpc == 0)
+        gait_->roll(k, footsteps_[1], currentFootstep_);
 }
 
 MatrixN FootstepPlanner::getXReference() { return xref; }

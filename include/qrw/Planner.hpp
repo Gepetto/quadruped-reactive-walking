@@ -69,15 +69,37 @@ public:
     ///  \param[in] v  current velocity vector of the flying base in world frame (linear and angular stacked)
     ///  \param[in] b_vref  desired velocity vector of the flying base in base frame (linear and angular stacked)
     ///  \param[in] z_average  average height of feet currently in stance phase
-    ///  \param[in] joystick_code  integer to trigger events with the joystick
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
     void run_planner(int const k,
                      VectorN const& q,
                      Vector6 const& v,
                      Vector6 const& b_vref,
-                     double const z_average,
-                     int const joystickCode);
+                     double const z_average);
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///
+    /// \brief Update the gait matrix internally (with functions of Gait class)
+    ///
+    ///  \param[in] k  number of time steps since the start of the simulation
+    ///  \param[in] k_mpc  number of wbc time steps for one time step of the MPC
+    ///  \param[in] q  current position vector of the flying base in world frame (linear and angular stacked)
+    ///  \param[in] joystick_code  integer to trigger events with the joystick
+    ///
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    void updateGait(int const k,
+                    int const k_mpc,
+                    VectorN const& q,
+                    int const joystickCode);
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///
+    /// \brief Update the gait matrix externally (directly set the gait matrix)
+    ///
+    ///  \param[in] gaitMatrix  gait matrix that should be used for the incoming timesteps
+    ///
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    void setGait(MatrixN const& gaitMatrix);
 
     // Accessors (to retrieve C data from Python)
     MatrixN get_xref();
