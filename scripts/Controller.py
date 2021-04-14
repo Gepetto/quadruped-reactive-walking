@@ -120,6 +120,9 @@ class Controller:
         self.statePlanner = lqrw.StatePlanner()
         self.statePlanner.initialize(dt_mpc, T_mpc, h_ref)
 
+        self.gait = lqrw.Gait()
+        self.gait.initialize(dt_mpc, T_gait, T_mpc)
+
         # Wrapper that makes the link with the solver that you want to use for the MPC
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
         self.enable_multiprocessing = True
@@ -212,10 +215,15 @@ class Controller:
             self.v_estim = self.v.copy()
 
         # Update gait
+        self.gait.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick.joystick_code)
+
+        # Update gait
         self.planner.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick)
 
         # Run planner
         self.planner.run_planner(self.k, self.q[0:7, 0:1], self.v[0:6, 0:1].copy(), self.joystick.v_ref)
+
+        print(np.array_equal(self.planner.gait, self.gait.getCurrentGait()))
 
         # Run state planner (outputs the reference trajectory of the CoM / base)
         self.statePlanner.computeRefStates(self.q[0:7, 0:1], self.v[0:6, 0:1].copy(), self.joystick.v_ref, 0.0)

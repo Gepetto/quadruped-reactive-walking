@@ -3,6 +3,7 @@
 #include "qrw/MPC.hpp"
 #include "qrw/Planner.hpp"
 #include "qrw/StatePlanner.hpp"
+#include "qrw/Gait.hpp"
 #include "qrw/QPWBC.hpp"
 
 #include <boost/python.hpp>
@@ -112,6 +113,40 @@ struct StatePlannerPythonVisitor : public bp::def_visitor<StatePlannerPythonVisi
 void exposeStatePlanner() { StatePlannerPythonVisitor<StatePlanner>::expose(); }
 
 /////////////////////////////////
+/// Binding Gait class
+/////////////////////////////////
+template <typename Gait>
+struct GaitPythonVisitor : public bp::def_visitor<GaitPythonVisitor<Gait>>
+{
+    template <class PyClassGait>
+    void visit(PyClassGait& cl) const
+    {
+        cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+
+            .def("getCurrentGait", &Gait::getCurrentGait, "Get currentGait_ matrix.\n")
+
+            .def("initialize", &Gait::initialize, bp::args("dt_in", "T_gait_in", "T_mpc_in"),
+                 "Initialize Gait from Python.\n")
+
+            // Update current gait matrix from Python
+            .def("updateGait", &Gait::updateGait, bp::args("k", "k_mpc", "q", "joystickCode"),
+                 "Update current gait matrix from Python.\n")
+
+            // Set current gait matrix from Python
+            .def("setGait", &Gait::setGait, bp::args("gaitMatrix"),
+                 "Set current gait matrix from Python.\n");
+    }
+
+    static void expose()
+    {
+        bp::class_<Gait>("Gait", bp::no_init).def(GaitPythonVisitor<Gait>());
+
+        ENABLE_SPECIFIC_MATRIX_TYPE(MatrixN);
+    }
+};
+void exposeGait() { GaitPythonVisitor<Gait>::expose(); }
+
+/////////////////////////////////
 /// Binding InvKin class
 /////////////////////////////////
 template <typename InvKin>
@@ -179,6 +214,7 @@ BOOST_PYTHON_MODULE(libquadruped_reactive_walking)
     exposeMPC();
     exposePlanner();
     exposeStatePlanner();
+    exposeGait();
     exposeInvKin();
     exposeQPWBC();
 }

@@ -52,6 +52,7 @@ class Joystick:
         self.eastButton = False
         self.southButton = False
         self.westButton = False
+        self.joystick_code = 0  # Code to carry information about pressed buttons
 
     def update_v_ref(self, k_loop, velID):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame by
@@ -130,7 +131,26 @@ class Joystick:
         self.v_ref = self.alpha * self.v_gp + (1-self.alpha) * self.v_ref
         self.v_ref[(self.v_ref < 0.005) & (self.v_ref > -0.005)] = 0.0
 
+        # Update joystick code depending on which buttons are pressed
+        self.computeCode()
+
         return 0
+
+    def computeCode(self):
+        # Check joystick buttons to trigger a change of gait type
+        self.joystick_code = 0
+        if self.northButton:
+            self.joystick_code = 1
+            self.northButton = False
+        elif self.eastButton:
+            self.joystick_code = 2
+            self.eastButton = False
+        elif self.southButton:
+            self.joystick_code = 3
+            self.southButton = False
+        elif self.westButton:
+            self.joystick_code = 4
+            self.westButton = False
 
     def handle_v_switch(self, k):
         """Handle the change of reference velocity according to the chosen predefined velocity profile

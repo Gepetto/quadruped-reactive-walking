@@ -306,6 +306,16 @@ void Gait::roll(int k, Matrix34 const& footstep, Matrix34& currentFootstep)
     }
 }
 
+void Gait::updateGait(int const k,
+                      int const k_mpc,
+                      VectorN const& q,
+                      int const joystickCode)
+{
+    changeGait(joystickCode, q);
+    if (k % k_mpc == 0)
+        rollGait();
+}
+
 bool Gait::changeGait(int const code, VectorN const& q)
 {
     is_static_ = false;
@@ -328,6 +338,76 @@ bool Gait::changeGait(int const code, VectorN const& q)
         is_static_ = true;
     }
     return is_static_;
+}
+
+void Gait::rollGait()
+{
+    // Transfer current gait into past gait
+    // If current gait is the same than the first line of past gait we just increment the counter
+    if ((currentGait_.block(0, 1, 1, 4)).isApprox(pastGait_.block(0, 1, 1, 4)))
+    {
+        pastGait_(0, 0) += 1.0;
+    }
+    else
+    {  // If current gait is not the same than the first line of past gait we have to insert it
+        Eigen::Matrix<double, 5, 5> tmp = pastGait_.block(0, 0, N0_gait - 1, 5);
+        pastGait_.block(1, 0, N0_gait - 1, 5) = tmp;
+        pastGait_.row(0) = currentGait_.row(0);
+        pastGait_(0, 0) = 1.0;
+    }
+
+    // Age future gait
+    if (currentGait_(0, 0) == 1.0)
+    {
+        currentGait_.block(0, 0, N0_gait - 1, 5) = currentGait_.block(1, 0, N0_gait - 1, 5);
+    }
+    else
+    {
+        currentGait_(0, 0) -= 1.0;
+    }
+
+    // Get index of first empty line
+    int i = 1;
+    while (currentGait_(i, 0) > 0.0)
+    {
+        i++;
+    }
+    // Increment last gait line or insert a new line
+    if ((currentGait_.block(i - 1, 1, 1, 4)).isApprox(desiredGait_.block(0, 1, 1, 4)))
+    {
+        currentGait_(i - 1, 0) += 1.0;
+    }
+    else
+    {
+        currentGait_.row(i) = desiredGait_.row(0);
+        currentGait_(i, 0) = 1.0;
+    }
+
+    // Age future desired gait
+    // Get index of first empty line
+    int j = 1;
+    while (desiredGait_(j, 0) > 0.0)
+    {
+        j++;
+    }
+    // Increment last gait line or insert a new line
+    if ((desiredGait_.block(0, 1, 1, 4)).isApprox(desiredGait_.block(j - 1, 1, 1, 4)))
+    {
+        desiredGait_(j - 1, 0) += 1.0;
+    }
+    else
+    {
+        desiredGait_.row(j) = desiredGait_.row(0);
+        desiredGait_(j, 0) = 1.0;
+    }
+    if (desiredGait_(0, 0) == 1.0)
+    {
+        desiredGait_.block(0, 0, N0_gait - 1, 5) = desiredGait_.block(1, 0, N0_gait - 1, 5);
+    }
+    else
+    {
+        desiredGait_(0, 0) -= 1.0;
+    }
 }
 
 bool Gait::setGait(MatrixN const& gaitMatrix)
