@@ -58,7 +58,6 @@ public:
 
 private:
     double dt_;         // Time step of the contact sequence (time step of the MPC)
-    double T_mpc_;      // MPC period (prediction horizon)
     double h_ref_;       // Reference height for the trunk
     int n_steps_;        // Number of time steps in the prediction horizon
 

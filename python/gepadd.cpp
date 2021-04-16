@@ -42,51 +42,6 @@ struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC>>
 void exposeMPC() { MPCPythonVisitor<MPC>::expose(); }
 
 /////////////////////////////////
-/// Binding Planner class
-/////////////////////////////////
-/*
-template <typename Planner>
-struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planner>>
-{
-    template <class PyClassPlanner>
-    void visit(PyClassPlanner& cl) const
-    {
-        cl.def(bp::init<>(bp::arg(""), "Default constructor."))
-            .def(bp::init<double, double, double, double, int, double, const MatrixN&, const MatrixN&>(
-                bp::args("dt_in", "dt_tsid_in", "T_gait_in", "T_mpc_in", "k_mpc_in", "h_ref_in",
-                         "fsteps_in", "shoulders positions"),
-                "Constructor with parameters."))
-
-            .def("get_fsteps", &Planner::get_fsteps, "Get fsteps matrix.\n")
-            .def("get_gait", &Planner::get_gait, "Get gait matrix.\n")
-            .def("get_goals", &Planner::get_goals, "Get position goals matrix.\n")
-            .def("get_vgoals", &Planner::get_vgoals, "Get velocity goals matrix.\n")
-            .def("get_agoals", &Planner::get_agoals, "Get acceleration goals matrix.\n")
-
-            // Run Planner from Python
-            .def("run_planner", &Planner::run_planner, bp::args("k", "q", "v", "b_vref"),
-                 "Run Planner from Python.\n")
-
-            // Update gait matrix from Python
-            .def("updateGait", &Planner::updateGait, bp::args("k", "k_mpc", "q", "joystickCode"),
-                 "Update gait matrix from Python.\n")
-
-            // Set gait matrix from Python
-            .def("setGait", &Planner::setGait, bp::args("gaitMatrix"),
-                 "Set gait matrix from Python.\n");
-    }
-
-    static void expose()
-    {
-        bp::class_<Planner>("Planner", bp::no_init).def(PlannerPythonVisitor<Planner>());
-
-        ENABLE_SPECIFIC_MATRIX_TYPE(MatrixN);
-    }
-};
-void exposePlanner() { PlannerPythonVisitor<Planner>::expose(); }
-*/
-
-/////////////////////////////////
 /// Binding StatePlanner class
 /////////////////////////////////
 template <typename StatePlanner>
@@ -165,7 +120,7 @@ struct FootstepPlannerPythonVisitor : public bp::def_visitor<FootstepPlannerPyth
 
             .def("getFootsteps", &FootstepPlanner::getFootsteps, "Get footsteps_ matrix.\n")
 
-            .def("initialize", &FootstepPlanner::initialize, bp::args("dt_in", "k_mpc_in", "T_mpc_in", "h_ref_in", "shouldersIn", "gaitIn"),
+            .def("initialize", &FootstepPlanner::initialize, bp::args("dt_in", "T_mpc_in", "h_ref_in", "shouldersIn", "gaitIn"),
                  "Initialize FootstepPlanner from Python.\n")
 
             // Compute target location of footsteps from Python
@@ -285,7 +240,6 @@ BOOST_PYTHON_MODULE(libquadruped_reactive_walking)
     eigenpy::enableEigenPy();
 
     exposeMPC();
-    // exposePlanner();
     exposeStatePlanner();
     exposeGait();
     exposeFootstepPlanner();

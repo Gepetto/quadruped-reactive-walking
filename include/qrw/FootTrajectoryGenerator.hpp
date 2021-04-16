@@ -74,7 +74,7 @@ public:
     MatrixN getFootAcceleration() { return acceleration_; }  ///< Get the next foot acceleration
 
 private:
-    Gait* gait_; // std::shared_ptr<Gait> gait_;         ///< Target lock before the touchdown
+    Gait* gait_;        ///< Target lock before the touchdown
     double dt_tsid;     ///<
     int k_mpc;          ///<
     double maxHeight_;  ///< Apex height of the swinging trajectory
@@ -93,4 +93,4 @@ private:
     Matrix34 velocity_;      // velocity computed in updateFootPosition
     Matrix34 acceleration_;  // acceleration computed in updateFootPosition
 };
-#endif  // PLANNER_H_INCLUDED
+#endif  // TRAJGEN_H_INCLUDED

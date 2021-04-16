@@ -7,7 +7,6 @@ import time
 from QP_WBC import wbc_controller
 import MPC_Wrapper
 import pybullet as pyb
-from Planner import PyPlanner
 import pinocchio as pin
 from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
 import libquadruped_reactive_walking as lqrw
@@ -127,7 +126,7 @@ class Controller:
         shoulders[0, :] = [0.1946, 0.1946, -0.1946, -0.1946]
         shoulders[1, :] = [0.14695, -0.14695, 0.14695, -0.14695]
         self.footstepPlanner = lqrw.FootstepPlanner()
-        self.footstepPlanner.initialize(dt_mpc, k_mpc, T_mpc, self.h_ref, shoulders.copy(), self.gait)
+        self.footstepPlanner.initialize(dt_mpc, T_mpc, self.h_ref, shoulders.copy(), self.gait)
 
         self.footTrajectoryGenerator = lqrw.FootTrajectoryGenerator()
         self.footTrajectoryGenerator.initialize(0.05, 0.07, self.fsteps_init.copy(), shoulders.copy(), dt_wbc, k_mpc, self.gait)
@@ -227,15 +226,9 @@ class Controller:
         # Update gait
         self.gait.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick.joystick_code)
 
-        # Update gait
-        # self.planner.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick)
-
-        # Run planner
-        # self.planner.run_planner(self.k, self.q[0:7, 0:1], self.v[0:6, 0:1].copy(), self.joystick.v_ref)
-
-        if(self.k % self.k_mpc == 0 and self.k != 0 and self.gait.isNewPhase()):  # If new contact phase
-            self.footstepPlanner.updateNewContact()   # .getCurrentGait())
-
+        # Update footsteps if new contact phase
+        if(self.k % self.k_mpc == 0 and self.k != 0 and self.gait.isNewPhase()):  
+            self.footstepPlanner.updateNewContact()
 
         """// Get the reference velocity in world frame (given in base frame)
         Eigen::Quaterniond quat(q(6, 0), q(3, 0), q(4, 0), q(5, 0));  // w, x, y, z

@@ -26,7 +26,7 @@ void FootTrajectoryGenerator::initialize(double const maxHeightIn,
                                          MatrixN const& initialFootPosition,
                                          double const& dt_tsid_in,
                                          int const& k_mpc_in,
-                                         Gait & gaitIn) // std::shared_ptr<Gait> gaitIn)
+                                         Gait & gaitIn)
 {
     dt_tsid = dt_tsid_in;
     k_mpc = k_mpc_in;

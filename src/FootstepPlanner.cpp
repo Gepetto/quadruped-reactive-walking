@@ -17,20 +17,17 @@ FootstepPlanner::FootstepPlanner()
     , RPY(Vector3::Zero())
     , b_v(Vector3::Zero())
     , b_vref(Vector6::Zero())
-    , xref()
 {
     // Empty
 }
 
 void FootstepPlanner::initialize(double dt_in,
-                                 int k_mpc_in,
                                  double T_mpc_in,
                                  double h_ref_in,
                                  MatrixN const& shouldersIn,
-                                 Gait & gaitIn) // std::shared_ptr<Gait> gaitIn)
+                                 Gait & gaitIn)
 {
     dt = dt_in;
-    k_mpc = k_mpc_in;
     T_mpc = T_mpc_in;
     h_ref = h_ref_in;
     n_steps = (int)std::lround(T_mpc_in / dt_in);
@@ -40,7 +37,6 @@ void FootstepPlanner::initialize(double dt_in,
     targetFootstep_ = shouldersIn;
     footsteps_.fill(Matrix34::Zero());
     Rz(2, 2) = 1.0;
-    xref = MatrixN::Zero(12, 1 + n_steps);
 }
 
 void FootstepPlanner::compute_footsteps(VectorN const& q, Vector6 const& v, Vector6 const& vref)
@@ -208,13 +204,6 @@ void FootstepPlanner::updateNewContact() // Gait const& gait) // MaxtrixN const&
         }
     }
 }
-
-/*void FootstepPlanner::rollGait(int const k,
-                               int const k_mpc)
-{
-    if (k % k_mpc == 0)
-        gait_->roll(k, footsteps_[1], currentFootstep_);
-}*/
 
 MatrixN FootstepPlanner::getFootsteps() { return vectorToMatrix(footsteps_); }
 MatrixN FootstepPlanner::getTargetFootsteps() { return targetFootstep_; }

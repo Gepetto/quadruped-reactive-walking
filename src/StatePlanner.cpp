@@ -2,7 +2,6 @@
 
 StatePlanner::StatePlanner()
     : dt_(0.0)
-    , T_mpc_(0.0)
     , h_ref_(0.0)
     , n_steps_(0)
     , RPY_(Vector3::Zero())
@@ -13,11 +12,10 @@ StatePlanner::StatePlanner()
 void StatePlanner::initialize(double dt_in, double T_mpc_in, double h_ref_in)
 {
     dt_ = dt_in;
-    T_mpc_ = T_mpc_in;
     h_ref_ = h_ref_in;
     n_steps_ = (int)std::lround(T_mpc_in / dt_in);
     xref_ = MatrixN::Zero(12, 1 + n_steps_);
-    dt_vector_ = VectorN::LinSpaced(n_steps_, dt_, T_mpc_);
+    dt_vector_ = VectorN::LinSpaced(n_steps_, dt_, T_mpc_in);
 }
 
 void StatePlanner::computeRefStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, double z_average)
