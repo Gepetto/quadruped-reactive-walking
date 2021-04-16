@@ -69,7 +69,7 @@ class MPC_Wrapper:
         self.last_available_result = np.zeros((24, (np.int(self.n_steps))))
         self.last_available_result[:, 0] = np.hstack((x_init, np.array([0.0, 0.0, 8.0] * 4)))
 
-    def solve(self, k, fstep_planner):
+    def solve(self, k, xref, fsteps, gait):
         """Call either the asynchronous MPC or the synchronous MPC depending on the value of multiprocessing during
         the creation of the wrapper
 
@@ -79,7 +79,7 @@ class MPC_Wrapper:
         """
 
         if self.multiprocessing:  # Run in parallel process
-            self.run_MPC_asynchronous(k, fstep_planner)
+            self.run_MPC_asynchronous(k, xref, fsteps)
         else:  # Run in the same process than main loop
             self.run_MPC_synchronous(k, fstep_planner)
 
@@ -87,15 +87,15 @@ class MPC_Wrapper:
             self.last_available_result[12:(12+self.n_steps), :] = np.roll(self.last_available_result[12:(12+self.n_steps), :], -1, axis=1)
 
         pt = 0
-        while (fstep_planner.gait[pt, 0] != 0):
+        while (gait[pt, 0] != 0):
             pt += 1
-        if k > 2 and not np.array_equal(fstep_planner.gait[0, 1:], fstep_planner.gait[pt-1, 1:]):
+        if k > 2 and not np.array_equal(gait[0, 1:], gait[pt-1, 1:]):
             mass = 2.5  # Todo: grab from URDF?
-            nb_ctc = np.sum(fstep_planner.gait[pt-1, 1:])
+            nb_ctc = np.sum(gait[pt-1, 1:])
             F = 9.81 * mass / nb_ctc
             self.last_available_result[12:, self.n_steps-1] = np.zeros(12)
             for i in range(4):
-                if (fstep_planner.gait[pt-1, 1+i] == 1):
+                if (gait[pt-1, 1+i] == 1):
                     self.last_available_result[12+3*i+2, self.n_steps-1] = F
 
         return 0
@@ -145,7 +145,7 @@ class MPC_Wrapper:
         # Output of the MPC
         self.f_applied = self.mpc.get_latest_result()
 
-    def run_MPC_asynchronous(self, k, fstep_planner):
+    def run_MPC_asynchronous(self, k, xref, fsteps):
         """Run the MPC (asynchronous version) to get the desired contact forces for the feet currently in stance phase
 
         Args:
@@ -160,7 +160,7 @@ class MPC_Wrapper:
             p.start()
 
         # Stacking data to send them to the parallel process
-        self.compress_dataIn(k, fstep_planner)
+        self.compress_dataIn(k, xref, fsteps)
         self.newData.value = True
 
         return 0
@@ -222,7 +222,7 @@ class MPC_Wrapper:
 
         return 0
 
-    def compress_dataIn(self, k, fstep_planner):
+    def compress_dataIn(self, k, xref, fsteps):
         """Compress data in a single C-type array that belongs to the shared memory to send data from the main control
         loop to the asynchronous MPC
 
@@ -232,11 +232,11 @@ class MPC_Wrapper:
         """
 
         # Replace NaN values by 0.0 to be stored in C-type arrays
-        fstep_planner.fsteps[np.isnan(fstep_planner.fsteps)] = 0.0
+        fsteps[np.isnan(fsteps)] = 0.0
 
         # Compress data in the shared input array
-        self.dataIn[:] = np.concatenate([[(k/self.k_mpc)], fstep_planner.xref.ravel(),
-                                         fstep_planner.fsteps.ravel()], axis=0)
+        self.dataIn[:] = np.concatenate([[(k/self.k_mpc)], xref.ravel(),
+                                         fsteps.ravel()], axis=0)
 
         return 0.0
 

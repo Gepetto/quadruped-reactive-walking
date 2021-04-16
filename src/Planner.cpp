@@ -20,8 +20,8 @@ Planner::Planner(double dt_in,
     , targetFootstep_(shouldersIn)
 {
     gait_->initialize(dt_in, T_gait_in, T_mpc_in);
-    footstepPlanner_.initialize(dt_in, k_mpc_in, T_mpc_in, h_ref_in, shouldersIn, gait_);
-    fooTrajectoryGenerator_.initialize(0.05, 0.07, shouldersIn, intialFootsteps, dt_tsid_in, k_mpc_in, gait_);
+    //footstepPlanner_.initialize(dt_in, k_mpc_in, T_mpc_in, h_ref_in, shouldersIn, gait_);
+    //fooTrajectoryGenerator_.initialize(0.05, 0.07, shouldersIn, intialFootsteps, dt_tsid_in, k_mpc_in, gait_);
 }
 
 void Planner::run_planner(int const k,
@@ -40,7 +40,7 @@ void Planner::updateGait(int const k,
                          int const joystickCode)
 {
     gait_->changeGait(joystickCode, q);
-    footstepPlanner_.rollGait(k, k_mpc);
+    //footstepPlanner_.rollGait(k, k_mpc);
 }
 
 void Planner::setGait(MatrixN const& gaitMatrix)

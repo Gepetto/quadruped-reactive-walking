@@ -8,6 +8,7 @@ Gait::Gait()
     , T_gait_(0.0)
     , T_mpc_(0.0)
     , remainingTime_(0.0)
+    , newPhase_(false)
     , is_static_(true)
     , q_static_(VectorN::Zero(19))
 {
@@ -360,10 +361,12 @@ void Gait::rollGait()
     if (currentGait_(0, 0) == 1.0)
     {
         currentGait_.block(0, 0, N0_gait - 1, 5) = currentGait_.block(1, 0, N0_gait - 1, 5);
+        newPhase_ = true;
     }
     else
     {
         currentGait_(0, 0) -= 1.0;
+        newPhase_ = false;
     }
 
     // Get index of first empty line

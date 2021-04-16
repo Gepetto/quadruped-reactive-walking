@@ -42,8 +42,8 @@ public:
                     int k_mpc_in,
                     double T_mpc_in,
                     double h_ref_in,
-                    Matrix34 const& shouldersIn,
-                    std::shared_ptr<Gait> gaitIn);
+                    MatrixN const& shouldersIn,
+                    Gait & gaitIn); // std::shared_ptr<Gait> gaitIn);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -63,14 +63,20 @@ public:
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
+    ///
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    void updateNewContact();
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///
     /// \brief Update desired location of footsteps using information coming from the footsteps planner
     ///
     ///  \param[in] k  number of time steps since the start of the simulation
     ///  \param[in] k_mpc  number of wbc time steps for one time step of the MPC
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void rollGait(int const k,
-                  int const k_mpc);
+    /*void rollGait(int const k,
+                  int const k_mpc);*/
 
     // MatrixN getXReference();
     MatrixN getFootsteps();
@@ -111,7 +117,7 @@ private:
 
     MatrixN vectorToMatrix(std::array<Matrix34, N0_gait> const& array);
 
-    std::shared_ptr<Gait> gait_;  // Gait object to hold the gait informations
+    Gait* gait_; // std::shared_ptr<Gait> gait_;  // Gait object to hold the gait informations
 
     double dt;      // Time step of the contact sequence (time step of the MPC)
     double T_gait;  // Gait period

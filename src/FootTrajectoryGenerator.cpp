@@ -3,7 +3,7 @@
 // Trajectory generator functions (output reference pos, vel and acc of feet in swing phase)
 
 FootTrajectoryGenerator::FootTrajectoryGenerator()
-    : gait_(nullptr)
+    : gait_(NULL)
     , dt_tsid(0.0)
     , k_mpc(0)
     , maxHeight_(0.0)
@@ -22,19 +22,19 @@ FootTrajectoryGenerator::FootTrajectoryGenerator()
 
 void FootTrajectoryGenerator::initialize(double const maxHeightIn,
                                          double const lockTimeIn,
-                                         Matrix34 const& targetFootstepIn,
-                                         Matrix34 const& initialFootPosition,
+                                         MatrixN const& targetFootstepIn,
+                                         MatrixN const& initialFootPosition,
                                          double const& dt_tsid_in,
                                          int const& k_mpc_in,
-                                         std::shared_ptr<Gait> gaitIn)
+                                         Gait & gaitIn) // std::shared_ptr<Gait> gaitIn)
 {
     dt_tsid = dt_tsid_in;
     k_mpc = k_mpc_in;
     maxHeight_ = maxHeightIn;
     lockTime_ = lockTimeIn;
-    targetFootstep_ = targetFootstepIn;
-    position_ = initialFootPosition;
-    gait_ = gaitIn;
+    targetFootstep_ = targetFootstepIn.block(0, 0, 3, 4);
+    position_ = initialFootPosition.block(0, 0, 3, 4);
+    gait_ = &gaitIn;
 }
 
 

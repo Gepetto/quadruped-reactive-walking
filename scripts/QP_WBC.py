@@ -46,7 +46,7 @@ class wbc_controller():
         # Indexes of feet frames in this order: [FL, FR, HL, HR]
         self.indexes = [10, 18, 26, 34]
 
-    def compute(self, q, dq, x_cmd, f_cmd, contacts, planner):
+    def compute(self, q, dq, x_cmd, f_cmd, contacts, pgoals, vgoals, agoals):
         """ Call Inverse Kinematics to get an acceleration command then
         solve a QP problem to get the feedforward torques
 
@@ -66,7 +66,7 @@ class wbc_controller():
         self.tic = time()
 
         # Compute Inverse Kinematics
-        ddq_cmd = np.array([self.invKin.refreshAndCompute(q.copy(), dq.copy(), x_cmd, contacts, planner)]).T
+        ddq_cmd = np.array([self.invKin.refreshAndCompute(q.copy(), dq.copy(), x_cmd, contacts, pgoals, vgoals, agoals)]).T
 
         for i in range(4):
             self.log_feet_pos[:, i, self.k_log] = self.invKin.rdata.oMf[self.indexes[i]].translation
@@ -77,10 +77,10 @@ class wbc_controller():
         self.feet_err = self.log_feet_err[:, :, self.k_log]
         self.feet_vel = self.log_feet_vel[:, :, self.k_log]
 
-        self.log_feet_pos_target[:, :, self.k_log] = planner.goals[:, :]
-        self.log_feet_vel_target[:, :, self.k_log] = planner.vgoals[:, :]
-        self.log_feet_acc_target[:, :, self.k_log] = planner.agoals[:, :]
-
+        self.log_feet_pos_target[:, :, self.k_log] = pgoals[:, :]
+        self.log_feet_vel_target[:, :, self.k_log] = vgoals[:, :]
+        self.log_feet_acc_target[:, :, self.k_log] = agoals[:, :]
+        
         self.tac = time()
 
         # Compute the joint space inertia matrix M by using the Composite Rigid Body Algorithm

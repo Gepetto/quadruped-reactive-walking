@@ -17,7 +17,7 @@ from LoggerControl import LoggerControl
 
 SIMULATION = True
 LOGGING = False
-PLOTTING = True
+PLOTTING = False
 
 if SIMULATION:
     from PyBulletSimulator import PyBulletSimulator
@@ -107,7 +107,7 @@ def control_loop(name_interface, name_interface_clone=None):
     ################################
 
     envID = 0  # Identifier of the environment to choose in which one the simulation will happen
-    velID = 0  # Identifier of the reference velocity profile to choose which one will be sent to the robot
+    velID = 2  # Identifier of the reference velocity profile to choose which one will be sent to the robot
 
     dt_wbc = DT  # Time step of the whole body control
     dt_mpc = 0.02  # Time step of the model predictive control

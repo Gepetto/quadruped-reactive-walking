@@ -139,10 +139,12 @@ public:
 
     MatrixN getPastGait() { return pastGait_; }
     MatrixN getCurrentGait() { return currentGait_; }
+    double getCurrentGaitCoeff(int i, int j) { return currentGait_(i, j); }
     MatrixN getDesiredGait() { return desiredGait_; }
     double getRemainingTime() { return remainingTime_; }
     bool getIsStatic() { return is_static_; }
     VectorN getQStatic() { return q_static_; }
+    bool isNewPhase() { return newPhase_; }
 
 private:
     MatrixN pastGait_;     // Past gait
@@ -155,6 +157,7 @@ private:
 
     double remainingTime_;
 
+    bool newPhase_;
     bool is_static_;
     VectorN q_static_;
 };

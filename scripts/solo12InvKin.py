@@ -97,16 +97,16 @@ class Solo12InvKin:
                          left[2] * right[0] - left[0] * right[2],
                          left[0] * right[1] - left[1] * right[0]])
 
-    def refreshAndCompute(self, q, dq, x_cmd, contacts, planner):
+    def refreshAndCompute(self, q, dq, x_cmd, contacts, pgoals, vgoals, agoals):
 
         # Update contact status of the feet
         self.flag_in_contact[:] = contacts
 
         # Update position, velocity and acceleration references for the feet
         for i in range(4):
-            self.feet_position_ref[i] = planner.goals[0:3, i]  # + np.array([0.0, 0.0, q[2, 0] - planner.h_ref])
-            self.feet_velocity_ref[i] = planner.vgoals[0:3, i]
-            self.feet_acceleration_ref[i] = planner.agoals[0:3, i]
+            self.feet_position_ref[i] = pgoals[0:3, i]  # + np.array([0.0, 0.0, q[2, 0] - planner.h_ref])
+            self.feet_velocity_ref[i] = vgoals[0:3, i]
+            self.feet_acceleration_ref[i] = agoals[0:3, i]
 
         # Update model and data
         pin.computeJointJacobians(self.rmodel, self.rdata, q)
@@ -133,7 +133,7 @@ class Solo12InvKin:
         self.cpp_ab[0, 3:6] = acc.angular
         self.cpp_Jb[:, :] = pin.getFrameJacobian(self.robot.model, self.robot.data, self.BASE_ID, pin.LOCAL_WORLD_ALIGNED)
 
-        self.cpp_ddq[:] = self.InvKinCpp.refreshAndCompute(np.array([x_cmd]), np.array([contacts]), planner.goals, planner.vgoals, planner.agoals,
+        self.cpp_ddq[:] = self.InvKinCpp.refreshAndCompute(np.array([x_cmd]), np.array([contacts]), pgoals, vgoals, agoals,
                                                            self.cpp_posf, self.cpp_vf, self.cpp_wf, self.cpp_af, self.cpp_Jf,
                                                            self.cpp_posb, self.cpp_rotb, self.cpp_vb, self.cpp_ab, self.cpp_Jb)
 

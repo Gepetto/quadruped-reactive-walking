@@ -34,11 +34,11 @@ public:
     ////////////////////////////////////////////////////////////////////////////////////////////////
     void initialize(double const maxHeightIn,
                     double const lockTimeIn,
-                    Matrix34 const& targetFootstepIn,
-                    Matrix34 const& initialFootPosition,
+                    MatrixN const& targetFootstepIn,
+                    MatrixN const& initialFootPosition,
                     double const& dt_tsid_in,
                     int const& k_mpc_in,
-                    std::shared_ptr<Gait> gait);
+                    Gait & gait); // std::shared_ptr<Gait> gait);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -74,7 +74,7 @@ public:
     MatrixN getFootAcceleration() { return acceleration_; }  ///< Get the next foot acceleration
 
 private:
-    std::shared_ptr<Gait> gait_;         ///< Target lock before the touchdown
+    Gait* gait_; // std::shared_ptr<Gait> gait_;         ///< Target lock before the touchdown
     double dt_tsid;     ///<
     int k_mpc;          ///<
     double maxHeight_;  ///< Apex height of the swinging trajectory

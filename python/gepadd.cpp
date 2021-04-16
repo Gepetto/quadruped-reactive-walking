@@ -1,9 +1,11 @@
 #include "qrw/gepadd.hpp"
 #include "qrw/InvKin.hpp"
 #include "qrw/MPC.hpp"
-#include "qrw/Planner.hpp"
+// #include "qrw/Planner.hpp"
 #include "qrw/StatePlanner.hpp"
 #include "qrw/Gait.hpp"
+#include "qrw/FootstepPlanner.hpp"
+#include "qrw/FootTrajectoryGenerator.hpp"
 #include "qrw/QPWBC.hpp"
 
 #include <boost/python.hpp>
@@ -42,6 +44,7 @@ void exposeMPC() { MPCPythonVisitor<MPC>::expose(); }
 /////////////////////////////////
 /// Binding Planner class
 /////////////////////////////////
+/*
 template <typename Planner>
 struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planner>>
 {
@@ -81,6 +84,7 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
     }
 };
 void exposePlanner() { PlannerPythonVisitor<Planner>::expose(); }
+*/
 
 /////////////////////////////////
 /// Binding StatePlanner class
@@ -124,6 +128,8 @@ struct GaitPythonVisitor : public bp::def_visitor<GaitPythonVisitor<Gait>>
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
             .def("getCurrentGait", &Gait::getCurrentGait, "Get currentGait_ matrix.\n")
+            .def("isNewPhase", &Gait::isNewPhase, "Get newPhase_ boolean.\n")
+            .def("getIsStatic", &Gait::getIsStatic, "Get is_static_ boolean.\n")
 
             .def("initialize", &Gait::initialize, bp::args("dt_in", "T_gait_in", "T_mpc_in"),
                  "Initialize Gait from Python.\n")
@@ -145,6 +151,73 @@ struct GaitPythonVisitor : public bp::def_visitor<GaitPythonVisitor<Gait>>
     }
 };
 void exposeGait() { GaitPythonVisitor<Gait>::expose(); }
+
+/////////////////////////////////
+/// Binding FootstepPlanner class
+/////////////////////////////////
+template <typename FootstepPlanner>
+struct FootstepPlannerPythonVisitor : public bp::def_visitor<FootstepPlannerPythonVisitor<FootstepPlanner>>
+{
+    template <class PyClassFootstepPlanner>
+    void visit(PyClassFootstepPlanner& cl) const
+    {
+        cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+
+            .def("getFootsteps", &FootstepPlanner::getFootsteps, "Get footsteps_ matrix.\n")
+
+            .def("initialize", &FootstepPlanner::initialize, bp::args("dt_in", "k_mpc_in", "T_mpc_in", "h_ref_in", "shouldersIn", "gaitIn"),
+                 "Initialize FootstepPlanner from Python.\n")
+
+            // Compute target location of footsteps from Python
+            .def("computeTargetFootstep", &FootstepPlanner::computeTargetFootstep, bp::args("q", "v", "b_vref"),
+                 "Compute target location of footsteps from Python.\n")
+
+            .def("updateNewContact", &FootstepPlanner::updateNewContact, "Refresh feet position when entering a new contact phase.\n");
+
+    }
+
+    static void expose()
+    {
+        bp::class_<FootstepPlanner>("FootstepPlanner", bp::no_init).def(FootstepPlannerPythonVisitor<FootstepPlanner>());
+
+        ENABLE_SPECIFIC_MATRIX_TYPE(MatrixN);
+    }
+};
+void exposeFootstepPlanner() { FootstepPlannerPythonVisitor<FootstepPlanner>::expose(); }
+
+/////////////////////////////////
+/// Binding FootTrajectoryGenerator class
+/////////////////////////////////
+template <typename FootTrajectoryGenerator>
+struct FootTrajectoryGeneratorPythonVisitor : public bp::def_visitor<FootTrajectoryGeneratorPythonVisitor<FootTrajectoryGenerator>>
+{
+    template <class PyClassFootTrajectoryGenerator>
+    void visit(PyClassFootTrajectoryGenerator& cl) const
+    {
+        cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+
+            .def("getFootPosition", &FootTrajectoryGenerator::getFootPosition, "Get position_ matrix.\n")
+            .def("getFootVelocity", &FootTrajectoryGenerator::getFootVelocity, "Get velocity_ matrix.\n")
+            .def("getFootAcceleration", &FootTrajectoryGenerator::getFootAcceleration, "Get acceleration_ matrix.\n")
+
+            .def("initialize", &FootTrajectoryGenerator::initialize, bp::args("maxHeightIn", "lockTimeIn", "targetFootstepIn",
+                 "initialFootPosition", "dt_tsid_in", "k_mpc_in", "gaitIn"),
+                 "Initialize FootTrajectoryGenerator from Python.\n")
+
+            // Compute target location of footsteps from Python
+            .def("update", &FootTrajectoryGenerator::update, bp::args("k", "targetFootstep"),
+                 "Compute target location of footsteps from Python.\n");
+
+    }
+
+    static void expose()
+    {
+        bp::class_<FootTrajectoryGenerator>("FootTrajectoryGenerator", bp::no_init).def(FootTrajectoryGeneratorPythonVisitor<FootTrajectoryGenerator>());
+
+        ENABLE_SPECIFIC_MATRIX_TYPE(MatrixN);
+    }
+};
+void exposeFootTrajectoryGenerator() { FootTrajectoryGeneratorPythonVisitor<FootTrajectoryGenerator>::expose(); }
 
 /////////////////////////////////
 /// Binding InvKin class
@@ -212,9 +285,11 @@ BOOST_PYTHON_MODULE(libquadruped_reactive_walking)
     eigenpy::enableEigenPy();
 
     exposeMPC();
-    exposePlanner();
+    // exposePlanner();
     exposeStatePlanner();
     exposeGait();
+    exposeFootstepPlanner();
+    exposeFootTrajectoryGenerator();
     exposeInvKin();
     exposeQPWBC();
 }

@@ -1,7 +1,8 @@
 #include "qrw/FootstepPlanner.hpp"
 
 FootstepPlanner::FootstepPlanner()
-    : k_feedback(0.03)
+    : gait_(NULL)
+    , k_feedback(0.03)
     , g(9.81)
     , L(0.155)
     , nextFootstep_(Matrix34::Zero())
@@ -25,8 +26,8 @@ void FootstepPlanner::initialize(double dt_in,
                                  int k_mpc_in,
                                  double T_mpc_in,
                                  double h_ref_in,
-                                 Matrix34 const& shouldersIn,
-                                 std::shared_ptr<Gait> gaitIn)
+                                 MatrixN const& shouldersIn,
+                                 Gait & gaitIn) // std::shared_ptr<Gait> gaitIn)
 {
     dt = dt_in;
     k_mpc = k_mpc_in;
@@ -34,8 +35,8 @@ void FootstepPlanner::initialize(double dt_in,
     h_ref = h_ref_in;
     n_steps = (int)std::lround(T_mpc_in / dt_in);
     shoulders_ = shouldersIn;
-    currentFootstep_ = shouldersIn;
-    gait_ = gaitIn;
+    currentFootstep_ = shouldersIn.block(0, 0, 3, 4);
+    gait_ = &gaitIn;
     targetFootstep_ = shouldersIn;
     footsteps_.fill(Matrix34::Zero());
     Rz(2, 2) = 1.0;
@@ -85,9 +86,9 @@ void FootstepPlanner::compute_footsteps(VectorN const& q, Vector6 const& v, Vect
     }
 
     // Get current and reference velocities in base frame (rotated yaw)
-    b_v = Rz * v.head(3);
-    b_vref.head(3) = Rz * vref.head(3);
-    b_vref.tail(3) = Rz * vref.tail(3);
+    b_v = Rz.transpose() * v.head(3);
+    b_vref.head(3) = Rz.transpose() * vref.head(3);
+    b_vref.tail(3) = Rz.transpose() * vref.tail(3);
 
     // Update the footstep matrix depending on the different phases of the gait (swing & stance)
     int i = 1;
@@ -196,12 +197,24 @@ MatrixN FootstepPlanner::computeTargetFootstep(VectorN const& q,
     return targetFootstep_;
 }
 
-void FootstepPlanner::rollGait(int const k,
+void FootstepPlanner::updateNewContact() // Gait const& gait) // MaxtrixN const& currentGait)
+{
+    // Entering new contact phase, store positions of feet that are now in contact
+    for (int i = 0; i < 4; i++)
+    {
+        if (gait_->getCurrentGaitCoeff(0, 1 + i) == 1.0)   //if (currentGait(0, 1 + i) == 1.0)
+        {
+            currentFootstep_.col(i) = (footsteps_[1]).col(i);
+        }
+    }
+}
+
+/*void FootstepPlanner::rollGait(int const k,
                                int const k_mpc)
 {
     if (k % k_mpc == 0)
         gait_->roll(k, footsteps_[1], currentFootstep_);
-}
+}*/
 
 MatrixN FootstepPlanner::getFootsteps() { return vectorToMatrix(footsteps_); }
 MatrixN FootstepPlanner::getTargetFootsteps() { return targetFootstep_; }
