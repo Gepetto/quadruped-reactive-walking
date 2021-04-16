@@ -13,10 +13,7 @@
 #define GAIT_H_INCLUDED
 
 #include "qrw/Types.h"
-
-#define N0_gait 20
-// Number of rows in the gait matrix. Arbitrary value that should be set high enough so that there is always at
-// least one empty line at the end of the gait matrix
+#include "qrw/config.h"
 
 // Order of feet/legs: FL, FR, HL, HR
 
@@ -99,19 +96,6 @@ public:
     ////////////////////////////////////////////////////////////////////////////////////////////////
     double getPhaseDuration(int i, int j, double value);
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    ///
-    /// \brief  Move one step further in the gait cycle
-    ///
-    /// \details Decrease by 1 the number of remaining step for the current phase of the gait
-    ///           Transfer current gait phase into past gait matrix
-    ///           Insert future desired gait phase at the end of the gait matrix
-    ///
-    /// \param[in] k number of WBC iterations since the start of the simulation
-    ///
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    void roll(int k, Matrix34 const& footstep, Matrix34& currentFootstep);
-
     // TODO
     void updateGait(int const k, int const k_mpc, VectorN const& q, int const joystickCode);
 
@@ -125,7 +109,15 @@ public:
     ////////////////////////////////////////////////////////////////////////////////////////////////
     bool changeGait(int const code, VectorN const& q);
 
-    // TODO
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///
+    /// \brief  Move one step further in the gait cycle
+    ///
+    /// \details Decrease by 1 the number of remaining step for the current phase of the gait
+    ///           Transfer current gait phase into past gait matrix
+    ///           Insert future desired gait phase at the end of the gait matrix
+    ///
+    ////////////////////////////////////////////////////////////////////////////////////////////////
     void rollGait();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,6 +146,7 @@ private:
     double dt_;      // Time step of the contact sequence (time step of the MPC)
     double T_gait_;  // Gait period
     double T_mpc_;   // MPC period (prediction horizon)
+    int n_steps_;        // Number of time steps in the prediction horizon
 
     double remainingTime_;
 

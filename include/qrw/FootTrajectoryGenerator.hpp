@@ -38,7 +38,7 @@ public:
                     MatrixN const& initialFootPosition,
                     double const& dt_tsid_in,
                     int const& k_mpc_in,
-                    Gait & gait); // std::shared_ptr<Gait> gait);
+                    Gait & gait);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
