@@ -415,8 +415,8 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
   int j = 0;
   int k_cum = 0;
   // Iterate over all phases of the gait
-  while (gait(j, 0) != 0) {
-    for (int k = k_cum; k < (k_cum + gait(j, 0)); k++) {
+  while (!gait.row(j).isZero()) {
+    for (int k = k_cum; k < (k_cum + 1); k++) {
       // Get inverse of the inertia matrix for time step k
       double c = cos(xref(5, k));
       double s = sin(xref(5, k));
@@ -427,7 +427,7 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
 
       // Get skew-symetric matrix for each foothold
       // Eigen::Map<Eigen::Matrix<double, 3, 4>> fsteps_tmp((fsteps.block(j, 1, 1, 12)).data(), 3, 4);
-      footholds_tmp = fsteps.block(j, 1, 1, 12);
+      footholds_tmp = fsteps.row(j); // block(j, 1, 1, 12);
       // footholds = footholds_tmp.reshaped(3, 4);
       Eigen::Map<Eigen::MatrixXd> footholds_bis(footholds_tmp.data(), 3, 4);
 
@@ -443,7 +443,7 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
       }
     }
 
-    k_cum += gait(j, 0);
+    k_cum++;
     j++;
   }
 
@@ -656,20 +656,16 @@ N is the number of time step in the prediction horizon.
 */
 int MPC::construct_S() {
   int i = 0;
-  int k = 0;
 
-  Eigen::Matrix<int, 20, 5> inv_gait = Eigen::Matrix<int, 20, 5>::Ones() - gait;
-  while (gait(i, 0) != 0) {
+  Eigen::Matrix<int, 20, 4> inv_gait = Eigen::Matrix<int, 20, 4>::Ones() - gait;
+  while (!gait.row(i).isZero()) {
     // S_gait.block(k*12, 0, gait[i, 0]*12, 1) = (1 - (gait.block(i, 1, 1, 4)).transpose()).replicate<gait[i, 0], 1>()
     // not finished;
-    for (int a = 0; a < gait(i, 0); a++) {
-      for (int b = 0; b < 4; b++) {
-        for (int c = 0; c < 3; c++) {
-          S_gait(k * 12 + 12 * a + 3 * b + c, 0) = inv_gait(i, 1 + b);
-        }
+    for (int b = 0; b < 4; b++) {
+      for (int c = 0; c < 3; c++) {
+        S_gait(i * 12 + 3 * b + c, 0) = inv_gait(i, b);
       }
     }
-    k += gait(i, 0);
     i++;
   }
 
@@ -680,21 +676,19 @@ int MPC::construct_S() {
 Reconstruct the gait matrix based on the fsteps matrix since only the last one is received by the MPC
 */
 int MPC::construct_gait(Eigen::MatrixXd fsteps_in) {
-  // First column is identical
-  gait.col(0) = fsteps_in.col(0).cast<int>();
 
   int k = 0;
-  while (gait(k, 0) != 0) {
+  while (!gait.row(k).isZero()) {
     for (int i = 0; i < 4; i++) {
-      if (fsteps_in(k, 1 + i * 3) == 0.0) {
-        gait(k, 1 + i) = 0;
+      if (fsteps_in(k, i * 3) == 0.0) {
+        gait(k, i) = 0;
       } else {
-        gait(k, 1 + i) = 1;
+        gait(k, i) = 1;
       }
     }
     k++;
   }
-  gait.row(k) << 0, 0, 0, 0, 0;
+  gait.row(k) << 0, 0, 0, 0;
   return 0;
 }
 

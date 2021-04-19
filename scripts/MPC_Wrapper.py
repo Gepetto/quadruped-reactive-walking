@@ -50,9 +50,9 @@ class MPC_Wrapper:
         if multiprocessing:  # Setup variables in the shared memory
             self.newData = Value('b', False)
             self.newResult = Value('b', False)
-            self.dataIn = Array('d', [0.0] * (1 + (np.int(self.n_steps)+1) * 12 + 13*20))
+            self.dataIn = Array('d', [0.0] * (1 + (np.int(self.n_steps)+1) * 12 + 12*20))
             self.dataOut = Array('d', [0] * 24 * (np.int(self.n_steps)))
-            self.fsteps_future = np.zeros((20, 13))
+            self.fsteps_future = np.zeros((20, 12))
             self.running = Value('b', True)
         else:
             # Create the new version of the MPC solver object
@@ -89,13 +89,13 @@ class MPC_Wrapper:
         pt = 0
         while (gait[pt, 0] != 0):
             pt += 1
-        if k > 2 and not np.array_equal(gait[0, 1:], gait[pt-1, 1:]):
+        if k > 2 and not np.array_equal(gait[0, :], gait[pt-1, :]):
             mass = 2.5  # Todo: grab from URDF?
             nb_ctc = np.sum(gait[pt-1, 1:])
             F = 9.81 * mass / nb_ctc
             self.last_available_result[12:, self.n_steps-1] = np.zeros(12)
             for i in range(4):
-                if (gait[pt-1, 1+i] == 1):
+                if (gait[pt-1, i] == 1):
                     self.last_available_result[12+3*i+2, self.n_steps-1] = F
 
         return 0
@@ -191,7 +191,7 @@ class MPC_Wrapper:
                 # Reshaping 1-dimensional data
                 k = int(kf[0])
                 xref = np.reshape(xref_1dim, (12, self.n_steps+1))
-                fsteps = np.reshape(fsteps_1dim, (20, 13))
+                fsteps = np.reshape(fsteps_1dim, (20, 12))
 
                 # Create the MPC object of the parallel process during the first iteration
                 if k == 0:
@@ -249,7 +249,7 @@ class MPC_Wrapper:
         """
 
         # Sizes of the different variables that are stored in the C-type array
-        sizes = [0, 1, (np.int(self.n_steps)+1) * 12, 13*20]
+        sizes = [0, 1, (np.int(self.n_steps)+1) * 12, 12*20]
         csizes = np.cumsum(sizes)
 
         # Return decompressed variables in a list

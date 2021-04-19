@@ -193,7 +193,7 @@ class Controller:
         self.joystick.update_v_ref(self.k, self.velID)
 
         # Process state estimator
-        self.estimator.run_filter(self.k, self.gait.getCurrentGait()[0, 1:],
+        self.estimator.run_filter(self.k, self.gait.getCurrentGait()[0, :],
                                   device, self.footTrajectoryGenerator.getFootPosition(),
                                   self.gait.getCurrentGait()[0, 0])
         t_filter = time.time()
@@ -227,7 +227,7 @@ class Controller:
         self.gait.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick.joystick_code)
 
         # Update footsteps if new contact phase
-        if(self.k % self.k_mpc == 0 and self.k != 0 and self.gait.isNewPhase()):  
+        if(self.k % self.k_mpc == 0 and self.k != 0 and self.gait.isNewPhase()):
             self.footstepPlanner.updateNewContact()
 
         """// Get the reference velocity in world frame (given in base frame)
@@ -264,7 +264,7 @@ class Controller:
         # Result can be retrieved with self.statePlanner.getXReference()
         xref = self.statePlanner.getXReference()
         fsteps = self.footstepPlanner.getFootsteps()
-        gait = self.gait.getCurrentGait()
+        cgait = self.gait.getCurrentGait()
 
         t_planner = time.time()
 
@@ -278,7 +278,7 @@ class Controller:
         # Process MPC once every k_mpc iterations of TSID
         if (self.k % self.k_mpc) == 0:
             try:
-                self.mpc_wrapper.solve(self.k, xref, fsteps, gait)
+                self.mpc_wrapper.solve(self.k, xref, fsteps, cgait)
             except ValueError:
                 print("MPC Problem")
 
@@ -320,7 +320,7 @@ class Controller:
 
             # Run InvKin + WBC QP
             self.myController.compute(self.q, self.b_v, self.x_f_wbc[:12],
-                                      self.x_f_wbc[12:], gait[0, 1:],
+                                      self.x_f_wbc[12:], cgait[0, :],
                                       self.footTrajectoryGenerator.getFootPosition(),
                                       self.footTrajectoryGenerator.getFootVelocity(),
                                       self.footTrajectoryGenerator.getFootAcceleration())

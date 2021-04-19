@@ -29,7 +29,7 @@ class MPC {
   Eigen::Matrix<double, 3, 4> footholds = Eigen::Matrix<double, 3, 4>::Zero();
   Eigen::Matrix<double, 1, 12> footholds_tmp = Eigen::Matrix<double, 12, 1>::Zero();
   Eigen::Matrix<double, 3, 4> lever_arms = Eigen::Matrix<double, 3, 4>::Zero();
-  Eigen::Matrix<int, 20, 5> gait = Eigen::Matrix<int, 20, 5>::Zero();
+  Eigen::Matrix<int, 20, 4> gait = Eigen::Matrix<int, 20, 4>::Zero();
   Eigen::Matrix<double, 12, 1> g = Eigen::Matrix<double, 12, 1>::Zero();
 
   Eigen::Matrix<double, 12, 12> A = Eigen::Matrix<double, 12, 12>::Identity();
