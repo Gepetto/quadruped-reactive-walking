@@ -26,6 +26,7 @@ else:
     from solopython.utils.qualisysClient import QualisysClient
 
 DT = 0.0020
+N0_gait = 100  # Same value than N0_gait in include/config.h
 
 key_pressed = False
 
@@ -145,7 +146,7 @@ def control_loop(name_interface, name_interface_clone=None):
 
     # Run a scenario and retrieve data thanks to the logger
     controller = Controller(q_init, envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
-                            pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled)
+                            pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled, N0_gait)
 
     ####
 
@@ -172,7 +173,7 @@ def control_loop(name_interface, name_interface_clone=None):
 
     if LOGGING or PLOTTING:
         loggerSensors = LoggerSensors(device, qualisys=qc, logSize=N_SIMULATION-3)
-        loggerControl = LoggerControl(dt_wbc, joystick=controller.joystick, estimator=controller.estimator,
+        loggerControl = LoggerControl(dt_wbc, N0_gait, joystick=controller.joystick, estimator=controller.estimator,
                                       loop=controller, gait=controller.gait, statePlanner=controller.statePlanner,
                                       footstepPlanner=controller.footstepPlanner,
                                       footTrajectoryGenerator=controller.footTrajectoryGenerator,

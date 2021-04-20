@@ -49,7 +49,7 @@ class dummyDevice:
 class Controller:
 
     def __init__(self, q_init, envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
-                 pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled):
+                 pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled, N0_gait):
         """Function that runs a simulation scenario based on a reference velocity profile, an environment and
         various parameters to define the gait
 
@@ -70,6 +70,7 @@ class Controller:
             predefined_vel (bool): to use either a predefined velocity profile or a gamepad
             enable_pyb_GUI (bool): to display PyBullet GUI or not
             kf_enabled (bool): complementary filter (False) or kalman filter (True)
+            N0_gait (int): number of spare lines in the gait matrix
         """
 
         ########################################################################
@@ -135,7 +136,7 @@ class Controller:
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
         self.enable_multiprocessing = False
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, np.int(T_mpc/dt_mpc),
-                                                   k_mpc, T_mpc, self.q, self.enable_multiprocessing)
+                                                   k_mpc, T_mpc, N0_gait, self.q, self.enable_multiprocessing)
 
         # ForceMonitor to display contact forces in PyBullet with red lines
         # import ForceMonitor

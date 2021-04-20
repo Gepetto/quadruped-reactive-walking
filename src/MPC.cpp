@@ -657,7 +657,7 @@ N is the number of time step in the prediction horizon.
 int MPC::construct_S() {
   int i = 0;
 
-  Eigen::Matrix<int, 20, 4> inv_gait = Eigen::Matrix<int, 20, 4>::Ones() - gait;
+  Eigen::Matrix<int, N0_gait, 4> inv_gait = Eigen::Matrix<int, N0_gait, 4>::Ones() - gait;
   while (!gait.row(i).isZero()) {
     // S_gait.block(k*12, 0, gait[i, 0]*12, 1) = (1 - (gait.block(i, 1, 1, 4)).transpose()).replicate<gait[i, 0], 1>()
     // not finished;
@@ -763,16 +763,12 @@ void MPC::save_dns_matrix(double *M, int size, std::string filename) {
 }
 
 Eigen::MatrixXd MPC::get_gait() {
-  // Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(20, 5);
-  // tmp.block(0, 0, 20, 5) = gait.block(0, 0, 20, 5);
   Eigen::MatrixXd tmp;
   tmp = gait.cast<double>();
   return tmp;
 }
 
 Eigen::MatrixXd MPC::get_Sgait() {
-  // Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(12 * n_steps, 1);
-  // tmp.col(0) = S_gait.col(0);
   Eigen::MatrixXd tmp;
   tmp = S_gait.cast<double>();
   return tmp;

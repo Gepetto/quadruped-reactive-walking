@@ -6,7 +6,7 @@ from utils_mpc import quaternionToRPY
 
 
 class LoggerControl():
-    def __init__(self, dt, joystick=None, estimator=None, loop=None, gait=None, statePlanner=None,
+    def __init__(self, dt, N0_gait, joystick=None, estimator=None, loop=None, gait=None, statePlanner=None,
                  footstepPlanner=None, footTrajectoryGenerator=None, logSize=60e3, ringBuffer=False):
         self.ringBuffer = ringBuffer
         logSize = np.int(logSize)
@@ -48,7 +48,7 @@ class LoggerControl():
         self.loop_o_v = np.zeros([logSize, 18])  # estimated velocity in world frame
 
         # Gait
-        self.planner_gait = np.zeros([logSize, 20, 4])  # Gait sequence
+        self.planner_gait = np.zeros([logSize, N0_gait, 4])  # Gait sequence
         self.planner_is_static = np.zeros([logSize])  # if the planner is in static mode or not
         self.planner_q_static = np.zeros([logSize, 19])  # position in static mode (4 stance phase)
         self.planner_RPY_static = np.zeros([logSize, 3])  # RPY orientation in static mode (4 stance phase)
