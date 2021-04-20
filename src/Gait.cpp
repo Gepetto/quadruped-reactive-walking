@@ -93,6 +93,9 @@ void Gait::create_bounding()
 
 void Gait::create_static()
 {
+    // Number of timesteps in a period of gait
+    int N = (int)std::lround(T_gait_ / dt_);
+
     desiredGait_ = MatrixN::Zero(N0_gait, 4);
 
     Eigen::Matrix<double, 1, 4> sequence;

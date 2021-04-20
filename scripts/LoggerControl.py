@@ -127,7 +127,7 @@ class LoggerControl():
         # Logging from the planner
         # self.planner_q_static[self.i] = planner.q_static[:]
         # self.planner_RPY_static[self.i] = planner.RPY_static[:, 0]
-        self.planner_xref[self.i] = statePlanner.getXReference()
+        self.planner_xref[self.i] = statePlanner.getReferenceStates()
         self.planner_fsteps[self.i] = footstepPlanner.getFootsteps()
         self.planner_gait[self.i] = gait.getCurrentGait()
         self.planner_goals[self.i] = footTrajectoryGenerator.getFootPosition()
