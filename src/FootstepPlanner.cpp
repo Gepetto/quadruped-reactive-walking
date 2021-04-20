@@ -59,7 +59,7 @@ void FootstepPlanner::compute_footsteps(VectorN const& q, Vector6 const& v, Vect
     yaws(0) = vref(5) * dt_cum(0) + RPY(2);
     for (int j = 1; j < N0_gait; j++)
     {
-        dt_cum(j) = gait.row(j).isZero() ? dt_cum(j - 1) : dt_cum(j - 1) + gait(j) * dt;
+        dt_cum(j) = gait.row(j).isZero() ? dt_cum(j - 1) : dt_cum(j - 1) + dt;
         yaws(j) = vref(5) * dt_cum(j) + RPY(2);
     }
 

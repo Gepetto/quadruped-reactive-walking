@@ -678,7 +678,7 @@ Reconstruct the gait matrix based on the fsteps matrix since only the last one i
 int MPC::construct_gait(Eigen::MatrixXd fsteps_in) {
 
   int k = 0;
-  while (!gait.row(k).isZero()) {
+  while (!fsteps_in.row(k).isZero()) {
     for (int i = 0; i < 4; i++) {
       if (fsteps_in(k, i * 3) == 0.0) {
         gait(k, i) = 0;

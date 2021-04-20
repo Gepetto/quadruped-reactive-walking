@@ -6,8 +6,8 @@
 #include "qrw/gepadd.hpp"
 #include "qrw/MPC.hpp"
 #include "other/st_to_cc.hpp"
-#include "qrw/Planner.hpp"
 #include "pinocchio/math/rpy.hpp"
+#include "qrw/Gait.hpp"
 
 #include "eiquadprog/eiquadprog-rt.hpp"
 #include "eiquadprog/eiquadprog-fast.hpp"
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
       }
     }*/
 
-  EiquadprogFast qp;
+  /*EiquadprogFast qp;
   qp.reset(16, 0, 16);
   Eigen::MatrixXd Q_qp = Eigen::MatrixXd::Zero(16,16);
   Eigen::VectorXd C_qp = Eigen::VectorXd::Zero(16);
@@ -173,8 +173,38 @@ int main(int argc, char** argv) {
 
   std::cout << "Cost for sol   : " << 0.5 * x_qp.transpose() * Q_qp * x_qp + x_qp.transpose() * C_qp << std::endl;
   std::cout << "Cost for sol-dx: " << 0.5 * (x_qp-dx).transpose() * Q_qp * (x_qp-dx) + (x_qp-dx).transpose() * C_qp << std::endl;
-  std::cout << "Cost for sol+dx: " << 0.5 * (x_qp+dx).transpose() * Q_qp * (x_qp+dx) + (x_qp+dx).transpose() * C_qp << std::endl;
+  std::cout << "Cost for sol+dx: " << 0.5 * (x_qp+dx).transpose() * Q_qp * (x_qp+dx) + (x_qp+dx).transpose() * C_qp << std::endl;*/
 
+  /*Eigen::Matrix<double, 20, 4> desiredGait_;
+  int N = 5;
+  Eigen::Matrix<double, 1, 4> sequence;
+  sequence << 0, 1, 1, 1;
+  desiredGait_.block(0, 0, N, 4) = sequence.colwise().replicate(N); 
+  sequence << 1, 0, 1, 1;
+  desiredGait_.block(N, 0, N, 4) = sequence.colwise().replicate(N); 
+  sequence << 1, 1, 0, 1;
+  desiredGait_.block(2*N, 0, N, 4) = sequence.colwise().replicate(N); 
+  sequence << 1, 1, 1, 0;
+  desiredGait_.block(3*N, 0, N, 4) = sequence.colwise().replicate(N); 
+
+  std::cout << desiredGait_ << std::endl;
+  std::cout << "##" << std::endl;
+  */
+  Gait gait = Gait();
+  gait.initialize(0.02, 0.32, 0.16);
+
+  std::cout << gait.getPastGait() << std::endl << "##" << std::endl;
+  std::cout << gait.getCurrentGait() << std::endl << "##" << std::endl;
+  std::cout << gait.getDesiredGait() << std::endl << "##" << std::endl;
+
+  for (int k = 0; k < 10; k++)
+  {
+    gait.updateGait(k, 1, VectorN::Zero(19), 0);
+    std::cout << "## " << k << " ##" << std::endl;
+    std::cout << gait.getPastGait() << std::endl << "##" << std::endl;
+    std::cout << gait.getCurrentGait() << std::endl << "##" << std::endl;
+    std::cout << gait.getDesiredGait() << std::endl << "##" << std::endl;
+  }
 
     return EXIT_SUCCESS;
   } else {

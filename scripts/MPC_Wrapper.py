@@ -75,23 +75,25 @@ class MPC_Wrapper:
 
         Args:
             k (int): Number of inv dynamics iterations since the start of the simulation
-            fstep_planner (object): FootstepPlanner object of the control loop
+            xref (12xN): Desired state vector for the whole prediction horizon
+            fsteps (12xN array): the [x, y, z]^T desired position of each foot for each time step of the horizon
+            gait (4xN array): Contact state of feet (gait matrix)
         """
 
         if self.multiprocessing:  # Run in parallel process
             self.run_MPC_asynchronous(k, xref, fsteps)
         else:  # Run in the same process than main loop
-            self.run_MPC_synchronous(k, fstep_planner)
+            self.run_MPC_synchronous(k, xref, fsteps)
 
         if k > 2:
             self.last_available_result[12:(12+self.n_steps), :] = np.roll(self.last_available_result[12:(12+self.n_steps), :], -1, axis=1)
 
         pt = 0
-        while (gait[pt, 0] != 0):
+        while (np.any(gait[pt, :])):
             pt += 1
         if k > 2 and not np.array_equal(gait[0, :], gait[pt-1, :]):
-            mass = 2.5  # Todo: grab from URDF?
-            nb_ctc = np.sum(gait[pt-1, 1:])
+            mass = 2.5  # TODO: grab from URDF?
+            nb_ctc = np.sum(gait[pt-1, :])
             F = 9.81 * mass / nb_ctc
             self.last_available_result[12:, self.n_steps-1] = np.zeros(12)
             for i in range(4):
@@ -122,12 +124,13 @@ class MPC_Wrapper:
             self.not_first_iter = True
             return self.last_available_result
 
-    def run_MPC_synchronous(self, k, fstep_planner):
+    def run_MPC_synchronous(self, k, xref, fsteps):
         """Run the MPC (synchronous version) to get the desired contact forces for the feet currently in stance phase
 
         Args:
             k (int): Number of inv dynamics iterations since the start of the simulation
-            fstep_planner (object): FootstepPlanner object of the control loop
+            xref (12xN): Desired state vector for the whole prediction horizon
+            fsteps (12xN array): the [x, y, z]^T desired position of each foot for each time step of the horizon
         """
 
         # Run the MPC to get the reference forces and the next predicted state
@@ -135,11 +138,9 @@ class MPC_Wrapper:
 
         if self.mpc_type:
             # OSQP MPC
-            # Replace NaN values by 0.0 (shared memory cannot handle np.nan)
-            fstep_planner.fsteps_mpc[np.isnan(fstep_planner.fsteps_mpc)] = 0.0
-            self.mpc.run(np.int(k), fstep_planner.xref.copy(), fstep_planner.fsteps_mpc.copy())
+            self.mpc.run(np.int(k), xref.copy(), fsteps.copy())
         else:
-            # Crocoddyl MPC
+            # Crocoddyl MPC (TODO: Adapt)
             self.mpc.solve(k, fstep_planner)
 
         # Output of the MPC

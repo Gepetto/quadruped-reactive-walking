@@ -11,6 +11,7 @@ import pinocchio as pin
 from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
 import libquadruped_reactive_walking as lqrw
 
+
 class Result:
     """Object to store the result of the control loop
     It contains what is sent to the robot (gains, desired positions and velocities,
@@ -113,8 +114,6 @@ class Controller:
         self.v = np.zeros((18, 1))
         self.b_v = np.zeros((18, 1))
         self.o_v_filt = np.zeros((18, 1))
-        #self.planner = PyPlanner(dt_mpc, dt_wbc, T_gait, T_mpc,
-        #                         k_mpc, on_solo8, self.h_ref, self.fsteps_init)
 
         self.statePlanner = lqrw.StatePlanner()
         self.statePlanner.initialize(dt_mpc, T_mpc, self.h_ref)
@@ -129,11 +128,12 @@ class Controller:
         self.footstepPlanner.initialize(dt_mpc, T_mpc, self.h_ref, shoulders.copy(), self.gait)
 
         self.footTrajectoryGenerator = lqrw.FootTrajectoryGenerator()
-        self.footTrajectoryGenerator.initialize(0.05, 0.07, self.fsteps_init.copy(), shoulders.copy(), dt_wbc, k_mpc, self.gait)
+        self.footTrajectoryGenerator.initialize(0.05, 0.07, self.fsteps_init.copy(), shoulders.copy(),
+                                                dt_wbc, k_mpc, self.gait)
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
-        self.enable_multiprocessing = True
+        self.enable_multiprocessing = False
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, np.int(T_mpc/dt_mpc),
                                                    k_mpc, T_mpc, self.q, self.enable_multiprocessing)
 
@@ -193,9 +193,8 @@ class Controller:
         self.joystick.update_v_ref(self.k, self.velID)
 
         # Process state estimator
-        self.estimator.run_filter(self.k, self.gait.getCurrentGait()[0, :],
-                                  device, self.footTrajectoryGenerator.getFootPosition(),
-                                  self.gait.getCurrentGait()[0, 0])
+        self.estimator.run_filter(self.k, self.gait.getCurrentGait(),
+                                  device, self.footTrajectoryGenerator.getFootPosition())
         t_filter = time.time()
 
         # Update state for the next iteration of the whole loop
@@ -215,7 +214,7 @@ class Controller:
                 self.yaw_estim = (utils_mpc.quaternionToRPY(self.q_estim[3:7, 0]))[2, 0]
             else:
                 self.planner.q_static[:] = pin.integrate(self.solo.model,
-                                                            self.planner.q_static, self.v_estim * self.myController.dt)
+                                                         self.planner.q_static, self.v_estim * self.myController.dt)
                 self.planner.RPY_static[:, 0:1] = utils_mpc.quaternionToRPY(self.planner.q_static[3:7, 0])
         else:
             self.yaw_estim = 0.0
@@ -283,14 +282,8 @@ class Controller:
                 print("MPC Problem")
 
         # Retrieve reference contact forces
-        if self.enable_multiprocessing or (self.k == 0):
-            # Check if the MPC has outputted a new result
-            self.x_f_mpc = self.mpc_wrapper.get_latest_result()
-        else:
-            print("TODO: Check non multiprocessing mode.")
-            self.joystick.stop = True
-            # if (self.k % self.k_mpc) == 2:  # Mimic a 4 ms delay
-            #     self.f_applied = self.mpc_wrapper.get_latest_result()
+        self.x_f_mpc = self.mpc_wrapper.get_latest_result()
+
         t_mpc = time.time()
 
         # Target state for the whole body control
@@ -340,11 +333,11 @@ class Controller:
                 print("###")
                 #print(self.q.ravel())
                 print(self.myController.tau_ff)"""
-    
+
         t_wbc = time.time()
 
         # Security check
-        self.security_check() # WARNING ENABLE AGAIN
+        self.security_check()
 
         # Update PyBullet camera
         self.pyb_camera(device)

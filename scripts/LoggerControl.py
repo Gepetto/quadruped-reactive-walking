@@ -6,7 +6,8 @@ from utils_mpc import quaternionToRPY
 
 
 class LoggerControl():
-    def __init__(self, dt, joystick=None, estimator=None, loop=None, planner=None, logSize=60e3, ringBuffer=False):
+    def __init__(self, dt, joystick=None, estimator=None, loop=None, gait=None, statePlanner=None,
+                 footstepPlanner=None, footTrajectoryGenerator=None, logSize=60e3, ringBuffer=False):
         self.ringBuffer = ringBuffer
         logSize = np.int(logSize)
         self.logSize = logSize
@@ -46,21 +47,27 @@ class LoggerControl():
         self.loop_o_q_int = np.zeros([logSize, 19])  # position in world frame (esti_q_filt + dt * loop_o_v)
         self.loop_o_v = np.zeros([logSize, 18])  # estimated velocity in world frame
 
-        # Planner
+        # Gait
+        self.planner_gait = np.zeros([logSize, 20, 4])  # Gait sequence
+        self.planner_is_static = np.zeros([logSize])  # if the planner is in static mode or not
         self.planner_q_static = np.zeros([logSize, 19])  # position in static mode (4 stance phase)
         self.planner_RPY_static = np.zeros([logSize, 3])  # RPY orientation in static mode (4 stance phase)
-        self.planner_xref = np.zeros([logSize, 12, 1+planner.n_steps])  # Reference trajectory
-        self.planner_fsteps = np.zeros([logSize, planner.gait.shape[0], 13])  # Reference footsteps position
-        self.planner_gait = np.zeros([logSize, 20, 5])  # Gait sequence
+
+        # State planner
+        self.planner_xref = np.zeros([logSize, 12, 1+statePlanner.getNSteps()])  # Reference trajectory
+
+        # Footstep planner
+        self.planner_fsteps = np.zeros([logSize, gait.getCurrentGait().shape[0], 12])  # Reference footsteps position
+        self.planner_h_ref = np.zeros([logSize])  # reference height of the planner
+
+        # Foot Trajectory Generator
         self.planner_goals = np.zeros([logSize, 3, 4])  # 3D target feet positions
         self.planner_vgoals = np.zeros([logSize, 3, 4])  # 3D target feet velocities
         self.planner_agoals = np.zeros([logSize, 3, 4])  # 3D target feet accelerations
-        self.planner_is_static = np.zeros([logSize])  # if the planner is in static mode or not
-        self.planner_h_ref = np.zeros([logSize])  # reference height of the planner
 
         # Model Predictive Control
         # output vector of the MPC (next state + reference contact force)
-        self.mpc_x_f = np.zeros([logSize, 24, planner.n_steps])
+        self.mpc_x_f = np.zeros([logSize, 24, statePlanner.getNSteps()])
 
         # Whole body control
         self.wbc_x_f = np.zeros([logSize, 24])  # input vector of the WBC (next state + reference contact force)
@@ -79,7 +86,7 @@ class LoggerControl():
         # Timestamps
         self.tstamps = np.zeros(logSize)
 
-    def sample(self, joystick, estimator, loop, planner, wbc):
+    def sample(self, joystick, estimator, loop, gait, statePlanner, footstepPlanner, footTrajectoryGenerator, wbc):
         if (self.i >= self.logSize):
             if self.ringBuffer:
                 self.i = 0
@@ -118,16 +125,16 @@ class LoggerControl():
         self.loop_o_v[self.i] = loop.v_estim[:, 0]
 
         # Logging from the planner
-        self.planner_q_static[self.i] = planner.q_static[:]
-        self.planner_RPY_static[self.i] = planner.RPY_static[:, 0]
-        self.planner_xref[self.i] = planner.xref
-        self.planner_fsteps[self.i] = planner.fsteps
-        self.planner_gait[self.i] = planner.gait
-        self.planner_goals[self.i] = planner.goals
-        self.planner_vgoals[self.i] = planner.vgoals
-        self.planner_agoals[self.i] = planner.agoals
-        self.planner_is_static[self.i] = planner.is_static
-        self.planner_h_ref[self.i] = planner.h_ref
+        # self.planner_q_static[self.i] = planner.q_static[:]
+        # self.planner_RPY_static[self.i] = planner.RPY_static[:, 0]
+        self.planner_xref[self.i] = statePlanner.getXReference()
+        self.planner_fsteps[self.i] = footstepPlanner.getFootsteps()
+        self.planner_gait[self.i] = gait.getCurrentGait()
+        self.planner_goals[self.i] = footTrajectoryGenerator.getFootPosition()
+        self.planner_vgoals[self.i] = footTrajectoryGenerator.getFootVelocity()
+        self.planner_agoals[self.i] = footTrajectoryGenerator.getFootAcceleration()
+        self.planner_is_static[self.i] = gait.getIsStatic()
+        self.planner_h_ref[self.i] = loop.h_ref
 
         # Logging from model predictive control
         self.mpc_x_f[self.i] = loop.x_f_mpc
@@ -207,7 +214,7 @@ class LoggerControl():
             plt.plot(t_range, self.wbc_feet_pos_invkin[:, i % 3, np.int(i/3)],
                      color='darkviolet', linewidth=3, linestyle="--", marker='')
             if (i % 3) == 2:
-                plt.plot(t_range, self.planner_gait[:, 0, 1+np.int(
+                plt.plot(t_range, self.planner_gait[:, 0, np.int(
                     i/3)] * np.max(self.wbc_feet_pos[:, i % 3, np.int(i/3)]), color='k', linewidth=3, marker='')
             plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+"", "error",
                         lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", "Contact state"], prop={'size': 8})

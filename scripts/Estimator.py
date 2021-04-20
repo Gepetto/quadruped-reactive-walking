@@ -456,16 +456,20 @@ class Estimator:
 
         return 0
 
-    def run_filter(self, k, feet_status, device, goals, remaining_steps=0):
+    def run_filter(self, k, gait, device, goals):
         """Run the complementary filter to get the filtered quantities
 
         Args:
             k (int): Number of inv dynamics iterations since the start of the simulation
-            feet_status (4x0 array): Current contact state of feet
+            gait (4xN array): Contact state of feet (gait matrix)
             device (object): Interface with the masterboard or the simulation
             goals (3x4 array): Target locations of feet on the ground
-            remaining_steps (int): Remaining MPC steps for the current gait phase
         """
+
+        feet_status = gait[0, :].copy()  # Current contact state of feet
+        remaining_steps = 1  # Remaining MPC steps for the current gait phase
+        while (np.array_equal(feet_status, gait[remaining_steps, :])):
+            remaining_steps += 1
 
         # Update IMU data
         self.get_data_IMU(device)

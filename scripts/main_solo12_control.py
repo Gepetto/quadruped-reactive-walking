@@ -17,7 +17,7 @@ from LoggerControl import LoggerControl
 
 SIMULATION = True
 LOGGING = False
-PLOTTING = False
+PLOTTING = True
 
 if SIMULATION:
     from PyBulletSimulator import PyBulletSimulator
@@ -174,7 +174,10 @@ def control_loop(name_interface, name_interface_clone=None):
     if LOGGING or PLOTTING:
         loggerSensors = LoggerSensors(device, qualisys=qc, logSize=N_SIMULATION-3)
         loggerControl = LoggerControl(dt_wbc, joystick=controller.joystick, estimator=controller.estimator,
-                                      loop=controller, planner=controller.planner, logSize=N_SIMULATION-3)
+                                      loop=controller, gait=controller.gait, statePlanner=controller.statePlanner,
+                                      footstepPlanner=controller.footstepPlanner,
+                                      footTrajectoryGenerator=controller.footTrajectoryGenerator,
+                                      logSize=N_SIMULATION-3)
 
     # Number of motors
     nb_motors = device.nb_motors
@@ -220,7 +223,9 @@ def control_loop(name_interface, name_interface_clone=None):
         if LOGGING or PLOTTING:
             loggerSensors.sample(device, qc)
             loggerControl.sample(controller.joystick, controller.estimator,
-                                 controller, controller.planner, controller.myController)
+                                 controller, controller.gait, controller.statePlanner,
+                                 controller.footstepPlanner, controller.footTrajectoryGenerator,
+                                 controller.myController)
 
         # Send command to the robot
         for i in range(1):

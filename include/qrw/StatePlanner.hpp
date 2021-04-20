@@ -55,6 +55,7 @@ public:
     void computeRefStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, double z_average);
 
     MatrixN getXReference() { return xref_; }
+    int getNSteps() { return n_steps_; }
 
 private:
     double dt_;         // Time step of the contact sequence (time step of the MPC)
