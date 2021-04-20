@@ -46,10 +46,12 @@ void StatePlanner::computeReferenceStates(VectorN const& q, Vector6 const& v, Ve
 
         referenceStates_(2, 1 + i) = h_ref_ + z_average;
 
-        referenceStates_(5, 1 + i) = vref(5) * dt_vector_(i) + RPY_(2);
+        referenceStates_(5, 1 + i) = vref(5) * dt_vector_(i);
 
         referenceStates_(6, 1 + i) = vref(0) * std::cos(referenceStates_(5, 1 + i)) - vref(1) * std::sin(referenceStates_(5, 1 + i));
         referenceStates_(7, 1 + i) = vref(0) * std::sin(referenceStates_(5, 1 + i)) + vref(1) * std::cos(referenceStates_(5, 1 + i));
+
+        referenceStates_(5, 1 + i) += RPY_(2);
 
         referenceStates_(11, 1 + i) = vref(5);
     }
