@@ -54,10 +54,12 @@ class LoggerControl():
         self.planner_RPY_static = np.zeros([logSize, 3])  # RPY orientation in static mode (4 stance phase)
 
         # State planner
-        self.planner_xref = np.zeros([logSize, 12, 1+statePlanner.getNSteps()])  # Reference trajectory
+        if statePlanner is not None:
+            self.planner_xref = np.zeros([logSize, 12, 1+statePlanner.getNSteps()])  # Reference trajectory
 
         # Footstep planner
-        self.planner_fsteps = np.zeros([logSize, gait.getCurrentGait().shape[0], 12])  # Reference footsteps position
+        if gait is not None:
+            self.planner_fsteps = np.zeros([logSize, gait.getCurrentGait().shape[0], 12])  # Reference footsteps position
         self.planner_h_ref = np.zeros([logSize])  # reference height of the planner
 
         # Foot Trajectory Generator
@@ -67,7 +69,8 @@ class LoggerControl():
 
         # Model Predictive Control
         # output vector of the MPC (next state + reference contact force)
-        self.mpc_x_f = np.zeros([logSize, 24, statePlanner.getNSteps()])
+        if statePlanner is not None:
+            self.mpc_x_f = np.zeros([logSize, 24, statePlanner.getNSteps()])
 
         # Whole body control
         self.wbc_x_f = np.zeros([logSize, 24])  # input vector of the WBC (next state + reference contact force)
@@ -367,7 +370,7 @@ class LoggerControl():
         embed()"""
 
         titles = ["X", "Y", "Z", "Roll", "Pitch", "Yaw"]
-        step = 2000
+        step = 1000
         plt.figure()
         for j in range(6):
             plt.subplot(3, 2, index6[j])
@@ -378,11 +381,11 @@ class LoggerControl():
                                self.mpc_x_f[i, j, :], "b", linewidth=2, color=c[int(i/step)])
                 h2, = plt.plot(log_t_ref+i*self.dt,
                                self.planner_xref[i, j, :], linestyle="--", marker='x', color="g", linewidth=2)
-            h3, = plt.plot(np.array([k*self.dt for k in range(self.mpc_x_f.shape[0])]),
-                           self.planner_xref[:, j, 0], linestyle=None, marker='x', color="r", linewidth=1)
+            #h3, = plt.plot(np.array([k*self.dt for k in range(self.mpc_x_f.shape[0])]),
+            #               self.planner_xref[:, j, 0], linestyle=None, marker='x', color="r", linewidth=1)
             plt.xlabel("Time [s]")
             plt.legend([h1, h2, h3], ["Output trajectory of MPC",
-                                      "Input trajectory of planner", "Actual robot trajectory"])
+                                      "Input trajectory of planner"]) #, "Actual robot trajectory"])
             plt.title("Predicted trajectory for " + titles[j])
         plt.suptitle("Analysis of trajectories in position and orientation computed by the MPC")
 
@@ -565,3 +568,216 @@ class LoggerControl():
                  mocapOrientationMat9=loggerSensors.mocapOrientationMat9,
                  mocapOrientationQuat=loggerSensors.mocapOrientationQuat,
                  )
+
+    def loadAll(self, loggerSensors, fileName=None):
+
+        if fileName is None:
+            import glob
+            fileName = np.sort(glob.glob('data_2021_*.npz'))[-1]  # Most recent file
+
+        data = np.load(fileName)
+
+        # Load LoggerControl arrays
+        self.joy_v_ref = data["joy_v_ref"]
+
+        self.logSize = self.joy_v_ref.shape[0]
+
+        self.esti_feet_status = data["esti_feet_status"]
+        self.esti_feet_goals = data["esti_feet_goals"]
+        self.esti_q_filt = data["esti_q_filt"]
+        self.esti_v_filt = data["esti_v_filt"]
+        self.esti_v_secu = data["esti_v_secu"]
+
+        self.esti_FK_lin_vel = data["esti_FK_lin_vel"]
+        self.esti_FK_xyz = data["esti_FK_xyz"]
+        self.esti_xyz_mean_feet = data["esti_xyz_mean_feet"]
+
+        self.esti_HP_x = data["esti_HP_x"]
+        self.esti_HP_dx = data["esti_HP_dx"]
+        self.esti_HP_alpha = data["esti_HP_alpha"]
+        self.esti_HP_filt_x = data["esti_HP_filt_x"]
+
+        self.esti_LP_x = data["esti_LP_x"]
+        self.esti_LP_dx = data["esti_LP_dx"]
+        self.esti_LP_alpha = data["esti_LP_alpha"]
+        self.esti_LP_filt_x = data["esti_LP_filt_x"]
+
+        self.esti_kf_X = data["esti_kf_X"]
+        self.esti_kf_Z = data["esti_kf_Z"]
+
+        self.loop_o_q_int = data["loop_o_q_int"]
+        self.loop_o_v = data["loop_o_v"]
+
+        self.planner_q_static = data["planner_q_static"]
+        self.planner_RPY_static = data["planner_RPY_static"]
+        self.planner_xref = data["planner_xref"]
+        self.planner_fsteps = data["planner_fsteps"]
+        self.planner_gait = data["planner_gait"]
+        self.planner_goals = data["planner_goals"]
+        self.planner_vgoals = data["planner_vgoals"]
+        self.planner_agoals = data["planner_agoals"]
+        self.planner_is_static = data["planner_is_static"]
+        self.planner_h_ref = data["planner_h_ref"]
+
+        self.mpc_x_f = data["mpc_x_f"]
+
+        self.wbc_x_f = data["wbc_x_f"]
+        self.wbc_P = data["wbc_P"]
+        self.wbc_D = data["wbc_D"]
+        self.wbc_q_des = data["wbc_q_des"]
+        self.wbc_v_des = data["wbc_v_des"]
+        self.wbc_tau_ff = data["wbc_tau_ff"]
+        self.wbc_f_ctc = data["wbc_f_ctc"]
+        self.wbc_feet_pos = data["wbc_feet_pos"]
+        self.wbc_feet_err = data["wbc_feet_err"]
+        self.wbc_feet_vel = data["wbc_feet_vel"]
+
+        self.tstamps = data["tstamps"]
+
+        # Load LoggerSensors arrays
+        loggerSensors.q_mes = data["q_mes"]
+        loggerSensors.v_mes = data["v_mes"]
+        loggerSensors.baseOrientation = data["baseOrientation"]
+        loggerSensors.baseAngularVelocity = data["baseAngularVelocity"]
+        loggerSensors.baseLinearAcceleration = data["baseLinearAcceleration"]
+        loggerSensors.baseAccelerometer = data["baseAccelerometer"]
+        loggerSensors.torquesFromCurrentMeasurment = data["torquesFromCurrentMeasurment"]
+        loggerSensors.mocapPosition = data["mocapPosition"]
+        loggerSensors.mocapVelocity = data["mocapVelocity"]
+        loggerSensors.mocapAngularVelocity = data["mocapAngularVelocity"]
+        loggerSensors.mocapOrientationMat9 = data["mocapOrientationMat9"]
+        loggerSensors.mocapOrientationQuat = data["mocapOrientationQuat"]
+        loggerSensors.logSize = loggerSensors.q_mes.shape[0]
+
+    def slider_predicted_trajectory(self):
+
+        from matplotlib import pyplot as plt
+        from matplotlib.widgets import Slider, Button
+
+        # The parametrized function to be plotted
+        def f(t, time):
+            return np.sin(2 * np.pi * t) + time
+
+        index6 = [1, 3, 5, 2, 4, 6]
+        log_t_pred = np.array([(k+1)*self.dt*10 for k in range(self.mpc_x_f.shape[2])])
+        log_t_ref = np.array([k*self.dt*10 for k in range(self.planner_xref.shape[2])])
+        trange = np.max([np.max(log_t_pred), np.max(log_t_ref)])
+        h1s = []
+        h2s = []
+        axs = []
+        h1s_vel = []
+        h2s_vel = []
+        axs_vel = []
+
+        # Define initial parameters
+        init_time = 0.0
+
+        # Create the figure and the line that we will manipulate
+        fig = plt.figure()
+        ax = plt.gca()
+        for j in range(6):
+            ax = plt.subplot(3, 2, index6[j])
+            h1, = plt.plot(log_t_pred, self.mpc_x_f[0, j, :], "b", linewidth=2)
+            h2, = plt.plot(log_t_ref, self.planner_xref[0, j, :], linestyle="--", marker='x', color="g", linewidth=2)
+            axs.append(ax)
+            h1s.append(h1)
+            h2s.append(h2)
+
+        #ax.set_xlabel('Time [s]')
+        axcolor = 'lightgoldenrodyellow'
+        #ax.margins(x=0)
+
+        # Make a horizontal slider to control the time.
+        axtime = plt.axes([0.25, 0.03, 0.65, 0.03], facecolor=axcolor)
+        time_slider = Slider(
+            ax=axtime,
+            label='Time [s]',
+            valmin=0.0,
+            valmax=self.logSize*self.dt,
+            valinit=init_time,
+        )
+
+        # Create the figure and the line that we will manipulate (for velocities)
+        fig_vel = plt.figure()
+        ax = plt.gca()
+        for j in range(6):
+            ax = plt.subplot(3, 2, index6[j])
+            h1, = plt.plot(log_t_pred, self.mpc_x_f[0, j, :], "b", linewidth=2)
+            h2, = plt.plot(log_t_ref, self.planner_xref[0, j, :], linestyle="--", marker='x', color="g", linewidth=2)
+            axs_vel.append(ax)
+            h1s_vel.append(h1)
+            h2s_vel.append(h2)
+
+        #axcolor = 'lightgoldenrodyellow'
+        #ax.margins(x=0)
+
+        # Make a horizontal slider to control the time.
+        axtime_vel = plt.axes([0.25, 0.03, 0.65, 0.03], facecolor=axcolor)
+        time_slider_vel = Slider(
+            ax=axtime_vel,
+            label='Time [s]',
+            valmin=0.0,
+            valmax=self.logSize*self.dt,
+            valinit=init_time,
+        )
+
+        # The function to be called anytime a slider's value changes
+        def update(val, recursive=False):
+            time_slider.val = np.round(val / (self.dt*10), decimals=0) * (self.dt*10)
+            rounded = int(np.round(time_slider.val / self.dt, decimals=0))
+            for j in range(6):
+                h1s[j].set_xdata(log_t_pred + time_slider.val)
+                h2s[j].set_xdata(log_t_ref + time_slider.val)
+                y1 = self.mpc_x_f[rounded, j, :] - self.planner_xref[rounded, j, 1:]
+                y2 = self.planner_xref[rounded, j, :] - self.planner_xref[rounded, j, :]
+                h1s[j].set_ydata(y1)
+                h2s[j].set_ydata(y2)
+                axs[j].set_xlim([time_slider.val - self.dt * 3, time_slider.val+trange+self.dt * 3])
+                ymin = np.min([np.min(y1), np.min(y2)])
+                ymax = np.max([np.max(y1), np.max(y2)])
+                axs[j].set_ylim([ymin - 0.05 * (ymax - ymin), ymax + 0.05 * (ymax - ymin)])
+            fig.canvas.draw_idle()
+            if not recursive:
+                update_vel(time_slider.val, True)
+
+        def update_vel(val, recursive=False):
+            time_slider_vel.val = np.round(val / (self.dt*10), decimals=0) * (self.dt*10)
+            rounded = int(np.round(time_slider_vel.val / self.dt, decimals=0))
+            for j in range(6):
+                h1s_vel[j].set_xdata(log_t_pred + time_slider.val)
+                h2s_vel[j].set_xdata(log_t_ref + time_slider.val)
+                y1 = self.mpc_x_f[rounded, j+6, :]
+                y2 = self.planner_xref[rounded, j+6, :]
+                h1s_vel[j].set_ydata(y1)
+                h2s_vel[j].set_ydata(y2)
+                axs_vel[j].set_xlim([time_slider.val - self.dt * 3, time_slider.val+trange+self.dt * 3])
+                ymin = np.min([np.min(y1), np.min(y2)])
+                ymax = np.max([np.max(y1), np.max(y2)])
+                axs_vel[j].set_ylim([ymin - 0.05 * (ymax - ymin), ymax + 0.05 * (ymax - ymin)])
+            fig_vel.canvas.draw_idle()
+            if not recursive:
+                update(time_slider_vel.val, True)
+
+        # register the update function with each slider
+        time_slider.on_changed(update)
+        time_slider_vel.on_changed(update)
+
+        plt.show()
+
+
+
+if __name__ == "__main__":
+
+    import LoggerSensors
+
+    # Create loggers
+    loggerSensors = LoggerSensors.LoggerSensors(logSize=5997)
+    logger = LoggerControl(0.002, 100, logSize=5997)
+
+    # Load data from .npz file
+    logger.loadAll(loggerSensors)
+
+    # Call all ploting functions
+    #logger.plotAll(loggerSensors)
+
+    logger.slider_predicted_trajectory()

@@ -301,8 +301,6 @@ class Controller:
             self.x_f_wbc[3:6] = self.planner.RPY_static[:, 0]
         self.x_f_wbc[6:12] = xref[6:, 1]
 
-        self.estimator.x_f_mpc = self.x_f_wbc.copy()  # For logging
-
         # Whole Body Control
         # If nothing wrong happened yet in the WBC controller
         if (not self.myController.error) and (not self.joystick.stop):

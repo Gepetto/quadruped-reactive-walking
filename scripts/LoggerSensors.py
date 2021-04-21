@@ -5,12 +5,15 @@ from time import time
 
 
 class LoggerSensors():
-    def __init__(self, device, qualisys=None, logSize=60e3, ringBuffer=False):
+    def __init__(self, device=None, qualisys=None, logSize=60e3, ringBuffer=False):
         self.ringBuffer = ringBuffer
         logSize = np.int(logSize)
         self.logSize = logSize
         self.i = 0
-        nb_motors = device.nb_motors
+        if device is not None:
+            nb_motors = device.nb_motors
+        else:
+            nb_motors = 12
 
         # Allocate the data:
         # IMU and actuators:
