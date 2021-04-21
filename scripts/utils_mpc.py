@@ -129,7 +129,7 @@ def init_robot(q_init, enable_viewer):
     return solo, fsteps_init, h_init
 
 
-def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, T_mpc, type_MPC, predefined, h_init, kf_enabled):
+def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, T_mpc, type_MPC, predefined, h_init, kf_enabled, perfectEstimator):
     """Create several objects that are used in the control loop
 
     Args:
@@ -142,6 +142,7 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, T_mpc, type_MPC, predefined
         predefined (bool): if we are using a predefined reference velocity (True) or a joystick (False)
         h_init (float): initial height of the robot base
         kf_enabled (bool): complementary filter (False) or kalman filter (True)
+        perfectEstimator (bool): if we use a perfect estimator
     """
 
     # Create Joystick object
@@ -151,7 +152,7 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, T_mpc, type_MPC, predefined
     logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc, T_mpc, type_MPC)
 
     # Create Estimator object
-    estimator = Estimator.Estimator(dt_tsid, k_max_loop, h_init, kf_enabled)
+    estimator = Estimator.Estimator(dt_tsid, k_max_loop, h_init, kf_enabled, perfectEstimator)
 
     return joystick, logger, estimator
 

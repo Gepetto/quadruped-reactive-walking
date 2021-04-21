@@ -49,7 +49,8 @@ class dummyDevice:
 class Controller:
 
     def __init__(self, q_init, envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
-                 pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled, N0_gait):
+                 pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled, N0_gait,
+                 isSimulation):
         """Function that runs a simulation scenario based on a reference velocity profile, an environment and
         various parameters to define the gait
 
@@ -71,6 +72,7 @@ class Controller:
             enable_pyb_GUI (bool): to display PyBullet GUI or not
             kf_enabled (bool): complementary filter (False) or kalman filter (True)
             N0_gait (int): number of spare lines in the gait matrix
+            isSimulation (bool): if we are in simulation mode
         """
 
         ########################################################################
@@ -98,12 +100,18 @@ class Controller:
         '''if self.enable_gepetto_viewer:
             self.view = viewerClient()'''
 
+        # Enable/Disable perfect estimator
+        perfectEstimator = False
+        if not isSimulation:
+            perfectEstimator = False  # Cannot use perfect estimator if we are running on real robot
+
         # Initialisation of the solo model/data and of the Gepetto viewer
         self.solo, self.fsteps_init, self.h_init = utils_mpc.init_robot(q_init, self.enable_gepetto_viewer)
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
         self.joystick, self.logger, self.estimator = utils_mpc.init_objects(
-            dt_wbc, dt_mpc, N_SIMULATION, k_mpc, T_gait, type_MPC, predefined_vel, self.h_init, kf_enabled)
+            dt_wbc, dt_mpc, N_SIMULATION, k_mpc, T_gait, type_MPC, predefined_vel, self.h_init, kf_enabled,
+            perfectEstimator)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True
@@ -179,6 +187,8 @@ class Controller:
         dDevice.baseLinearAcceleration = np.zeros(3)
         dDevice.baseAngularVelocity = np.zeros(3)
         dDevice.baseOrientation = np.array([0.0, 0.0, 0.0, 1.0])
+        dDevice.dummyPos = np.array([0.0, 0.0, q_init[2]])
+        dDevice.b_baseVel = np.zeros(3)
         self.compute(dDevice)
 
     def compute(self, device):
