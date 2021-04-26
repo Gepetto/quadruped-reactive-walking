@@ -1,9 +1,9 @@
 #include "qrw/Gait.hpp"
 
 Gait::Gait()
-    : pastGait_(MatrixN::Zero(N0_gait, 4))
-    , currentGait_(MatrixN::Zero(N0_gait, 4))
-    , desiredGait_(MatrixN::Zero(N0_gait, 4))
+    : pastGait_()
+    , currentGait_()
+    , desiredGait_()
     , dt_(0.0)
     , T_gait_(0.0)
     , T_mpc_(0.0)
@@ -16,15 +16,19 @@ Gait::Gait()
 }
 
 
-void Gait::initialize(double dt_in, double T_gait_in, double T_mpc_in)
+void Gait::initialize(double dt_in, double T_gait_in, double T_mpc_in, int N_gait)
 {
     dt_ = dt_in;
     T_gait_ = T_gait_in;
     T_mpc_ = T_mpc_in;
     n_steps_ = (int)std::lround(T_mpc_in / dt_in);
 
-    if((n_steps_ > N0_gait) || ((int)std::lround(T_gait_in / dt_in) > N0_gait))
-        throw std::invalid_argument("Sizes of matrices are too small for considered durations. Increase N0_gait in config file.");
+    pastGait_ = MatrixN::Zero(N_gait, 4);
+    currentGait_ = MatrixN::Zero(N_gait, 4);
+    desiredGait_ = MatrixN::Zero(N_gait, 4);
+
+    if((n_steps_ > N_gait) || ((int)std::lround(T_gait_in / dt_in) > N_gait))
+        throw std::invalid_argument("Sizes of matrices are too small for considered durations. Increase N_gait in config file.");
 
     create_trot();
     create_gait_f();
@@ -36,7 +40,7 @@ void Gait::create_walk()
     // Number of timesteps in 1/4th period of gait
     int N = (int)std::lround(0.25 * T_gait_ / dt_);
 
-    desiredGait_ = MatrixN::Zero(N0_gait, 4);
+    desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
     Eigen::Matrix<double, 1, 4> sequence;
     sequence << 0.0, 1.0, 1.0, 1.0;
@@ -54,7 +58,7 @@ void Gait::create_trot()
     // Number of timesteps in a half period of gait
     int N = (int)std::lround(0.5 * T_gait_ / dt_);
 
-    desiredGait_ = MatrixN::Zero(N0_gait, 4);
+    desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
     Eigen::Matrix<double, 1, 4> sequence;
     sequence << 1.0, 0.0, 0.0, 1.0;
@@ -68,7 +72,7 @@ void Gait::create_pacing()
     // Number of timesteps in a half period of gait
     int N = (int)std::lround(0.5 * T_gait_ / dt_);
 
-    desiredGait_ = MatrixN::Zero(N0_gait, 4);
+    desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
     Eigen::Matrix<double, 1, 4> sequence;
     sequence << 1.0, 0.0, 1.0, 0.0;
@@ -82,7 +86,7 @@ void Gait::create_bounding()
     // Number of timesteps in a half period of gait
     int N = (int)std::lround(0.5 * T_gait_ / dt_);
 
-    desiredGait_ = MatrixN::Zero(N0_gait, 4);
+    desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
     Eigen::Matrix<double, 1, 4> sequence;
     sequence << 1.0, 1.0, 0.0, 0.0;
@@ -96,7 +100,7 @@ void Gait::create_static()
     // Number of timesteps in a period of gait
     int N = (int)std::lround(T_gait_ / dt_);
 
-    desiredGait_ = MatrixN::Zero(N0_gait, 4);
+    desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
     Eigen::Matrix<double, 1, 4> sequence;
     sequence << 1.0, 1.0, 1.0, 1.0;

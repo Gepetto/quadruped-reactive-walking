@@ -15,7 +15,6 @@
 #include "osqp_folder/include/util.h"
 #include "osqp_folder/include/osqp_configure.h"
 #include "other/st_to_cc.hpp"
-#include "qrw/config.h"
 
 typedef Eigen::MatrixXd matXd;
 
@@ -30,7 +29,8 @@ class MPC {
   Eigen::Matrix<double, 3, 4> footholds = Eigen::Matrix<double, 3, 4>::Zero();
   Eigen::Matrix<double, 1, 12> footholds_tmp = Eigen::Matrix<double, 12, 1>::Zero();
   Eigen::Matrix<double, 3, 4> lever_arms = Eigen::Matrix<double, 3, 4>::Zero();
-  Eigen::Matrix<int, N0_gait, 4> gait = Eigen::Matrix<int, N0_gait, 4>::Zero();
+  Eigen::Matrix<int, Eigen::Dynamic, 4> gait;
+  Eigen::Matrix<int, Eigen::Dynamic, 4> inv_gait;
   Eigen::Matrix<double, 12, 1> g = Eigen::Matrix<double, 12, 1>::Zero();
 
   Eigen::Matrix<double, 12, 12> A = Eigen::Matrix<double, 12, 12>::Identity();
@@ -90,7 +90,7 @@ class MPC {
 
  public:
   MPC();
-  MPC(double dt_in, int n_steps_in, double T_gait_in);
+  MPC(double dt_in, int n_steps_in, double T_gait_in, int N_gait);
 
   int create_matrices();
   int create_ML();

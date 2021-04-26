@@ -32,7 +32,7 @@ class MPC_Wrapper:
         multiprocessing (bool): Enable/Disable running the MPC with another process
     """
 
-    def __init__(self, mpc_type, dt, n_steps, k_mpc, T_gait, N0_gait, q_init, multiprocessing=False):
+    def __init__(self, mpc_type, dt, n_steps, k_mpc, T_gait, N_gait, q_init, multiprocessing=False):
 
         self.f_applied = np.zeros((12,))
         self.not_first_iter = False
@@ -43,7 +43,7 @@ class MPC_Wrapper:
         self.dt = dt
         self.n_steps = n_steps
         self.T_gait = T_gait
-        self.N0_gait = N0_gait
+        self.N_gait = N_gait
         self.gait_memory = np.zeros(4)
 
         self.mpc_type = mpc_type
@@ -51,14 +51,14 @@ class MPC_Wrapper:
         if multiprocessing:  # Setup variables in the shared memory
             self.newData = Value('b', False)
             self.newResult = Value('b', False)
-            self.dataIn = Array('d', [0.0] * (1 + (np.int(self.n_steps)+1) * 12 + 12*self.N0_gait))
+            self.dataIn = Array('d', [0.0] * (1 + (np.int(self.n_steps)+1) * 12 + 12*self.N_gait))
             self.dataOut = Array('d', [0] * 24 * (np.int(self.n_steps)))
-            self.fsteps_future = np.zeros((self.N0_gait, 12))
+            self.fsteps_future = np.zeros((self.N_gait, 12))
             self.running = Value('b', True)
         else:
             # Create the new version of the MPC solver object
             if mpc_type:
-                self.mpc = MPC.MPC(dt, n_steps, T_gait)
+                self.mpc = MPC.MPC(dt, n_steps, T_gait, self.N_gait)
             else:
                 self.mpc = MPC_crocoddyl.MPC_crocoddyl(
                     dt=dt, T_mpc=T_gait, mu=0.9, inner=False, linearModel=True, n_period=int((dt * n_steps)/T_gait))
@@ -193,7 +193,7 @@ class MPC_Wrapper:
                 # Reshaping 1-dimensional data
                 k = int(kf[0])
                 xref = np.reshape(xref_1dim, (12, self.n_steps+1))
-                fsteps = np.reshape(fsteps_1dim, (self.N0_gait, 12))
+                fsteps = np.reshape(fsteps_1dim, (self.N_gait, 12))
 
                 # Create the MPC object of the parallel process during the first iteration
                 if k == 0:
@@ -251,7 +251,7 @@ class MPC_Wrapper:
         """
 
         # Sizes of the different variables that are stored in the C-type array
-        sizes = [0, 1, (np.int(self.n_steps)+1) * 12, 12*self.N0_gait]
+        sizes = [0, 1, (np.int(self.n_steps)+1) * 12, 12*self.N_gait]
         csizes = np.cumsum(sizes)
 
         # Return decompressed variables in a list
@@ -276,7 +276,7 @@ class MPC_Wrapper:
         footstep when a new phase is created.
 
         Args:
-            fsteps (13xN0_gait array): the remaining number of steps of each phase of the gait (first column)
+            fsteps (13xN_gait array): the remaining number of steps of each phase of the gait (first column)
             and the [x, y, z]^T desired position of each foot for each phase of the gait (12 other columns)
         """
 

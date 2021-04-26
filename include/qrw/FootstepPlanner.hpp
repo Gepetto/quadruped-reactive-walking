@@ -14,7 +14,7 @@
 #include "pinocchio/math/rpy.hpp"
 #include "qrw/Gait.hpp"
 #include "qrw/Types.h"
-
+#include <vector>
 
 // Order of feet/legs: FL, FR, HL, HR
 
@@ -43,7 +43,8 @@ public:
                     double T_mpc_in,
                     double h_ref_in,
                     MatrixN const& shouldersIn,
-                    Gait& gaitIn);
+                    Gait& gaitIn,
+                    int N_gait);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -108,7 +109,7 @@ private:
     ////////////////////////////////////////////////////////////////////////////////////////////////
     void updateTargetFootsteps();
 
-    MatrixN vectorToMatrix(std::array<Matrix34, N0_gait> const& array);
+    MatrixN vectorToMatrix(std::vector<Matrix34> const& array);
 
     Gait* gait_;  // Gait object to hold the gait informations
 
@@ -130,7 +131,7 @@ private:
     Matrix34 currentFootstep_;  // Feet matrix in world frame
     Matrix34 nextFootstep_;     // Feet matrix in world frame
     Matrix34 targetFootstep_;
-    std::array<Matrix34, N0_gait> footsteps_;
+    std::vector<Matrix34> footsteps_;
 
     Matrix3 Rz;  // Predefined matrices for compute_footstep function
     VectorN dt_cum;

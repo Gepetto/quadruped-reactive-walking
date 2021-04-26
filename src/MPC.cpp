@@ -1,6 +1,6 @@
 #include "qrw/MPC.hpp"
 
-MPC::MPC(double dt_in, int n_steps_in, double T_gait_in) {
+MPC::MPC(double dt_in, int n_steps_in, double T_gait_in, int N_gait) {
   dt = dt_in;
   n_steps = n_steps_in;
   T_gait = T_gait_in;
@@ -10,6 +10,8 @@ MPC::MPC(double dt_in, int n_steps_in, double T_gait_in) {
   S_gait = Eigen::Matrix<int, Eigen::Dynamic, 1>::Zero(12 * n_steps, 1);
   warmxf = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12 * n_steps * 2, 1);
   x_f_applied = Eigen::MatrixXd::Zero(24, n_steps);
+
+  gait = Eigen::Matrix<int, Eigen::Dynamic, 4>::Zero(N_gait, 4);
 
   // Predefined variables
   mass = 2.50000279f;
@@ -28,7 +30,7 @@ MPC::MPC(double dt_in, int n_steps_in, double T_gait_in) {
   osqp_set_default_settings(settings);
 }
 
-MPC::MPC() { MPC(0.02, 32, 0.64); }
+MPC::MPC() { }
 
 /*
 Create the constraint matrices of the MPC (M.X = N and L.X <= K)
@@ -657,7 +659,7 @@ N is the number of time step in the prediction horizon.
 int MPC::construct_S() {
   int i = 0;
 
-  Eigen::Matrix<int, N0_gait, 4> inv_gait = Eigen::Matrix<int, N0_gait, 4>::Ones() - gait;
+  inv_gait = Eigen::Matrix<int, Eigen::Dynamic, 4>::Ones(gait.rows(), 4) - gait;
   while (!gait.row(i).isZero()) {
     // S_gait.block(k*12, 0, gait[i, 0]*12, 1) = (1 - (gait.block(i, 1, 1, 4)).transpose()).replicate<gait[i, 0], 1>()
     // not finished;

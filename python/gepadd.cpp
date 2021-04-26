@@ -21,7 +21,7 @@ struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC>>
     void visit(PyClassMPC& cl) const
     {
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
-            .def(bp::init<double, int, double>(bp::args("dt_in", "n_steps_in", "T_gait_in"),
+            .def(bp::init<double, int, double, int>(bp::args("dt_in", "n_steps_in", "T_gait_in", "N_gait"),
                                                "Constructor with parameters."))
 
             // Run MPC from Python
@@ -88,7 +88,7 @@ struct GaitPythonVisitor : public bp::def_visitor<GaitPythonVisitor<Gait>>
             .def("isNewPhase", &Gait::isNewPhase, "Get newPhase_ boolean.\n")
             .def("getIsStatic", &Gait::getIsStatic, "Get is_static_ boolean.\n")
 
-            .def("initialize", &Gait::initialize, bp::args("dt_in", "T_gait_in", "T_mpc_in"),
+            .def("initialize", &Gait::initialize, bp::args("dt_in", "T_gait_in", "T_mpc_in", "N_gait"),
                  "Initialize Gait from Python.\n")
 
             // Update current gait matrix from Python
@@ -122,7 +122,7 @@ struct FootstepPlannerPythonVisitor : public bp::def_visitor<FootstepPlannerPyth
 
             .def("getFootsteps", &FootstepPlanner::getFootsteps, "Get footsteps_ matrix.\n")
 
-            .def("initialize", &FootstepPlanner::initialize, bp::args("dt_in", "T_mpc_in", "h_ref_in", "shouldersIn", "gaitIn"),
+            .def("initialize", &FootstepPlanner::initialize, bp::args("dt_in", "T_mpc_in", "h_ref_in", "shouldersIn", "gaitIn", "N_gait"),
                  "Initialize FootstepPlanner from Python.\n")
 
             // Compute target location of footsteps from Python

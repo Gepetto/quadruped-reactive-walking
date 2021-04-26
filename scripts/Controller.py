@@ -49,7 +49,7 @@ class dummyDevice:
 class Controller:
 
     def __init__(self, q_init, envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
-                 use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled, N0_gait, isSimulation):
+                 use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled, N_gait, isSimulation):
         """Function that runs a simulation scenario based on a reference velocity profile, an environment and
         various parameters to define the gait
 
@@ -68,7 +68,7 @@ class Controller:
             predefined_vel (bool): to use either a predefined velocity profile or a gamepad
             enable_pyb_GUI (bool): to display PyBullet GUI or not
             kf_enabled (bool): complementary filter (False) or kalman filter (True)
-            N0_gait (int): number of spare lines in the gait matrix
+            N_gait (int): number of spare lines in the gait matrix
             isSimulation (bool): if we are in simulation mode
         """
 
@@ -125,7 +125,7 @@ class Controller:
         self.statePlanner.initialize(dt_mpc, T_mpc, self.h_ref)
 
         self.gait = lqrw.Gait()
-        self.gait.initialize(dt_mpc, T_gait, T_mpc)
+        self.gait.initialize(dt_mpc, T_gait, T_mpc, N_gait)
 
         """from IPython import embed
         embed()"""
@@ -134,7 +134,7 @@ class Controller:
         shoulders[0, :] = [0.1946, 0.1946, -0.1946, -0.1946]
         shoulders[1, :] = [0.14695, -0.14695, 0.14695, -0.14695]
         self.footstepPlanner = lqrw.FootstepPlanner()
-        self.footstepPlanner.initialize(dt_mpc, T_mpc, self.h_ref, shoulders.copy(), self.gait)
+        self.footstepPlanner.initialize(dt_mpc, T_mpc, self.h_ref, shoulders.copy(), self.gait, N_gait)
 
         self.footTrajectoryGenerator = lqrw.FootTrajectoryGenerator()
         self.footTrajectoryGenerator.initialize(0.05, 0.07, self.fsteps_init.copy(), shoulders.copy(),
@@ -144,7 +144,7 @@ class Controller:
         # First argument to True to have PA's MPC, to False to have Thomas's MPC
         self.enable_multiprocessing = False
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, np.int(T_mpc/dt_mpc),
-                                                   k_mpc, T_mpc, N0_gait, self.q, self.enable_multiprocessing)
+                                                   k_mpc, T_mpc, N_gait, self.q, self.enable_multiprocessing)
 
         # ForceMonitor to display contact forces in PyBullet with red lines
         # import ForceMonitor
