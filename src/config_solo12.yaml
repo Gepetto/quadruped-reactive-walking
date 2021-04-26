@@ -1,0 +1,19 @@
+robot:
+    interface: enp2s0
+    SIMULATION: true  # Enable/disable PyBullet simulation or running on real robot
+    LOGGING: false  # Enable/disable logging during the experiment
+    PLOTTING: true  # Enable/disable automatic plotting at the end of the experiment
+    dt_wbc: 0.002  # Time step of the whole body control
+    N_gait: 100  # Number of rows in the gait matrix. Arbitrary value that should be set high enough
+                 # so that there is always at least one empty line at the end of the gait matrix
+    envID: 0  # Identifier of the environment to choose in which one the simulation will happen
+    velID: 2  # Identifier of the reference velocity profile to choose which one will be sent to the robot
+    dt_mpc: 0.02  # Time step of the model predictive control
+    T_gait: 0.32  # Duration of one gait period
+    T_mpc: 0.32   # Duration of the prediction horizon
+    N_SIMULATION: 3000  # Number of simulated wbc time steps
+    type_MPC: true  # Which MPC solver you want to use: True to have PA's MPC, to False to have Thomas's MPC
+    use_flat_plane: true  # If True the ground is flat, otherwise it has bumps
+    predefined_vel: true  # If we are using a predefined reference velocity (True) or a joystick (False)
+    kf_enabled: false  # Use complementary filter (False) or kalman filter (True) for the estimator 
+    enable_pyb_GUI: true  # Enable/disable PyBullet GUI

@@ -679,6 +679,8 @@ class LoggerControl():
             ax = plt.subplot(3, 2, index6[j])
             h1, = plt.plot(log_t_pred, self.mpc_x_f[0, j, :], "b", linewidth=2)
             h2, = plt.plot(log_t_ref, self.planner_xref[0, j, :], linestyle="--", marker='x', color="g", linewidth=2)
+            h3, = plt.plot(np.array([k*self.dt for k in range(self.mpc_x_f.shape[0])]),
+                           self.planner_xref[:, j, 0], linestyle=None, marker='x', color="r", linewidth=1)
             axs.append(ax)
             h1s.append(h1)
             h2s.append(h2)
@@ -704,6 +706,8 @@ class LoggerControl():
             ax = plt.subplot(3, 2, index6[j])
             h1, = plt.plot(log_t_pred, self.mpc_x_f[0, j, :], "b", linewidth=2)
             h2, = plt.plot(log_t_ref, self.planner_xref[0, j, :], linestyle="--", marker='x', color="g", linewidth=2)
+            h3, = plt.plot(np.array([k*self.dt for k in range(self.mpc_x_f.shape[0])]),
+                           self.planner_xref[:, j+6, 0], linestyle=None, marker='x', color="r", linewidth=1)
             axs_vel.append(ax)
             h1s_vel.append(h1)
             h2s_vel.append(h2)

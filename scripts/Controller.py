@@ -49,8 +49,7 @@ class dummyDevice:
 class Controller:
 
     def __init__(self, q_init, envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
-                 pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled, N0_gait,
-                 isSimulation):
+                 use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled, N0_gait, isSimulation):
         """Function that runs a simulation scenario based on a reference velocity profile, an environment and
         various parameters to define the gait
 
@@ -65,8 +64,6 @@ class Controller:
             T_mpc (float): duration of mpc prediction horizon
             N_SIMULATION (int): number of iterations of inverse dynamics during the simulation
             type_mpc (bool): True to have PA's MPC, False to have Thomas's MPC
-            pyb_feedback (bool): whether PyBullet feedback is enabled or not
-            on_solo8 (bool): whether we are working on solo8 or not
             use_flat_plane (bool): to use either a flat ground or a rough ground
             predefined_vel (bool): to use either a predefined velocity profile or a gamepad
             enable_pyb_GUI (bool): to display PyBullet GUI or not
@@ -130,6 +127,9 @@ class Controller:
         self.gait = lqrw.Gait()
         self.gait.initialize(dt_mpc, T_gait, T_mpc)
 
+        """from IPython import embed
+        embed()"""
+
         shoulders = np.zeros((3, 4))
         shoulders[0, :] = [0.1946, 0.1946, -0.1946, -0.1946]
         shoulders[1, :] = [0.14695, -0.14695, 0.14695, -0.14695]
@@ -163,8 +163,6 @@ class Controller:
         self.T_mpc = T_mpc
         self.N_SIMULATION = N_SIMULATION
         self.type_MPC = type_MPC
-        self.pyb_feedback = pyb_feedback
-        self.on_solo8 = on_solo8
         self.use_flat_plane = use_flat_plane
         self.predefined_vel = predefined_vel
         self.enable_pyb_GUI = enable_pyb_GUI

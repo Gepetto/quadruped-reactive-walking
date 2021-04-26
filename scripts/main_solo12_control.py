@@ -12,21 +12,17 @@ import numpy as np
 import argparse
 from LoggerSensors import LoggerSensors
 from LoggerControl import LoggerControl
+import libquadruped_reactive_walking as lqrw
 
+params = lqrw.Params()  # Object that holds all controller parameters
 
-SIMULATION = True
-LOGGING = False
-PLOTTING = True
-
-if SIMULATION:
+if params.SIMULATION:
     from PyBulletSimulator import PyBulletSimulator
 else:
     # from pynput import keyboard
     from solopython.solo12 import Solo12
     from solopython.utils.qualisysClient import QualisysClient
 
-DT = 0.0020
-N0_gait = 100  # Same value than N0_gait in include/config.h
 
 key_pressed = False
 
@@ -72,8 +68,8 @@ def clone_movements(name_interface_clone, q_init, cloneP, cloneD, cloneQdes, clo
 
     print("-- Launching clone interface --")
 
-    print(name_interface_clone, DT)
-    clone = Solo12(name_interface_clone, dt=DT)
+    print(name_interface_clone, params.dt_wbc)
+    clone = Solo12(name_interface_clone, dt=params.dt_wbc)
     clone.Init(calibrateEncoders=True, q_init=q_init)
 
     while cloneRunning.value and not clone.hardware.IsTimeout():
@@ -102,60 +98,33 @@ def control_loop(name_interface, name_interface_clone=None):
         name_interface_clone (string): name of the interface that will mimic the movements of the first
     """
 
-    ################################
-    # PARAMETERS OF THE CONTROLLER #
-    ################################
-
-    envID = 0  # Identifier of the environment to choose in which one the simulation will happen
-    velID = 2  # Identifier of the reference velocity profile to choose which one will be sent to the robot
-
-    dt_wbc = DT  # Time step of the whole body control
-    dt_mpc = 0.02  # Time step of the model predictive control
-    k_mpc = int(dt_mpc / dt_wbc)
-    t = 0.0  # Time
-    T_gait = 0.32  # Duration of one gait period
-    T_mpc = 0.32   # Duration of the prediction horizon
-    N_SIMULATION = 12000  # number of simulated wbc time steps
-
-    # Which MPC solver you want to use
-    # True to have PA's MPC, to False to have Thomas's MPC
-    type_MPC = True
-
-    # Whether PyBullet feedback is enabled or not
-    pyb_feedback = True
-
-    # Whether we are working with solo8 or not
-    on_solo8 = False
-
-    # If True the ground is flat, otherwise it has bumps
-    use_flat_plane = True
-
-    # If we are using a predefined reference velocity (True) or a joystick (False)
-    predefined_vel = True
-
-    # Use complementary filter (False) or kalman filter (True) for the estimator
-    kf_enabled = False
+    # Check .yaml file for parameters of the controller
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = True
-    if not SIMULATION:
+    enable_pyb_GUI = params.enable_pyb_GUI
+    if not params.SIMULATION:
         enable_pyb_GUI = False
+
+    # Time variable to keep track of time
+    t = 0.0
 
     # Default position after calibration
     q_init = np.array([0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, +1.4, -0.0, -0.7, +1.4])
 
     # Run a scenario and retrieve data thanks to the logger
-    controller = Controller(q_init, envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
-                            pyb_feedback, on_solo8, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled,
-                            N0_gait, SIMULATION)
+    controller = Controller(q_init, params.envID, params.velID, params.dt_wbc, params.dt_mpc,
+                            int(params.dt_mpc / params.dt_wbc), t, params.T_gait,
+                            params.T_mpc, params.N_SIMULATION, params.type_MPC, params.use_flat_plane,
+                            params.predefined_vel, enable_pyb_GUI, params.kf_enabled, params.N_gait,
+                            params.SIMULATION)
 
     ####
 
-    if SIMULATION:
+    if params.SIMULATION:
         device = PyBulletSimulator()
         qc = None
     else:
-        device = Solo12(name_interface, dt=DT)
+        device = Solo12(name_interface, dt=params.dt_wbc)
         qc = QualisysClient(ip="140.93.16.160", body_id=0)
 
     if name_interface_clone is not None:
@@ -172,21 +141,22 @@ def control_loop(name_interface, name_interface_clone=None):
         clone.start()
         print(cloneResult.value)
 
-    if LOGGING or PLOTTING:
-        loggerSensors = LoggerSensors(device, qualisys=qc, logSize=N_SIMULATION-3)
-        loggerControl = LoggerControl(dt_wbc, N0_gait, joystick=controller.joystick, estimator=controller.estimator,
-                                      loop=controller, gait=controller.gait, statePlanner=controller.statePlanner,
+    if params.LOGGING or params.PLOTTING:
+        loggerSensors = LoggerSensors(device, qualisys=qc, logSize=params.N_SIMULATION-3)
+        loggerControl = LoggerControl(params.dt_wbc, params.N_gait, joystick=controller.joystick,
+                                      estimator=controller.estimator, loop=controller,
+                                      gait=controller.gait, statePlanner=controller.statePlanner,
                                       footstepPlanner=controller.footstepPlanner,
                                       footTrajectoryGenerator=controller.footTrajectoryGenerator,
-                                      logSize=N_SIMULATION-3)
+                                      logSize=params.N_SIMULATION-3)
 
     # Number of motors
     nb_motors = device.nb_motors
 
     # Initiate communication with the device and calibrate encoders
-    if SIMULATION:
-        device.Init(calibrateEncoders=True, q_init=q_init, envID=envID,
-                    use_flat_plane=use_flat_plane, enable_pyb_GUI=enable_pyb_GUI, dt=dt_wbc)
+    if params.SIMULATION:
+        device.Init(calibrateEncoders=True, q_init=q_init, envID=params.envID,
+                    use_flat_plane=params.use_flat_plane, enable_pyb_GUI=enable_pyb_GUI, dt=params.dt_wbc)
     else:
         device.Init(calibrateEncoders=True, q_init=q_init)
 
@@ -195,7 +165,7 @@ def control_loop(name_interface, name_interface_clone=None):
 
     # CONTROL LOOP ***************************************************
     t = 0.0
-    t_max = (N_SIMULATION-2) * dt_wbc
+    t_max = (params.N_SIMULATION-2) * params.dt_wbc
 
     while ((not device.hardware.IsTimeout()) and (t < t_max) and (not controller.myController.error)):
 
@@ -207,7 +177,7 @@ def control_loop(name_interface, name_interface_clone=None):
 
         # Check that the initial position of actuators is not too far from the
         # desired position of actuators to avoid breaking the robot
-        if (t <= 10 * DT):
+        if (t <= 10 * params.dt_wbc):
             if np.max(np.abs(controller.result.q_des - device.q_mes)) > 0.15:
                 print("DIFFERENCE: ", controller.result.q_des - device.q_mes)
                 print("q_des: ", controller.result.q_des)
@@ -221,7 +191,7 @@ def control_loop(name_interface, name_interface_clone=None):
         device.SetDesiredJointTorque(controller.result.tau_ff.ravel())
 
         # Call logger
-        if LOGGING or PLOTTING:
+        if params.LOGGING or params.PLOTTING:
             loggerSensors.sample(device, qc)
             loggerControl.sample(controller.joystick, controller.estimator,
                                  controller, controller.gait, controller.statePlanner,
@@ -259,12 +229,12 @@ def control_loop(name_interface, name_interface_clone=None):
 
         cpt_frames += 1"""
 
-        t += DT  # Increment loop time
+        t += params.dt_wbc  # Increment loop time
 
     # ****************************************************************
 
     # Stop clone interface running in parallel process
-    if not SIMULATION and name_interface_clone is not None:
+    if not params.SIMULATION and name_interface_clone is not None:
         cloneResult.value = False
 
     # Stop MPC running in a parallel process
@@ -291,7 +261,7 @@ def control_loop(name_interface, name_interface_clone=None):
         if ((device.cpt % 1000) == 0):
             device.Print()
 
-        t += DT
+        t += params.dt_wbc
 
     # FINAL SHUTDOWN *************************************************
 
@@ -319,15 +289,15 @@ def control_loop(name_interface, name_interface_clone=None):
     plt.show(block=True)
 
     # Plot recorded data
-    if PLOTTING:
+    if params.PLOTTING:
         loggerControl.plotAll(loggerSensors)
 
     # Save the logs of the Logger object
-    if LOGGING:
+    if params.LOGGING:
         loggerControl.saveAll(loggerSensors)
         print("Log saved")
 
-    if SIMULATION and enable_pyb_GUI:
+    if params.SIMULATION and enable_pyb_GUI:
         # Disconnect the PyBullet server (also close the GUI)
         device.Stop()
 

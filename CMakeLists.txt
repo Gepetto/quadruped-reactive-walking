@@ -53,6 +53,7 @@ set(${PROJECT_NAME}_HEADERS
   include/qrw/Types.h
   include/qrw/InvKin.hpp
   include/qrw/QPWBC.hpp
+  include/qrw/Params.hpp
   include/other/st_to_cc.hpp
   )
 
@@ -66,6 +67,7 @@ set(${PROJECT_NAME}_SOURCES
   src/StatePlanner.cpp
   src/InvKin.cpp
   src/QPWBC.cpp
+  src/Params.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
@@ -99,6 +101,11 @@ find_package(osqp REQUIRED)
 # Link the OSQP shared library
 target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqp)
 
+#find_package(yaml-cpp REQUIRED)
+#target_link_libraries(${PROJECT_NAME} PRIVATE yaml-cpp::yaml-cpp)
+add_project_dependency(yaml-cpp CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PUBLIC ${YAML_CPP_LIBRARIES})
+
 if(SUFFIX_SO_VERSION)
   set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION ${PROJECT_VERSION})
 endif()
@@ -108,6 +115,7 @@ endif()
 
 target_compile_options(${PROJECT_NAME} PUBLIC -DNDEBUG -O3)
 
+target_compile_definitions(${PROJECT_NAME} PUBLIC CONFIG_SOLO12_YAML="${PROJECT_SOURCE_DIR}/src/config_solo12.yaml")
 
 # Main Executable
 add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/main.cpp)

@@ -30,6 +30,8 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
     * cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=~/install -DPYTHON_EXECUTABLE=$(which python3.6) -DPYTHON_STANDARD_LAYOUT=ON (to install in ~/install folder)
     * make install
 
+* Install YAML parser for C++: [https://github.com/jbeder/yaml-cpp]
+
 * Install package that handles the gamepad: `pip3 install --user inputs`
 
 * Install eiquadprog: `sudo apt install robotpkg-eiquadprog`
