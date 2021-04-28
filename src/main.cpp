@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
   std::cout << desiredGait_ << std::endl;
   std::cout << "##" << std::endl;
   */
-  Gait gait = Gait();
+  /*Gait gait = Gait();
   gait.initialize(0.02, 0.32, 0.16);
 
   std::cout << gait.getPastGait() << std::endl << "##" << std::endl;
@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
     std::cout << gait.getPastGait() << std::endl << "##" << std::endl;
     std::cout << gait.getCurrentGait() << std::endl << "##" << std::endl;
     std::cout << gait.getDesiredGait() << std::endl << "##" << std::endl;
-  }
+  }*/
 
     return EXIT_SUCCESS;
   } else {
