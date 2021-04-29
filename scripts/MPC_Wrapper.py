@@ -4,7 +4,7 @@ import numpy as np
 import libquadruped_reactive_walking as MPC
 from multiprocessing import Process, Value, Array
 from utils_mpc import quaternionToRPY
-# import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
+import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 
 
 class Dummy:
@@ -142,7 +142,7 @@ class MPC_Wrapper:
             self.mpc.run(np.int(k), xref.copy(), fsteps.copy())
         else:
             # Crocoddyl MPC (TODO: Adapt)
-            self.mpc.solve(k, fstep_planner)
+            self.mpc.solve(k, xref.copy(), fsteps.copy())
 
         # Output of the MPC
         self.f_applied = self.mpc.get_latest_result()

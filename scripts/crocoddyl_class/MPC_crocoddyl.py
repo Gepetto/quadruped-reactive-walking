@@ -2,7 +2,7 @@
 
 import crocoddyl
 import numpy as np
-import quadruped_walkgen
+import quadruped_walkgen as quadruped_walkgen
 
 
 class MPC_crocoddyl:
@@ -74,15 +74,15 @@ class MPC_crocoddyl:
         self.max_fz = 25
 
         # Gait matrix
-        self.gait = np.zeros((20, 5))
+        self.gait = np.zeros((20, 4))
         self.index = 0
 
         # Weight on the shoulder term :
         self.shoulderWeights = 10.
-        self.shoulder_hlim = 0.22
+        self.shoulder_hlim = 0.27
 
         # Position of the feet
-        self.fsteps = np.full((20, 13), np.nan)
+        self.fsteps = np.full((20, 12), np.nan)
 
         # List of the actionModel
         self.ListAction = []
@@ -161,43 +161,37 @@ class MPC_crocoddyl:
         self.problem.x0 = xref[:, 0]
 
         # Construction of the gait matrix representing the feet in contact with the ground
-        self.index = next((idx for idx, val in np.ndenumerate(self.fsteps[:, 0]) if val == 0.0), 0.0)[0]
-        self.gait[:, 0] = self.fsteps[:, 0]
-        self.gait[:self.index, 1:] = 1.0 - (np.isnan(self.fsteps[:self.index, 1::3])
-                                            | (self.fsteps[:self.index, 1::3] == 0.0))
-        # Replace NaN values by zeroes
-        self.fsteps[np.isnan(self.fsteps)] = 0.0
-
-        j = 0
-        k_cum = 0
+        self.index = 0
+        while (np.any(self.fsteps[self.index, :])):
+            self.index += 1
+        self.gait[:self.index, :] = 1.0 - (self.fsteps[:self.index, 0::3] == 0.0)
+        self.gait[self.index:, :] = 0.0
 
         # Iterate over all phases of the gait
         # The first column of xref correspond to the current state
-        while (self.gait[j, 0] != 0):
-            for i in range(k_cum, k_cum+np.int(self.gait[j, 0])):
-                # Update model
-                self.ListAction[i].updateModel(np.reshape(self.fsteps[j, 1:], (3, 4),
-                                                          order='F'), xref[:, i], self.gait[j, 1:])
-
-            k_cum += np.int(self.gait[j, 0])
-            j += 1
+        for j in range(self.index):
+            # Update model
+            self.ListAction[j].updateModel(np.reshape(self.fsteps[j, :], (3, 4), order='F'),
+                                           xref[:, j], self.gait[j, :])
 
         # Update model of the terminal model
         self.terminalModel.updateModel(np.reshape(
-            self.fsteps[j-1, 1:], (3, 4), order='F'), xref[:, -1], self.gait[j-1, 1:])
+            self.fsteps[self.index-1, :], (3, 4), order='F'), xref[:, -1], self.gait[self.index-1, :])
 
         return 0
 
-    def solve(self, k, fstep_planner):
+    def solve(self, k, xref, fsteps):
         """ Solve the MPC problem
 
         Args:
             k : Iteration
-            fstep_planner : Object that includes the feet predicted position and the desired state vector
+            xref : desired state vector
+            fsteps : feet predicted positions
         """
 
+
         # Update the dynamic depending on the predicted feet position
-        self.updateProblem(fstep_planner.fsteps, fstep_planner.xref)
+        self.updateProblem(fsteps, xref)
 
         self.x_init.clear()
         self.u_init.clear()
@@ -206,13 +200,21 @@ class MPC_crocoddyl:
         if self.warm_start and k != 0:
 
             self.u_init = self.ddp.us[1:]
-            self.u_init.append(np.repeat(self.gait[self.index-1, 1:], 3)*np.array(4*[0.5, 0.5, 5.]))
+            self.u_init.append(np.repeat(self.gait[self.index-1, :], 3)*np.array(4*[0.5, 0.5, 5.]))
 
             self.x_init = self.ddp.xs[2:]
-            self.x_init.insert(0, fstep_planner.xref[:, 0])
+            self.x_init.insert(0, xref[:, 0])
             self.x_init.append(self.ddp.xs[-1])
 
+        print("1")
+        from IPython import embed
+        embed()
+
         self.ddp.solve(self.x_init,  self.u_init, self.max_iteration)
+
+        print("3")
+        from IPython import embed
+        embed()
 
         return 0
 
@@ -220,7 +222,12 @@ class MPC_crocoddyl:
         """Returns the desired contact forces that have been computed by the last iteration of the MPC
         Args:
         """
-        return np.reshape(np.asarray(self.ddp.us[0]), (12,))
+
+        output = np.zeros((24, int(self.T_mpc/self.dt)))
+        for i in range(int(self.T_mpc/self.dt)):
+            output[:12, i] = np.asarray(self.ddp.xs[i+1])
+            output[12:, i] = np.asarray(self.ddp.us[i])
+        return output
 
     def get_xrobot(self):
         """Returns the state vectors predicted by the mpc throughout the time horizon, the initial column
