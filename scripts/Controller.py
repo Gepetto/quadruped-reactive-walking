@@ -106,9 +106,8 @@ class Controller:
         self.solo, self.fsteps_init, self.h_init = utils_mpc.init_robot(q_init, self.enable_gepetto_viewer)
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
-        self.joystick, self.logger, self.estimator = utils_mpc.init_objects(
-            dt_wbc, dt_mpc, N_SIMULATION, k_mpc, T_gait, type_MPC, predefined_vel, self.h_init, kf_enabled,
-            perfectEstimator)
+        self.joystick, self.estimator = utils_mpc.init_objects(
+            dt_wbc, N_SIMULATION, predefined_vel, self.h_init, kf_enabled, perfectEstimator)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True
@@ -127,8 +126,6 @@ class Controller:
         self.gait = lqrw.Gait()
         self.gait.initialize(dt_mpc, T_gait, T_mpc, N_gait)
 
-        """from IPython import embed
-        embed()"""
 
         shoulders = np.zeros((3, 4))
         shoulders[0, :] = [0.1946, 0.1946, -0.1946, -0.1946]

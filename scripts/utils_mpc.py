@@ -129,16 +129,12 @@ def init_robot(q_init, enable_viewer):
     return solo, fsteps_init, h_init
 
 
-def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, T_mpc, type_MPC, predefined, h_init, kf_enabled, perfectEstimator):
+def init_objects(dt_tsid, k_max_loop, predefined, h_init, kf_enabled, perfectEstimator):
     """Create several objects that are used in the control loop
 
     Args:
         dt_tsid (float): time step of TSID
-        dt_mpc (float): time step of the MPC
         k_max_loop (int): maximum number of iterations of the simulation
-        k_mpc (int): number of tsid iterations for one iteration of the mpc
-        T_mpc (float): duration of mpc prediction horizon
-        type_MPC (bool): which MPC you want to use (PA's or Thomas')
         predefined (bool): if we are using a predefined reference velocity (True) or a joystick (False)
         h_init (float): initial height of the robot base
         kf_enabled (bool): complementary filter (False) or kalman filter (True)
@@ -148,13 +144,10 @@ def init_objects(dt_tsid, dt_mpc, k_max_loop, k_mpc, T_mpc, type_MPC, predefined
     # Create Joystick object
     joystick = Joystick.Joystick(predefined)
 
-    # Create logger object
-    logger = Logger.Logger(k_max_loop, dt_tsid, dt_mpc, k_mpc, T_mpc, type_MPC)
-
     # Create Estimator object
     estimator = Estimator.Estimator(dt_tsid, k_max_loop, h_init, kf_enabled, perfectEstimator)
 
-    return joystick, logger, estimator
+    return joystick, estimator
 
 
 def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
