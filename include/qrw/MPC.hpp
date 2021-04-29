@@ -32,6 +32,7 @@ class MPC {
   Eigen::Matrix<int, Eigen::Dynamic, 4> gait;
   Eigen::Matrix<int, Eigen::Dynamic, 4> inv_gait;
   Eigen::Matrix<double, 12, 1> g = Eigen::Matrix<double, 12, 1>::Zero();
+  Eigen::Matrix<double, 3, 1> offset_CoM = Eigen::Matrix<double, 3, 1>::Zero();
 
   Eigen::Matrix<double, 12, 12> A = Eigen::Matrix<double, 12, 12>::Identity();
   Eigen::Matrix<double, 12, 12> B = Eigen::Matrix<double, 12, 12>::Zero();

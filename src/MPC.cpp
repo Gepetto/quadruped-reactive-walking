@@ -18,6 +18,7 @@ MPC::MPC(double dt_in, int n_steps_in, double T_gait_in, int N_gait) {
   mu = 0.9f;
   cpt_ML = 0;
   cpt_P = 0;
+  offset_CoM(2, 0) = - 0.03;  // Approximation of the vertical offset between center of base and CoM
 
   // Predefined matrices
   footholds << 0.19, 0.19, -0.19, -0.19, 0.15005, -0.15005, 0.15005, -0.15005, 0.0, 0.0, 0.0, 0.0;
@@ -433,7 +434,7 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
       // footholds = footholds_tmp.reshaped(3, 4);
       Eigen::Map<Eigen::MatrixXd> footholds_bis(footholds_tmp.data(), 3, 4);
 
-      lever_arms = footholds_bis - (xref.block(0, k, 3, 1)).replicate<1, 4>();
+      lever_arms = footholds_bis - (xref.block(0, k, 3, 1) + offset_CoM).replicate<1, 4>();
       for (int i = 0; i < 4; i++) {
         B.block(9, 3 * i, 3, 3) = dt * (I_inv * getSkew(lever_arms.col(i)));
       }
