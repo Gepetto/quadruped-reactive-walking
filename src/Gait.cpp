@@ -30,7 +30,7 @@ void Gait::initialize(double dt_in, double T_gait_in, double T_mpc_in, int N_gai
     if((n_steps_ > N_gait) || ((int)std::lround(T_gait_in / dt_in) > N_gait))
         throw std::invalid_argument("Sizes of matrices are too small for considered durations. Increase N_gait in config file.");
 
-    create_walk();
+    create_trot();
     create_gait_f();
 }
 
