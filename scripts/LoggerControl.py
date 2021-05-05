@@ -124,8 +124,8 @@ class LoggerControl():
             self.esti_kf_Z[self.i] = estimator.Z[:, 0]
 
         # Logging from the main loop
-        self.loop_o_q_int[self.i] = loop.q_estim[:, 0]
-        self.loop_o_v[self.i] = loop.v_estim[:, 0]
+        self.loop_o_q_int[self.i] = loop.q[:, 0]
+        self.loop_o_v[self.i] = loop.v[:, 0]
 
         # Logging from the planner
         # self.planner_q_static[self.i] = planner.q_static[:]
@@ -268,7 +268,7 @@ class LoggerControl():
             # plt.plot(t_range, self.log_q[i, :], "grey", linewidth=4)
             # plt.plot(t_range[:-2], self.log_x_invkin[i, :-2], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_x_ref_invkin[i, :-2], "violet", linewidth=2, linestyle="--")
-            plt.legend(["Robot state", "Robot reference state"], prop={'size': 8})
+            plt.legend(["Robot state", "Robot reference state", "Ground truth"], prop={'size': 8})
             plt.ylabel(lgd[i])
         plt.suptitle("Measured & Reference position and orientation")
 
@@ -285,14 +285,14 @@ class LoggerControl():
             plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
             if i < 3:
                 plt.plot(t_range, self.mocap_b_v[:, i], "k", linewidth=3)
-                plt.plot(t_range, self.esti_FK_lin_vel[:, i], "violet", linewidth=3, linestyle="--")
+                # plt.plot(t_range, self.esti_FK_lin_vel[:, i], "violet", linewidth=3, linestyle="--")
             else:
                 plt.plot(t_range, self.mocap_b_w[:, i-3], "k", linewidth=3)
 
             # plt.plot(t_range, self.log_dq[i, :], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_invkin[i, :-2], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_ref_invkin[i, :-2], "violet", linewidth=2, linestyle="--")
-            plt.legend(["Robot state", "Robot reference state"], prop={'size': 8})
+            plt.legend(["Robot state", "Robot reference state", "Ground truth"], prop={'size': 8})
             plt.ylabel(lgd[i])
         plt.suptitle("Measured & Reference linear and angular velocities")
 

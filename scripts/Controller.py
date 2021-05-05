@@ -131,7 +131,7 @@ class Controller:
         shoulders[0, :] = [0.1946, 0.1946, -0.1946, -0.1946]
         shoulders[1, :] = [0.14695, -0.14695, 0.14695, -0.14695]
         self.footstepPlanner = lqrw.FootstepPlanner()
-        self.footstepPlanner.initialize(dt_mpc, T_mpc, self.h_ref, shoulders.copy(), self.gait, N_gait)
+        self.footstepPlanner.initialize(dt_mpc, dt_wbc, T_mpc, self.h_ref, shoulders.copy(), self.gait, N_gait)
 
         self.footTrajectoryGenerator = lqrw.FootTrajectoryGenerator()
         self.footTrajectoryGenerator.initialize(0.05, 0.07, self.fsteps_init.copy(), shoulders.copy(),
@@ -169,6 +169,10 @@ class Controller:
         self.qmes12 = np.zeros((19, 1))
         self.vmes12 = np.zeros((18, 1))
 
+        self.v_estim = np.zeros((18, 1))
+        self.yaw_estim = 0.0
+        self.RPY_filt = np.zeros(3)
+
         self.error_flag = 0
         self.q_security = np.array([np.pi*0.4, np.pi*80/180, np.pi] * 4)
 
@@ -201,71 +205,60 @@ class Controller:
         # Process state estimator
         self.estimator.run_filter(self.k, self.gait.getCurrentGait(),
                                   device, self.footTrajectoryGenerator.getFootPosition())
+
         t_filter = time.time()
 
         # Update state for the next iteration of the whole loop
-        if self.k > 1:
-            self.q[:, 0] = self.estimator.q_filt[:, 0]
-            oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
-            self.v[0:3, 0:1] = oMb.rotation @ self.estimator.v_filt[0:3, 0:1]
-            self.v[3:6, 0:1] = oMb.rotation @ self.estimator.v_filt[3:6, 0:1]
-            self.v[6:, 0] = self.estimator.v_filt[6:, 0]
+        self.v_estim[0:3, 0] = self.joystick.v_ref[0:3, 0]  # TODO: Joystick velocity given in base frame and not
+        self.v_estim[3:6, 0] = self.joystick.v_ref[3:6, 0]  # in horizontal frame (case of non flat ground)
+        self.v_estim[6:, 0] = 0.0
+        if not self.gait.getIsStatic():
+            # Integration to get evolution of perfect x, y and yaw
+            self.q[3:7, 0] = self.estimator.EulerToQuaternion([0.0, 0.0, self.yaw_estim])  # Remove pitch and roll
+            self.q[:, 0] = pin.integrate(self.solo.model, self.q, self.v_estim * self.myController.dt)
 
-            # Update estimated position of the robot
-            self.v_estim[0:3, 0:1] = oMb.rotation.transpose() @ self.joystick.v_ref[0:3, 0:1]
-            self.v_estim[3:6, 0:1] = oMb.rotation.transpose() @ self.joystick.v_ref[3:6, 0:1]
-            if not self.gait.getIsStatic():
-                self.q_estim[:, 0] = pin.integrate(self.solo.model,
-                                                   self.q, self.v_estim * self.myController.dt)
-                self.yaw_estim = (utils_mpc.quaternionToRPY(self.q_estim[3:7, 0]))[2, 0]
-            else:
-                self.planner.q_static[:] = pin.integrate(self.solo.model,
-                                                         self.planner.q_static, self.v_estim * self.myController.dt)
-                self.planner.RPY_static[:, 0:1] = utils_mpc.quaternionToRPY(self.planner.q_static[3:7, 0])
+            # Mix perfect x and y with height measurement
+            self.q[2, 0] = self.estimator.q_filt[2, 0]
+
+            # Mix perfect yaw with pitch and roll measurements
+            self.yaw_estim = (utils_mpc.quaternionToRPY(self.q[3:7, 0]))[2, 0]
+            self.RPY_filt = utils_mpc.quaternionToRPY(self.estimator.q_filt[3:7, 0])
+            self.q[3:7, 0] = self.estimator.EulerToQuaternion([self.RPY_filt[0], self.RPY_filt[1], self.yaw_estim])
+
+            # Actuators measurements
+            self.q[7:, 0] = self.estimator.q_filt[7:, 0]
+
+            # Velocities are the one estimated by the estimator
+            self.v = self.estimator.v_filt.copy()
         else:
-            self.yaw_estim = 0.0
-            self.q_estim = self.q.copy()
-            oMb = pin.SE3(pin.Quaternion(self.q[3:7, 0:1]), self.q[0:3, 0:1])
-            self.v_estim = self.v.copy()
+            pass
+            # TODO: Adapt static mode to new version of the code
+            # self.planner.q_static[:] = pin.integrate(self.solo.model,
+            #                                             self.planner.q_static, self.v_estim * self.myController.dt)
+            # self.planner.RPY_static[:, 0:1] = utils_mpc.quaternionToRPY(self.planner.q_static[3:7, 0])
 
         # Update gait
         self.gait.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick.joystick_code)
 
-        # Update footsteps if new contact phase
-        if(self.k % self.k_mpc == 0 and self.k != 0 and self.gait.isNewPhase()):
-            self.footstepPlanner.updateNewContact()
-
-        """// Get the reference velocity in world frame (given in base frame)
-        Eigen::Quaterniond quat(q(6, 0), q(3, 0), q(4, 0), q(5, 0));  // w, x, y, z
-        RPY << pinocchio::rpy::matrixToRpy(quat.toRotationMatrix());
-        double c = std::cos(RPY(2, 0));
-        double s = std::sin(RPY(2, 0));
-        R_2.block(0, 0, 2, 2) << c, -s, s, c;
-        R_2(2, 2) = 1.0;
-        vref_in.block(0, 0, 3, 1) = R_2 * b_vref_in.block(0, 0, 3, 1);
-        vref_in.block(3, 0, 3, 1) = b_vref_in.block(3, 0, 3, 1);"""
-
-        o_v_ref = np.zeros((6, 1))
-        o_v_ref[0:3, 0:1] = oMb.rotation @ self.joystick.v_ref[0:3, 0:1]
-        o_v_ref[3:6, 0:1] = oMb.rotation @ self.joystick.v_ref[3:6, 0:1]
-
         # Compute target footstep based on current and reference velocities
-        targetFootstep = self.footstepPlanner.computeTargetFootstep(self.q[0:7, 0:1], self.v[0:6, 0:1].copy(), o_v_ref)
+        o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
+                                                                int(self.k_mpc - self.k % self.k_mpc),
+                                                                self.q[0:7, 0:1],
+                                                                self.v[0:6, 0:1].copy(),
+                                                                self.joystick.v_ref[0:6, 0])
+
+        # Transformation matrices between world and horizontal frames
+        oRh = self.footstepPlanner.getRz()
+        oTh = np.array([[self.q[0, 0]], [self.q[1, 0]], [0.0]])
 
         # Update pos, vel and acc references for feet
         # TODO: Make update take as parameters current gait, swing phase duration and remaining time
-        self.footTrajectoryGenerator.update(self.k, targetFootstep)
+        self.footTrajectoryGenerator.update(self.k, o_targetFootstep)
 
-        # Retrieve data from C++ planner
-        # TODO
-        """self.fsteps = self.planner.get_fsteps()
-        self.gait = self.planner.get_gait()
-        self.goals = self.planner.get_goals()
-        self.vgoals = self.planner.get_vgoals()
-        self.agoals = self.planner.get_agoals()"""
+        # Run state planner (outputs the reference trajectory of the base)
+        self.statePlanner.computeReferenceStates(self.q[0:7, 0:1], self.v[0:6, 0:1].copy(),
+                                                 self.joystick.v_ref[0:6, 0:1], 0.0)
 
-        # Run state planner (outputs the reference trajectory of the CoM / base)
-        self.statePlanner.computeReferenceStates(self.q[0:7, 0:1], self.v[0:6, 0:1].copy(), o_v_ref, 0.0)
         # Result can be retrieved with self.statePlanner.getReferenceStates()
         xref = self.statePlanner.getReferenceStates()
         fsteps = self.footstepPlanner.getFootsteps()
@@ -273,21 +266,14 @@ class Controller:
 
         t_planner = time.time()
 
-        """if(self.k > 11000):
-
-            from IPython import embed
-            embed()"""
-
-        # self.planner.setGait(self.planner.gait)
-
-        # Process MPC once every k_mpc iterations of TSID
+        # Solve MPC problem once every k_mpc iterations of the main loop
         if (self.k % self.k_mpc) == 0:
             try:
                 self.mpc_wrapper.solve(self.k, xref, fsteps, cgait)
             except ValueError:
                 print("MPC Problem")
 
-        # Retrieve reference contact forces
+        # Retrieve reference contact forces in horizontal frame
         self.x_f_mpc = self.mpc_wrapper.get_latest_result()
 
         t_mpc = time.time()
@@ -295,14 +281,14 @@ class Controller:
         # Target state for the whole body control
         self.x_f_wbc = (self.x_f_mpc[:, 0]).copy()
         if not self.gait.getIsStatic():
-            self.x_f_wbc[0] = self.q_estim[0, 0]
-            self.x_f_wbc[1] = self.q_estim[1, 0]
+            self.x_f_wbc[0] = self.myController.dt * xref[6, 1]
+            self.x_f_wbc[1] = self.myController.dt * xref[7, 1]
             self.x_f_wbc[2] = self.h_ref
             self.x_f_wbc[3] = 0.0
             self.x_f_wbc[4] = 0.0
-            self.x_f_wbc[5] = self.yaw_estim
+            self.x_f_wbc[5] = self.myController.dt * xref[11, 1]
         else:  # Sort of position control to avoid slow drift
-            self.x_f_wbc[0:3] = self.planner.q_static[0:3, 0]
+            self.x_f_wbc[0:3] = self.planner.q_static[0:3, 0]  # TODO: Adapt to new code
             self.x_f_wbc[3:6] = self.planner.RPY_static[:, 0]
         self.x_f_wbc[6:12] = xref[6:, 1]
 
@@ -310,17 +296,20 @@ class Controller:
         # If nothing wrong happened yet in the WBC controller
         if (not self.myController.error) and (not self.joystick.stop):
 
-            # Get velocity in base frame for pinocchio
-            self.b_v[0:3, 0:1] = oMb.rotation.transpose() @ self.v[0:3, 0:1]
-            self.b_v[3:6, 0:1] = oMb.rotation.transpose() @ self.v[3:6, 0:1]
-            self.b_v[6:, 0] = self.v[6:, 0]
+            self.q_wbc = np.zeros((19, 1))
+            self.q_wbc[2, 0] = self.q[2, 0]
+            self.q_wbc[3:7, 0] = self.estimator.EulerToQuaternion([self.RPY_filt[0], self.RPY_filt[1], 0.0])
+            self.q_wbc[7:, 0] = self.q[7:, 0]
+
+            # Get velocity in base frame for Pinocchio
+            self.b_v = self.v.copy()
 
             # Run InvKin + WBC QP
-            self.myController.compute(self.q, self.b_v, self.x_f_wbc[:12],
+            self.myController.compute(self.q_wbc, self.b_v, self.x_f_wbc[:12],
                                       self.x_f_wbc[12:], cgait[0, :],
-                                      self.footTrajectoryGenerator.getFootPosition(),
-                                      self.footTrajectoryGenerator.getFootVelocity(),
-                                      self.footTrajectoryGenerator.getFootAcceleration())
+                                      oRh.transpose() @ (self.footTrajectoryGenerator.getFootPosition() - oTh),
+                                      oRh.transpose() @ self.footTrajectoryGenerator.getFootVelocity(),
+                                      oRh.transpose() @ self.footTrajectoryGenerator.getFootAcceleration())
 
             # Quantities sent to the control board
             self.result.P = 3.0 * np.ones(12)
@@ -329,14 +318,9 @@ class Controller:
             self.result.v_des[:] = self.myController.vdes[6:, 0]
             self.result.tau_ff[:] = 0.5 * self.myController.tau_ff
 
+            # Display robot in Gepetto corba viewer
             """if self.k % 5 == 0:
-                self.solo.display(self.q)
-                #self.view.display(self.q)
-                #print("Pass")
-                np.set_printoptions(linewidth=200, precision=2)
-                print("###")
-                #print(self.q.ravel())
-                print(self.myController.tau_ff)"""
+                self.solo.display(self.q)"""
 
         t_wbc = time.time()
 

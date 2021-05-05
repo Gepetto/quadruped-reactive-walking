@@ -1,9 +1,9 @@
 
 from example_robot_data import load
-import time
 import numpy as np
 import pinocchio as pin
 import libquadruped_reactive_walking as lrw
+
 
 class Solo12InvKin:
     def __init__(self, dt):
@@ -181,7 +181,6 @@ class Solo12InvKin:
             self.pfeet_err.append(e1)
             vfeet_ref.append(vref)
 
-
         # BASE POSITION
         idx = self.BASE_ID
         pos = self.rdata.oMf[idx].translation
@@ -252,7 +251,7 @@ class Solo12InvKin:
         print(invJ)
         print("acc:")
         print(acc)
-        
+
         ddq = invJ @ acc
         self.q_cmd = pin.integrate(self.robot.model, q, invJ @ x_err)
         self.dq_cmd = invJ @ dx_ref

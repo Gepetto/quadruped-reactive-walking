@@ -46,9 +46,9 @@ public:
     ///        linear velocity and angular velocity vertically stacked. The first column contains
     ///        the current state while the remaining N columns contains the desired future states.
     ///
-    /// \param[in] q current position vector of the flying base in world frame (linear and angular stacked)
-    /// \param[in] v current velocity vector of the flying base in world frame (linear and angular stacked)
-    /// \param[in] vref desired velocity vector of the flying base in world frame (linear and angular stacked)
+    /// \param[in] q current position vector of the flying base in horizontal frame (linear and angular stacked)
+    /// \param[in] v current velocity vector of the flying base in horizontal frame (linear and angular stacked)
+    /// \param[in] vref desired velocity vector of the flying base in horizontal frame (linear and angular stacked)
     /// \param[in] z_average average height of feet currently in stance phase
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////

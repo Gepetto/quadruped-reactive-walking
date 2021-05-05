@@ -1,7 +1,6 @@
 #include "qrw/gepadd.hpp"
 #include "qrw/InvKin.hpp"
 #include "qrw/MPC.hpp"
-// #include "qrw/Planner.hpp"
 #include "qrw/StatePlanner.hpp"
 #include "qrw/Gait.hpp"
 #include "qrw/FootstepPlanner.hpp"
@@ -121,15 +120,14 @@ struct FootstepPlannerPythonVisitor : public bp::def_visitor<FootstepPlannerPyth
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
             .def("getFootsteps", &FootstepPlanner::getFootsteps, "Get footsteps_ matrix.\n")
+            .def("getRz", &FootstepPlanner::getRz, "Get rotation along z matrix.\n")
 
-            .def("initialize", &FootstepPlanner::initialize, bp::args("dt_in", "T_mpc_in", "h_ref_in", "shouldersIn", "gaitIn", "N_gait"),
+            .def("initialize", &FootstepPlanner::initialize, bp::args("dt_in", "dt_wbc_in", "T_mpc_in", "h_ref_in", "shouldersIn", "gaitIn", "N_gait"),
                  "Initialize FootstepPlanner from Python.\n")
 
             // Compute target location of footsteps from Python
-            .def("computeTargetFootstep", &FootstepPlanner::computeTargetFootstep, bp::args("q", "v", "b_vref"),
-                 "Compute target location of footsteps from Python.\n")
-
-            .def("updateNewContact", &FootstepPlanner::updateNewContact, "Refresh feet position when entering a new contact phase.\n");
+            .def("updateFootsteps", &FootstepPlanner::updateFootsteps, bp::args("refresh", "k", "q", "b_v", "b_vref"),
+                 "Update and compute location of footsteps from Python.\n");
 
     }
 

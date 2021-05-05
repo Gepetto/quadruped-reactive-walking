@@ -24,8 +24,11 @@ void StatePlanner::computeReferenceStates(VectorN const& q, Vector6 const& v, Ve
     RPY_ << pinocchio::rpy::matrixToRpy(quat.toRotationMatrix());
 
     // Update the current state
-    referenceStates_.block(0, 0, 3, 1) = q.head(3);
-    referenceStates_.block(3, 0, 3, 1) = RPY_;
+    referenceStates_(0, 0) = 0.0;  // In horizontal frame x = 0.0
+    referenceStates_(1, 0) = 0.0;  // In horizontal frame y = 0.0
+    referenceStates_(2, 0) = q(2, 0);  // We keep height
+    referenceStates_.block(3, 0, 2, 1) = RPY_.head(2);  // We keep roll and pitch
+    referenceStates_(5, 0) = 0.0;  // In horizontal frame yaw = 0.0
     referenceStates_.block(6, 0, 3, 1) = v.head(3);
     referenceStates_.block(9, 0, 3, 1) = v.tail(3);
 
@@ -51,7 +54,7 @@ void StatePlanner::computeReferenceStates(VectorN const& q, Vector6 const& v, Ve
         referenceStates_(6, 1 + i) = vref(0) * std::cos(referenceStates_(5, 1 + i)) - vref(1) * std::sin(referenceStates_(5, 1 + i));
         referenceStates_(7, 1 + i) = vref(0) * std::sin(referenceStates_(5, 1 + i)) + vref(1) * std::cos(referenceStates_(5, 1 + i));
 
-        referenceStates_(5, 1 + i) += RPY_(2);
+        // referenceStates_(5, 1 + i) += RPY_(2);
 
         referenceStates_(11, 1 + i) = vref(5);
     }
