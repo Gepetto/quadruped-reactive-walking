@@ -8,10 +8,8 @@
 #include "other/st_to_cc.hpp"
 #include "pinocchio/math/rpy.hpp"
 #include "qrw/Gait.hpp"
+#include "qrw/Params.hpp"
 
-#include "eiquadprog/eiquadprog-rt.hpp"
-#include "eiquadprog/eiquadprog-fast.hpp"
-using namespace eiquadprog::solvers;
 
 int main(int argc, char** argv) {
   if (argc == 3) {
@@ -26,47 +24,6 @@ int main(int argc, char** argv) {
                               Eigen::AngleAxisd(0.2, Eigen::Vector3d::UnitY()) *
                               Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitX());
     std::cout << pinocchio::rpy::matrixToRpy(quat.toRotationMatrix()) << std::endl;
-
-    std::cout << "-- Test Eiquadprog --" << std::endl;
-
-    /*RtEiquadprog<2, 0, 2> qp;
-
-    RtMatrixX<2, 2>::d Q;
-    Q.setZero();
-    Q(0, 0) = 1.0;
-    Q(1, 1) = 1.0;
-
-    RtVectorX<2>::d C;
-    C.setZero();
-
-    RtMatrixX<0, 2>::d Aeq;
-
-    RtVectorX<0>::d Beq(0);
-
-    RtMatrixX<2, 2>::d Aineq;
-    Aineq.setZero();
-    Aineq(0, 0) = 1.;
-    Aineq(1, 1) = 1.;
-
-    RtVectorX<2>::d Bineq;
-    Bineq(0) = -1.;
-    Bineq(1) = -1.;
-
-    RtVectorX<2>::d x;
-
-    RtVectorX<2>::d solution;
-    solution(0) = 1.;
-    solution(1) = 1.;
-
-    double val = 1.;
-
-    RtEiquadprog_status expected = RT_EIQUADPROG_OPTIMAL;
-
-    RtEiquadprog_status status = qp.solve_quadprog(Q, C, Aeq, Beq, Aineq, Bineq, x);
-
-    std::cout << "Solution: " << std::endl;
-    std::cout << x << std::endl;*/
-
 
     /*std::cout << "-- Test Planner --" << std::endl;
 
@@ -205,6 +162,15 @@ int main(int argc, char** argv) {
     std::cout << gait.getCurrentGait() << std::endl << "##" << std::endl;
     std::cout << gait.getDesiredGait() << std::endl << "##" << std::endl;
   }*/
+
+
+    //std::cout << yaml_control_interface::RobotFromYamlFile(CONFIG_SOLO12_YAML) << std::endl;
+    Params params = Params();
+    std::cout << params.interface << std::endl;
+    std::cout << params.SIMULATION << std::endl;
+    std::cout << params.LOGGING << std::endl;
+    std::cout << params.PLOTTING << std::endl;
+    std::cout << params.N_gait << std::endl;
 
     return EXIT_SUCCESS;
   } else {
