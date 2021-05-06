@@ -247,7 +247,7 @@ int QPWBC::call_solver() {
     settings->adaptive_rho = (c_int)1;
     settings->adaptive_rho_interval = (c_int)200;
     settings->adaptive_rho_tolerance = (float)5.0;
-    settings->adaptive_rho_fraction = (float)0.7;
+    // settings->adaptive_rho_fraction = (float)0.7;
     settings->verbose = true;
     osqp_setup(&workspce, data, settings);
 
@@ -401,7 +401,7 @@ void QPWBC::my_print_csc_matrix(csc *M, const char *name) {
   c_int k = 0;
 
   // Print name
-  c_print("%s :\n", name);
+  printf("%s :\n", name);
 
   for (j = 0; j < M->n; j++) {
     row_start = M->p[j];
@@ -414,7 +414,7 @@ void QPWBC::my_print_csc_matrix(csc *M, const char *name) {
         int a = (int)M->i[i];
         int b = (int)j;
         double c = M->x[k++];
-        c_print("\t%3u [%3u,%3u] = %.3g\n", k - 1, a, b, c);
+        printf("\t%3u [%3u,%3u] = %.3g\n", k - 1, a, b, c);
         
       }
     }

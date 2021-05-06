@@ -99,7 +99,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC eiquadprog::eiquadprog)
 find_package(osqp REQUIRED)
 
 # Link the OSQP shared library
-target_link_libraries(${PROJECT_NAME} PRIVATE osqp::osqp)
+target_link_libraries(${PROJECT_NAME} PUBLIC osqp::osqp)
 
 #find_package(yaml-cpp REQUIRED)
 #target_link_libraries(${PROJECT_NAME} PRIVATE yaml-cpp::yaml-cpp)

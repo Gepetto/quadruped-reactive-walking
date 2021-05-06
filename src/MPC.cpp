@@ -525,8 +525,8 @@ int MPC::call_solver(int k) {
     // settings->rho = 0.1f;
     // settings->sigma = 1e-6f;
     // settings->max_iter = 4000;
-    settings->eps_abs = (float)1e-5;
-    settings->eps_rel = (float)1e-5;
+    settings->eps_abs = (c_float)1e-5;
+    settings->eps_rel = (c_float)1e-5;
     /*settings->eps_prim_inf = 1e-4f;
     settings->eps_dual_inf = 1e-4f;
     settings->alpha = 1.6f;
@@ -535,8 +535,8 @@ int MPC::call_solver(int k) {
     settings->polish_refine_iter = 3;*/
     settings->adaptive_rho = (c_int)1;
     settings->adaptive_rho_interval = (c_int)200;
-    settings->adaptive_rho_tolerance = (float)5.0;
-    settings->adaptive_rho_fraction = (float)0.7;
+    settings->adaptive_rho_tolerance = (c_float)5.0;
+    // settings->adaptive_rho_fraction = (c_float)0.7;
     osqp_setup(&workspce, data, settings);
 
     /*self.prob.setup(P=self.P, q=self.Q, A=self.ML, l=self.NK_inf, u=self.NK.ravel(), verbose=False)
@@ -705,7 +705,7 @@ void MPC::my_print_csc_matrix(csc *M, const char *name) {
   c_int k = 0;
 
   // Print name
-  c_print("%s :\n", name);
+  printf("%s :\n", name);
 
   for (j = 0; j < M->n; j++) {
     row_start = M->p[j];
@@ -720,7 +720,7 @@ void MPC::my_print_csc_matrix(csc *M, const char *name) {
         double c = M->x[k++];
         if ((a >= 12 * (n_steps - 1)) && (a < 12 * (n_steps - 1) + 24) && (b >= 12 * (n_steps - 1)) &&
             (b < 12 * (n_steps - 1) * 2)) {
-          c_print("\t%3u [%3u,%3u] = %.3g\n", k - 1, a, b - 12 * n_steps, c);
+          printf("\t%3u [%3u,%3u] = %.3g\n", k - 1, a, b - 12 * n_steps, c);
         }
       }
     }

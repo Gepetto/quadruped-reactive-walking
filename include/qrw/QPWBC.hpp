@@ -10,11 +10,7 @@
 #include <vector>
 #include <Eigen/Core>
 #include <Eigen/Dense>
-#include "osqp_folder/include/osqp.h"
-#include "osqp_folder/include/cs.h"
-#include "osqp_folder/include/auxil.h"
-#include "osqp_folder/include/util.h"
-#include "osqp_folder/include/osqp_configure.h"
+#include "osqp.h"
 #include "other/st_to_cc.hpp"
 
 class QPWBC {
