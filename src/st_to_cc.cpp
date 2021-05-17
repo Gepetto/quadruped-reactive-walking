@@ -1,15 +1,14 @@
-# include <stdlib.h>
-# include <stdio.h>
-# include <math.h>
-# include <time.h>
-# include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <time.h>
+#include <string.h>
 
-# include "other/st_to_cc.hpp"
+#include "other/st_to_cc.hpp"
 
 /******************************************************************************/
 
-double *cc_mv ( int m, int n, int ncc, int icc[], int ccc[], double acc[], 
-  double x[] )
+double *cc_mv(int m, int n, int ncc, int icc[], int ccc[], double acc[], double x[])
 
 /******************************************************************************/
 /*
@@ -19,7 +18,7 @@ double *cc_mv ( int m, int n, int ncc, int icc[], int ccc[], double acc[],
 
   Licensing:
 
-    This code is distributed under the GNU LGPL license. 
+    This code is distributed under the GNU LGPL license.
 
   Modified:
 
@@ -59,17 +58,14 @@ double *cc_mv ( int m, int n, int ncc, int icc[], int ccc[], double acc[],
   int j;
   int k;
 
-  b = ( double * ) malloc ( m * sizeof ( double ) );
+  b = (double *)malloc(m * sizeof(double));
 
-  for ( i = 0; i < m; i++ )
-  {
+  for (i = 0; i < m; i++) {
     b[i] = 0.0;
   }
 
-  for ( j = 0; j < n; j++ )
-  {
-    for ( k = ccc[j]; k < ccc[j+1]; k++ )
-    {
+  for (j = 0; j < n; j++) {
+    for (k = ccc[j]; k < ccc[j + 1]; k++) {
       i = icc[k];
       b[i] = b[i] + acc[k] * x[j];
     }
@@ -79,8 +75,7 @@ double *cc_mv ( int m, int n, int ncc, int icc[], int ccc[], double acc[],
 }
 /******************************************************************************/
 
-void cc_print ( int m, int n, int ncc, int icc[], int ccc[], double acc[], 
-  char *title )
+void cc_print(int m, int n, int ncc, int icc[], int ccc[], double acc[], char *title)
 
 /******************************************************************************/
 /*
@@ -121,36 +116,29 @@ void cc_print ( int m, int n, int ncc, int icc[], int ccc[], double acc[],
   int j;
   int k;
 
-  printf ( "\n" );
-  printf ( "%s\n", title );
-  printf ( "     #     I     J           A\n" );
-  printf ( "  ----  ----  ----  ----------------\n" );
-  printf ( "\n" );
+  printf("\n");
+  printf("%s\n", title);
+  printf("     #     I     J           A\n");
+  printf("  ----  ----  ----  ----------------\n");
+  printf("\n");
 
-  if ( ccc[0] == 0 )
-  {
+  if (ccc[0] == 0) {
     j = 0;
-    for ( k = 0; k < ncc; k++ )
-    {
+    for (k = 0; k < ncc; k++) {
       i = icc[k];
-      while ( ccc[j+2] <= k )
-      {
+      while (ccc[j + 2] <= k) {
         j = j + 1;
       }
-      printf ( "  %4d  %4d  %4d  %16.8g\n", k, i, j, acc[k] );
+      printf("  %4d  %4d  %4d  %16.8g\n", k, i, j, acc[k]);
     }
-  }
-  else
-  {
+  } else {
     j = 1;
-    for ( k = 0; k < ncc; k++ )
-    {
+    for (k = 0; k < ncc; k++) {
       i = icc[k];
-      while ( ccc[j+1] <= k + 1 )
-      {
+      while (ccc[j + 1] <= k + 1) {
         j = j + 1;
       }
-      printf ( "  %4d  %4d  %4d  %16.8g\n", k + 1, i, j, acc[k] );
+      printf("  %4d  %4d  %4d  %16.8g\n", k + 1, i, j, acc[k]);
     }
   }
 
@@ -158,7 +146,7 @@ void cc_print ( int m, int n, int ncc, int icc[], int ccc[], double acc[],
 }
 /******************************************************************************/
 
-int i4_max ( int i1, int i2 )
+int i4_max(int i1, int i2)
 
 /******************************************************************************/
 /*
@@ -187,19 +175,16 @@ int i4_max ( int i1, int i2 )
 {
   int value;
 
-  if ( i2 < i1 )
-  {
+  if (i2 < i1) {
     value = i1;
-  }
-  else
-  {
+  } else {
     value = i2;
   }
   return value;
 }
 /******************************************************************************/
 
-int i4_min ( int i1, int i2 )
+int i4_min(int i1, int i2)
 
 /******************************************************************************/
 /*
@@ -228,19 +213,16 @@ int i4_min ( int i1, int i2 )
 {
   int value;
 
-  if ( i1 < i2 )
-  {
+  if (i1 < i2) {
     value = i1;
-  }
-  else
-  {
+  } else {
     value = i2;
   }
   return value;
 }
 /******************************************************************************/
 
-int *i4vec_copy_new ( int n, int a1[] )
+int *i4vec_copy_new(int n, int a1[])
 
 /******************************************************************************/
 /*
@@ -276,17 +258,16 @@ int *i4vec_copy_new ( int n, int a1[] )
   int *a2;
   int i;
 
-  a2 = ( int * ) malloc ( n * sizeof ( int ) );
+  a2 = (int *)malloc(n * sizeof(int));
 
-  for ( i = 0; i < n; i++ )
-  {
+  for (i = 0; i < n; i++) {
     a2[i] = a1[i];
   }
   return a2;
 }
 /******************************************************************************/
 
-void i4vec_dec ( int n, int a[] )
+void i4vec_dec(int n, int a[])
 
 /******************************************************************************/
 /*
@@ -319,15 +300,14 @@ void i4vec_dec ( int n, int a[] )
 {
   int i;
 
-  for ( i = 0; i < n; i++ )
-  {
+  for (i = 0; i < n; i++) {
     a[i] = a[i] - 1;
   }
   return;
 }
 /******************************************************************************/
 
-void i4vec_inc ( int n, int a[] )
+void i4vec_inc(int n, int a[])
 
 /******************************************************************************/
 /*
@@ -360,15 +340,14 @@ void i4vec_inc ( int n, int a[] )
 {
   int i;
 
-  for ( i = 0; i < n; i++ )
-  {
+  for (i = 0; i < n; i++) {
     a[i] = a[i] + 1;
   }
   return;
 }
 /******************************************************************************/
 
-int i4vec_max ( int n, int a[] )
+int i4vec_max(int n, int a[])
 
 /******************************************************************************/
 /*
@@ -405,17 +384,14 @@ int i4vec_max ( int n, int a[] )
   int i;
   int value;
 
-  if ( n <= 0 )
-  {
+  if (n <= 0) {
     return 0;
   }
 
   value = a[0];
 
-  for ( i = 1; i < n; i++ )
-  {
-    if ( value < a[i] )
-    {
+  for (i = 1; i < n; i++) {
+    if (value < a[i]) {
       value = a[i];
     }
   }
@@ -424,7 +400,7 @@ int i4vec_max ( int n, int a[] )
 }
 /******************************************************************************/
 
-int i4vec_min ( int n, int a[] )
+int i4vec_min(int n, int a[])
 
 /******************************************************************************/
 /*
@@ -461,17 +437,14 @@ int i4vec_min ( int n, int a[] )
   int i;
   int value;
 
-  if ( n <= 0 )
-  {
+  if (n <= 0) {
     return 0;
   }
 
   value = a[0];
 
-  for ( i = 1; i < n; i++ )
-  {
-    if ( a[i] < value )
-    {
+  for (i = 1; i < n; i++) {
+    if (a[i] < value) {
       value = a[i];
     }
   }
@@ -479,7 +452,7 @@ int i4vec_min ( int n, int a[] )
 }
 /******************************************************************************/
 
-void i4vec_write ( char *output_filename, int n, int table[] )
+void i4vec_write(char *output_filename, int n, int table[])
 
 /******************************************************************************/
 /*
@@ -493,7 +466,7 @@ void i4vec_write ( char *output_filename, int n, int table[] )
 
   Licensing:
 
-    This code is distributed under the GNU LGPL license. 
+    This code is distributed under the GNU LGPL license.
 
   Modified:
 
@@ -514,35 +487,33 @@ void i4vec_write ( char *output_filename, int n, int table[] )
 {
   int j;
   FILE *output;
-/*
-  Open the file.
-*/
-  output = fopen ( output_filename, "wt" );
+  /*
+    Open the file.
+  */
+  output = fopen(output_filename, "wt");
 
-  if ( !output )
-  {
-    fprintf ( stderr, "\n" );
-    fprintf ( stderr, "I4VEC_WRITE - Fatal error!\n" );
-    fprintf ( stderr, "  Could not open the output file.\n" );
-    exit ( 1 );
+  if (!output) {
+    fprintf(stderr, "\n");
+    fprintf(stderr, "I4VEC_WRITE - Fatal error!\n");
+    fprintf(stderr, "  Could not open the output file.\n");
+    exit(1);
   }
-/*
-  Write the data.
-*/
-  for ( j = 0; j < n; j++ )
-  {
-    fprintf ( output, "%d\n", table[j] );
+  /*
+    Write the data.
+  */
+  for (j = 0; j < n; j++) {
+    fprintf(output, "%d\n", table[j]);
   }
-/*
-  Close the file.
-*/
-  fclose ( output );
+  /*
+    Close the file.
+  */
+  fclose(output);
 
   return;
 }
 /******************************************************************************/
 
-int i4vec2_compare ( int n, int a1[], int a2[], int i, int j )
+int i4vec2_compare(int n, int a1[], int a2[], int i, int j)
 
 /******************************************************************************/
 /*
@@ -581,27 +552,17 @@ int i4vec2_compare ( int n, int a1[], int a2[], int i, int j )
 
   isgn = 0;
 
-  if ( a1[i-1] < a1[j-1] )
-  {
+  if (a1[i - 1] < a1[j - 1]) {
     isgn = -1;
-  }
-  else if ( a1[i-1] == a1[j-1] )
-  {
-    if ( a2[i-1] < a2[j-1] )
-    {
+  } else if (a1[i - 1] == a1[j - 1]) {
+    if (a2[i - 1] < a2[j - 1]) {
       isgn = -1;
-    }
-    else if ( a2[i-1] < a2[j-1] )
-    {
+    } else if (a2[i - 1] < a2[j - 1]) {
       isgn = 0;
-    }
-    else if ( a2[j-1] < a2[i-1] )
-    {
+    } else if (a2[j - 1] < a2[i - 1]) {
       isgn = +1;
     }
-  }
-  else if ( a1[j-1] < a1[i-1] )
-  {
+  } else if (a1[j - 1] < a1[i - 1]) {
     isgn = +1;
   }
 
@@ -609,7 +570,7 @@ int i4vec2_compare ( int n, int a1[], int a2[], int i, int j )
 }
 /******************************************************************************/
 
-void i4vec2_sort_a ( int n, int a1[], int a2[] )
+void i4vec2_sort_a(int n, int a1[], int a2[])
 
 /******************************************************************************/
 /*
@@ -646,41 +607,36 @@ void i4vec2_sort_a ( int n, int a1[], int a2[] )
   int isgn;
   int j;
   int temp;
-/*
-  Initialize.
-*/
+  /*
+    Initialize.
+  */
   i = 0;
   indx = 0;
   isgn = 0;
   j = 0;
-/*
-  Call the external heap sorter.
-*/
-  for ( ; ; )
-  {
-    sort_heap_external ( n, &indx, &i, &j, isgn );
-/*
-  Interchange the I and J objects.
-*/
-    if ( 0 < indx )
-    {
-      temp    = a1[i-1];
-      a1[i-1] = a1[j-1];
-      a1[j-1] = temp;
+  /*
+    Call the external heap sorter.
+  */
+  for (;;) {
+    sort_heap_external(n, &indx, &i, &j, isgn);
+    /*
+      Interchange the I and J objects.
+    */
+    if (0 < indx) {
+      temp = a1[i - 1];
+      a1[i - 1] = a1[j - 1];
+      a1[j - 1] = temp;
 
-      temp    = a2[i-1];
-      a2[i-1] = a2[j-1];
-      a2[j-1] = temp;
+      temp = a2[i - 1];
+      a2[i - 1] = a2[j - 1];
+      a2[j - 1] = temp;
     }
-/*
-  Compare the I and J objects.
-*/
-    else if ( indx < 0 )
-    {
-      isgn = i4vec2_compare ( n, a1, a2, i, j );
-    }
-    else if ( indx == 0 )
-    {
+    /*
+      Compare the I and J objects.
+    */
+    else if (indx < 0) {
+      isgn = i4vec2_compare(n, a1, a2, i, j);
+    } else if (indx == 0) {
       break;
     }
   }
@@ -688,7 +644,7 @@ void i4vec2_sort_a ( int n, int a1[], int a2[] )
 }
 /******************************************************************************/
 
-int i4vec2_sorted_unique_count ( int n, int a1[], int a2[] )
+int i4vec2_sorted_unique_count(int n, int a1[], int a2[])
 
 /******************************************************************************/
 /*
@@ -727,22 +683,18 @@ int i4vec2_sorted_unique_count ( int n, int a1[], int a2[] )
   int i;
   int iu;
   int unique_num;
-  
+
   unique_num = 0;
 
-  if ( n <= 0 )
-  {
+  if (n <= 0) {
     return unique_num;
   }
 
   iu = 0;
   unique_num = 1;
 
-  for ( i = 1; i < n; i++ )
-  {
-    if ( a1[i] != a1[iu] ||
-         a2[i] != a2[iu] )
-    {
+  for (i = 1; i < n; i++) {
+    if (a1[i] != a1[iu] || a2[i] != a2[iu]) {
       iu = i;
       unique_num = unique_num + 1;
     }
@@ -752,8 +704,7 @@ int i4vec2_sorted_unique_count ( int n, int a1[], int a2[] )
 }
 /******************************************************************************/
 
-void i4vec2_sorted_uniquely ( int n1, int a1[], int b1[], int n2, int a2[], 
-  int b2[] )
+void i4vec2_sorted_uniquely(int n1, int a1[], int b1[], int n2, int a2[], int b2[])
 
 /******************************************************************************/
 /*
@@ -800,18 +751,15 @@ void i4vec2_sorted_uniquely ( int n1, int a1[], int b1[], int n2, int a2[],
   i1 = 0;
   i2 = 0;
 
-  if ( n1 <= 0 )
-  {
+  if (n1 <= 0) {
     return;
   }
 
   a2[i2] = a1[i1];
   b2[i2] = b1[i1];
 
-  for ( i1 = 1; i1 < n1; i1++ )
-  {
-    if ( a1[i1] != a2[i2] || b1[i1] != b2[i2] )
-    {
+  for (i1 = 1; i1 < n1; i1++) {
+    if (a1[i1] != a2[i2] || b1[i1] != b2[i2]) {
       i2 = i2 + 1;
       a2[i2] = a1[i1];
       b2[i2] = b1[i1];
@@ -822,7 +770,7 @@ void i4vec2_sorted_uniquely ( int n1, int a1[], int b1[], int n2, int a2[],
 }
 /******************************************************************************/
 
-double r8_uniform_01 ( int *seed )
+double r8_uniform_01(int *seed)
 
 /******************************************************************************/
 /*
@@ -900,20 +848,19 @@ double r8_uniform_01 ( int *seed )
 
   k = *seed / 127773;
 
-  *seed = 16807 * ( *seed - k * 127773 ) - k * 2836;
+  *seed = 16807 * (*seed - k * 127773) - k * 2836;
 
-  if ( *seed < 0 )
-  {
+  if (*seed < 0) {
     *seed = *seed + i4_huge;
   }
 
-  r = ( ( double ) ( *seed ) ) * 4.656612875E-10;
+  r = ((double)(*seed)) * 4.656612875E-10;
 
   return r;
 }
 /******************************************************************************/
 
-double r8vec_diff_norm ( int n, double a[], double b[] )
+double r8vec_diff_norm(int n, double a[], double b[])
 
 /******************************************************************************/
 /*
@@ -955,17 +902,16 @@ double r8vec_diff_norm ( int n, double a[], double b[] )
 
   value = 0.0;
 
-  for ( i = 0; i < n; i++ )
-  {
-    value = value + ( a[i] - b[i] ) * ( a[i] - b[i] );
+  for (i = 0; i < n; i++) {
+    value = value + (a[i] - b[i]) * (a[i] - b[i]);
   }
-  value = sqrt ( value );
+  value = sqrt(value);
 
   return value;
 }
 /******************************************************************************/
 
-double *r8vec_uniform_01_new ( int n, int *seed )
+double *r8vec_uniform_01_new(int n, int *seed)
 
 /******************************************************************************/
 /*
@@ -1038,35 +984,32 @@ double *r8vec_uniform_01_new ( int n, int *seed )
   int k;
   double *r;
 
-  if ( *seed == 0 )
-  {
-    fprintf ( stderr, "\n" );
-    fprintf ( stderr, "R8VEC_UNIFORM_01_NEW - Fatal error!\n" );
-    fprintf ( stderr, "  Input value of SEED = 0.\n" );
-    exit ( 1 );
+  if (*seed == 0) {
+    fprintf(stderr, "\n");
+    fprintf(stderr, "R8VEC_UNIFORM_01_NEW - Fatal error!\n");
+    fprintf(stderr, "  Input value of SEED = 0.\n");
+    exit(1);
   }
 
-  r = ( double * ) malloc ( n * sizeof ( double ) );
+  r = (double *)malloc(n * sizeof(double));
 
-  for ( i = 0; i < n; i++ )
-  {
+  for (i = 0; i < n; i++) {
     k = *seed / 127773;
 
-    *seed = 16807 * ( *seed - k * 127773 ) - k * 2836;
+    *seed = 16807 * (*seed - k * 127773) - k * 2836;
 
-    if ( *seed < 0 )
-    {
+    if (*seed < 0) {
       *seed = *seed + i4_huge;
     }
 
-    r[i] = ( double ) ( *seed ) * 4.656612875E-10;
+    r[i] = (double)(*seed) * 4.656612875E-10;
   }
 
   return r;
 }
 /******************************************************************************/
 
-void r8vec_write ( char *output_filename, int n, double x[] )
+void r8vec_write(char *output_filename, int n, double x[])
 
 /******************************************************************************/
 /*
@@ -1080,7 +1023,7 @@ void r8vec_write ( char *output_filename, int n, double x[] )
 
   Licensing:
 
-    This code is distributed under the GNU LGPL license. 
+    This code is distributed under the GNU LGPL license.
 
   Modified:
 
@@ -1101,35 +1044,33 @@ void r8vec_write ( char *output_filename, int n, double x[] )
 {
   int j;
   FILE *output;
-/*
-  Open the file.
-*/
-  output = fopen ( output_filename, "wt" );
+  /*
+    Open the file.
+  */
+  output = fopen(output_filename, "wt");
 
-  if ( !output )
-  {
-    fprintf ( stderr, "\n" );
-    fprintf ( stderr, "R8VEC_WRITE - Fatal error!\n" );
-    fprintf ( stderr, "  Could not open the output file.\n" );
-    exit ( 1 );
+  if (!output) {
+    fprintf(stderr, "\n");
+    fprintf(stderr, "R8VEC_WRITE - Fatal error!\n");
+    fprintf(stderr, "  Could not open the output file.\n");
+    exit(1);
   }
-/*
-  Write the data.
-*/
-  for ( j = 0; j < n; j++ )
-  {
-    fprintf ( output, "  %24.16g\n", x[j] );
+  /*
+    Write the data.
+  */
+  for (j = 0; j < n; j++) {
+    fprintf(output, "  %24.16g\n", x[j]);
   }
-/*
-  Close the file.
-*/
-  fclose ( output );
+  /*
+    Close the file.
+  */
+  fclose(output);
 
   return;
 }
 /******************************************************************************/
 
-void sort_heap_external ( int n, int *indx, int *i, int *j, int isgn )
+void sort_heap_external(int n, int *indx, int *i, int *j, int isgn)
 
 /******************************************************************************/
 /*
@@ -1197,27 +1138,22 @@ void sort_heap_external ( int n, int *indx, int *i, int *j, int isgn )
   static int k = 0;
   static int k1 = 0;
   static int n1 = 0;
-/*
-  INDX = 0: This is the first call.
-*/
-  if ( *indx == 0 )
-  {
-
+  /*
+    INDX = 0: This is the first call.
+  */
+  if (*indx == 0) {
     i_save = 0;
     j_save = 0;
     k = n / 2;
     k1 = k;
     n1 = n;
   }
-/*
-  INDX < 0: The user is returning the results of a comparison.
-*/
-  else if ( *indx < 0 )
-  {
-    if ( *indx == -2 )
-    {
-      if ( isgn < 0 )
-      {
+  /*
+    INDX < 0: The user is returning the results of a comparison.
+  */
+  else if (*indx < 0) {
+    if (*indx == -2) {
+      if (isgn < 0) {
         i_save = i_save + 1;
       }
       j_save = k1;
@@ -1228,24 +1164,19 @@ void sort_heap_external ( int n, int *indx, int *i, int *j, int isgn )
       return;
     }
 
-    if ( 0 < isgn )
-    {
+    if (0 < isgn) {
       *indx = 2;
       *i = i_save;
       *j = j_save;
       return;
     }
 
-    if ( k <= 1 )
-    {
-      if ( n1 == 1 )
-      {
+    if (k <= 1) {
+      if (n1 == 1) {
         i_save = 0;
         j_save = 0;
         *indx = 0;
-      }
-      else
-      {
+      } else {
         i_save = n1;
         j_save = 1;
         n1 = n1 - 1;
@@ -1258,30 +1189,24 @@ void sort_heap_external ( int n, int *indx, int *i, int *j, int isgn )
     k = k - 1;
     k1 = k;
   }
-/*
-  0 < INDX: the user was asked to make an interchange.
-*/
-  else if ( *indx == 1 )
-  {
+  /*
+    0 < INDX: the user was asked to make an interchange.
+  */
+  else if (*indx == 1) {
     k1 = k;
   }
 
-  for ( ; ; )
-  {
-
+  for (;;) {
     i_save = 2 * k1;
 
-    if ( i_save == n1 )
-    {
+    if (i_save == n1) {
       j_save = k1;
       k1 = i_save;
       *indx = -1;
       *i = i_save;
       *j = j_save;
       return;
-    }
-    else if ( i_save <= n1 )
-    {
+    } else if (i_save <= n1) {
       j_save = i_save + 1;
       *indx = -2;
       *i = i_save;
@@ -1289,8 +1214,7 @@ void sort_heap_external ( int n, int *indx, int *i, int *j, int isgn )
       return;
     }
 
-    if ( k <= 1 )
-    {
+    if (k <= 1) {
       break;
     }
 
@@ -1298,16 +1222,13 @@ void sort_heap_external ( int n, int *indx, int *i, int *j, int isgn )
     k1 = k;
   }
 
-  if ( n1 == 1 )
-  {
+  if (n1 == 1) {
     i_save = 0;
     j_save = 0;
     *indx = 0;
     *i = i_save;
     *j = j_save;
-  }
-  else
-  {
+  } else {
     i_save = n1;
     j_save = 1;
     n1 = n1 - 1;
@@ -1320,8 +1241,7 @@ void sort_heap_external ( int n, int *indx, int *i, int *j, int isgn )
 }
 /******************************************************************************/
 
-void st_data_read ( char *input_filename, int m, int n, int nst, int ist[], 
-  int jst[], double ast[] )
+void st_data_read(char *input_filename, int m, int n, int nst, int ist[], int jst[], double ast[])
 
 /******************************************************************************/
 /*
@@ -1363,18 +1283,16 @@ void st_data_read ( char *input_filename, int m, int n, int nst, int ist[],
   int k;
   int num;
 
-  input = fopen ( input_filename, "rt" );
+  input = fopen(input_filename, "rt");
 
-  for ( k = 0; k < nst; k++ )
-  {
-    num = fscanf ( input, "%i%i%lf", &i, &j, &aij );
+  for (k = 0; k < nst; k++) {
+    num = fscanf(input, "%i%i%lf", &i, &j, &aij);
 
-    if ( num != 3 )
-    {
-      fprintf ( stderr, "\n" );
-      fprintf ( stderr, "ST_DATA_READ - Fatal error!\n" );
-      fprintf ( stderr, "  I/O error reading data index %d\n", k );
-      exit ( 1 );
+    if (num != 3) {
+      fprintf(stderr, "\n");
+      fprintf(stderr, "ST_DATA_READ - Fatal error!\n");
+      fprintf(stderr, "  I/O error reading data index %d\n", k);
+      exit(1);
     }
 
     ist[k] = i;
@@ -1382,14 +1300,13 @@ void st_data_read ( char *input_filename, int m, int n, int nst, int ist[],
     ast[k] = aij;
   }
 
-  fclose ( input );
+  fclose(input);
 
   return;
 }
 /******************************************************************************/
 
-void st_header_print ( int i_min, int i_max, int j_min, int j_max, int m, 
-  int n, int nst )
+void st_header_print(int i_min, int i_max, int j_min, int j_max, int m, int n, int nst)
 
 /******************************************************************************/
 /*
@@ -1422,23 +1339,22 @@ void st_header_print ( int i_min, int i_max, int j_min, int j_max, int m,
     Input, int NST, the number of nonzeros.
 */
 {
-  printf ( "\n" );
-  printf ( "  Sparse Triplet (ST) header information:\n" );
-  printf ( "\n" );
-  printf ( "  Minimum row index I_MIN = %d\n", i_min );
-  printf ( "  Maximum row index I_MAX = %d\n", i_max );
-  printf ( "  Minimum col index J_MIN = %d\n", j_min );
-  printf ( "  Maximum col index J_MAX = %d\n", j_max );
-  printf ( "  Number of rows        M = %d\n", m );
-  printf ( "  Number of columns     N = %d\n", n );
-  printf ( "  Number of nonzeros  NST = %d\n", nst );
+  printf("\n");
+  printf("  Sparse Triplet (ST) header information:\n");
+  printf("\n");
+  printf("  Minimum row index I_MIN = %d\n", i_min);
+  printf("  Maximum row index I_MAX = %d\n", i_max);
+  printf("  Minimum col index J_MIN = %d\n", j_min);
+  printf("  Maximum col index J_MAX = %d\n", j_max);
+  printf("  Number of rows        M = %d\n", m);
+  printf("  Number of columns     N = %d\n", n);
+  printf("  Number of nonzeros  NST = %d\n", nst);
 
   return;
 }
 /******************************************************************************/
 
-void st_header_read ( char *input_filename, int *i_min, int *i_max, int *j_min, 
-  int *j_max, int *m, int *n, int *nst )
+void st_header_read(char *input_filename, int *i_min, int *i_max, int *j_min, int *j_max, int *m, int *n, int *nst)
 
 /******************************************************************************/
 /*
@@ -1480,31 +1396,29 @@ void st_header_read ( char *input_filename, int *i_min, int *i_max, int *j_min,
   int j;
   int num;
 
-  input = fopen ( input_filename, "rt" );
+  input = fopen(input_filename, "rt");
 
   *nst = 0;
-  *i_min = + i4_huge;
-  *i_max = - i4_huge;
-  *j_min = + i4_huge;
-  *j_max = - i4_huge;
+  *i_min = +i4_huge;
+  *i_max = -i4_huge;
+  *j_min = +i4_huge;
+  *j_max = -i4_huge;
 
-  for ( ; ; )
-  {
-    num = fscanf ( input, "%i%i%lf", &i, &j, &aij );
+  for (;;) {
+    num = fscanf(input, "%i%i%lf", &i, &j, &aij);
 
-    if ( num != 3 )
-    {
+    if (num != 3) {
       break;
     }
 
     *nst = *nst + 1;
-    *i_min = i4_min ( *i_min, i );
-    *i_max = i4_max ( *i_max, i );
-    *j_min = i4_min ( *j_min, j );
-    *j_max = i4_max ( *j_max, j );
+    *i_min = i4_min(*i_min, i);
+    *i_max = i4_max(*i_max, i);
+    *j_min = i4_min(*j_min, j);
+    *j_max = i4_max(*j_max, j);
   }
 
-  fclose ( input );
+  fclose(input);
 
   *m = *i_max - *i_min + 1;
   *n = *j_max - *j_min + 1;
@@ -1513,8 +1427,7 @@ void st_header_read ( char *input_filename, int *i_min, int *i_max, int *j_min,
 }
 /******************************************************************************/
 
-double *st_mv ( int m, int n, int nst, int ist[], int jst[], double ast[], 
-  double x[] )
+double *st_mv(int m, int n, int nst, int ist[], int jst[], double ast[], double x[])
 
 /******************************************************************************/
 /*
@@ -1524,7 +1437,7 @@ double *st_mv ( int m, int n, int nst, int ist[], int jst[], double ast[],
 
   Licensing:
 
-    This code is distributed under the GNU LGPL license. 
+    This code is distributed under the GNU LGPL license.
 
   Modified:
 
@@ -1554,10 +1467,9 @@ double *st_mv ( int m, int n, int nst, int ist[], int jst[], double ast[],
   int j;
   int k;
 
-  b = ( double * ) malloc ( m * sizeof ( double ) );
+  b = (double *)malloc(m * sizeof(double));
 
-  for ( k = 0; k < nst; k++ )
-  {
+  for (k = 0; k < nst; k++) {
     i = ist[k];
     j = jst[k];
     b[i] = b[i] + ast[k] * x[j];
@@ -1567,8 +1479,7 @@ double *st_mv ( int m, int n, int nst, int ist[], int jst[], double ast[],
 }
 /******************************************************************************/
 
-void st_print ( int m, int n, int nst, int ist[], int jst[], double ast[], 
-  char *title )
+void st_print(int m, int n, int nst, int ist[], int jst[], double ast[], char *title)
 
 /******************************************************************************/
 /*
@@ -1605,21 +1516,20 @@ void st_print ( int m, int n, int nst, int ist[], int jst[], double ast[],
 {
   int k;
 
-  printf ( "\n" );
-  printf ( "%s\n", title );
-  printf ( "     #     I     J       A\n" );
-  printf ( "  ----  ----  ----  --------------\n" );
-  printf ( "\n" );
-  for ( k = 0; k < nst; k++ )
-  {
-    printf ( "  %4d  %4d  %4d  %16.8g\n", k, ist[k], jst[k], ast[k] );
+  printf("\n");
+  printf("%s\n", title);
+  printf("     #     I     J       A\n");
+  printf("  ----  ----  ----  --------------\n");
+  printf("\n");
+  for (k = 0; k < nst; k++) {
+    printf("  %4d  %4d  %4d  %16.8g\n", k, ist[k], jst[k], ast[k]);
   }
 
   return;
 }
 /******************************************************************************/
 
-int st_to_cc_size ( int nst, int ist[], int jst[] )
+int st_to_cc_size(int nst, int ist[], int jst[])
 
 /******************************************************************************/
 /*
@@ -1629,7 +1539,7 @@ int st_to_cc_size ( int nst, int ist[], int jst[] )
 
   Licensing:
 
-    This code is distributed under the GNU LGPL license. 
+    This code is distributed under the GNU LGPL license.
 
   Modified:
 
@@ -1651,29 +1561,28 @@ int st_to_cc_size ( int nst, int ist[], int jst[] )
   int *ist2;
   int *jst2;
   int ncc;
-/*
-  Make copies so the sorting doesn't confuse the user.
-*/
-  ist2 = i4vec_copy_new ( nst, ist );
-  jst2 = i4vec_copy_new ( nst, jst );
-/*
-  Sort by column first, then row.
-*/
-  i4vec2_sort_a ( nst, jst2, ist2 );
-/*
-  Count the unique pairs.
-*/
-  ncc = i4vec2_sorted_unique_count ( nst, jst2, ist2 );
+  /*
+    Make copies so the sorting doesn't confuse the user.
+  */
+  ist2 = i4vec_copy_new(nst, ist);
+  jst2 = i4vec_copy_new(nst, jst);
+  /*
+    Sort by column first, then row.
+  */
+  i4vec2_sort_a(nst, jst2, ist2);
+  /*
+    Count the unique pairs.
+  */
+  ncc = i4vec2_sorted_unique_count(nst, jst2, ist2);
 
-  free ( ist2 );
-  free ( jst2 );
+  free(ist2);
+  free(jst2);
 
   return ncc;
 }
 /******************************************************************************/
 
-void st_to_cc_index ( int nst, int ist[], int jst[], int ncc, int n, 
-  int icc[], int ccc[] )
+void st_to_cc_index(int nst, int ist[], int jst[], int ncc, int n, int icc[], int ccc[])
 
 /******************************************************************************/
 /*
@@ -1683,7 +1592,7 @@ void st_to_cc_index ( int nst, int ist[], int jst[], int ncc, int n,
 
   Licensing:
 
-    This code is distributed under the GNU LGPL license. 
+    This code is distributed under the GNU LGPL license.
 
   Modified:
 
@@ -1715,53 +1624,48 @@ void st_to_cc_index ( int nst, int ist[], int jst[], int ncc, int n,
   int jlo;
   int *jst2;
   int k;
-/*
-  Make copies so the sorting doesn't confuse the user.
-*/
-  ist2 = i4vec_copy_new ( nst, ist );
-  jst2 = i4vec_copy_new ( nst, jst );
-/*
-  Sort the elements.
-*/
-  i4vec2_sort_a ( nst, jst2, ist2 );
-/*
-  Get the unique elements.
-*/
-  jcc = ( int * ) malloc ( ncc * sizeof ( int ) );
-  i4vec2_sorted_uniquely ( nst, jst2, ist2, ncc, jcc, icc );
-/*
-  Compress the column index.
-*/
+  /*
+    Make copies so the sorting doesn't confuse the user.
+  */
+  ist2 = i4vec_copy_new(nst, ist);
+  jst2 = i4vec_copy_new(nst, jst);
+  /*
+    Sort the elements.
+  */
+  i4vec2_sort_a(nst, jst2, ist2);
+  /*
+    Get the unique elements.
+  */
+  jcc = (int *)malloc(ncc * sizeof(int));
+  i4vec2_sorted_uniquely(nst, jst2, ist2, ncc, jcc, icc);
+  /*
+    Compress the column index.
+  */
   ccc[0] = 0;
   jlo = 0;
-  for ( k = 0; k < ncc; k++ )
-  {
+  for (k = 0; k < ncc; k++) {
     jhi = jcc[k];
-    if ( jhi != jlo )
-    {
-      for ( j = jlo + 1; j <= jhi; j++ )
-      {
+    if (jhi != jlo) {
+      for (j = jlo + 1; j <= jhi; j++) {
         ccc[j] = k;
       }
       jlo = jhi;
     }
   }
   jhi = n;
-  for ( j = jlo + 1; j <= jhi; j++ )
-  {
+  for (j = jlo + 1; j <= jhi; j++) {
     ccc[j] = ncc;
   }
 
-  free ( ist2 );
-  free ( jcc );
-  free ( jst2 );
+  free(ist2);
+  free(jcc);
+  free(jst2);
 
   return;
 }
 /******************************************************************************/
 
-double *st_to_cc_values ( int nst, int ist[], int jst[], double ast[], int ncc, 
-  int n, int icc[], int ccc[] )
+double *st_to_cc_values(int nst, int ist[], int jst[], double ast[], int ncc, int n, int icc[], int ccc[])
 
 /******************************************************************************/
 /*
@@ -1771,7 +1675,7 @@ double *st_to_cc_values ( int nst, int ist[], int jst[], double ast[], int ncc,
 
   Licensing:
 
-    This code is distributed under the GNU LGPL license. 
+    This code is distributed under the GNU LGPL license.
 
   Modified:
 
@@ -1809,52 +1713,46 @@ double *st_to_cc_values ( int nst, int ist[], int jst[], double ast[], int ncc,
   int kcc;
   int kst;
 
-  acc = ( double * ) malloc ( ncc * sizeof ( double ) );
+  acc = (double *)malloc(ncc * sizeof(double));
 
-  for ( i = 0; i < ncc; i++ )
-  {
+  for (i = 0; i < ncc; i++) {
     acc[i] = 0.0;
   }
 
-  for ( kst = 0; kst < nst; kst++ )
-  {
+  for (kst = 0; kst < nst; kst++) {
     i = ist[kst];
     j = jst[kst];
 
     clo = ccc[j];
-    chi = ccc[j+1];
+    chi = ccc[j + 1];
 
     fail = 1;
 
-    for ( kcc = clo; kcc < chi; kcc++ )
-    {
-      if ( icc[kcc] == i )
-      {
+    for (kcc = clo; kcc < chi; kcc++) {
+      if (icc[kcc] == i) {
         acc[kcc] = acc[kcc] + ast[kst];
         fail = 0;
         break;
       }
     }
 
-    if ( fail )
-    {
-      fprintf ( stderr, "\n" );
-      fprintf ( stderr, "ST_TO_CC_VALUES - Fatal error!\n" );
-      fprintf ( stderr, "  ST entry cannot be located in CC array.\n" );
-      fprintf ( stderr, "  ST index KST    = %d\n", kst );
-      fprintf ( stderr, "  ST row IST(KST) = %d\n", ist[kst] );
-      fprintf ( stderr, "  ST col JST(KST) = %d\n", jst[kst] );
-      fprintf ( stderr, "  ST val AST(KST) = %g\n", ast[kst] );
-      exit ( 1 );
+    if (fail) {
+      fprintf(stderr, "\n");
+      fprintf(stderr, "ST_TO_CC_VALUES - Fatal error!\n");
+      fprintf(stderr, "  ST entry cannot be located in CC array.\n");
+      fprintf(stderr, "  ST index KST    = %d\n", kst);
+      fprintf(stderr, "  ST row IST(KST) = %d\n", ist[kst]);
+      fprintf(stderr, "  ST col JST(KST) = %d\n", jst[kst]);
+      fprintf(stderr, "  ST val AST(KST) = %g\n", ast[kst]);
+      exit(1);
     }
-
   }
 
   return acc;
 }
 /******************************************************************************/
 
-void timestamp ( )
+void timestamp()
 
 /******************************************************************************/
 /*
@@ -1883,26 +1781,25 @@ void timestamp ( )
     None
 */
 {
-# define TIME_SIZE 40
+#define TIME_SIZE 40
 
   static char time_buffer[TIME_SIZE];
   const struct tm *tm;
   time_t now;
 
-  now = time ( NULL );
-  tm = localtime ( &now );
+  now = time(NULL);
+  tm = localtime(&now);
 
-  strftime ( time_buffer, TIME_SIZE, "%d %B %Y %I:%M:%S %p", tm );
+  strftime(time_buffer, TIME_SIZE, "%d %B %Y %I:%M:%S %p", tm);
 
-  fprintf ( stdout, "%s\n", time_buffer );
+  fprintf(stdout, "%s\n", time_buffer);
 
   return;
-# undef TIME_SIZE
+#undef TIME_SIZE
 }
 /******************************************************************************/
 
-double *wathen_st ( int nx, int ny, int nz_num, int *seed, int row[], 
-  int col[] )
+double *wathen_st(int nx, int ny, int nz_num, int *seed, int row[], int col[])
 
 /******************************************************************************/
 /*
@@ -1985,30 +1882,26 @@ double *wathen_st ( int nx, int ny, int nz_num, int *seed, int row[],
 
   Parameters:
 
-    Input, int NX, NY, values which determine the size of 
+    Input, int NX, NY, values which determine the size of
     the matrix.
 
-    Input, int NZ_NUM, the number of values used to 
+    Input, int NZ_NUM, the number of values used to
     describe the matrix.
 
     Input/output, int *SEED, the random number seed.
 
-    Output, int ROW[NZ_NUM], COL[NZ_NUM], the row and 
+    Output, int ROW[NZ_NUM], COL[NZ_NUM], the row and
     column indices of the nonzero entries.
 
     Output, double WATHEN_ST[NZ_NUM], the nonzero entries of the matrix.
 */
 {
   double *a;
-  const double em[8*8] = {
-     6.0, -6.0,  2.0, -8.0,  3.0, -8.0,  2.0, -6.0, 
-    -6.0, 32.0, -6.0, 20.0, -8.0, 16.0, -8.0, 20.0, 
-     2.0, -6.0,  6.0, -6.0,  2.0, -8.0,  3.0, -8.0, 
-    -8.0, 20.0, -6.0, 32.0, -6.0, 20.0, -8.0, 16.0, 
-     3.0, -8.0,  2.0, -6.0,  6.0, -6.0,  2.0, -8.0, 
-    -8.0, 16.0, -8.0, 20.0, -6.0, 32.0, -6.0, 20.0, 
-     2.0, -8.0,  3.0, -8.0,  2.0, -6.0,  6.0, -6.0, 
-    -6.0, 20.0, -8.0, 16.0, -8.0, 20.0, -6.0, 32.0 };
+  const double em[8 * 8] = {6.0,  -6.0, 2.0,  -8.0, 3.0,  -8.0, 2.0,  -6.0, -6.0, 32.0, -6.0, 20.0, -8.0,
+                            16.0, -8.0, 20.0, 2.0,  -6.0, 6.0,  -6.0, 2.0,  -8.0, 3.0,  -8.0, -8.0, 20.0,
+                            -6.0, 32.0, -6.0, 20.0, -8.0, 16.0, 3.0,  -8.0, 2.0,  -6.0, 6.0,  -6.0, 2.0,
+                            -8.0, -8.0, 16.0, -8.0, 20.0, -6.0, 32.0, -6.0, 20.0, 2.0,  -8.0, 3.0,  -8.0,
+                            2.0,  -6.0, 6.0,  -6.0, -6.0, 20.0, -8.0, 16.0, -8.0, 20.0, -6.0, 32.0};
   int i;
   int j;
   int k;
@@ -2017,10 +1910,9 @@ double *wathen_st ( int nx, int ny, int nz_num, int *seed, int row[],
   int node[8];
   double rho;
 
-  a = ( double * ) malloc ( nz_num * sizeof ( double ) );
- 
-  for ( k = 0; k < nz_num; k++ )
-  {
+  a = (double *)malloc(nz_num * sizeof(double));
+
+  for (k = 0; k < nz_num; k++) {
     row[k] = 0;
     col[k] = 0;
     a[k] = 0.0;
@@ -2028,28 +1920,24 @@ double *wathen_st ( int nx, int ny, int nz_num, int *seed, int row[],
 
   k = 0;
 
-  for ( j = 0; j < nx; j++ )
-  {
-    for ( i = 0; i < nx; i++ )
-    {
-      node[0] = 3 * ( j + 1 ) * nx + 2 * ( j + 1 ) + 2 * ( i + 1 );
+  for (j = 0; j < nx; j++) {
+    for (i = 0; i < nx; i++) {
+      node[0] = 3 * (j + 1) * nx + 2 * (j + 1) + 2 * (i + 1);
       node[1] = node[0] - 1;
       node[2] = node[0] - 2;
-      node[3] = ( 3 * ( j + 1 ) - 1 ) * nx + 2 * ( j + 1 ) + ( i + 1 ) - 2;
-      node[4] = ( 3 * ( j + 1 ) - 3 ) * nx + 2 * ( j + 1 ) + 2 * ( i + 1 ) - 4;
+      node[3] = (3 * (j + 1) - 1) * nx + 2 * (j + 1) + (i + 1) - 2;
+      node[4] = (3 * (j + 1) - 3) * nx + 2 * (j + 1) + 2 * (i + 1) - 4;
       node[5] = node[4] + 1;
       node[6] = node[4] + 2;
       node[7] = node[3] + 1;
 
-      rho = 100.0 * r8_uniform_01 ( seed );
+      rho = 100.0 * r8_uniform_01(seed);
 
-      for ( krow = 0; krow < 8; krow++ )
-      {
-        for ( kcol = 0; kcol < 8; kcol++ )
-        {
+      for (krow = 0; krow < 8; krow++) {
+        for (kcol = 0; kcol < 8; kcol++) {
           row[k] = node[krow];
           col[k] = node[kcol];
-          a[k] = rho * em[krow+kcol*8];
+          a[k] = rho * em[krow + kcol * 8];
           k = k + 1;
         }
       }
@@ -2060,7 +1948,7 @@ double *wathen_st ( int nx, int ny, int nz_num, int *seed, int row[],
 }
 /******************************************************************************/
 
-int wathen_st_size ( int nx, int ny )
+int wathen_st_size(int nx, int ny)
 
 /******************************************************************************/
 /*
