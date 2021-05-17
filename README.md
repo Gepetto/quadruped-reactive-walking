@@ -29,9 +29,7 @@ sudo apt install robotpkg-py3\*-{pinocchio,qt5-gepetto-viewer-corba,example-robo
 * Get inside and create a build folder: `cd quadruped-reactive-walking` then `mkdir build`
 * Get inside and configure: `cd build` then
   `cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=~/install -DPYTHON_EXECUTABLE=$(which python3) -DPYTHON_STANDARD_LAYOUT=ON`
-* Compile Python bindings: `make`
-* Copy them to the script folder so that the scripts can access the compiled code:
-  `cp python/quadruped_reactive_walking/libquadruped_reactive_walking.so ../scripts/`
+* Compile and install the project in your prefix: `make install`
 
 ## Run the simulation
 
@@ -59,4 +57,4 @@ sudo apt install robotpkg-py3\*-{pinocchio,qt5-gepetto-viewer-corba,example-robo
   the ground before touchdown).
 * For the MPC QP problem you can tune weights of the Q and P matrices in the `create_weight_matrices` function of
   `src/MPC.cpp`.
-* Remember that if you modify C++ code you need to recompile the library.
+* Remember that if you modify C++ code you need to recompile and reinstall the library.
