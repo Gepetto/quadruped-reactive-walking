@@ -492,7 +492,7 @@ int Planner::update_target_footsteps() {
   return 0;
 }
 
-int Planner::update_trajectory_generator(int k, double h_estim) {
+int Planner::update_trajectory_generator(int k, double /*h_estim*/) {
   /* Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
   to the desired position on the ground (computed by the footstep planner)
 
