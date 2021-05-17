@@ -707,7 +707,7 @@ int Planner::roll(int k) {
 
 int Planner::handle_joystick(int code, const Eigen::MatrixXd &q) {
   /* Handle the joystick code to trigger events (change of gait for instance)
-  
+
   Args:
     code (int): integer to trigger events with the joystick
     q (7x1 array): current position vector of the flying base in world frame (linear and angular stacked)
@@ -715,20 +715,16 @@ int Planner::handle_joystick(int code, const Eigen::MatrixXd &q) {
 
   if (code == 0) {
     return 0;
-  }
-  else if (code == 1) {
+  } else if (code == 1) {
     create_pacing();
     is_static = false;
-  }
-  else if (code == 2) {
+  } else if (code == 2) {
     create_bounding();
     is_static = false;
-  }
-  else if (code == 3) {
+  } else if (code == 3) {
     create_trot();
     is_static = false;
-  }
-  else if (code == 4) {
+  } else if (code == 4) {
     create_static();
     q_static.block(0, 0, 7, 1) = q.block(0, 0, 7, 1);
     is_static = true;
