@@ -1,4 +1,3 @@
-#include "quadruped-reactive-walking/gepadd.hpp"
 #include "quadruped-reactive-walking/MPC.hpp"
 #include "quadruped-reactive-walking/Planner.hpp"
 #include "quadruped-reactive-walking/InvKin.hpp"
@@ -53,8 +52,8 @@ struct PlannerPythonVisitor : public bp::def_visitor<PlannerPythonVisitor<Planne
         //.add_property("xref", &Planner::get_xref)
 
         // Run Planner from Python
-        .def("run_planner", &Planner::run_planner, bp::args("k", "q", "v", "b_vref", "h_estim", "z_average", "joystick_code"),
-             "Run Planner from Python.\n");
+        .def("run_planner", &Planner::run_planner,
+             bp::args("k", "q", "v", "b_vref", "h_estim", "z_average", "joystick_code"), "Run Planner from Python.\n");
   }
 
   static void expose() {
@@ -77,9 +76,9 @@ struct InvKinPythonVisitor : public bp::def_visitor<InvKinPythonVisitor<InvKin> 
         .def("get_dq_cmd", &InvKin::get_dq_cmd, "Get acceleration goals matrix.\n")
 
         // Run InvKin from Python
-        .def("refreshAndCompute", &InvKin::refreshAndCompute, 
-             bp::args("x_cmd", "contacts", "goals", "vgoals", "agoals", "posf", "vf", "wf", "af", "Jf",
-                      "posb", "rotb", "vb", "ab", "Jb"),
+        .def("refreshAndCompute", &InvKin::refreshAndCompute,
+             bp::args("x_cmd", "contacts", "goals", "vgoals", "agoals", "posf", "vf", "wf", "af", "Jf", "posb", "rotb",
+                      "vb", "ab", "Jb"),
              "Run InvKin from Python.\n");
   }
 
@@ -116,9 +115,6 @@ struct QPWBCPythonVisitor : public bp::def_visitor<QPWBCPythonVisitor<QPWBC> > {
 void exposeQPWBC() { QPWBCPythonVisitor<QPWBC>::expose(); }
 
 BOOST_PYTHON_MODULE(libquadruped_reactive_walking) {
-  boost::python::def("add", gepetto::example::add);
-  boost::python::def("sub", gepetto::example::sub);
-
   eigenpy::enableEigenPy();
 
   exposeMPC();
