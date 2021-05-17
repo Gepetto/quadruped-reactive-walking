@@ -8,7 +8,7 @@
 
 /******************************************************************************/
 
-double *cc_mv(int m, int n, int ncc, int icc[], int ccc[], double acc[], double x[])
+double *cc_mv(int m, int n, int /*ncc*/, int icc[], int ccc[], double acc[], double x[])
 
 /******************************************************************************/
 /*
@@ -75,7 +75,7 @@ double *cc_mv(int m, int n, int ncc, int icc[], int ccc[], double acc[], double 
 }
 /******************************************************************************/
 
-void cc_print(int m, int n, int ncc, int icc[], int ccc[], double acc[], char *title)
+void cc_print(int /*m*/, int /*n*/, int ncc, int icc[], int ccc[], double acc[], char *title)
 
 /******************************************************************************/
 /*
@@ -513,7 +513,7 @@ void i4vec_write(char *output_filename, int n, int table[])
 }
 /******************************************************************************/
 
-int i4vec2_compare(int n, int a1[], int a2[], int i, int j)
+int i4vec2_compare(int /*n*/, int a1[], int a2[], int i, int j)
 
 /******************************************************************************/
 /*
@@ -704,7 +704,7 @@ int i4vec2_sorted_unique_count(int n, int a1[], int a2[])
 }
 /******************************************************************************/
 
-void i4vec2_sorted_uniquely(int n1, int a1[], int b1[], int n2, int a2[], int b2[])
+void i4vec2_sorted_uniquely(int n1, int a1[], int b1[], int /*n2*/, int a2[], int b2[])
 
 /******************************************************************************/
 /*
@@ -1241,7 +1241,7 @@ void sort_heap_external(int n, int *indx, int *i, int *j, int isgn)
 }
 /******************************************************************************/
 
-void st_data_read(char *input_filename, int m, int n, int nst, int ist[], int jst[], double ast[])
+void st_data_read(char *input_filename, int /*m*/, int /*n*/, int nst, int ist[], int jst[], double ast[])
 
 /******************************************************************************/
 /*
@@ -1427,7 +1427,7 @@ void st_header_read(char *input_filename, int *i_min, int *i_max, int *j_min, in
 }
 /******************************************************************************/
 
-double *st_mv(int m, int n, int nst, int ist[], int jst[], double ast[], double x[])
+double *st_mv(int m, int /*n*/, int nst, int ist[], int jst[], double ast[], double x[])
 
 /******************************************************************************/
 /*
@@ -1479,7 +1479,7 @@ double *st_mv(int m, int n, int nst, int ist[], int jst[], double ast[], double 
 }
 /******************************************************************************/
 
-void st_print(int m, int n, int nst, int ist[], int jst[], double ast[], char *title)
+void st_print(int /*m*/, int /*n*/, int nst, int ist[], int jst[], double ast[], char *title)
 
 /******************************************************************************/
 /*
@@ -1665,7 +1665,7 @@ void st_to_cc_index(int nst, int ist[], int jst[], int ncc, int n, int icc[], in
 }
 /******************************************************************************/
 
-double *st_to_cc_values(int nst, int ist[], int jst[], double ast[], int ncc, int n, int icc[], int ccc[])
+double *st_to_cc_values(int nst, int ist[], int jst[], double ast[], int ncc, int /*n*/, int icc[], int ccc[])
 
 /******************************************************************************/
 /*
@@ -1799,7 +1799,7 @@ void timestamp()
 }
 /******************************************************************************/
 
-double *wathen_st(int nx, int ny, int nz_num, int *seed, int row[], int col[])
+double *wathen_st(int nx, int /*ny*/, int nz_num, int *seed, int row[], int col[])
 
 /******************************************************************************/
 /*
