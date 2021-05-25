@@ -304,6 +304,31 @@ class LoggerControl():
         plt.legend(["WBC integrated output state", "Robot reference state",
                     "Task current state", "Task reference state"])"""
 
+        # Analysis of the footstep locations (current and future) with a slider to move along time
+        self.slider_predicted_footholds()
+
+        # Analysis of the footholds locations during the whole experiment
+        import utils_mpc
+        import pinocchio as pin
+        f_c = ["r", "b", "forestgreen", "rebeccapurple"]
+        quat = np.zeros((4, 1))
+        steps = np.zeros((12, 1))
+        o_step = np.zeros((3, 1))
+        plt.figure()
+        plt.plot(self.loop_o_q_int[:, 0], self.loop_o_q_int[:, 1], linewidth=2, color="k")
+        for i in range(self.planner_fsteps.shape[0]):
+            fsteps = self.planner_fsteps[i]
+            RPY = utils_mpc.quaternionToRPY(self.loop_o_q_int[i, 3:7])
+            quat[:, 0] = utils_mpc.EulerToQuaternion([0.0, 0.0, RPY[2]])
+            oRh = pin.Quaternion(quat).toRotationMatrix()
+            for j in range(4):
+                #if np.any(fsteps[k, (j*3):((j+1)*3)]) and not np.array_equal(steps[(j*3):((j+1)*3), 0],
+                #                                                                fsteps[k, (j*3):((j+1)*3)]):
+                # steps[(j*3):((j+1)*3), 0] = fsteps[k, (j*3):((j+1)*3)]
+                # o_step[:, 0:1] = oRh @ steps[(j*3):((j+1)*3), 0:1] + self.loop_o_q_int[i:(i+1), 0:3].transpose()
+                o_step[:, 0:1] = oRh @ fsteps[0:1, (j*3):((j+1)*3)].transpose() + self.loop_o_q_int[i:(i+1), 0:3].transpose()
+                plt.plot(o_step[0, 0], o_step[1, 0], linestyle=None, linewidth=1, marker="o", color=f_c[j])
+
         lgd1 = ["HAA", "HFE", "Knee"]
         lgd2 = ["FL", "FR", "HL", "HR"]
         plt.figure()
@@ -768,6 +793,71 @@ class LoggerControl():
 
         plt.show()
 
+    def slider_predicted_footholds(self):
+
+        from matplotlib import pyplot as plt
+        from matplotlib.widgets import Slider, Button
+        import utils_mpc
+        import pinocchio as pin
+
+        self.planner_fsteps
+
+        # Define initial parameters
+        init_time = 0.0
+
+        # Create the figure and the line that we will manipulate
+        fig = plt.figure()
+        ax = plt.gca()
+        h1s = []
+
+        f_c = ["r", "b", "forestgreen", "rebeccapurple"]
+        quat = np.zeros((4, 1))
+
+        fsteps = self.planner_fsteps[0]
+        o_step = np.zeros((3*int(fsteps.shape[0]), 1))
+        RPY = utils_mpc.quaternionToRPY(self.loop_o_q_int[0, 3:7])
+        quat[:, 0] = utils_mpc.EulerToQuaternion([0.0, 0.0, RPY[2]])
+        oRh = pin.Quaternion(quat).toRotationMatrix()
+        for j in range(4):
+            o_step[0:3, 0:1] = oRh @ fsteps[0:1, (j*3):((j+1)*3)].transpose() + self.loop_o_q_int[0:1, 0:3].transpose()
+            h1, = plt.plot(o_step[0::3, 0], o_step[1::3, 0], linestyle=None, linewidth=0, marker="o", color=f_c[j])
+            h1s.append(h1)
+
+        axcolor = 'lightgoldenrodyellow'
+
+        # Make a horizontal slider to control the time.
+        axtime = plt.axes([0.25, 0.03, 0.65, 0.03], facecolor=axcolor)
+        time_slider = Slider(
+            ax=axtime,
+            label='Time [s]',
+            valmin=0.0,
+            valmax=self.logSize*self.dt,
+            valinit=init_time,
+        )
+
+        ax.set_xlim([-0.3, 0.5])
+        ax.set_ylim([-0.3, 0.5])
+
+        # The function to be called anytime a slider's value changes
+        def update(val):
+            time_slider.val = np.round(val / (self.dt*10), decimals=0) * (self.dt*10)
+            rounded = int(np.round(time_slider.val / self.dt, decimals=0))
+            fsteps = self.planner_fsteps[rounded]
+            o_step = np.zeros((3*int(fsteps.shape[0]), 1))
+            RPY = utils_mpc.quaternionToRPY(self.loop_o_q_int[rounded, 3:7])
+            quat[:, 0] = utils_mpc.EulerToQuaternion([0.0, 0.0, RPY[2]])
+            oRh = pin.Quaternion(quat).toRotationMatrix()
+            for j in range(4):
+                for k in range(int(fsteps.shape[0])):
+                    o_step[(3*k):(3*(k+1)), 0:1] = oRh @ fsteps[(k):(k+1), (j*3):((j+1)*3)].transpose() + self.loop_o_q_int[rounded:(rounded+1), 0:3].transpose()
+                h1s[j].set_xdata(o_step[0::3, 0].copy())
+                h1s[j].set_ydata(o_step[1::3, 0].copy())
+            fig.canvas.draw_idle()
+
+        # register the update function with each slider
+        time_slider.on_changed(update)
+
+        plt.show()
 
 
 if __name__ == "__main__":
