@@ -1,13 +1,15 @@
 
-from example_robot_data import load
+# from example_robot_data import load
 import numpy as np
 import pinocchio as pin
 import libquadruped_reactive_walking as lrw
-
+from example_robot_data.robots_loader import Solo12Loader
 
 class Solo12InvKin:
     def __init__(self, dt):
-        self.robot = load('solo12')
+        # self.robot = load('solo12')
+        Solo12Loader.free_flyer = False
+        self.robot = Solo12Loader().robot
         self.dt = dt
 
         self.InvKinCpp = lrw.InvKin(dt)
@@ -49,13 +51,13 @@ class Solo12InvKin:
         self.cpp_vf = np.zeros((4, 3))
         self.cpp_wf = np.zeros((4, 3))
         self.cpp_af = np.zeros((4, 3))
-        self.cpp_Jf = np.zeros((12, 18))
+        self.cpp_Jf = np.zeros((12, 12))
 
         self.cpp_posb = np.zeros((1, 3))
         self.cpp_rotb = np.zeros((3, 3))
         self.cpp_vb = np.zeros((1, 6))
         self.cpp_ab = np.zeros((1, 6))
-        self.cpp_Jb = np.zeros((6, 18))
+        self.cpp_Jb = np.zeros((6, 12))
 
         self.cpp_ddq = np.zeros((18,))
         self.cpp_q_cmd = np.zeros((19,))
@@ -66,7 +68,7 @@ class Solo12InvKin:
         FR_FOOT_ID = self.robot.model.getFrameId('FR_FOOT')
         HL_FOOT_ID = self.robot.model.getFrameId('HL_FOOT')
         HR_FOOT_ID = self.robot.model.getFrameId('HR_FOOT')
-        self.BASE_ID = self.robot.model.getFrameId('base_link')
+        self.BASE_ID = FL_FOOT_ID # self.robot.model.getFrameId('base_link') TODO REMOVE
         self.foot_ids = np.array([FL_FOOT_ID, FR_FOOT_ID, HL_FOOT_ID, HR_FOOT_ID])
 
         def dinv(J, damping=1e-2):
@@ -133,12 +135,12 @@ class Solo12InvKin:
         self.cpp_ab[0, 3:6] = acc.angular
         self.cpp_Jb[:, :] = pin.getFrameJacobian(self.robot.model, self.robot.data, self.BASE_ID, pin.LOCAL_WORLD_ALIGNED)
 
-        self.cpp_ddq[:] = self.InvKinCpp.refreshAndCompute(np.array([x_cmd]), np.array([contacts]), pgoals, vgoals, agoals,
-                                                           self.cpp_posf, self.cpp_vf, self.cpp_wf, self.cpp_af, self.cpp_Jf,
-                                                           self.cpp_posb, self.cpp_rotb, self.cpp_vb, self.cpp_ab, self.cpp_Jb)
+        self.cpp_ddq[6:] = self.InvKinCpp.refreshAndCompute(np.array([x_cmd]), np.array([contacts]), pgoals, vgoals, agoals,
+                                                            self.cpp_posf, self.cpp_vf, self.cpp_wf, self.cpp_af, self.cpp_Jf,
+                                                            self.cpp_posb, self.cpp_rotb, self.cpp_vb, self.cpp_ab, self.cpp_Jb)
 
-        self.cpp_q_cmd[:] = pin.integrate(self.robot.model, q, self.InvKinCpp.get_q_step())
-        self.cpp_dq_cmd[:] = self.InvKinCpp.get_dq_cmd()
+        self.cpp_q_cmd[7:] = q[:, 0] + self.InvKinCpp.get_q_step()  # pin.integrate(self.robot.model, q, self.InvKinCpp.get_q_step())
+        self.cpp_dq_cmd[6:] = self.InvKinCpp.get_dq_cmd()
 
         self.q_cmd = self.cpp_q_cmd
         self.dq_cmd = self.cpp_dq_cmd

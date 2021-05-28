@@ -48,11 +48,11 @@ private:
     Eigen::Matrix<double, 6, 1> x = Eigen::Matrix<double, 6, 1>::Zero();
     Eigen::Matrix<double, 6, 1> dx_ref = Eigen::Matrix<double, 6, 1>::Zero();
     Eigen::Matrix<double, 6, 1> dx = Eigen::Matrix<double, 6, 1>::Zero();
-    Eigen::Matrix<double, 18, 18> J = Eigen::Matrix<double, 18, 18>::Zero();
-    Eigen::Matrix<double, 18, 18> invJ = Eigen::Matrix<double, 18, 18>::Zero();
-    Eigen::Matrix<double, 1, 18> acc = Eigen::Matrix<double, 1, 18>::Zero();
-    Eigen::Matrix<double, 1, 18> x_err = Eigen::Matrix<double, 1, 18>::Zero();
-    Eigen::Matrix<double, 1, 18> dx_r = Eigen::Matrix<double, 1, 18>::Zero();
+    Eigen::Matrix<double, 12, 12> J = Eigen::Matrix<double, 12, 12>::Zero();
+    Eigen::Matrix<double, 12, 12> invJ = Eigen::Matrix<double, 12, 12>::Zero();
+    Eigen::Matrix<double, 1, 12> acc = Eigen::Matrix<double, 1, 12>::Zero();
+    Eigen::Matrix<double, 1, 12> x_err = Eigen::Matrix<double, 1, 12>::Zero();
+    Eigen::Matrix<double, 1, 12> dx_r = Eigen::Matrix<double, 1, 12>::Zero();
 
     Eigen::Matrix<double, 4, 3> pfeet_err = Eigen::Matrix<double, 4, 3>::Zero();
     Eigen::Matrix<double, 4, 3> vfeet_ref = Eigen::Matrix<double, 4, 3>::Zero();
@@ -62,9 +62,9 @@ private:
     Eigen::Matrix<double, 1, 3> e_basisrot = Eigen::Matrix<double, 1, 3>::Zero();
     Eigen::Matrix<double, 1, 3> awbasis = Eigen::Matrix<double, 1, 3>::Zero();
 
-    Eigen::MatrixXd ddq = Eigen::MatrixXd::Zero(18, 1);
-    Eigen::MatrixXd q_step = Eigen::MatrixXd::Zero(18, 1);
-    Eigen::MatrixXd dq_cmd = Eigen::MatrixXd::Zero(18, 1);
+    Eigen::MatrixXd ddq = Eigen::MatrixXd::Zero(12, 1);
+    Eigen::MatrixXd q_step = Eigen::MatrixXd::Zero(12, 1);
+    Eigen::MatrixXd dq_cmd = Eigen::MatrixXd::Zero(12, 1);
 
     // Gains
     double Kp_base_orientation = 100.0;
@@ -73,8 +73,8 @@ private:
     double Kp_base_position = 100.0;
     double Kd_base_position = 2.0 * std::sqrt(Kp_base_position);
 
-    double Kp_flyingfeet = 1000.0;
-    double Kd_flyingfeet = 5.0 * std::sqrt(Kp_flyingfeet);
+    double Kp_flyingfeet = 100.0; // 1000
+    double Kd_flyingfeet = 2.0 * std::sqrt(Kp_flyingfeet); // 5.0 *
 };
 
 template <typename _Matrix_Type_>

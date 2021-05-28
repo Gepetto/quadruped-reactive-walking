@@ -63,12 +63,13 @@ Eigen::MatrixXd InvKin::computeInvKin(const Eigen::MatrixXd &posf, const Eigen::
 
         afeet.row(i) = + Kp_flyingfeet * pfeet_err.row(i) - Kd_flyingfeet * (vf.row(i)-feet_velocity_ref.row(i)) + feet_acceleration_ref.row(i);
         if (flag_in_contact(0, i)) {
-            afeet.row(i) *= 1.0; // Set to 0.0 to disable position/velocity control of feet in contact
+            afeet.row(i) *= 0.0; // Set to 0.0 to disable position/velocity control of feet in contact
         }
         afeet.row(i) -= af.row(i) + cross3(wf.row(i), vf.row(i)); // Drift
     }
-    J.block(6, 0, 12, 18) = Jf.block(0, 0, 12, 18);
+    J.block(0, 0, 12, 12) = Jf.block(0, 0, 12, 12);
 
+    /*
     // Process base position
     e_basispos = base_position_ref - posb;
     abasis = Kp_base_position * e_basispos - Kd_base_position * (vb.block(0, 0, 1, 3) - base_linearvelocity_ref);
@@ -89,28 +90,31 @@ Eigen::MatrixXd InvKin::computeInvKin(const Eigen::MatrixXd &posf, const Eigen::
     x_ref.block(3, 0, 3, 1) = vb.block(0, 3, 1, 3);
 
     J.block(0, 0, 6, 18) = Jb.block(0, 0, 6, 18); // Position and orientation
+    */
 
-    acc.block(0, 0, 1, 3) = abasis;
-    acc.block(0, 3, 1, 3) = awbasis;
+    //acc.block(0, 0, 1, 3) = abasis;
+    //acc.block(0, 3, 1, 3) = awbasis;
     for (int i = 0; i < 4; i++) {
-        acc.block(0, 6+3*i, 1, 3) = afeet.row(i);
+        acc.block(0, 3*i, 1, 3) = afeet.row(i);
     }
 
-    x_err.block(0, 0, 1, 3) = e_basispos;
-    x_err.block(0, 3, 1, 3) = e_basisrot;
+    //x_err.block(0, 0, 1, 3) = e_basispos;
+    //x_err.block(0, 3, 1, 3) = e_basisrot;
     for (int i = 0; i < 4; i++) {
-        x_err.block(0, 6+3*i, 1, 3) = pfeet_err.row(i);
+        x_err.block(0, 3*i, 1, 3) = pfeet_err.row(i);
     }
 
-    dx_r.block(0, 0, 1, 3) = base_linearvelocity_ref;
-    dx_r.block(0, 3, 1, 3) = base_angularvelocity_ref;
+    //dx_r.block(0, 0, 1, 3) = base_linearvelocity_ref;
+    //dx_r.block(0, 3, 1, 3) = base_angularvelocity_ref;
     for (int i = 0; i < 4; i++) {
-        dx_r.block(0, 6+3*i, 1, 3) = vfeet_ref.row(i);
+        dx_r.block(0, 3*i, 1, 3) = vfeet_ref.row(i);
     }
 
     // std::cout << "J" << std::endl << J << std::endl;
 
-    invJ = pseudoInverse(J);
+    for (int i = 0; i < 4; i++) {
+        invJ.block(3*i, 3*i, 3, 3) = J.block(3*i, 3*i, 3, 3).inverse();
+    }
     
     // std::cout << "invJ" << std::endl << invJ << std::endl;
     // std::cout << "acc" << std::endl << acc << std::endl;

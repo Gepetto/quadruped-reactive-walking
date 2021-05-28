@@ -305,10 +305,10 @@ class LoggerControl():
                     "Task current state", "Task reference state"])"""
 
         # Analysis of the footstep locations (current and future) with a slider to move along time
-        self.slider_predicted_footholds()
+        # self.slider_predicted_footholds()
 
         # Analysis of the footholds locations during the whole experiment
-        import utils_mpc
+        """import utils_mpc
         import pinocchio as pin
         f_c = ["r", "b", "forestgreen", "rebeccapurple"]
         quat = np.zeros((4, 1))
@@ -328,6 +328,7 @@ class LoggerControl():
                 # o_step[:, 0:1] = oRh @ steps[(j*3):((j+1)*3), 0:1] + self.loop_o_q_int[i:(i+1), 0:3].transpose()
                 o_step[:, 0:1] = oRh @ fsteps[0:1, (j*3):((j+1)*3)].transpose() + self.loop_o_q_int[i:(i+1), 0:3].transpose()
                 plt.plot(o_step[0, 0], o_step[1, 0], linestyle=None, linewidth=1, marker="o", color=f_c[j])
+        """
 
         lgd1 = ["HAA", "HFE", "Knee"]
         lgd2 = ["FL", "FR", "HL", "HR"]
