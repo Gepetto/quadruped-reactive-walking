@@ -428,11 +428,11 @@ class Estimator:
                 vel_est += vel_estimated_baseframe[:, 0]  # Linear velocity
                 xyz_est += xyz_estimated  # Position
 
-                """r_foot = 0.0155  # 31mm of diameter on meshlab
+                r_foot = 0.025 # 0.0155  # 31mm of diameter on meshlab
                 if i <= 1:
                     vel_est[0] += r_foot * (self.actuators_vel[1+3*i] - self.actuators_vel[2+3*i])
                 else:
-                    vel_est[0] += r_foot * (self.actuators_vel[1+3*i] + self.actuators_vel[2+3*i])"""
+                    vel_est[0] += r_foot * (self.actuators_vel[1+3*i] + self.actuators_vel[2+3*i])
 
         # If at least one foot is in contact, we do the average of feet results
         if cpt > 0:
