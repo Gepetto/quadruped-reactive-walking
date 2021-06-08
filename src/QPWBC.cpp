@@ -7,7 +7,7 @@ QPWBC::QPWBC() {
   */
 
   // Slipping constraints
-  Eigen::Matrix<double, 5, 3> SC;
+  Eigen::Matrix<double, 5, 3> SC = Eigen::Matrix<double, 5, 3>::Zero();
   int a[9] = {0, 1, 2, 3, 0, 1, 2, 3, 4};
   int b[9] = {0, 0, 1, 1, 2, 2, 2, 2, 2};
   double c[9] = {1.0, -1.0, 1.0, -1.0, -mu, -mu, -mu, -mu, -1};
@@ -334,7 +334,7 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
   // Update P and Q matrices of the cost function xT P x + 2 xT g
   update_PQ();
 
-  const double Nz_max = 20.0;
+  const double Nz_max = 25.0;
   Eigen::Matrix<double, 20, 1> Gf = G * f_cmd;
   
   for (int i = 0; i < G.rows(); i++) {
@@ -342,11 +342,12 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
     v_NK_up[i] = - Gf(i, 0) + Nz_max;
   }
 
-  const double k_max = 15.0;
+  // Limit max force when contact is activated
+  /*const double k_max = 15.0;
   for (int i = 0; i < 4; i++) {
     if (k_contact(0, i) < k_max) {
       v_NK_up[5*i+4] -= Nz_max * (1.0 - k_contact(0, i) / k_max);
-    }
+    }*/
     /*else if (k_contact(0, i) == (k_max+10))
     {
       //char t_char[1] = {'M'};
@@ -358,7 +359,7 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
       }
     }*/
     
-  }
+  //}
 
   // Create an initial guess and call the solver to solve the QP problem
   call_solver();
@@ -495,6 +496,24 @@ void QPWBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc
   gamma = Yinv * ((X * f_cmd) - RNEA);
   H = A.transpose() * Q1 * A + Q2;
   g = A.transpose() * Q1 * gamma;
+
+  /*std::cout << "X" << std::endl;
+  std::cout << X << std::endl;
+  std::cout << "Yinv" << std::endl;
+  std::cout << Yinv << std::endl;
+  std::cout << "A" << std::endl;
+  std::cout << A << std::endl;
+  std::cout << "gamma" << std::endl;
+  std::cout << gamma << std::endl;
+  std::cout << "Q1" << std::endl;
+  std::cout << Q1 << std::endl;
+  std::cout << "A.transpose() * Q1" << std::endl;
+  std::cout << A.transpose() * Q1 << std::endl;*/
+  /*std::cout << "g" << std::endl;
+  std::cout << g << std::endl;
+  std::cout << "H" << std::endl;
+  std::cout << H << std::endl;*/
+
 
 }
 

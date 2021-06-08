@@ -24,7 +24,7 @@ class QPWBC {
 
   // Weight matrices of initial QP
   Eigen::Matrix<double, 6, 6> Q1 = 0.1 * Eigen::Matrix<double, 6, 6>::Identity();
-  Eigen::Matrix<double, 12, 12> Q2 = 1.0 * Eigen::Matrix<double, 12, 12>::Identity();
+  Eigen::Matrix<double, 12, 12> Q2 = 5.0 * Eigen::Matrix<double, 12, 12>::Identity();
 
   // Friction coefficient
   const double mu = 0.9;
@@ -57,7 +57,7 @@ class QPWBC {
   double v_warmxf[size_nz_NK] = {};  // matrix NK (lower bound)
 
   // Matrix P
-  const static int size_nz_P = 6*13; // 12*13/2;
+  const static int size_nz_P = 6*13; // 6*13; // 12*13/2;
   csc *P;  // Compressed Sparse Column matrix
 
   // Matrix Q

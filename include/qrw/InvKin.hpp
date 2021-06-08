@@ -18,14 +18,10 @@ public:
 
     Eigen::Matrix<double, 1, 3> cross3(Eigen::Matrix<double, 1, 3> left, Eigen::Matrix<double, 1, 3> right);
 
-    Eigen::MatrixXd refreshAndCompute(const Eigen::MatrixXd& x_cmd, const Eigen::MatrixXd& contacts,
+    Eigen::MatrixXd refreshAndCompute(const Eigen::MatrixXd& contacts,
                                       const Eigen::MatrixXd& goals, const Eigen::MatrixXd& vgoals, const Eigen::MatrixXd& agoals,
-                                      const Eigen::MatrixXd& posf, const Eigen::MatrixXd& vf, const Eigen::MatrixXd& wf, const Eigen::MatrixXd& af,
-                                      const Eigen::MatrixXd& Jf, const Eigen::MatrixXd& posb, const Eigen::MatrixXd& rotb, const Eigen::MatrixXd& vb,
-                                      const Eigen::MatrixXd& ab, const Eigen::MatrixXd& Jb);
-    Eigen::MatrixXd computeInvKin(const Eigen::MatrixXd& posf, const Eigen::MatrixXd& vf, const Eigen::MatrixXd& wf, const Eigen::MatrixXd& af,
-                                  const Eigen::MatrixXd& Jf, const Eigen::MatrixXd& posb, const Eigen::MatrixXd& rotb, const Eigen::MatrixXd& vb, const Eigen::MatrixXd& ab,
-                                  const Eigen::MatrixXd& Jb);
+                                      const Eigen::MatrixXd& posf, const Eigen::MatrixXd& vf, const Eigen::MatrixXd& wf,
+                                      const Eigen::MatrixXd& af, const Eigen::MatrixXd& Jf);
     Eigen::MatrixXd get_q_step();
     Eigen::MatrixXd get_dq_cmd();
 
@@ -38,17 +34,7 @@ private:
     Eigen::Matrix<double, 4, 3> feet_velocity_ref = Eigen::Matrix<double, 4, 3>::Zero();
     Eigen::Matrix<double, 4, 3> feet_acceleration_ref = Eigen::Matrix<double, 4, 3>::Zero();
     Eigen::Matrix<double, 1, 4> flag_in_contact = Eigen::Matrix<double, 1, 4>::Zero();
-    Eigen::Matrix<double, 3, 3> base_orientation_ref = Eigen::Matrix<double, 3, 3>::Zero();
-    Eigen::Matrix<double, 1, 3> base_angularvelocity_ref = Eigen::Matrix<double, 1, 3>::Zero();
-    Eigen::Matrix<double, 1, 3> base_angularacceleration_ref = Eigen::Matrix<double, 1, 3>::Zero();
-    Eigen::Matrix<double, 1, 3> base_position_ref = Eigen::Matrix<double, 1, 3>::Zero();
-    Eigen::Matrix<double, 1, 3> base_linearvelocity_ref = Eigen::Matrix<double, 1, 3>::Zero();
-    Eigen::Matrix<double, 1, 3> base_linearacceleration_ref = Eigen::Matrix<double, 1, 3>::Zero();
-    Eigen::Matrix<double, 6, 1> x_ref = Eigen::Matrix<double, 6, 1>::Zero();
-    Eigen::Matrix<double, 6, 1> x = Eigen::Matrix<double, 6, 1>::Zero();
-    Eigen::Matrix<double, 6, 1> dx_ref = Eigen::Matrix<double, 6, 1>::Zero();
-    Eigen::Matrix<double, 6, 1> dx = Eigen::Matrix<double, 6, 1>::Zero();
-    Eigen::Matrix<double, 12, 12> J = Eigen::Matrix<double, 12, 12>::Zero();
+    
     Eigen::Matrix<double, 12, 12> invJ = Eigen::Matrix<double, 12, 12>::Zero();
     Eigen::Matrix<double, 1, 12> acc = Eigen::Matrix<double, 1, 12>::Zero();
     Eigen::Matrix<double, 1, 12> x_err = Eigen::Matrix<double, 1, 12>::Zero();
@@ -67,12 +53,6 @@ private:
     Eigen::MatrixXd dq_cmd = Eigen::MatrixXd::Zero(12, 1);
 
     // Gains
-    double Kp_base_orientation = 100.0;
-    double Kd_base_orientation = 2.0 * std::sqrt(Kp_base_orientation);
-
-    double Kp_base_position = 100.0;
-    double Kd_base_position = 2.0 * std::sqrt(Kp_base_position);
-
     double Kp_flyingfeet = 100.0; // 1000
     double Kd_flyingfeet = 2.0 * std::sqrt(Kp_flyingfeet); // 5.0 *
 };

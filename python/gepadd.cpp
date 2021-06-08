@@ -191,8 +191,7 @@ struct InvKinPythonVisitor : public bp::def_visitor<InvKinPythonVisitor<InvKin>>
 
             // Run InvKin from Python
             .def("refreshAndCompute", &InvKin::refreshAndCompute,
-                 bp::args("x_cmd", "contacts", "goals", "vgoals", "agoals", "posf", "vf", "wf", "af", "Jf",
-                          "posb", "rotb", "vb", "ab", "Jb"),
+                 bp::args("contacts", "goals", "vgoals", "agoals", "posf", "vf", "wf", "af", "Jf"),
                  "Run InvKin from Python.\n");
     }
 
