@@ -172,7 +172,8 @@ class MPC_crocoddyl:
         for j in range(self.index):
             # Update model
             self.ListAction[j].updateModel(np.reshape(self.fsteps[j, :], (3, 4), order='F'),
-                                           xref[:, j], self.gait[j, :])
+                                           xref[:, j+1], self.gait[j, :])
+
 
         # Update model of the terminal model
         self.terminalModel.updateModel(np.reshape(
@@ -206,15 +207,15 @@ class MPC_crocoddyl:
             self.x_init.insert(0, xref[:, 0])
             self.x_init.append(self.ddp.xs[-1])
 
-        print("1")
+        """print("1")
         from IPython import embed
-        embed()
+        embed()"""
 
         self.ddp.solve(self.x_init,  self.u_init, self.max_iteration)
 
-        print("3")
+        """print("3")
         from IPython import embed
-        embed()
+        embed()"""
 
         return 0
 
