@@ -326,6 +326,7 @@ int MPC::create_weight_matrices() {
   // Define weights for the x-x_ref components of the optimization vector
   // Hand-tuning of parameters if you want to give more weight to specific components
   // double w[12] = {10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 10.0f};
+  // double w[12] = {2.0f, 2.0f, 20.0f, 2.0f, 2.0f, 10.0f, 0.2f, 0.2f, 0.2f, 0.0f, 0.0f, 10.0f};
   double w[12] = {2.0f, 2.0f, 20.0f, 0.25f, 0.25f, 10.0f, 0.2f, 0.2f, 0.2f, 0.0f, 0.0f, 0.3f};
   /*w[6] = 2.0f * sqrt(w[0]);
   w[7] = 2.0f * sqrt(w[1]);
@@ -342,9 +343,9 @@ int MPC::create_weight_matrices() {
   // Define weights for the force components of the optimization vector
   for (int k = n_steps; k < (2 * n_steps); k++) {
     for (int i = 0; i < 4; i++) {
-      add_to_P(12 * k + 3 * i + 0, 12 * k + 3 * i + 0, 1e-5f, r_P, c_P, v_P);
-      add_to_P(12 * k + 3 * i + 1, 12 * k + 3 * i + 1, 1e-5f, r_P, c_P, v_P);
-      add_to_P(12 * k + 3 * i + 2, 12 * k + 3 * i + 2, 1e-5f, r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 0, 12 * k + 3 * i + 0, 5e-5f, r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 1, 12 * k + 3 * i + 1, 5e-5f, r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 2, 12 * k + 3 * i + 2, 5e-5f, r_P, c_P, v_P);
     }
   }
 
@@ -522,15 +523,15 @@ int MPC::call_solver(int k) {
     save_dns_matrix(v_NK_low, 12 * n_steps * 2 + 20 * n_steps, "l");
     save_dns_matrix(v_NK_up, 12 * n_steps * 2 + 20 * n_steps, "u");*/
 
-    // settings->rho = 0.1f;
-    // settings->sigma = 1e-6f;
+    //settings->rho = 0.1f;
+    settings->sigma = (c_float)1e-6;
     // settings->max_iter = 4000;
-    settings->eps_abs = (c_float)1e-5;
-    settings->eps_rel = (c_float)1e-5;
-    /*settings->eps_prim_inf = 1e-4f;
-    settings->eps_dual_inf = 1e-4f;
-    settings->alpha = 1.6f;
-    settings->delta = 1e-6f;
+    settings->eps_abs = (c_float)1e-6;
+    settings->eps_rel = (c_float)1e-6;
+    settings->eps_prim_inf = (c_float)1e-5;
+    settings->eps_dual_inf = (c_float)1e-4;
+    settings->alpha = (c_float)1.6;
+    /*settings->delta = 1e-6f;
     settings->polish = 0;
     settings->polish_refine_iter = 3;*/
     settings->adaptive_rho = (c_int)1;
@@ -548,6 +549,10 @@ int MPC::call_solver(int k) {
     osqp_update_bounds(workspce, &v_NK_low[0], &v_NK_up[0]);
     // osqp_warm_start_x(workspce, &v_warmxf[0]);
   }
+
+  //char t_char[1] = {'M'};
+  //my_print_csc_matrix(ML, t_char);
+  //std::cout << v_NK_low[1] << " <= A x <= " << v_NK_up[1] << std::endl;
 
   // Run the solver to solve the QP problem
   osqp_solve(workspce);
@@ -718,10 +723,7 @@ void MPC::my_print_csc_matrix(csc *M, const char *name) {
         int a = (int)M->i[i];
         int b = (int)j;
         double c = M->x[k++];
-        if ((a >= 12 * (n_steps - 1)) && (a < 12 * (n_steps - 1) + 24) && (b >= 12 * (n_steps - 1)) &&
-            (b < 12 * (n_steps - 1) * 2)) {
-          printf("\t%3u [%3u,%3u] = %.3g\n", k - 1, a, b - 12 * n_steps, c);
-        }
+        printf("\t%3u [%3u,%3u] = %.3g\n", k - 1, a, b, c);
       }
     }
   }
