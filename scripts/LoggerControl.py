@@ -29,6 +29,7 @@ class LoggerControl():
         self.esti_FK_lin_vel = np.zeros([logSize, 3])  # estimated velocity of the base with FK
         self.esti_FK_xyz = np.zeros([logSize, 3])  # estimated position of the base with FK
         self.esti_xyz_mean_feet = np.zeros([logSize, 3])  # average of feet goals
+        self.esti_filt_lin_vel = np.zeros([logSize, 3])  # estimated velocity of the base before low pass filter
 
         self.esti_HP_x = np.zeros([logSize, 3])  # x input of the velocity complementary filter
         self.esti_HP_dx = np.zeros([logSize, 3])  # dx input of the velocity complementary filter
@@ -46,6 +47,8 @@ class LoggerControl():
         # Loop
         self.loop_o_q_int = np.zeros([logSize, 19])  # position in world frame (esti_q_filt + dt * loop_o_v)
         self.loop_o_v = np.zeros([logSize, 18])  # estimated velocity in world frame
+        self.loop_h_v = np.zeros([logSize, 18])  # estimated velocity in horizontal frame
+        self.loop_pos_virtual_world = np.zeros([logSize, 3])  # x, y, yaw perfect position in world
 
         # Gait
         self.planner_gait = np.zeros([logSize, N0_gait, 4])  # Gait sequence
@@ -81,8 +84,11 @@ class LoggerControl():
         self.wbc_tau_ff = np.zeros([logSize, 12])  # feedforward torques computed by the WBC
         self.wbc_f_ctc = np.zeros([logSize, 12])  # contact forces computed by the WBC
         self.wbc_feet_pos = np.zeros([logSize, 3, 4])  # current feet positions according to WBC
+        self.wbc_feet_pos_target = np.zeros([logSize, 3, 4])  # current feet positions targets for WBC
         self.wbc_feet_err = np.zeros([logSize, 3, 4])  # error between feet positions and their reference
         self.wbc_feet_vel = np.zeros([logSize, 3, 4])  # current feet velocities according to WBC
+        self.wbc_feet_vel_target = np.zeros([logSize, 3, 4])  # current feet velocities targets for WBC
+        self.wbc_feet_acc_target = np.zeros([logSize, 3, 4])  # current feet accelerations targets for WBC
         self.wbc_feet_pos_invkin = np.zeros([logSize, 3, 4])  # current feet positions according to InvKin
         self.wbc_feet_vel_invkin = np.zeros([logSize, 3, 4])  # current feet velocities according to InvKin
 
@@ -109,6 +115,7 @@ class LoggerControl():
         self.esti_FK_lin_vel[self.i] = estimator.FK_lin_vel[:]
         self.esti_FK_xyz[self.i] = estimator.FK_xyz[:]
         self.esti_xyz_mean_feet[self.i] = estimator.xyz_mean_feet[:]
+        self.esti_filt_lin_vel[self.i] = estimator.filt_lin_vel[:]
         if not estimator.kf_enabled:
             self.esti_HP_x[self.i] = estimator.filter_xyz_vel.x
             self.esti_HP_dx[self.i] = estimator.filter_xyz_vel.dx
@@ -126,6 +133,8 @@ class LoggerControl():
         # Logging from the main loop
         self.loop_o_q_int[self.i] = loop.q[:, 0]
         self.loop_o_v[self.i] = loop.v[:, 0]
+        self.loop_h_v[self.i] = loop.h_v[:, 0]
+        self.loop_pos_virtual_world[self.i] = np.array([loop.q[0, 0], loop.q[1, 0], loop.yaw_estim])
 
         # Logging from the planner
         # self.planner_q_static[self.i] = planner.q_static[:]
@@ -151,8 +160,11 @@ class LoggerControl():
         self.wbc_tau_ff[self.i] = loop.result.tau_ff
         self.wbc_f_ctc[self.i] = wbc.f_with_delta[:, 0]
         self.wbc_feet_pos[self.i] = wbc.feet_pos
+        self.wbc_feet_pos_target[self.i] = wbc.log_feet_pos_target[:, :, self.i+1]
         self.wbc_feet_err[self.i] = wbc.feet_err
         self.wbc_feet_vel[self.i] = wbc.feet_vel
+        self.wbc_feet_vel_target[self.i] = wbc.log_feet_vel_target[:, :, self.i+1]
+        self.wbc_feet_acc_target[self.i] = wbc.log_feet_acc_target[:, :, self.i+1]
         self.wbc_feet_pos_invkin[self.i] = wbc.invKin.cpp_posf.transpose()
         self.wbc_feet_vel_invkin[self.i] = wbc.invKin.cpp_vf.transpose()
 
@@ -212,16 +224,18 @@ class LoggerControl():
                 plt.subplot(3, 4, index12[i], sharex=ax0)
 
             plt.plot(t_range, self.wbc_feet_pos[:, i % 3, np.int(i/3)], color='b', linewidth=3, marker='')
-            plt.plot(t_range, self.wbc_feet_err[:, i % 3, np.int(i/3)], color='g', linewidth=3, marker='')
-            plt.plot(t_range, self.planner_goals[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
-            plt.plot(t_range, self.wbc_feet_pos_invkin[:, i % 3, np.int(i/3)],
-                     color='darkviolet', linewidth=3, linestyle="--", marker='')
+            plt.plot(t_range, self.wbc_feet_err[:, i % 3, np.int(i/3)] + self.wbc_feet_pos[0, i % 3, np.int(i/3)], color='g', linewidth=3, marker='')
+            plt.plot(t_range, self.wbc_feet_pos_target[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
+            """plt.plot(t_range, self.wbc_feet_pos_invkin[:, i % 3, np.int(i/3)],
+                     color='darkviolet', linewidth=3, linestyle="--", marker='')"""
             if (i % 3) == 2:
+                mini = np.min(self.wbc_feet_pos[:, i % 3, np.int(i/3)])
+                maxi = np.max(self.wbc_feet_pos[:, i % 3, np.int(i/3)])
                 plt.plot(t_range, self.planner_gait[:, 0, np.int(
-                    i/3)] * np.max(self.wbc_feet_pos[:, i % 3, np.int(i/3)]), color='k', linewidth=3, marker='')
+                    i/3)] * (maxi - mini) + mini, color='k', linewidth=3, marker='')
             plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+"", "error",
                         lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", "Contact state"], prop={'size': 8})
-        plt.suptitle("Measured & Reference feet positions (world frame)")
+        plt.suptitle("Measured & Reference feet positions (base frame)")
 
         lgd_X = ["FL", "FR", "HL", "HR"]
         lgd_Y = ["Vel X", "Vel Y", "Vel Z"]
@@ -232,12 +246,12 @@ class LoggerControl():
             else:
                 plt.subplot(3, 4, index12[i], sharex=ax0)
             plt.plot(t_range, self.wbc_feet_vel[:, i % 3, np.int(i/3)], color='b', linewidth=3, marker='')
-            plt.plot(t_range, self.planner_vgoals[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
-            plt.plot(t_range, self.wbc_feet_vel_invkin[:, i % 3, np.int(i/3)],
-                     color='darkviolet', linewidth=3, linestyle="--", marker='')
+            plt.plot(t_range, self.wbc_feet_vel_target[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
+            """plt.plot(t_range, self.wbc_feet_vel_invkin[:, i % 3, np.int(i/3)],
+                     color='darkviolet', linewidth=3, linestyle="--", marker='')"""
             plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)], lgd_Y[i %
                                                                        3] + " " + lgd_X[np.int(i/3)]+" Ref"], prop={'size': 8})
-        plt.suptitle("Measured and Reference feet velocities (world frame)")
+        plt.suptitle("Measured and Reference feet velocities (base frame)")
 
         lgd_X = ["FL", "FR", "HL", "HR"]
         lgd_Y = ["Acc X", "Acc Y", "Acc Z"]
@@ -247,9 +261,9 @@ class LoggerControl():
                 ax0 = plt.subplot(3, 4, index12[i])
             else:
                 plt.subplot(3, 4, index12[i], sharex=ax0)
-            plt.plot(t_range, self.planner_agoals[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
+            plt.plot(t_range, self.wbc_feet_acc_target[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
             plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"], prop={'size': 8})
-        plt.suptitle("Reference feet accelerations (world frame)")
+        plt.suptitle("Reference feet accelerations (base frame)")
 
         # LOG_Q
         lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw"]
@@ -259,8 +273,15 @@ class LoggerControl():
                 ax0 = plt.subplot(3, 2, index6[i])
             else:
                 plt.subplot(3, 2, index6[i], sharex=ax0)
-            plt.plot(t_range, self.planner_xref[:, i, 0], "b", linewidth=2)
-            plt.plot(t_range, self.planner_xref[:, i, 1], "r", linewidth=3)
+            if i in [0, 1]:
+                plt.plot(t_range, self.loop_pos_virtual_world[:, i], "b", linewidth=3)
+                plt.plot(t_range, self.loop_pos_virtual_world[:, i], "r", linewidth=3)
+            elif i == 5:
+                plt.plot(t_range, self.loop_pos_virtual_world[:, 2], "b", linewidth=3)
+                plt.plot(t_range, self.loop_pos_virtual_world[:, 2], "r", linewidth=3)
+            else:
+                plt.plot(t_range, self.planner_xref[:, i, 0], "b", linewidth=2)
+                plt.plot(t_range, self.planner_xref[:, i, 1], "r", linewidth=3)
             if i < 3:
                 plt.plot(t_range, loggerSensors.mocapPosition[:, i], "k", linewidth=3)
             else:
@@ -281,13 +302,18 @@ class LoggerControl():
                 ax0 = plt.subplot(3, 2, index6[i])
             else:
                 plt.subplot(3, 2, index6[i], sharex=ax0)
-            plt.plot(t_range, self.esti_v_filt[:, i], "b", linewidth=2)
+            plt.plot(t_range, self.loop_h_v[:, i], "b", linewidth=2)
             plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
             if i < 3:
                 plt.plot(t_range, self.mocap_b_v[:, i], "k", linewidth=3)
                 # plt.plot(t_range, self.esti_FK_lin_vel[:, i], "violet", linewidth=3, linestyle="--")
+                plt.plot(t_range, self.esti_filt_lin_vel[:, i], "violet", linewidth=3, linestyle="--")
             else:
                 plt.plot(t_range, self.mocap_b_w[:, i-3], "k", linewidth=3)
+
+                N = 2000
+                y = np.convolve(self.mocap_b_w[:, i-3], np.ones(N)/N, mode='valid')
+                plt.plot(t_range[int(N/2)-1:-int(N/2)], y, linewidth=3, linestyle="--")
 
             # plt.plot(t_range, self.log_dq[i, :], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_invkin[i, :-2], "g", linewidth=2)
@@ -538,6 +564,7 @@ class LoggerControl():
                  esti_FK_lin_vel=self.esti_FK_lin_vel,
                  esti_FK_xyz=self.esti_FK_xyz,
                  esti_xyz_mean_feet=self.esti_xyz_mean_feet,
+                 esti_filt_lin_vel=self.esti_filt_lin_vel,
 
                  esti_HP_x=self.esti_HP_x,
                  esti_HP_dx=self.esti_HP_dx,
@@ -554,6 +581,8 @@ class LoggerControl():
 
                  loop_o_q_int=self.loop_o_q_int,
                  loop_o_v=self.loop_o_v,
+                 loop_h_v=self.loop_h_v,
+                 loop_pos_virtual_world=self.loop_pos_virtual_world,
 
                  planner_q_static=self.planner_q_static,
                  planner_RPY_static=self.planner_RPY_static,
@@ -576,8 +605,11 @@ class LoggerControl():
                  wbc_tau_ff=self.wbc_tau_ff,
                  wbc_f_ctc=self.wbc_f_ctc,
                  wbc_feet_pos=self.wbc_feet_pos,
+                 wbc_feet_pos_target=self.wbc_feet_pos_target,
                  wbc_feet_err=self.wbc_feet_err,
                  wbc_feet_vel=self.wbc_feet_vel,
+                 wbc_feet_vel_target=self.wbc_feet_vel_target,
+                 wbc_feet_acc_target=self.wbc_feet_acc_target,
 
                  tstamps=self.tstamps,
 
@@ -617,6 +649,7 @@ class LoggerControl():
         self.esti_FK_lin_vel = data["esti_FK_lin_vel"]
         self.esti_FK_xyz = data["esti_FK_xyz"]
         self.esti_xyz_mean_feet = data["esti_xyz_mean_feet"]
+        self.esti_filt_lin_vel = data["esti_filt_lin_vel"]
 
         self.esti_HP_x = data["esti_HP_x"]
         self.esti_HP_dx = data["esti_HP_dx"]
@@ -633,6 +666,8 @@ class LoggerControl():
 
         self.loop_o_q_int = data["loop_o_q_int"]
         self.loop_o_v = data["loop_o_v"]
+        self.loop_h_v = data["loop_h_v"]
+        self.loop_pos_virtual_world = data["loop_pos_virtual_world"]
 
         self.planner_q_static = data["planner_q_static"]
         self.planner_RPY_static = data["planner_RPY_static"]
@@ -655,8 +690,11 @@ class LoggerControl():
         self.wbc_tau_ff = data["wbc_tau_ff"]
         self.wbc_f_ctc = data["wbc_f_ctc"]
         self.wbc_feet_pos = data["wbc_feet_pos"]
+        self.wbc_feet_pos_target = data["wbc_feet_pos_target"]
         self.wbc_feet_err = data["wbc_feet_err"]
         self.wbc_feet_vel = data["wbc_feet_vel"]
+        self.wbc_feet_vel_target = data["wbc_feet_vel_target"]
+        self.wbc_feet_acc_target = data["wbc_feet_acc_target"]
 
         self.tstamps = data["tstamps"]
 
