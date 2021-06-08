@@ -179,17 +179,6 @@ class Controller:
         self.feet_v_cmd = np.zeros((3, 4))
         self.feet_p_cmd = np.zeros((3, 4))
 
-        # Solo12 model without free flyer
-        Solo12Loader.free_flyer = False
-        self.solo12_no_ff = Solo12Loader().robot
-        FL_FOOT_ID = self.solo12_no_ff.model.getFrameId('FL_FOOT')
-        FR_FOOT_ID = self.solo12_no_ff.model.getFrameId('FR_FOOT')
-        HL_FOOT_ID = self.solo12_no_ff.model.getFrameId('HL_FOOT')
-        HR_FOOT_ID = self.solo12_no_ff.model.getFrameId('HR_FOOT')
-        self.foot_ids_no_ff = np.array([FL_FOOT_ID, FR_FOOT_ID, HL_FOOT_ID, HR_FOOT_ID])
-        self.b_pos_feet = np.zeros((3, 4))
-        self.b_vel_feet = np.zeros((3, 4))
-
         self.error_flag = 0
         self.q_security = np.array([np.pi*0.4, np.pi*80/180, np.pi] * 4)
 
@@ -225,46 +214,8 @@ class Controller:
 
         t_filter = time.time()
 
-        # Update state for the next iteration of the whole loop
-        self.v_ref[0:3, 0] = self.joystick.v_ref[0:3, 0]  # TODO: Joystick velocity given in base frame and not
-        self.v_ref[3:6, 0] = self.joystick.v_ref[3:6, 0]  # in horizontal frame (case of non flat ground)
-        self.v_ref[6:, 0] = 0.0
-
-        if not self.gait.getIsStatic():
-            # Integration to get evolution of perfect x, y and yaw
-            Ryaw = np.array([[np.cos(self.yaw_estim), -np.sin(self.yaw_estim)],
-                             [np.sin(self.yaw_estim), np.cos(self.yaw_estim)]])
-            self.q[0:2, 0:1] = self.q[0:2, 0:1] + Ryaw @ self.v_ref[0:2, 0:1] * self.myController.dt
-            self.q[3:7, 0] = self.estimator.EulerToQuaternion([0.0, 0.0, self.yaw_estim + self.v_ref[5, 0:1] * self.myController.dt])
-
-            # Mix perfect x and y with height measurement
-            self.q[2, 0] = self.estimator.q_filt[2, 0]
-
-            # Mix perfect yaw with pitch and roll measurements
-            self.yaw_estim = (utils_mpc.quaternionToRPY(self.q[3:7, 0]))[2, 0]
-            self.RPY_filt = utils_mpc.quaternionToRPY(self.estimator.q_filt[3:7, 0])
-            self.q[3:7, 0] = self.estimator.EulerToQuaternion([self.RPY_filt[0], self.RPY_filt[1], self.yaw_estim])
-
-            # Actuators measurements
-            self.q[7:, 0] = self.estimator.q_filt[7:, 0]
-
-            # Velocities are the one estimated by the estimator
-            self.v = self.estimator.v_filt.copy()
-            quat = np.zeros((4, 1))
-            quat[:, 0] = self.estimator.EulerToQuaternion([self.RPY_filt[0], self.RPY_filt[1], 0.0])
-            hRb = pin.Quaternion(quat).toRotationMatrix()
-            self.h_v[0:3, 0:1] = hRb @ self.v[0:3, 0:1]
-            self.h_v[3:6, 0:1] = hRb @ self.v[3:6, 0:1]
-
-            # self.v[:6, 0] = self.joystick.v_ref[:6, 0]
-        else:
-            quat = np.array([[0.0, 0.0, 0.0, 1.0]]).transpose()
-            hRb = np.eye(3)
-            pass
-            # TODO: Adapt static mode to new version of the code
-            # self.planner.q_static[:] = pin.integrate(self.solo.model,
-            #                                             self.planner.q_static, self.v_estim * self.myController.dt)
-            # self.planner.RPY_static[:, 0:1] = utils_mpc.quaternionToRPY(self.planner.q_static[3:7, 0])
+        # Update state vectors of the robot (q and v) + transformation matrices between world and horizontal frames
+        oRh, oTh = self.updateState()
 
         # Update gait
         self.gait.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick.joystick_code)
@@ -276,68 +227,7 @@ class Controller:
                                                                 self.h_v[0:6, 0:1].copy(),
                                                                 self.v_ref[0:6, 0])
 
-        """
-        if self.k == 20:
-            self.joystick.v_ref[0, 0] = 0.1
-            N = 350
-            self.q = np.zeros((19, 1))
-            self.q[2, 0] = self.h_ref
-            self.q[7, 0] = 1.0
-            x_k = np.zeros((N - 20))
-            ctc = np.zeros((N - 20, 4))
-            ftp = np.zeros((N - 20, 4))
-            o_ftp = np.zeros((N - 20, 4))
-            h_ftg = np.zeros((N - 20, 4))
-            o_ftg = np.zeros((N - 20, 4))
-            while self.k < N:
-                self.k += 1
-
-                # Update gait
-                self.gait.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick.joystick_code)
-
-                x_k[self.k - 21] = self.k
-                ctc[self.k - 21, :] = self.gait.getCurrentGait()[0, :]
-
-                # Compute target footstep based on current and reference velocities
-                o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
-                                                                        int(self.k_mpc - self.k % self.k_mpc),
-                                                                        self.q[0:7, 0:1],
-                                                                        self.v[0:6, 0:1].copy(),
-                                                                        self.joystick.v_ref[0:6, 0])
-
-                oRh = self.footstepPlanner.getRz()
-                oTh = np.array([[self.q[0, 0]], [self.q[1, 0]], [0.0]])
-
-                # Update pos, vel and acc references for feet
-                # TODO: Make update take as parameters current gait, swing phase duration and remaining time
-                self.footTrajectoryGenerator.update(self.k, o_targetFootstep)
-
-                if self.k % self.k_mpc == 0:
-                    print(self.gait.getCurrentGait()[0:9, :])
-
-                o_ftg_k = self.footTrajectoryGenerator.getFootPosition()
-                h_ftg_k = oRh.transpose() @ (o_ftg_k - oTh)
-
-                for i in range(4):
-                    o_ftp[self.k - 21, i] = o_targetFootstep[0, i]
-                    h_ftg[self.k - 21, i] = h_ftg_k[0, i]
-                    o_ftg[self.k - 21, i] = o_ftg_k[0, i]
-
-                self.q[0, 0] += 0.002 * self.joystick.v_ref[0, 0]
-
-            from matplotlib import pyplot as plt
-            plt.figure()
-            plt.plot(x_k, np.min(o_ftg[:, 0]) + (np.max(o_ftg[:, 0]) - np.min(o_ftg[:, 0])) * ctc[:, 0])
-            plt.plot(x_k, o_ftg[:, 0])
-            plt.show(block=True)
-        """
-
-        # Transformation matrices between world and horizontal frames
-        oRh = self.footstepPlanner.getRz()
-        oTh = np.array([[self.q[0, 0]], [self.q[1, 0]], [0.0]])
-
         # Update pos, vel and acc references for feet
-        # TODO: Make update take as parameters current gait, swing phase duration and remaining time
         self.footTrajectoryGenerator.update(self.k, o_targetFootstep)
 
         # Run state planner (outputs the reference trajectory of the base)
@@ -348,37 +238,6 @@ class Controller:
         xref = self.statePlanner.getReferenceStates()
         fsteps = self.footstepPlanner.getFootsteps()
         cgait = self.gait.getCurrentGait()
-
-        pin.forwardKinematics(self.solo12_no_ff.model, self.solo12_no_ff.data, self.q[7:, 0:1], self.v[6:, 0:1])
-        pin.updateFramePlacements(self.solo12_no_ff.model, self.solo12_no_ff.data)
-        for i_ee in range(4):
-            idx = int(self.foot_ids_no_ff[i_ee])
-            self.b_pos_feet[:, i_ee] = self.solo12_no_ff.data.oMf[idx].translation
-            self.b_vel_feet[:, i_ee] = pin.getFrameVelocity(self.solo12_no_ff.model, self.solo12_no_ff.data, idx,
-                                                            pin.LOCAL_WORLD_ALIGNED).linear
-
-        # Feet command acceleration in base frame
-        self.feet_a_cmd = oRh.transpose() @ self.footTrajectoryGenerator.getFootAcceleration() \
-            - np.cross(np.tile(self.v_ref[3:6, 0:1], (1, 4)), np.cross(np.tile(self.v_ref[3:6, 0:1], (1, 4)), self.feet_p_cmd, axis=0), axis=0) \
-            - 2 * np.cross(np.tile(self.v_ref[3:6, 0:1], (1, 4)), self.feet_v_cmd, axis=0)
-
-        # Feet command velocity in base frame
-        self.feet_v_cmd = oRh.transpose() @ self.footTrajectoryGenerator.getFootVelocity()
-        self.feet_v_cmd = self.feet_v_cmd - self.v_ref[0:3, 0:1] - np.cross(np.tile(self.v_ref[3:6, 0:1], (1, 4)), self.feet_p_cmd, axis=0)
-
-        # Feet command position in base frame
-        self.feet_p_cmd = oRh.transpose() @ (self.footTrajectoryGenerator.getFootPosition()
-                                             - np.array([[0.0], [0.0], [self.h_ref]]) - oTh)
-
-        """if self.k > 2541:
-            print(fsteps[:10, :])
-            print(oRh.transpose() @ (self.footTrajectoryGenerator.getFootPosition()[:, 0:1] - oTh))
-            from IPython import embed
-            embed()"""
-
-        """if self.k > 40:
-            from IPython import embed
-            embed()"""
 
         t_planner = time.time()
 
@@ -412,18 +271,6 @@ class Controller:
         # If nothing wrong happened yet in the WBC controller
         if (not self.myController.error) and (not self.joystick.stop):
 
-            """self.q_wbc = np.zeros((19, 1))
-            self.q_wbc[2, 0] = self.q[2, 0]  # self.h_ref
-            self.q_wbc[3:7, 0] = quat[:, 0]  # self.estimator.EulerToQuaternion([self.RPY_filt[0], self.RPY_filt[1], 0.0])
-            # self.q_wbc[6, 0] = 1.0
-            self.q_wbc[7:, 0] = self.q[7:, 0]  # self.myController.qdes[7:]
-
-            # Get velocity in base frame for Pinocchio (not current base frame but desired base frame)
-            self.b_v = self.v.copy()
-            # self.b_v[:6, 0] = self.v_ref[:6, 0]
-            # self.b_v[0:3, 0:1] = hRb.transpose() @ self.v_ref[0:3, 0:1]
-            # self.b_v[3:6, 0:1] = hRb.transpose() @ self.v_ref[3:6, 0:1]
-            # self.b_v[6:, 0] = self.myController.vdes[6:, 0]"""
             self.q_wbc = np.zeros((19, 1))
             self.q_wbc[2, 0] = self.h_ref  # at position (0.0, 0.0, h_ref)
             self.q_wbc[6, 0] = 1.0  # with orientation (0.0, 0.0, 0.0)
@@ -434,11 +281,21 @@ class Controller:
             self.b_v[:6, 0] = self.v_ref[:6, 0]  # Base at reference velocity (TODO: add hRb once v_ref is considered in base frame)
             self.b_v[6:, 0] = self.myController.vdes[6:, 0]  # with reference angular velocities of previous loop
 
-            # self.b_v[0:3, 0:1] = hRb.transpose() @ self.v_ref[0:3, 0:1]
-            # self.b_v[3:6, 0:1] = hRb.transpose() @ self.v_ref[3:6, 0:1]
+            # Feet command acceleration in base frame
+            self.feet_a_cmd = oRh.transpose() @ self.footTrajectoryGenerator.getFootAcceleration() \
+                - np.cross(np.tile(self.v_ref[3:6, 0:1], (1, 4)), np.cross(np.tile(self.v_ref[3:6, 0:1], (1, 4)), self.feet_p_cmd, axis=0), axis=0) \
+                - 2 * np.cross(np.tile(self.v_ref[3:6, 0:1], (1, 4)), self.feet_v_cmd, axis=0)
+
+            # Feet command velocity in base frame
+            self.feet_v_cmd = oRh.transpose() @ self.footTrajectoryGenerator.getFootVelocity()
+            self.feet_v_cmd = self.feet_v_cmd - self.v_ref[0:3, 0:1] - np.cross(np.tile(self.v_ref[3:6, 0:1], (1, 4)), self.feet_p_cmd, axis=0)
+
+            # Feet command position in base frame
+            self.feet_p_cmd = oRh.transpose() @ (self.footTrajectoryGenerator.getFootPosition()
+                                                 - np.array([[0.0], [0.0], [self.h_ref]]) - oTh)
 
             # Run InvKin + WBC QP
-            self.myController.compute(self.q_wbc, self.b_v, self.x_f_wbc[:12],
+            self.myController.compute(self.q_wbc, self.b_v,
                                       self.x_f_wbc[12:], cgait[0, :],
                                       self.feet_p_cmd,
                                       self.feet_v_cmd,
@@ -519,3 +376,53 @@ class Controller:
         self.t_list_loop[self.k] = time.time() - tic
         self.t_list_InvKin[self.k] = self.myController.tac - self.myController.tic
         self.t_list_QPWBC[self.k] = self.myController.toc - self.myController.tac
+
+    def updateState(self):
+
+        # Update reference velocity vector
+        self.v_ref[0:3, 0] = self.joystick.v_ref[0:3, 0]  # TODO: Joystick velocity given in base frame and not
+        self.v_ref[3:6, 0] = self.joystick.v_ref[3:6, 0]  # in horizontal frame (case of non flat ground)
+        self.v_ref[6:, 0] = 0.0
+
+        # Update position and velocity state vectors
+        if not self.gait.getIsStatic():
+            # Integration to get evolution of perfect x, y and yaw
+            Ryaw = np.array([[np.cos(self.yaw_estim), -np.sin(self.yaw_estim)],
+                             [np.sin(self.yaw_estim), np.cos(self.yaw_estim)]])
+            self.q[0:2, 0:1] = self.q[0:2, 0:1] + Ryaw @ self.v_ref[0:2, 0:1] * self.myController.dt
+            self.q[3:7, 0] = self.estimator.EulerToQuaternion([0.0, 0.0, self.yaw_estim + self.v_ref[5, 0:1] * self.myController.dt])
+
+            # Mix perfect x and y with height measurement
+            self.q[2, 0] = self.estimator.q_filt[2, 0]
+
+            # Mix perfect yaw with pitch and roll measurements
+            self.yaw_estim = (utils_mpc.quaternionToRPY(self.q[3:7, 0]))[2, 0]
+            self.RPY_filt = utils_mpc.quaternionToRPY(self.estimator.q_filt[3:7, 0])
+            self.q[3:7, 0] = self.estimator.EulerToQuaternion([self.RPY_filt[0], self.RPY_filt[1], self.yaw_estim])
+
+            # Actuators measurements
+            self.q[7:, 0] = self.estimator.q_filt[7:, 0]
+
+            # Velocities are the one estimated by the estimator
+            self.v = self.estimator.v_filt.copy()
+            quat = np.zeros((4, 1))
+            quat[:, 0] = self.estimator.EulerToQuaternion([self.RPY_filt[0], self.RPY_filt[1], 0.0])
+            hRb = pin.Quaternion(quat).toRotationMatrix()
+            self.h_v[0:3, 0:1] = hRb @ self.v[0:3, 0:1]
+            self.h_v[3:6, 0:1] = hRb @ self.v[3:6, 0:1]
+
+            # self.v[:6, 0] = self.joystick.v_ref[:6, 0]
+        else:
+            quat = np.array([[0.0, 0.0, 0.0, 1.0]]).transpose()
+            hRb = np.eye(3)
+            pass
+            # TODO: Adapt static mode to new version of the code
+
+        # Transformation matrices between world and horizontal frames
+        oRh = np.eye(3)
+        c = np.cos(self.yaw_estim)
+        s = np.sin(self.yaw_estim)
+        oRh[0:2, 0:2] = np.array([[c, -s], [s, c]])
+        oTh = np.array([[self.q[0, 0]], [self.q[1, 0]], [0.0]])
+
+        return oRh, oTh
