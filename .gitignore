@@ -139,3 +139,5 @@ dmypy.json
 .clang-format
 .vscode/
 scripts/solopython
+scripts/cprofile*
+
