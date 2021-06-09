@@ -360,12 +360,14 @@ class Estimator:
         self.RPY = self.quaternionToRPY(device.baseOrientation)
 
         if (self.k_log <= 1):
-            self.offset_yaw_IMU = self.RPY[2, 0] #.copy()
+            self.offset_yaw_IMU = self.RPY[2, 0]
         self.RPY[2] -= self.offset_yaw_IMU  # Remove initial offset of IMU
 
         self.IMU_ang_pos[:] = self.EulerToQuaternion([self.RPY[0],
                                                       self.RPY[1],
                                                       self.RPY[2]])
+        # Above could be commented since IMU_ang_pos yaw is not used anywhere and instead
+        # replace by: self.IMU_ang_pos[:] = device.baseOrientation
 
         return 0
 
