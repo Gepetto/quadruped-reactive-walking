@@ -199,7 +199,7 @@ class MPC_Wrapper:
                 if k == 0:
                     # loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait)
                     if self.mpc_type:
-                        loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait)
+                        loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait, self.N_gait)
                     else:
                         loop_mpc = MPC_crocoddyl.MPC_crocoddyl(self.dt, self.T_gait, 1, True)
                         dummy_fstep_planner = Dummy()
