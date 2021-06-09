@@ -1,22 +1,21 @@
 # coding: utf8
-import sys
-import os 
-from sys import argv
-sys.path.insert(0, os.getcwd()) # adds current directory to python path
-
-import numpy as np
-import matplotlib.pylab as plt
-import utils
-import time
-
-from TSID_Debug_controller_four_legs_fb_vel import controller, dt
-import Safety_controller
-import EmergencyStop_controller
-import ForceMonitor
-import processing as proc
-import MPC_Wrapper
-import pybullet as pyb
 from crocoddyl_class.MPC_crocoddyl_planner import *
+import pybullet as pyb
+import MPC_Wrapper
+import processing as proc
+import ForceMonitor
+import EmergencyStop_controller
+import Safety_controller
+from TSID_Debug_controller_four_legs_fb_vel import controller, dt
+import time
+import utils
+import matplotlib.pylab as plt
+import numpy as np
+import sys
+import os
+from sys import argv
+sys.path.insert(0, os.getcwd())  # adds current directory to python path
+
 
 def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION_, type_MPC, pyb_feedback, desired_speed):
 
@@ -35,17 +34,15 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     """
     # The time of the simulation depends on the speeds :
     # 0.1 m.s-1 + 2s to check stability (Vx = 1m.s-1 --> 12s of simulation)
-    
-    N_1 = np.round(int(np.around(abs(desired_speed[0]), decimals = 1 ) * 10000 + 3000) , -3 )
+
+    N_1 = np.round(int(np.around(abs(desired_speed[0]), decimals=1) * 10000 + 3000), -3)
 
     # 0.4 rad.s-1 for 1s
-    N_2 = np.round(int(np.around(abs(desired_speed[5]), decimals = 1 ) * 2500 + 3000) , -3 )
+    N_2 = np.round(int(np.around(abs(desired_speed[5]), decimals=1) * 2500 + 3000), -3)
 
-    N_3 = np.round(int(np.around(abs(desired_speed[1]), decimals = 1 ) * 10000 + 3000) , -3 )
+    N_3 = np.round(int(np.around(abs(desired_speed[1]), decimals=1) * 10000 + 3000), -3)
 
-
-    N_SIMULATION = max(N_1 , N_2 , N_3)
-   
+    N_SIMULATION = max(N_1, N_2, N_3)
 
     # Initialize the error for the simulation time
     time_error = False
@@ -82,8 +79,8 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
                                           k_mpc, fstep_planner.T_gait, enable_multiprocessing)
 
     # MPC with augmented states
-    mpc_planner = MPC_crocoddyl_planner(dt = dt_mpc , T_mpc = fstep_planner.T_gait)
-                                        
+    mpc_planner = MPC_crocoddyl_planner(dt=dt_mpc, T_mpc=fstep_planner.T_gait)
+
     # Enable/Disable hybrid control
     enable_hybrid_control = True
 
@@ -145,21 +142,21 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         # Process MPC once every k_mpc iterations of TSID
         if (k % k_mpc) == 0:
             time_mpc = time.time()
-            if k == 0 :
+            if k == 0:
                 proc.process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper,
-                                dt_mpc, ID_deb_lines)
-            
-            else : 
+                                 dt_mpc, ID_deb_lines)
+
+            else:
                 # if not proc.proc
                 proc.process_mpc(k, k_mpc, interface, joystick, fstep_planner, mpc_wrapper,
-                                dt_mpc, ID_deb_lines)
+                                 dt_mpc, ID_deb_lines)
             t_list_mpc[k] = time.time() - time_mpc
 
             # running mpc planner in parallel (xref has been updated in process_mpc)
             # start_time = time.time()
-            if type_MPC == False :
-                mpc_planner.solve(k, fstep_planner.xref , interface.l_feet )
-            # print("Temps d execution : %s secondes ---" % (time.time() - start_time)) 
+            if type_MPC == False:
+                mpc_planner.solve(k, fstep_planner.xref, interface.l_feet)
+            # print("Temps d execution : %s secondes ---" % (time.time() - start_time))
 
             #############
             # ddp logger
@@ -175,21 +172,20 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
             #     o_feet_[:2, i , int(k/k_mpc)] = pos_tmp[0:2, 0]
 
         # Replace the fstep_invdyn by the ddp one
-        if type_MPC == False : 
+        if type_MPC == False:
             fstep_planner.fsteps_invdyn = mpc_planner.fsteps.copy()
 
         if k == 0:
-            if type_MPC == True : 
+            if type_MPC == True:
                 f_applied = mpc_wrapper.get_latest_result()
-            else : 
+            else:
                 f_applied = mpc_planner.get_latest_result()
         else:
             # Output of the MPC (with delay)
-            if type_MPC == True : 
+            if type_MPC == True:
                 f_applied = mpc_wrapper.get_latest_result()
-            else : 
-                f_applied = mpc_planner.get_latest_result() 
-                
+            else:
+                f_applied = mpc_planner.get_latest_result()
 
         # Process Inverse Dynamics
         time_tsid = time.time()
@@ -212,9 +208,9 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
 
         # Call logger object to log various parameters
         logger.call_log_functions(k, pyb_sim, joystick, fstep_planner, interface, mpc_wrapper, myController,
-                                 False, pyb_sim.robotId, pyb_sim.planeId, solo)
+                                  False, pyb_sim.robotId, pyb_sim.planeId, solo)
 
-        t_list_loop[k] = time.time() - time_loop     
+        t_list_loop[k] = time.time() - time_loop
 
         #########################
         #   Camera
@@ -233,7 +229,6 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
         #     else:
         #         plt.imsave('tmp/recording/frame_'+str(int(k/20))+'.png', img[2])
 
-
     ####################
     # END OF MAIN LOOP #
     ####################
@@ -241,19 +236,18 @@ def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION
     # print("Computation duration: ", time.time()-tic)
     # print("Simulated duration: ", N_SIMULATION*0.001)
     # print("END")
-    
 
     pyb.disconnect()
 
-    finished = False 
+    finished = False
 
-    if k == N_SIMULATION - 1 : 
-        finished = True 
-    
-    print("Vx = " , desired_speed[0] , " ;  Vy = " , desired_speed[1] ,  " ;  Vw = " , desired_speed[5] , "  -->  " , finished )
+    if k == N_SIMULATION - 1:
+        finished = True
 
+    print("Vx = ", desired_speed[0], " ;  Vy = ", desired_speed[1],
+          " ;  Vw = ", desired_speed[5], "  -->  ", finished)
 
-    return finished , desired_speed 
+    return finished, desired_speed
 
 
 """# Display what has been logged by the logger
