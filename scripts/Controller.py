@@ -3,6 +3,7 @@
 import numpy as np
 import utils_mpc
 import time
+import math
 
 from QP_WBC import wbc_controller
 import MPC_Wrapper
@@ -318,7 +319,7 @@ class Controller:
         self.security_check()
 
         # Update PyBullet camera
-        self.pyb_camera(device, self.RPY_filt[2])
+        self.pyb_camera(device, 0.0)  # to have yaw update in simu: utils_mpc.quaternionToRPY(self.estimator.q_filt[3:7, 0])[2, 0]
 
         # Logs
         self.log_misc(t_start, t_filter, t_planner, t_mpc, t_wbc)
@@ -387,27 +388,24 @@ class Controller:
         # Update position and velocity state vectors
         if not self.gait.getIsStatic():
             # Integration to get evolution of perfect x, y and yaw
-            Ryaw = np.array([[np.cos(self.yaw_estim), -np.sin(self.yaw_estim)],
-                             [np.sin(self.yaw_estim), np.cos(self.yaw_estim)]])
+            Ryaw = np.array([[math.cos(self.yaw_estim), -math.sin(self.yaw_estim)],
+                             [math.sin(self.yaw_estim), math.cos(self.yaw_estim)]])
+
             self.q[0:2, 0:1] = self.q[0:2, 0:1] + Ryaw @ self.v_ref[0:2, 0:1] * self.myController.dt
-            self.q[3:7, 0] = self.estimator.EulerToQuaternion([0.0, 0.0, self.yaw_estim + self.v_ref[5, 0:1] * self.myController.dt])
 
             # Mix perfect x and y with height measurement
             self.q[2, 0] = self.estimator.q_filt[2, 0]
 
             # Mix perfect yaw with pitch and roll measurements
-            self.yaw_estim = (utils_mpc.quaternionToRPY(self.q[3:7, 0]))[2, 0]
-            self.RPY_filt = utils_mpc.quaternionToRPY(self.estimator.q_filt[3:7, 0])
-            self.q[3:7, 0] = self.estimator.EulerToQuaternion([self.RPY_filt[0], self.RPY_filt[1], self.yaw_estim])
+            self.yaw_estim += self.v_ref[5, 0:1] * self.myController.dt
+            self.q[3:7, 0] = self.estimator.EulerToQuaternion([self.estimator.RPY[0], self.estimator.RPY[1], self.yaw_estim])
 
             # Actuators measurements
             self.q[7:, 0] = self.estimator.q_filt[7:, 0]
 
             # Velocities are the one estimated by the estimator
             self.v = self.estimator.v_filt.copy()
-            quat = np.zeros((4, 1))
-            quat[:, 0] = self.estimator.EulerToQuaternion([self.RPY_filt[0], self.RPY_filt[1], 0.0])
-            hRb = pin.Quaternion(quat).toRotationMatrix()
+            hRb = utils_mpc.EulerToRotation(self.estimator.RPY[0], self.estimator.RPY[1], 0.0)
             self.h_v[0:3, 0:1] = hRb @ self.v[0:3, 0:1]
             self.h_v[3:6, 0:1] = hRb @ self.v[3:6, 0:1]
 
@@ -420,8 +418,8 @@ class Controller:
 
         # Transformation matrices between world and horizontal frames
         oRh = np.eye(3)
-        c = np.cos(self.yaw_estim)
-        s = np.sin(self.yaw_estim)
+        c = math.cos(self.yaw_estim)
+        s = math.sin(self.yaw_estim)
         oRh[0:2, 0:2] = np.array([[c, -s], [s, c]])
         oTh = np.array([[self.q[0, 0]], [self.q[1, 0]], [0.0]])
 
