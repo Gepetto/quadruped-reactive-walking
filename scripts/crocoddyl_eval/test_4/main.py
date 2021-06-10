@@ -11,10 +11,10 @@ import time
 import utils
 import matplotlib.pylab as plt
 import numpy as np
-import sys
+"""import sys
 import os
 from sys import argv
-sys.path.insert(0, os.getcwd())  # adds current directory to python path
+sys.path.insert(0, os.getcwd())  # adds current directory to python path"""
 
 
 def run_scenario(envID, velID, dt_mpc, k_mpc, t, n_periods, T_gait, N_SIMULATION_, type_MPC, pyb_feedback, desired_speed):

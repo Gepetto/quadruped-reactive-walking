@@ -5,7 +5,6 @@ import sys
 
 sys.path.insert(0, './solopython')
 
-
 import threading
 from Controller import Controller
 import numpy as np
@@ -89,7 +88,7 @@ def clone_movements(name_interface_clone, q_init, cloneP, cloneD, cloneQdes, clo
     return 0
 
 
-def control_loop(name_interface, name_interface_clone=None):
+def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=None):
     """Main function that calibrates the robot, get it into a default waiting position then launch
     the main control loop once the user has pressed the Enter key
 
@@ -111,12 +110,23 @@ def control_loop(name_interface, name_interface_clone=None):
     # Default position after calibration
     q_init = np.array([0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, +1.4, -0.0, -0.7, +1.4])
 
+    if params.SIMULATION and (des_vel_analysis is not None):
+        print("Analysis: %1.1f %1.1f %1.1f" % (des_vel_analysis[0], des_vel_analysis[1], des_vel_analysis[5]))
+        acceleration_rate = 0.1  # m/s^2
+        steady_state_duration = 3  # s
+        N_analysis = int(np.max(np.abs(des_vel_analysis)) / acceleration_rate / params.dt_wbc) + 1
+        N_steady = int(steady_state_duration / params.dt_wbc)
+        params.N_SIMULATION = N_analysis + N_steady
+
     # Run a scenario and retrieve data thanks to the logger
     controller = Controller(q_init, params.envID, params.velID, params.dt_wbc, params.dt_mpc,
                             int(params.dt_mpc / params.dt_wbc), t, params.T_gait,
                             params.T_mpc, params.N_SIMULATION, params.type_MPC, params.use_flat_plane,
                             params.predefined_vel, enable_pyb_GUI, params.kf_enabled, params.N_gait,
                             params.SIMULATION)
+
+    if params.SIMULATION and (des_vel_analysis is not None):
+        controller.joystick.update_for_analysis(des_vel_analysis, N_analysis, N_steady)
 
     ####
 
@@ -233,6 +243,11 @@ def control_loop(name_interface, name_interface_clone=None):
 
     # ****************************************************************
 
+    if (t >= t_max):
+        finished = True
+    else:
+        finished = False
+
     # Stop clone interface running in parallel process
     if not params.SIMULATION and name_interface_clone is not None:
         cloneResult.value = False
@@ -276,7 +291,7 @@ def control_loop(name_interface, name_interface_clone=None):
 
     # Plot estimated computation time for each step for the control architecture
     from matplotlib import pyplot as plt
-    plt.figure()
+    """plt.figure()
     plt.plot(controller.t_list_filter[1:], 'r+')
     plt.plot(controller.t_list_planner[1:], 'g+')
     plt.plot(controller.t_list_mpc[1:], 'b+')
@@ -286,7 +301,12 @@ def control_loop(name_interface, name_interface_clone=None):
     plt.plot(controller.t_list_QPWBC[1:], 'o', color="royalblue")
     plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "InvKin", "QP WBC"])
     plt.title("Loop time [s]")
-    plt.show(block=True)
+    plt.show(block=True)"""
+    """plt.figure()
+    for i in range(3):
+        plt.subplot(3, 1, i+1)
+        plt.plot(controller.o_log_foot[:, i, 0])
+    plt.show(block=True)"""
 
     # Plot recorded data
     if params.PLOTTING:
@@ -311,8 +331,8 @@ def control_loop(name_interface, name_interface_clone=None):
         print(controller.error_value)
 
     print("End of script")
-    quit()
 
+    return finished, des_vel_analysis
 
 def main():
     """Main function
@@ -329,7 +349,9 @@ def main():
                         help='Name of the clone interface that will reproduce the movement of the first one \
                               (use ifconfig in a terminal), for instance "enp1s0"')
 
-    control_loop(parser.parse_args().interface, parser.parse_args().clone)
+    f, v = control_loop(parser.parse_args().interface, parser.parse_args().clone)
+    print(f, v)
+    quit()
 
 
 if __name__ == "__main__":

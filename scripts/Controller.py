@@ -94,7 +94,7 @@ class Controller:
         self.ID_deb_lines = []
 
         # Enable/Disable Gepetto viewer
-        self.enable_gepetto_viewer = True
+        self.enable_gepetto_viewer = False
         '''if self.enable_gepetto_viewer:
             self.view = viewerClient()'''
 

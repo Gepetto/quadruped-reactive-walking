@@ -311,9 +311,9 @@ class LoggerControl():
             else:
                 plt.plot(t_range, self.mocap_b_w[:, i-3], "k", linewidth=3)
 
-                N = 2000
+                """N = 2000
                 y = np.convolve(self.mocap_b_w[:, i-3], np.ones(N)/N, mode='valid')
-                plt.plot(t_range[int(N/2)-1:-int(N/2)], y, linewidth=3, linestyle="--")
+                plt.plot(t_range[int(N/2)-1:-int(N/2)], y, linewidth=3, linestyle="--")"""
 
             # plt.plot(t_range, self.log_dq[i, :], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_invkin[i, :-2], "g", linewidth=2)

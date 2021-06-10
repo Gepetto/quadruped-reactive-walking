@@ -35,6 +35,9 @@ class Joystick:
         # If we are using a predefined reference velocity (True) or a joystick (False)
         self.predefined = predefined
 
+        # If we are performing an analysis from outside
+        self.analysis = False
+
         # Joystick variables (linear and angular velocity and their scaling for the joystick)
         self.vX = 0.
         self.vY = 0.
@@ -66,6 +69,8 @@ class Joystick:
         if self.predefined:
             if self.multi_simu:
                 self.update_v_ref_multi_simu(k_loop)
+            elif self.analysis:
+                self.handle_v_switch(k_loop)
             else:
                 self.update_v_ref_predefined(k_loop, velID)
         else:
@@ -306,5 +311,16 @@ class Joystick:
         # self.v_ref = np.array([[0.3*alpha, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
         self.v_ref = np.array(
             [[self.Vx_ref*alpha_x, self.Vy_ref*alpha_y, 0.0, 0.0, 0.0, self.Vw_ref*alpha_w]]).T
+
+        return 0
+
+    def update_for_analysis(self, des_vel_analysis, N_analysis, N_steady):
+
+        self.analysis = True
+
+        self.k_switch = np.array([0, 500, N_analysis, N_analysis + N_steady])
+        self.v_switch = np.zeros((6, 4))
+        self.v_switch[:, 2] = des_vel_analysis
+        self.v_switch[:, 3] = des_vel_analysis
 
         return 0

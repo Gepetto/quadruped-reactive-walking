@@ -1,7 +1,7 @@
 import math
 import numpy as np
 
-from example_robot_data import load
+from example_robot_data.robots_loader import Solo12Loader
 
 import Joystick
 import Logger
@@ -83,6 +83,29 @@ def EulerToQuaternion(roll_pitch_yaw):
     qw = cr * cp * cy + sr * sp * sy
     return [qx, qy, qz, qw]
 
+
+def EulerToRotation(roll, pitch, yaw):
+    c_roll = math.cos(roll)
+    s_roll = math.sin(roll)
+    c_pitch = math.cos(pitch)
+    s_pitch = math.sin(pitch)
+    c_yaw = math.cos(yaw)
+    s_yaw = math.sin(yaw)
+    Rz_yaw = np.array([
+        [c_yaw, -s_yaw, 0],
+        [s_yaw,  c_yaw, 0],
+        [0, 0, 1]])
+    Ry_pitch = np.array([
+        [c_pitch, 0, s_pitch],
+        [0, 1, 0],
+        [-s_pitch, 0, c_pitch]])
+    Rx_roll = np.array([
+        [1, 0, 0],
+        [0, c_roll, -s_roll],
+        [0, s_roll,  c_roll]])
+    # R = RzRyRx
+    return np.dot(Rz_yaw, np.dot(Ry_pitch, Rx_roll))
+
 ##################
 # Initialisation #
 ##################
@@ -98,12 +121,11 @@ def init_robot(q_init, enable_viewer):
 
     # Load robot model and data
     # Initialisation of the Gepetto viewer
-    print(enable_viewer)
-    solo = load('solo12', display=enable_viewer)
+    Solo12Loader.free_flyer = True
+    solo = Solo12Loader().robot  # TODO:enable_viewer
     q = solo.q0.reshape((-1, 1))
     q[7:, 0] = q_init
 
-    
     """if enable_viewer:
         solo.initViewer(loadModel=True)
         if ('viewer' in solo.viz.__dict__):
@@ -111,7 +133,6 @@ def init_robot(q_init, enable_viewer):
             solo.viewer.gui.setRefreshIsSynchronous(False)"""
     if enable_viewer:
         solo.display(q)
-    print("PASS")
 
     # Initialisation of model quantities
     pin.centerOfMass(solo.model, solo.data, q, np.zeros((18, 1)))

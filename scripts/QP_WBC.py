@@ -6,7 +6,7 @@ from solo12InvKin import Solo12InvKin
 from time import perf_counter as clock
 from time import time
 import libquadruped_reactive_walking as lrw
-from example_robot_data import load
+from example_robot_data.robots_loader import Solo12Loader
 
 class wbc_controller():
     """Whole body controller which contains an Inverse Kinematics step and a BoxQP step
@@ -17,7 +17,8 @@ class wbc_controller():
 
     def __init__(self, dt, N_SIMULATION):
 
-        self.robot = load('solo12')
+        Solo12Loader.free_flyer = True
+        self.robot = Solo12Loader().robot
 
         self.dt = dt  # Time step
 
