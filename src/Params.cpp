@@ -15,7 +15,7 @@ Params::Params()
     , T_gait(0.0)
     , T_mpc(0.0)
     , N_SIMULATION(0)
-    , type_MPC(false)
+    , type_MPC(0)
     , use_flat_plane(false)
     , predefined_vel(false)
     , kf_enabled(false)
@@ -72,7 +72,7 @@ void Params::initialize(const std::string& file_path)
     N_SIMULATION = robot_node["N_SIMULATION"].as<int>();
 
     assert_yaml_parsing(robot_node, "robot", "type_MPC");
-    type_MPC = robot_node["type_MPC"].as<bool>();
+    type_MPC = robot_node["type_MPC"].as<int>();
 
     assert_yaml_parsing(robot_node, "robot", "use_flat_plane");
     use_flat_plane = robot_node["use_flat_plane"].as<bool>();
@@ -85,5 +85,8 @@ void Params::initialize(const std::string& file_path)
 
     assert_yaml_parsing(robot_node, "robot", "enable_pyb_GUI");
     enable_pyb_GUI = robot_node["enable_pyb_GUI"].as<bool>();
+
+    assert_yaml_parsing(robot_node, "robot", "test_list");
+    test_list = robot_node["test_list"].as<std::vector<double> >();
 
 }

@@ -90,7 +90,7 @@ class wbc_controller():
         q_tmp[6, 0] = 1.0
         self.M = pin.crba(self.robot.model, self.robot.data, q_tmp)
 
-        self.M[:6, :6] = self.M[:6, :6] * (np.eye(6) == 1)  # (self.M[:6, :6] > 1e-3)
+        # self.M[:6, :6] = self.M[:6, :6] * (np.eye(6) == 1)  # (self.M[:6, :6] > 1e-3)
 
         # Compute Jacobian of contact points
         pin.computeJointJacobians(self.robot.model, self.robot.data, q)

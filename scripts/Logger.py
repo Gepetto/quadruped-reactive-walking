@@ -17,7 +17,7 @@ class Logger:
         dt_mpc (float): time step of the MPC
         k_mpc (int): number of tsid iterations for one iteration of the mpc
         T_mpc (float): duration of mpc prediction horizon
-        type_MPC (bool): which MPC you want to use (PA's or Thomas')
+        type_MPC (int): 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
     """
 
     def __init__(self, k_max_loop, dt, dt_mpc, k_mpc, T_mpc, type_MPC):
@@ -614,7 +614,7 @@ class Logger:
     def log_predicted_trajectories(self, k, mpc_wrapper):
         """ Store information about the predicted evolution of the optimization vector components
         """
-        if self.type_MPC:
+        if self.type_MPC == 0:
             self.pred_trajectories[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.x_robot
             self.pred_forces[:, :, int(k/self.k_mpc)] = mpc_wrapper.mpc.x[mpc_wrapper.mpc.xref.shape[0]*(mpc_wrapper.mpc.xref.shape[1]-1):].reshape((mpc_wrapper.mpc.xref.shape[0],
                                                                                                                                                      mpc_wrapper.mpc.xref.shape[1]-1),
@@ -750,7 +750,7 @@ class Logger:
         self.log_torques(k, tsid_controller)
 
         # Store information about the cost function
-        """if self.type_MPC and not enable_multiprocessing:
+        """if (self.type_MPC == 0) and not enable_multiprocessing:
             self.log_cost_function(k, mpc_wrapper)"""
 
         # Store information about the predicted evolution of the optimization vector components
@@ -780,7 +780,7 @@ class Logger:
 
         # Plot information about the state of the robot
         # Cost not comparable between the two solvers
-        if self.type_MPC and not enable_multiprocessing:
+        if (self.type_MPC == 0) and not enable_multiprocessing:
             self.plot_cost_function()
 
         # Plot information about the predicted evolution of the optimization vector components

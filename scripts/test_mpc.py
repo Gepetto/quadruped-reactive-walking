@@ -29,7 +29,7 @@ class TestMPC(unittest.TestCase):
     def setUp(self):
 
         self.mass = 2.50000279
-        type_MPC = True
+        type_MPC = 0
         dt_wbc = 0.002
         dt_mpc = 0.02
         k_mpc = int(dt_mpc / dt_wbc)

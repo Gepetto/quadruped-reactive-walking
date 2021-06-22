@@ -264,7 +264,8 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("use_flat_plane", &Params::use_flat_plane)
             .def_readwrite("predefined_vel", &Params::predefined_vel)
             .def_readwrite("kf_enabled", &Params::kf_enabled)
-            .def_readwrite("enable_pyb_GUI", &Params::enable_pyb_GUI);
+            .def_readwrite("enable_pyb_GUI", &Params::enable_pyb_GUI)
+            .def_readwrite("test_list", &Params::test_list);
 
     }
 

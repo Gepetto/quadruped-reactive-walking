@@ -73,7 +73,10 @@ class LoggerControl():
         # Model Predictive Control
         # output vector of the MPC (next state + reference contact force)
         if statePlanner is not None:
-            self.mpc_x_f = np.zeros([logSize, 24, statePlanner.getNSteps()])
+            if loop.type_MPC == 3:
+                self.mpc_x_f = np.zeros([logSize, 32, statePlanner.getNSteps()])
+            else:
+                self.mpc_x_f = np.zeros([logSize, 24, statePlanner.getNSteps()])
 
         # Whole body control
         self.wbc_x_f = np.zeros([logSize, 24])  # input vector of the WBC (next state + reference contact force)
@@ -226,8 +229,8 @@ class LoggerControl():
             plt.plot(t_range, self.wbc_feet_pos[:, i % 3, np.int(i/3)], color='b', linewidth=3, marker='')
             plt.plot(t_range, self.wbc_feet_err[:, i % 3, np.int(i/3)] + self.wbc_feet_pos[0, i % 3, np.int(i/3)], color='g', linewidth=3, marker='')
             plt.plot(t_range, self.wbc_feet_pos_target[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
-            """plt.plot(t_range, self.wbc_feet_pos_invkin[:, i % 3, np.int(i/3)],
-                     color='darkviolet', linewidth=3, linestyle="--", marker='')"""
+            plt.plot(t_range, self.wbc_feet_pos_invkin[:, i % 3, np.int(i/3)],
+                     color='darkviolet', linewidth=3, linestyle="--", marker='')
             if (i % 3) == 2:
                 mini = np.min(self.wbc_feet_pos[:, i % 3, np.int(i/3)])
                 maxi = np.max(self.wbc_feet_pos[:, i % 3, np.int(i/3)])

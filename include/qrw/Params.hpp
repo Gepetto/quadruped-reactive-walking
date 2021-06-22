@@ -51,11 +51,12 @@ public:
     double T_gait;
     double T_mpc;
     int N_SIMULATION;
-    bool type_MPC;
+    int type_MPC;
     bool use_flat_plane;
     bool predefined_vel;
     bool kf_enabled;
     bool enable_pyb_GUI;
+    std::vector<double> test_list;
 
 };
 

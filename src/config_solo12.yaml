@@ -11,9 +11,10 @@ robot:
     dt_mpc: 0.02  # Time step of the model predictive control
     T_gait: 0.32  # Duration of one gait period
     T_mpc: 0.32  # Duration of the prediction horizon
-    N_SIMULATION: 3000  # Number of simulated wbc time steps
-    type_MPC: true  # Which MPC solver you want to use: True to have PA's MPC, to False to have Thomas's MPC
+    N_SIMULATION: 10000  # Number of simulated wbc time steps
+    type_MPC: 3  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
     use_flat_plane: true  # If True the ground is flat, otherwise it has bumps
     predefined_vel: true  # If we are using a predefined reference velocity (True) or a joystick (False)
     kf_enabled: false  # Use complementary filter (False) or kalman filter (True) for the estimator 
-    enable_pyb_GUI: true  # Enable/disable PyBullet GUI
+    enable_pyb_GUI: true # Enable/disable PyBullet GUI
+    test_list: [1.0, 2.0, 3.0, 1.0]

@@ -17,7 +17,7 @@ class MPC_crocoddyl:
         linearModel(bool) : Approximation in the cross product by using desired state
     """
 
-    def __init__(self, dt=0.02, T_mpc=0.32,  mu=1, inner=True, linearModel=True, n_period=1):
+    def __init__(self, dt=0.02, T_mpc=0.32,  mu=1, inner=True, linearModel=True, N_gait=20):
 
         # Time step of the solver
         self.dt = dt
@@ -74,7 +74,7 @@ class MPC_crocoddyl:
         self.max_fz = 25
 
         # Gait matrix
-        self.gait = np.zeros((20, 4))
+        self.gait = np.zeros((N_gait, 4))
         self.index = 0
 
         # Weight on the shoulder term :
@@ -82,7 +82,7 @@ class MPC_crocoddyl:
         self.shoulder_hlim = 0.27
 
         # Position of the feet
-        self.fsteps = np.full((20, 12), np.nan)
+        self.fsteps = np.full((N_gait, 12), np.nan)
 
         # List of the actionModel
         self.ListAction = []
@@ -90,7 +90,7 @@ class MPC_crocoddyl:
         # Initialisation of the List model using ActionQuadrupedModel()
         # The same model cannot be used [model]*(T_mpc/dt) because the dynamic
         # model changes for each nodes.
-        for i in range(int(self.T_mpc/self.dt)*n_period):
+        for i in range(int(self.T_mpc/self.dt)):
             if linearModel:
                 model = quadruped_walkgen.ActionModelQuadruped()
             else:
@@ -174,7 +174,6 @@ class MPC_crocoddyl:
             self.ListAction[j].updateModel(np.reshape(self.fsteps[j, :], (3, 4), order='F'),
                                            xref[:, j+1], self.gait[j, :])
 
-
         # Update model of the terminal model
         self.terminalModel.updateModel(np.reshape(
             self.fsteps[self.index-1, :], (3, 4), order='F'), xref[:, -1], self.gait[self.index-1, :])
@@ -189,7 +188,6 @@ class MPC_crocoddyl:
             xref : desired state vector
             fsteps : feet predicted positions
         """
-
 
         # Update the dynamic depending on the predicted feet position
         self.updateProblem(fsteps, xref)
@@ -210,7 +208,6 @@ class MPC_crocoddyl:
         """print("1")
         from IPython import embed
         embed()"""
-
         self.ddp.solve(self.x_init,  self.u_init, self.max_iteration)
 
         """print("3")

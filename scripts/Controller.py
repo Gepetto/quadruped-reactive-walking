@@ -64,7 +64,7 @@ class Controller:
             T_gait (float): duration of one gait period in seconds
             T_mpc (float): duration of mpc prediction horizon
             N_SIMULATION (int): number of iterations of inverse dynamics during the simulation
-            type_mpc (bool): True to have PA's MPC, False to have Thomas's MPC
+            type_mpc (int): 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
             use_flat_plane (bool): to use either a flat ground or a rough ground
             predefined_vel (bool): to use either a predefined velocity profile or a gamepad
             enable_pyb_GUI (bool): to display PyBullet GUI or not
@@ -228,9 +228,6 @@ class Controller:
                                                                 self.h_v[0:6, 0:1].copy(),
                                                                 self.v_ref[0:6, 0])
 
-        # Update pos, vel and acc references for feet
-        self.footTrajectoryGenerator.update(self.k, o_targetFootstep)
-
         # Run state planner (outputs the reference trajectory of the base)
         self.statePlanner.computeReferenceStates(self.q[0:7, 0:1], self.h_v[0:6, 0:1].copy(),
                                                  self.v_ref[0:6, 0:1], 0.0)
@@ -254,8 +251,15 @@ class Controller:
 
         t_mpc = time.time()
 
+        # If the MPC optimizes footsteps positions then we use them
+        if self.k > 100 and self.type_MPC == 3:
+            o_targetFootstep[:2, :] = self.footstepPlanner.getRz()[:2, :2] @ self.x_f_mpc[24:, 0].reshape((2, 4), order='F') + self.q[0:2, 0:1]
+
+        # Update pos, vel and acc references for feet
+        self.footTrajectoryGenerator.update(self.k, o_targetFootstep)
+
         # Target state for the whole body control
-        self.x_f_wbc = (self.x_f_mpc[:, 0]).copy()
+        self.x_f_wbc = (self.x_f_mpc[:24, 0]).copy()
         if not self.gait.getIsStatic():
             self.x_f_wbc[0] = self.myController.dt * xref[6, 1]
             self.x_f_wbc[1] = self.myController.dt * xref[7, 1]
