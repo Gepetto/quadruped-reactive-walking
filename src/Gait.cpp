@@ -16,18 +16,18 @@ Gait::Gait()
 }
 
 
-void Gait::initialize(double dt_in, double T_gait_in, double T_mpc_in, int N_gait)
+void Gait::initialize(Params& params)
 {
-    dt_ = dt_in;
-    T_gait_ = T_gait_in;
-    T_mpc_ = T_mpc_in;
-    n_steps_ = (int)std::lround(T_mpc_in / dt_in);
+    dt_ = params.dt_mpc;
+    T_gait_ = params.T_gait;
+    T_mpc_ = params.T_mpc;
+    n_steps_ = (int)std::lround(params.T_mpc / params.dt_mpc);
 
-    pastGait_ = MatrixN::Zero(N_gait, 4);
-    currentGait_ = MatrixN::Zero(N_gait, 4);
-    desiredGait_ = MatrixN::Zero(N_gait, 4);
+    pastGait_ = MatrixN::Zero(params.N_gait, 4);
+    currentGait_ = MatrixN::Zero(params.N_gait, 4);
+    desiredGait_ = MatrixN::Zero(params.N_gait, 4);
 
-    if((n_steps_ > N_gait) || ((int)std::lround(T_gait_in / dt_in) > N_gait))
+    if((n_steps_ > params.N_gait) || ((int)std::lround(params.T_gait / params.dt_mpc) > params.N_gait))
         throw std::invalid_argument("Sizes of matrices are too small for considered durations. Increase N_gait in config file.");
 
     create_trot();

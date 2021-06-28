@@ -141,7 +141,7 @@ def init_robot(q_init, enable_viewer):
 
     # Initialisation of the position of footsteps
     fsteps_init = np.zeros((3, 4))
-    indexes = [10, 18, 26, 34]
+    indexes = [10, 18, 26, 34]  # Feet indexes
     for i in range(4):
         fsteps_init[:, i] = solo.data.oMf[indexes[i]].translation
     h_init = (solo.data.oMf[1].translation - solo.data.oMf[indexes[0]].translation)[2]
@@ -150,7 +150,7 @@ def init_robot(q_init, enable_viewer):
     return solo, fsteps_init, h_init
 
 
-def init_objects(dt_tsid, k_max_loop, predefined, h_init, kf_enabled, perfectEstimator):
+def init_objects(params):
     """Create several objects that are used in the control loop
 
     Args:
@@ -163,10 +163,11 @@ def init_objects(dt_tsid, k_max_loop, predefined, h_init, kf_enabled, perfectEst
     """
 
     # Create Joystick object
-    joystick = Joystick.Joystick(predefined)
+    joystick = Joystick.Joystick(params.predefined_vel)
 
     # Create Estimator object
-    estimator = Estimator.Estimator(dt_tsid, k_max_loop, h_init, kf_enabled, perfectEstimator)
+    estimator = Estimator.Estimator(params.dt_wbc, params.N_SIMULATION, params.h_ref, params.kf_enabled,
+                                    params.perfect_estimator)
 
     return joystick, estimator
 

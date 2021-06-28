@@ -1,20 +1,46 @@
 robot:
+    # General parameters
     interface: enp2s0
     SIMULATION: true  # Enable/disable PyBullet simulation or running on real robot
     LOGGING: false  # Enable/disable logging during the experiment
     PLOTTING: true  # Enable/disable automatic plotting at the end of the experiment
+    envID: 0  # Identifier of the environment to choose in which one the simulation will happen
+    use_flat_plane: true  # If True the ground is flat, otherwise it has bumps
+    predefined_vel: true  # If we are using a predefined reference velocity (True) or a joystick (False)
+    velID: 2  # Identifier of the reference velocity profile to choose which one will be sent to the robot
+    N_SIMULATION: 10000  # Number of simulated wbc time steps
+    enable_pyb_GUI: true  # Enable/disable PyBullet GUI
+    enable_multiprocessing: true  # Enable/disable running the MPC in another process in parallel of the main loop
+    perfect_estimator: false  # Enable/disable perfect estimator by using data directly from PyBullet
+    
+    # General control parameters
+    q_init: [0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, 1.4, -0.0, -0.7, 1.4]  # Initial articular positions
     dt_wbc: 0.002  # Time step of the whole body control
     N_gait: 20  # Number of rows in the gait matrix. Arbitrary value that should be set high enough
-                 # so that there is always at least one empty line at the end of the gait matrix
-    envID: 0  # Identifier of the environment to choose in which one the simulation will happen
-    velID: 2  # Identifier of the reference velocity profile to choose which one will be sent to the robot
+                # so that there is always at least one empty line at the end of the gait matrix
     dt_mpc: 0.02  # Time step of the model predictive control
     T_gait: 0.32  # Duration of one gait period
     T_mpc: 0.32  # Duration of the prediction horizon
-    N_SIMULATION: 10000  # Number of simulated wbc time steps
-    type_MPC: 3  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
-    use_flat_plane: true  # If True the ground is flat, otherwise it has bumps
-    predefined_vel: true  # If we are using a predefined reference velocity (True) or a joystick (False)
+    type_MPC: 0  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
     kf_enabled: false  # Use complementary filter (False) or kalman filter (True) for the estimator 
-    enable_pyb_GUI: true # Enable/disable PyBullet GUI
-    test_list: [1.0, 2.0, 3.0, 1.0]
+
+    # Parameters of FootstepPlanner
+    k_feedback: 0.03  # Value of the gain for the feedback heuristic
+
+    # Parameters of FootTrajectoryGenerator
+    max_height: 0.05  # Apex height of the swinging trajectory [m]
+    lock_time: 0.07  # Target lock before the touchdown [s]
+
+    # Parameters of MPC with OSQP
+    osqp_w_states: [2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]  # Weights for state tracking error
+    osqp_w_forces: [0.00005, 0.00005, 0.00005]  # Weights for force regularisation
+
+    # Parameters of InvKin
+    Kp_flyingfeet: 100.0  # Proportional gain for feet position tasks
+    Kd_flyingfeet: 20.0  # Derivative gain for feet position tasks
+
+    # Parameters of WBC QP problem
+    Q1: 0.1  # Weights for the "delta articular accelerations" optimization variables
+    Q2: 5.0  # Weights for the "delta contact forces" optimization variables
+    Fz_max: 25.0  # Maximum vertical contact force [N]
+    Fz_min: 0.0  # Minimal vertical contact force [N]

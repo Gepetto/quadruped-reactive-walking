@@ -20,20 +20,14 @@ FootTrajectoryGenerator::FootTrajectoryGenerator()
 {
 }
 
-void FootTrajectoryGenerator::initialize(double const maxHeightIn,
-                                         double const lockTimeIn,
-                                         MatrixN const& targetFootstepIn,
-                                         MatrixN const& initialFootPosition,
-                                         double const& dt_tsid_in,
-                                         int const& k_mpc_in,
-                                         Gait& gaitIn)
+void FootTrajectoryGenerator::initialize(Params& params, Gait& gaitIn)
 {
-    dt_tsid = dt_tsid_in;
-    k_mpc = k_mpc_in;
-    maxHeight_ = maxHeightIn;
-    lockTime_ = lockTimeIn;
-    targetFootstep_ = targetFootstepIn.block(0, 0, 3, 4);
-    position_ = initialFootPosition.block(0, 0, 3, 4);
+    dt_tsid = params.dt_wbc;
+    k_mpc = (int)std::round(params.dt_mpc / params.dt_wbc);
+    maxHeight_ = params.max_height;
+    lockTime_ = params.lock_time;
+    targetFootstep_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.shoulders.data(), params.shoulders.size());
+    position_ = targetFootstep_;
     gait_ = &gaitIn;
 }
 

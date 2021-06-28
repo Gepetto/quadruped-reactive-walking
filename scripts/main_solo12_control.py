@@ -108,7 +108,7 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
     t = 0.0
 
     # Default position after calibration
-    q_init = np.array([0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, +1.4, -0.0, -0.7, +1.4])
+    q_init = np.array(params.q_init.tolist())
 
     if params.SIMULATION and (des_vel_analysis is not None):
         print("Analysis: %1.1f %1.1f %1.1f" % (des_vel_analysis[0], des_vel_analysis[1], des_vel_analysis[5]))
@@ -119,11 +119,7 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
         params.N_SIMULATION = N_analysis + N_steady
 
     # Run a scenario and retrieve data thanks to the logger
-    controller = Controller(q_init, params.envID, params.velID, params.dt_wbc, params.dt_mpc,
-                            int(params.dt_mpc / params.dt_wbc), t, params.T_gait,
-                            params.T_mpc, params.N_SIMULATION, params.type_MPC, params.use_flat_plane,
-                            params.predefined_vel, enable_pyb_GUI, params.kf_enabled, params.N_gait,
-                            params.SIMULATION)
+    controller = Controller(params, q_init, t)
 
     if params.SIMULATION and (des_vel_analysis is not None):
         controller.joystick.update_for_analysis(des_vel_analysis, N_analysis, N_steady)
@@ -349,7 +345,7 @@ def main():
                         help='Name of the clone interface that will reproduce the movement of the first one \
                               (use ifconfig in a terminal), for instance "enp1s0"')
 
-    f, v = control_loop(parser.parse_args().interface, parser.parse_args().clone)
+    f, v = control_loop(parser.parse_args().interface, parser.parse_args().clone, np.array([1.3, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print(f, v)
     quit()
 

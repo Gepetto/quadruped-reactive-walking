@@ -11,11 +11,13 @@
 #include <Eigen/Dense>
 #include "osqp.h"
 #include "other/st_to_cc.hpp"
+#include "qrw/Params.hpp"
 
 typedef Eigen::MatrixXd matXd;
 
 class MPC {
  private:
+  Params* params_;
   double dt, mass, mu, T_gait, h_ref;
   int n_steps, cpt_ML, cpt_P;
 
@@ -87,7 +89,7 @@ class MPC {
 
  public:
   MPC();
-  MPC(double dt_in, int n_steps_in, double T_gait_in, int N_gait);
+  MPC(Params& params);
 
   int create_matrices();
   int create_ML();

@@ -11,6 +11,7 @@
 #define TRAJGEN_H_INCLUDED
 
 #include "qrw/Gait.hpp"
+#include "qrw/Params.hpp"
 #include "qrw/Types.h"
 
 class FootTrajectoryGenerator
@@ -32,13 +33,7 @@ public:
     /// \param[in] target desired target location at the end of the swing phase
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void initialize(double const maxHeightIn,
-                    double const lockTimeIn,
-                    MatrixN const& targetFootstepIn,
-                    MatrixN const& initialFootPosition,
-                    double const& dt_tsid_in,
-                    int const& k_mpc_in,
-                    Gait& gait);
+    void initialize(Params& params, Gait& gait);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///

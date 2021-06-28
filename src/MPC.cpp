@@ -1,9 +1,12 @@
 #include "qrw/MPC.hpp"
 
-MPC::MPC(double dt_in, int n_steps_in, double T_gait_in, int N_gait) {
-  dt = dt_in;
-  n_steps = n_steps_in;
-  T_gait = T_gait_in;
+MPC::MPC(Params& params) {
+
+  params_ = &params;
+
+  dt = params_->dt_mpc;
+  n_steps = (int)std::round(params_->T_mpc / params_->dt_mpc);
+  T_gait = params_->T_gait;
 
   xref = Eigen::Matrix<double, 12, Eigen::Dynamic>::Zero(12, 1 + n_steps);
   x = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12 * n_steps * 2, 1);
@@ -11,7 +14,7 @@ MPC::MPC(double dt_in, int n_steps_in, double T_gait_in, int N_gait) {
   warmxf = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12 * n_steps * 2, 1);
   x_f_applied = Eigen::MatrixXd::Zero(24, n_steps);
 
-  gait = Eigen::Matrix<int, Eigen::Dynamic, 4>::Zero(N_gait, 4);
+  gait = Eigen::Matrix<int, Eigen::Dynamic, 4>::Zero(params_->N_gait, 4);
 
   // Predefined variables
   mass = 2.50000279f;
@@ -327,7 +330,7 @@ int MPC::create_weight_matrices() {
   // Hand-tuning of parameters if you want to give more weight to specific components
   // double w[12] = {10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 10.0f};
   // double w[12] = {2.0f, 2.0f, 20.0f, 2.0f, 2.0f, 10.0f, 0.2f, 0.2f, 0.2f, 0.0f, 0.0f, 10.0f};
-  double w[12] = {2.0f, 2.0f, 20.0f, 0.25f, 0.25f, 10.0f, 0.2f, 0.2f, 0.2f, 0.0f, 0.0f, 0.3f};
+  // double w[12] = {2.0f, 2.0f, 20.0f, 0.25f, 0.25f, 10.0f, 0.2f, 0.2f, 0.2f, 0.0f, 0.0f, 0.3f};
   /*w[6] = 2.0f * sqrt(w[0]);
   w[7] = 2.0f * sqrt(w[1]);
   w[8] = 2.0f * sqrt(w[2]);
@@ -336,16 +339,16 @@ int MPC::create_weight_matrices() {
   w[11] = 0.05f * sqrt(w[5]);*/
   for (int k = 0; k < n_steps; k++) {
     for (int i = 0; i < 12; i++) {
-      add_to_P(12 * k + i, 12 * k + i, w[i], r_P, c_P, v_P);
+      add_to_P(12 * k + i, 12 * k + i, params_->osqp_w_states[i], r_P, c_P, v_P);
     }
   }
 
   // Define weights for the force components of the optimization vector
   for (int k = n_steps; k < (2 * n_steps); k++) {
     for (int i = 0; i < 4; i++) {
-      add_to_P(12 * k + 3 * i + 0, 12 * k + 3 * i + 0, 5e-5f, r_P, c_P, v_P);
-      add_to_P(12 * k + 3 * i + 1, 12 * k + 3 * i + 1, 5e-5f, r_P, c_P, v_P);
-      add_to_P(12 * k + 3 * i + 2, 12 * k + 3 * i + 2, 5e-5f, r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 0, 12 * k + 3 * i + 0, params_->osqp_w_forces[0], r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 1, 12 * k + 3 * i + 1, params_->osqp_w_forces[1], r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 2, 12 * k + 3 * i + 2, params_->osqp_w_forces[2], r_P, c_P, v_P);
     }
   }
 

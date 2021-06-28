@@ -33,23 +33,26 @@ class MPC_Wrapper:
         multiprocessing (bool): Enable/Disable running the MPC with another process
     """
 
-    def __init__(self, mpc_type, dt, n_steps, k_mpc, T_gait, N_gait, q_init, multiprocessing=False):
+    def __init__(self, params, q_init):
 
         self.f_applied = np.zeros((12,))
         self.not_first_iter = False
 
-        # Number of TSID steps for 1 step of the MPC
-        self.k_mpc = k_mpc
+        self.params = params
+        self.testoui = True
 
-        self.dt = dt
-        self.n_steps = n_steps
-        self.T_gait = T_gait
-        self.N_gait = N_gait
+        # Number of WBC steps for 1 step of the MPC
+        self.k_mpc = int(params.dt_mpc/params.dt_wbc)
+
+        self.dt = params.dt_mpc
+        self.n_steps = np.int(params.T_mpc/params.dt_mpc)
+        self.T_gait = params.T_gait
+        self.N_gait = params.N_gait
         self.gait_memory = np.zeros(4)
 
-        self.mpc_type = mpc_type
-        self.multiprocessing = multiprocessing
-        if multiprocessing:  # Setup variables in the shared memory
+        self.mpc_type = params.type_MPC
+        self.multiprocessing = params.enable_multiprocessing
+        if self.multiprocessing:  # Setup variables in the shared memory
             self.newData = Value('b', False)
             self.newResult = Value('b', False)
             self.dataIn = Array('d', [0.0] * (1 + (np.int(self.n_steps)+1) * 12 + 12*self.N_gait))
@@ -61,17 +64,14 @@ class MPC_Wrapper:
             self.running = Value('b', True)
         else:
             # Create the new version of the MPC solver object
-            if mpc_type == 0:  # OSQP MPC
-                self.mpc = MPC.MPC(dt, n_steps, T_gait, self.N_gait)
-            elif mpc_type == 1:  # Crocoddyl MPC Linear
-                self.mpc = MPC_crocoddyl.MPC_crocoddyl(dt=dt, T_mpc=T_gait, mu=0.9, inner=False,
-                                                       linearModel=True, N_gait=self.N_gait)
-            elif mpc_type == 2:  # Crocoddyl MPC Non-Linear
-                self.mpc = MPC_crocoddyl.MPC_crocoddyl(dt=dt, T_mpc=T_gait, mu=0.9, inner=False,
-                                                       linearModel=False, N_gait=self.N_gait)
+            if self.mpc_type == 0:  # OSQP MPC
+                self.mpc = MPC.MPC(params)  # self.dt, self.n_steps, self.T_gait, self.N_gait)
+            elif self.mpc_type == 1:  # Crocoddyl MPC Linear
+                self.mpc = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=True)
+            elif self.mpc_type == 2:  # Crocoddyl MPC Non-Linear
+                self.mpc = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=False)
             else:  # Crocoddyl MPC Non-Linear with footsteps optimization
-                self.mpc = MPC_crocoddyl_planner.MPC_crocoddyl_planner(dt=dt, T_mpc=T_gait, mu=0.9,
-                                                                       inner=False, N_gait=self.N_gait)
+                self.mpc = MPC_crocoddyl_planner.MPC_crocoddyl_planner(params, mu=0.9, inner=False)
 
         # Setup initial result for the first iteration of the main control loop
         x_init = np.zeros(12)
@@ -101,6 +101,7 @@ class MPC_Wrapper:
 
         if k > 2:
             self.last_available_result[12:(12+self.n_steps), :] = np.roll(self.last_available_result[12:(12+self.n_steps), :], -1, axis=1)
+            self.testoui = False
 
         pt = 0
         while (np.any(gait[pt, :])):
@@ -165,7 +166,9 @@ class MPC_Wrapper:
 
         Args:
             k (int): Number of inv dynamics iterations since the start of the simulation
-            fstep_planner (object): FootstepPlanner object of the control loop
+            xref (12xN): Desired state vector for the whole prediction horizon
+            fsteps (12xN array): the [x, y, z]^T desired position of each foot for each time step of the horizon
+            params (object): stores parameters
         """
 
         # If this is the first iteration, creation of the parallel process
@@ -212,16 +215,13 @@ class MPC_Wrapper:
                 if k == 0:
                     # loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait)
                     if self.mpc_type == 0:
-                        loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait, self.N_gait)
+                        loop_mpc = MPC.MPC(self.params)
                     elif self.mpc_type == 1:  # Crocoddyl MPC Linear
-                        self.mpc = MPC_crocoddyl.MPC_crocoddyl(dt=self.dt, T_mpc=self.T_gait, mu=0.9, inner=False,
-                                                               linearModel=True, N_gait=self.N_gait)
+                        self.mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=True)
                     elif self.mpc_type == 2:  # Crocoddyl MPC Non-Linear
-                        self.mpc = MPC_crocoddyl.MPC_crocoddyl(dt=self.dt, T_mpc=self.T_gait, mu=0.9, inner=False,
-                                                               linearModel=False, N_gait=self.N_gait)
+                        self.mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=False)
                     else:  # Crocoddyl MPC Non-Linear with footsteps optimization
-                        self.mpc = MPC_crocoddyl_planner.MPC_crocoddyl_planner(dt=self.dt, T_mpc=self.T_gait, mu=0.9,
-                                                                               inner=False, N_gait=self.N_gait)
+                        self.mpc = MPC_crocoddyl_planner.MPC_crocoddyl_planner(self.params, mu=0.9, inner=False)
 
                 # Run the asynchronous MPC with the data that as been retrieved
                 if self.mpc_type == 0:

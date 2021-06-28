@@ -12,6 +12,7 @@
 #ifndef GAIT_H_INCLUDED
 #define GAIT_H_INCLUDED
 
+#include "qrw/Params.hpp"
 #include "qrw/Types.h"
 
 // Order of feet/legs: FL, FR, HL, HR
@@ -38,7 +39,7 @@ public:
     /// \brief Initializer
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void initialize(double dt_in, double T_gait_in, double T_mpc_in, int N_gait);
+    void initialize(Params& params);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///

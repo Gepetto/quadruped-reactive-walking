@@ -17,13 +17,13 @@ class MPC_crocoddyl:
         linearModel(bool) : Approximation in the cross product by using desired state
     """
 
-    def __init__(self, dt=0.02, T_mpc=0.32,  mu=1, inner=True, linearModel=True, N_gait=20):
+    def __init__(self, params,  mu=1, inner=True, linearModel=True):
 
         # Time step of the solver
-        self.dt = dt
+        self.dt = params.dt_mpc
 
         # Period of the MPC
-        self.T_mpc = T_mpc
+        self.T_mpc = params.T_mpc
 
         # Mass of the robot
         self.mass = 2.50000279
@@ -74,15 +74,18 @@ class MPC_crocoddyl:
         self.max_fz = 25
 
         # Gait matrix
-        self.gait = np.zeros((N_gait, 4))
+        self.gait = np.zeros((params.N_gait, 4))
         self.index = 0
 
         # Weight on the shoulder term :
         self.shoulderWeights = 10.
         self.shoulder_hlim = 0.27
 
+        # Integration scheme
+        self.implicit_integration = False
+
         # Position of the feet
-        self.fsteps = np.full((N_gait, 12), np.nan)
+        self.fsteps = np.full((params.N_gait, 12), np.nan)
 
         # List of the actionModel
         self.ListAction = []
@@ -112,6 +115,9 @@ class MPC_crocoddyl:
             model.shoulderWeights = self.shoulderWeights
             model.shoulder_hlim = self.shoulder_hlim
 
+            # integration scheme
+            model.implicit_integration = self.implicit_integration
+
             # Add model to the list of model
             self.ListAction.append(model)
 
@@ -129,6 +135,7 @@ class MPC_crocoddyl:
         self.terminalModel.min_fz = self.min_fz
         self.terminalModel.shoulderWeights = self.shoulderWeights
         self.terminalModel.shoulder_hlim = self.shoulder_hlim
+        self.terminalModel.implicit_integration = self.implicit_integration
 
         # Weights vectors of terminal node
         self.terminalModel.stateWeights = self.stateWeight

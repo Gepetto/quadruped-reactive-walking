@@ -9,13 +9,13 @@ StatePlanner::StatePlanner()
     // Empty
 }
 
-void StatePlanner::initialize(double dt_in, double T_mpc_in, double h_ref_in)
+void StatePlanner::initialize(Params& params)
 {
-    dt_ = dt_in;
-    h_ref_ = h_ref_in;
-    n_steps_ = (int)std::lround(T_mpc_in / dt_in);
+    dt_ = params.dt_mpc;
+    h_ref_ = params.h_ref;
+    n_steps_ = (int)std::lround(params.T_mpc / dt_);
     referenceStates_ = MatrixN::Zero(12, 1 + n_steps_);
-    dt_vector_ = VectorN::LinSpaced(n_steps_, dt_, T_mpc_in);
+    dt_vector_ = VectorN::LinSpaced(n_steps_, dt_, params.T_mpc);
 }
 
 void StatePlanner::computeReferenceStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, double z_average)

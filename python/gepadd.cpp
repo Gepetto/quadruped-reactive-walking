@@ -20,7 +20,7 @@ struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC>>
     void visit(PyClassMPC& cl) const
     {
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
-            .def(bp::init<double, int, double, int>(bp::args("dt_in", "n_steps_in", "T_gait_in", "N_gait"),
+            .def(bp::init<Params&>(bp::args("params"),
                                                "Constructor with parameters."))
 
             // Run MPC from Python
@@ -55,7 +55,7 @@ struct StatePlannerPythonVisitor : public bp::def_visitor<StatePlannerPythonVisi
             .def("getReferenceStates", &StatePlanner::getReferenceStates, "Get xref matrix.\n")
             .def("getNSteps", &StatePlanner::getNSteps, "Get number of steps in prediction horizon.\n")
 
-            .def("initialize", &StatePlanner::initialize, bp::args("dt_in", "T_mpc_in", "h_ref_in"),
+            .def("initialize", &StatePlanner::initialize, bp::args("params"),
                  "Initialize StatePlanner from Python.\n")
 
             // Run StatePlanner from Python
@@ -87,7 +87,7 @@ struct GaitPythonVisitor : public bp::def_visitor<GaitPythonVisitor<Gait>>
             .def("isNewPhase", &Gait::isNewPhase, "Get newPhase_ boolean.\n")
             .def("getIsStatic", &Gait::getIsStatic, "Get is_static_ boolean.\n")
 
-            .def("initialize", &Gait::initialize, bp::args("dt_in", "T_gait_in", "T_mpc_in", "N_gait"),
+            .def("initialize", &Gait::initialize, bp::args("params"),
                  "Initialize Gait from Python.\n")
 
             // Update current gait matrix from Python
@@ -122,7 +122,7 @@ struct FootstepPlannerPythonVisitor : public bp::def_visitor<FootstepPlannerPyth
             .def("getFootsteps", &FootstepPlanner::getFootsteps, "Get footsteps_ matrix.\n")
             .def("getRz", &FootstepPlanner::getRz, "Get rotation along z matrix.\n")
 
-            .def("initialize", &FootstepPlanner::initialize, bp::args("dt_in", "dt_wbc_in", "T_mpc_in", "h_ref_in", "shouldersIn", "gaitIn", "N_gait"),
+            .def("initialize", &FootstepPlanner::initialize, bp::args("params", "gaitIn"),
                  "Initialize FootstepPlanner from Python.\n")
 
             // Compute target location of footsteps from Python
@@ -155,8 +155,7 @@ struct FootTrajectoryGeneratorPythonVisitor : public bp::def_visitor<FootTraject
             .def("getFootVelocity", &FootTrajectoryGenerator::getFootVelocity, "Get velocity_ matrix.\n")
             .def("getFootAcceleration", &FootTrajectoryGenerator::getFootAcceleration, "Get acceleration_ matrix.\n")
 
-            .def("initialize", &FootTrajectoryGenerator::initialize, bp::args("maxHeightIn", "lockTimeIn", "targetFootstepIn",
-                 "initialFootPosition", "dt_tsid_in", "k_mpc_in", "gaitIn"),
+            .def("initialize", &FootTrajectoryGenerator::initialize, bp::args("params", "gaitIn"),
                  "Initialize FootTrajectoryGenerator from Python.\n")
 
             // Compute target location of footsteps from Python
@@ -256,6 +255,7 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("N_gait", &Params::N_gait)
             .def_readwrite("envID", &Params::envID)
             .def_readwrite("velID", &Params::velID)
+            .def_readwrite("q_init", &Params::q_init)
             .def_readwrite("dt_mpc", &Params::dt_mpc)
             .def_readwrite("T_gait", &Params::T_gait)
             .def_readwrite("T_mpc", &Params::T_mpc)
@@ -265,7 +265,12 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("predefined_vel", &Params::predefined_vel)
             .def_readwrite("kf_enabled", &Params::kf_enabled)
             .def_readwrite("enable_pyb_GUI", &Params::enable_pyb_GUI)
-            .def_readwrite("test_list", &Params::test_list);
+            .def_readwrite("enable_multiprocessing", &Params::enable_multiprocessing)
+            .def_readwrite("perfect_estimator", &Params::perfect_estimator)
+            .def_readwrite("mass", &Params::mass)
+            .def_readwrite("I_mat", &Params::I_mat)
+            .def_readwrite("h_ref", &Params::h_ref)
+            .def_readwrite("shoulders", &Params::shoulders);
 
     }
 

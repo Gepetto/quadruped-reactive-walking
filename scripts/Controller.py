@@ -49,8 +49,7 @@ class dummyDevice:
 
 class Controller:
 
-    def __init__(self, q_init, envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC,
-                 use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled, N_gait, isSimulation):
+    def __init__(self, params, q_init, t):  # , envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled, N_gait, isSimulation, params):
         """Function that runs a simulation scenario based on a reference velocity profile, an environment and
         various parameters to define the gait
 
@@ -71,6 +70,7 @@ class Controller:
             kf_enabled (bool): complementary filter (False) or kalman filter (True)
             N_gait (int): number of spare lines in the gait matrix
             isSimulation (bool): if we are in simulation mode
+            params (Params object): store parameters
         """
 
         ########################################################################
@@ -78,14 +78,14 @@ class Controller:
         ########################################################################
 
         # Lists to log the duration of 1 iteration of the MPC/TSID
-        self.t_list_filter = [0] * int(N_SIMULATION)
-        self.t_list_planner = [0] * int(N_SIMULATION)
-        self.t_list_mpc = [0] * int(N_SIMULATION)
-        self.t_list_wbc = [0] * int(N_SIMULATION)
-        self.t_list_loop = [0] * int(N_SIMULATION)
+        self.t_list_filter = [0] * int(params.N_SIMULATION)
+        self.t_list_planner = [0] * int(params.N_SIMULATION)
+        self.t_list_mpc = [0] * int(params.N_SIMULATION)
+        self.t_list_wbc = [0] * int(params.N_SIMULATION)
+        self.t_list_loop = [0] * int(params.N_SIMULATION)
 
-        self.t_list_InvKin = [0] * int(N_SIMULATION)
-        self.t_list_QPWBC = [0] * int(N_SIMULATION)
+        self.t_list_InvKin = [0] * int(params.N_SIMULATION)
+        self.t_list_QPWBC = [0] * int(params.N_SIMULATION)
 
         # Init joint torques to correct shape
         self.jointTorques = np.zeros((12, 1))
@@ -98,21 +98,28 @@ class Controller:
         '''if self.enable_gepetto_viewer:
             self.view = viewerClient()'''
 
-        # Enable/Disable perfect estimator
-        perfectEstimator = False
-        if not isSimulation:
-            perfectEstimator = False  # Cannot use perfect estimator if we are running on real robot
+        # Disable perfect estimator if we are not in simulation
+        if not params.SIMULATION:
+            params.perfectEstimator = False  # Cannot use perfect estimator if we are running on real robot
 
         # Initialisation of the solo model/data and of the Gepetto viewer
         self.solo, self.fsteps_init, self.h_init = utils_mpc.init_robot(q_init, self.enable_gepetto_viewer)
+        params.h_ref = self.h_init
+        params.mass = self.solo.data.mass[0]  # Mass of the whole urdf model (also = to Ycrb[1].mass)
+        params.I_mat = self.solo.data.Ycrb[1].inertia.ravel()  # Composite rigid body inertia in q_init position
+
+        # Assumption: footsteps are initially at the vertical of the shoulders
+        for i in range(4):
+            for j in range(3):
+                params.shoulders[3*i+j] = self.fsteps_init[j, i]
 
         # Create Joystick, FootstepPlanner, Logger and Interface objects
-        self.joystick, self.estimator = utils_mpc.init_objects(
-            dt_wbc, N_SIMULATION, predefined_vel, self.h_init, kf_enabled, perfectEstimator)
+        self.joystick, self.estimator = utils_mpc.init_objects(params)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True
 
+        params.h_ref = self.h_init
         self.h_ref = self.h_init
         self.q = np.zeros((19, 1))
         self.q[0:7, 0] = np.array([0.0, 0.0, self.h_ref, 0.0, 0.0, 0.0, 1.0])
@@ -122,49 +129,41 @@ class Controller:
         self.o_v_filt = np.zeros((18, 1))
 
         self.statePlanner = lqrw.StatePlanner()
-        self.statePlanner.initialize(dt_mpc, T_mpc, self.h_ref)
+        self.statePlanner.initialize(params)
 
         self.gait = lqrw.Gait()
-        self.gait.initialize(dt_mpc, T_gait, T_mpc, N_gait)
+        self.gait.initialize(params)
 
-
-        shoulders = np.zeros((3, 4))
-        shoulders[0, :] = [0.1946, 0.1946, -0.1946, -0.1946]
-        shoulders[1, :] = [0.14695, -0.14695, 0.14695, -0.14695]
         self.footstepPlanner = lqrw.FootstepPlanner()
-        self.footstepPlanner.initialize(dt_mpc, dt_wbc, T_mpc, self.h_ref, shoulders.copy(), self.gait, N_gait)
+        self.footstepPlanner.initialize(params, self.gait)
 
         self.footTrajectoryGenerator = lqrw.FootTrajectoryGenerator()
-        self.footTrajectoryGenerator.initialize(0.05, 0.07, self.fsteps_init.copy(), shoulders.copy(),
-                                                dt_wbc, k_mpc, self.gait)
+        self.footTrajectoryGenerator.initialize(params, self.gait)
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
-        # First argument to True to have PA's MPC, to False to have Thomas's MPC
-        self.enable_multiprocessing = False
-        self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(type_MPC, dt_mpc, np.int(T_mpc/dt_mpc),
-                                                   k_mpc, T_mpc, N_gait, self.q, self.enable_multiprocessing)
+        self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q)
 
         # ForceMonitor to display contact forces in PyBullet with red lines
         # import ForceMonitor
         # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
         # Define the default controller
-        self.myController = wbc_controller(dt_wbc, N_SIMULATION)
+        self.myController = wbc_controller(params.dt_wbc, params.N_SIMULATION)
         self.myController.qdes[7:] = q_init.ravel()
 
-        self.envID = envID
-        self.velID = velID
-        self.dt_wbc = dt_wbc
-        self.dt_mpc = dt_mpc
-        self.k_mpc = k_mpc
+        self.envID = params.envID
+        self.velID = params.velID
+        self.dt_wbc = params.dt_wbc
+        self.dt_mpc = params.dt_mpc
+        self.k_mpc = int(params.dt_mpc / params.dt_wbc)
         self.t = t
-        self.T_gait = T_gait
-        self.T_mpc = T_mpc
-        self.N_SIMULATION = N_SIMULATION
-        self.type_MPC = type_MPC
-        self.use_flat_plane = use_flat_plane
-        self.predefined_vel = predefined_vel
-        self.enable_pyb_GUI = enable_pyb_GUI
+        self.T_gait = params.T_gait
+        self.T_mpc = params.T_mpc
+        self.N_SIMULATION = params.N_SIMULATION
+        self.type_MPC = params.type_MPC
+        self.use_flat_plane = params.use_flat_plane
+        self.predefined_vel = params.predefined_vel
+        self.enable_pyb_GUI = params.enable_pyb_GUI
 
         self.k = 0
 
@@ -248,6 +247,13 @@ class Controller:
 
         # Retrieve reference contact forces in horizontal frame
         self.x_f_mpc = self.mpc_wrapper.get_latest_result()
+        """if self.k == 0:
+            self.x_save = self.x_f_mpc[12:, :].copy()
+        else:
+            self.x_f_mpc[12:, :] = self.x_save.copy()"""
+
+        """from IPython import embed
+        embed()"""
 
         t_mpc = time.time()
 
@@ -354,6 +360,11 @@ class Controller:
                 self.error_flag = 2
                 self.error_value = self.estimator.v_secu
             if np.any(np.abs(self.myController.tau_ff) > 8):
+                print(self.result.P)
+                print(self.result.D)
+                print(self.result.q_des)
+                print(self.result.v_des)
+                print(self.myController.tau_ff)
                 self.myController.error = True
                 self.error_flag = 3
                 self.error_value = self.myController.tau_ff

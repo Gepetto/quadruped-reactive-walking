@@ -13,6 +13,7 @@
 
 #include "pinocchio/math/rpy.hpp"
 #include "qrw/Gait.hpp"
+#include "qrw/Params.hpp"
 #include "qrw/Types.h"
 #include <vector>
 
@@ -40,13 +41,7 @@ public:
     /// \param[in] gaitIn Gait object to hold the gait informations
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void initialize(double dt_in,
-                    double dt_wbc_in,    
-                    double T_mpc_in,
-                    double h_ref_in,
-                    MatrixN const& shouldersIn,
-                    Gait& gaitIn,
-                    int N_gait);
+    void initialize(Params& params, Gait& gaitIn);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///

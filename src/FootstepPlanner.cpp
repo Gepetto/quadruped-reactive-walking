@@ -19,29 +19,23 @@ FootstepPlanner::FootstepPlanner()
     // Empty
 }
 
-void FootstepPlanner::initialize(double dt_in,
-                                 double dt_wbc_in,
-                                 double T_mpc_in,
-                                 double h_ref_in,
-                                 MatrixN const& shouldersIn,
-                                 Gait& gaitIn,
-                                 int N_gait)
+void FootstepPlanner::initialize(Params& params, Gait& gaitIn)
 {
-    dt = dt_in;
-    dt_wbc = dt_wbc_in;
-    T_mpc = T_mpc_in;
-    h_ref = h_ref_in;
-    n_steps = (int)std::lround(T_mpc_in / dt_in);
-    shoulders_ = shouldersIn;
-    currentFootstep_ = shouldersIn.block(0, 0, 3, 4);
+    dt = params.dt_mpc;
+    dt_wbc = params.dt_wbc;
+    T_mpc = params.T_mpc;
+    h_ref = params.h_ref;
+    n_steps = (int)std::lround(params.T_mpc / params.dt_mpc);
+    shoulders_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.shoulders.data(), params.shoulders.size());
+    currentFootstep_ = shoulders_;
     gait_ = &gaitIn;
-    targetFootstep_ = shouldersIn;
-    o_targetFootstep_ = shouldersIn;
-    dt_cum = VectorN::Zero(N_gait);
-    yaws = VectorN::Zero(N_gait);
-    dx = VectorN::Zero(N_gait);
-    dy = VectorN::Zero(N_gait);
-    for (int i = 0; i < N_gait; i++)
+    targetFootstep_ = shoulders_;
+    o_targetFootstep_ = shoulders_;
+    dt_cum = VectorN::Zero(params.N_gait);
+    yaws = VectorN::Zero(params.N_gait);
+    dx = VectorN::Zero(params.N_gait);
+    dy = VectorN::Zero(params.N_gait);
+    for (int i = 0; i < params.N_gait; i++)
     {
         footsteps_.push_back(Matrix34::Zero());
     }

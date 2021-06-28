@@ -11,6 +11,7 @@
 #define STATEPLANNER_H_INCLUDED
 
 #include "pinocchio/math/rpy.hpp"
+#include "qrw/Params.hpp"
 #include "qrw/Types.h"
 
 
@@ -36,7 +37,7 @@ public:
     /// \brief Initializer
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void initialize(double dt_in, double T_mpc_in, double h_ref_in);
+    void initialize(Params& params);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///

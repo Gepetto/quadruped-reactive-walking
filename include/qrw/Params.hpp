@@ -43,20 +43,46 @@ public:
     bool SIMULATION;
     bool LOGGING;
     bool PLOTTING;
+    int envID;
+    bool use_flat_plane;
+    bool predefined_vel;
+    int velID;
+    int N_SIMULATION;
+    bool enable_pyb_GUI;
+    bool enable_multiprocessing;
+    bool perfect_estimator;
+
+    std::vector<double> q_init;
     double dt_wbc;
     int N_gait;
-    int envID;
-    int velID;
     double dt_mpc;
     double T_gait;
     double T_mpc;
-    int N_SIMULATION;
     int type_MPC;
-    bool use_flat_plane;
-    bool predefined_vel;
     bool kf_enabled;
-    bool enable_pyb_GUI;
-    std::vector<double> test_list;
+
+    double k_feedback;
+
+    double max_height;
+    double lock_time;
+
+    std::vector<double> osqp_w_states;
+    std::vector<double> osqp_w_forces;
+
+    double Kp_flyingfeet;
+    double Kd_flyingfeet;
+
+    double Q1;
+    double Q2;
+    double Fz_max;
+    double Fz_min;
+
+
+    // Not defined in yaml
+    double mass;  // Mass of the robot
+    std::vector<double> I_mat;  // Inertia matrix
+    double h_ref;  // Reference height for the base
+    std::vector<double> shoulders;  // Position of shoulders in base frame
 
 };
 
