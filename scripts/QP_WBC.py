@@ -15,15 +15,16 @@ class wbc_controller():
         dt (float): time step of the whole body control
     """
 
-    def __init__(self, dt, N_SIMULATION):
+    def __init__(self, params):
 
         Solo12Loader.free_flyer = True
         self.robot = Solo12Loader().robot
 
-        self.dt = dt  # Time step
+        self.dt = params.dt_wbc  # Time step
 
-        self.invKin = Solo12InvKin(dt)  # Inverse Kinematics object
+        self.invKin = Solo12InvKin(params)  # Inverse Kinematics object
         self.box_qp = lrw.QPWBC()  # Box Quadratic Programming solver
+        self.box_qp.initialize(params)
 
         self.M = np.zeros((18, 18))
         self.Jc = np.zeros((12, 18))
@@ -34,12 +35,12 @@ class wbc_controller():
 
         # Logging
         self.k_log = 0
-        self.log_feet_pos = np.zeros((3, 4, N_SIMULATION))
-        self.log_feet_err = np.zeros((3, 4, N_SIMULATION))
-        self.log_feet_vel = np.zeros((3, 4, N_SIMULATION))
-        self.log_feet_pos_target = np.zeros((3, 4, N_SIMULATION))
-        self.log_feet_vel_target = np.zeros((3, 4, N_SIMULATION))
-        self.log_feet_acc_target = np.zeros((3, 4, N_SIMULATION))
+        self.log_feet_pos = np.zeros((3, 4, params.N_SIMULATION))
+        self.log_feet_err = np.zeros((3, 4, params.N_SIMULATION))
+        self.log_feet_vel = np.zeros((3, 4, params.N_SIMULATION))
+        self.log_feet_pos_target = np.zeros((3, 4, params.N_SIMULATION))
+        self.log_feet_vel_target = np.zeros((3, 4, params.N_SIMULATION))
+        self.log_feet_acc_target = np.zeros((3, 4, params.N_SIMULATION))
 
         # Arrays to store results (for solo12)
         self.qdes = np.zeros((19, ))

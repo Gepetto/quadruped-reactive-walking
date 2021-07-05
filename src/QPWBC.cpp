@@ -20,14 +20,20 @@ QPWBC::QPWBC() {
     G.block(5*i, 3*i, 5, 3) = SC;
   }
 
-  // Set the lower and upper limits of the box
-  std::fill_n(v_NK_up, size_nz_NK, 25.0);
-  std::fill_n(v_NK_low, size_nz_NK, 0.0);
-
   // Set OSQP settings to default
   osqp_set_default_settings(settings);
 
 }
+
+void QPWBC::initialize(Params& params) {
+  params_ = &params;
+  Q1 = params.Q1 * Eigen::Matrix<double, 6, 6>::Identity();
+  Q2 = params.Q2 * Eigen::Matrix<double, 12, 12>::Identity();
+
+  // Set the lower and upper limits of the box
+  std::fill_n(v_NK_up, size_nz_NK, params_->Fz_max);
+  std::fill_n(v_NK_low, size_nz_NK, params_->Fz_min);
+} 
 
 int QPWBC::create_matrices() {
   /*
@@ -334,12 +340,11 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
   // Update P and Q matrices of the cost function xT P x + 2 xT g
   update_PQ();
 
-  const double Nz_max = 25.0;
   Eigen::Matrix<double, 20, 1> Gf = G * f_cmd;
   
   for (int i = 0; i < G.rows(); i++) {
-    v_NK_low[i] = - Gf(i, 0);
-    v_NK_up[i] = - Gf(i, 0) + Nz_max;
+    v_NK_low[i] = - Gf(i, 0) + params_->Fz_min;
+    v_NK_up[i] = - Gf(i, 0) + params_->Fz_max;
   }
 
   // Limit max force when contact is activated

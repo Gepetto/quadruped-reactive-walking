@@ -2,7 +2,6 @@
 
 FootstepPlanner::FootstepPlanner()
     : gait_(NULL)
-    , k_feedback(0.03)
     , g(9.81)
     , L(0.155)
     , nextFootstep_(Matrix34::Zero())
@@ -21,16 +20,17 @@ FootstepPlanner::FootstepPlanner()
 
 void FootstepPlanner::initialize(Params& params, Gait& gaitIn)
 {
+    params_ = &params;
     dt = params.dt_mpc;
     dt_wbc = params.dt_wbc;
     T_mpc = params.T_mpc;
     h_ref = params.h_ref;
     n_steps = (int)std::lround(params.T_mpc / params.dt_mpc);
-    shoulders_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.shoulders.data(), params.shoulders.size());
-    currentFootstep_ = shoulders_;
+    footsteps_under_shoulders_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.footsteps_under_shoulders.data(), params.footsteps_under_shoulders.size());
+    currentFootstep_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.footsteps_init.data(), params.footsteps_init.size());
     gait_ = &gaitIn;
-    targetFootstep_ = shoulders_;
-    o_targetFootstep_ = shoulders_;
+    targetFootstep_ = currentFootstep_;
+    o_targetFootstep_ = currentFootstep_;
     dt_cum = VectorN::Zero(params.N_gait);
     yaws = VectorN::Zero(params.N_gait);
     dx = VectorN::Zero(params.N_gait);
@@ -159,7 +159,7 @@ void FootstepPlanner::computeNextFootstep(int i, int j, Vector6 const& b_v, Vect
     nextFootstep_.col(j) = t_stance * 0.5 * b_v.head(3);
 
     // Add feedback term
-    nextFootstep_.col(j) += k_feedback * (b_v.head(3) - b_vref.head(3));
+    nextFootstep_.col(j) += params_->k_feedback * (b_v.head(3) - b_vref.head(3));
 
     // Add centrifugal term
     Vector3 cross;
@@ -173,7 +173,7 @@ void FootstepPlanner::computeNextFootstep(int i, int j, Vector6 const& b_v, Vect
     nextFootstep_(1, j) = std::max(nextFootstep_(1, j), -L);
 
     // Add shoulders
-    nextFootstep_.col(j) += shoulders_.col(j);
+    nextFootstep_.col(j) += footsteps_under_shoulders_.col(j);
 
     // Remove Z component (working on flat ground)
     nextFootstep_.row(2) = Vector4::Zero().transpose();

@@ -1,15 +1,16 @@
 #include "qrw/InvKin.hpp"
 
-InvKin::InvKin(double dt_in) {
-
-  // Parameters from the main controller
-  dt = dt_in;
-
-  // Reference position of feet
-  feet_position_ref << 0.1946, 0.1946, -0.1946, -0.1946, 0.14695, -0.14695, 0.14695, -0.14695, 0.0191028, 0.0191028, 0.0191028, 0.0191028;
-}
-
 InvKin::InvKin() {}
+
+void InvKin::initialize(Params& params) {
+
+    // Params store parameters
+    params_ = &params;
+
+    // Starting reference position of feet
+    feet_position_ref = (Eigen::Map<Matrix34, Eigen::Unaligned>(params.footsteps_init.data())).transpose();
+
+}
 
 Eigen::Matrix<double, 1, 3> InvKin::cross3(Eigen::Matrix<double, 1, 3> left, Eigen::Matrix<double, 1, 3> right) {
     Eigen::Matrix<double, 1, 3> res;
@@ -41,7 +42,7 @@ Eigen::MatrixXd InvKin::refreshAndCompute(const Eigen::MatrixXd &contacts,
         pfeet_err.row(i) = feet_position_ref.row(i) - posf.row(i);
         vfeet_ref.row(i) = feet_velocity_ref.row(i);
 
-        afeet.row(i) = + Kp_flyingfeet * pfeet_err.row(i) - Kd_flyingfeet * (vf.row(i)-feet_velocity_ref.row(i)) + feet_acceleration_ref.row(i);
+        afeet.row(i) = + params_->Kp_flyingfeet * pfeet_err.row(i) - params_->Kd_flyingfeet * (vf.row(i)-feet_velocity_ref.row(i)) + feet_acceleration_ref.row(i);
         if (flag_in_contact(0, i)) {
             afeet.row(i) *= 0.0; // Set to 0.0 to disable position/velocity control of feet in contact
         }

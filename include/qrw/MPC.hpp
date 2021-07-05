@@ -18,12 +18,10 @@ typedef Eigen::MatrixXd matXd;
 class MPC {
  private:
   Params* params_;
-  double dt, mass, mu, T_gait, h_ref;
+  double dt, mass, mu, T_gait;
   int n_steps, cpt_ML, cpt_P;
 
   Eigen::Matrix<double, 3, 3> gI;
-  Eigen::Matrix<double, 6, 1> q;
-  Eigen::Matrix<double, 6, 1> v = Eigen::Matrix<double, 6, 1>::Zero();
   Eigen::Matrix<double, 3, 4> footholds = Eigen::Matrix<double, 3, 4>::Zero();
   Eigen::Matrix<double, 1, 12> footholds_tmp = Eigen::Matrix<double, 12, 1>::Zero();
   Eigen::Matrix<double, 3, 4> lever_arms = Eigen::Matrix<double, 3, 4>::Zero();
@@ -114,7 +112,6 @@ class MPC {
 
 
   // Utils
-  double gethref() { return h_ref; }
   void my_print_csc_matrix(csc *M, const char *name);
   void save_csc_matrix(csc *M, std::string filename);
   void save_dns_matrix(double *M, int size, std::string filename);

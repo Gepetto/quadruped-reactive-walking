@@ -26,7 +26,7 @@ void FootTrajectoryGenerator::initialize(Params& params, Gait& gaitIn)
     k_mpc = (int)std::round(params.dt_mpc / params.dt_wbc);
     maxHeight_ = params.max_height;
     lockTime_ = params.lock_time;
-    targetFootstep_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.shoulders.data(), params.shoulders.size());
+    targetFootstep_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.footsteps_init.data(), params.footsteps_init.size());
     position_ = targetFootstep_;
     gait_ = &gaitIn;
 }

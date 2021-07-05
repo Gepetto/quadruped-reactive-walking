@@ -9,12 +9,13 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include "qrw/Params.hpp"
 
 class InvKin
 {
 public:
     InvKin();
-    InvKin(double dt_in);
+    void initialize(Params& params);
 
     Eigen::Matrix<double, 1, 3> cross3(Eigen::Matrix<double, 1, 3> left, Eigen::Matrix<double, 1, 3> right);
 
@@ -27,7 +28,7 @@ public:
 
 private:
     // Inputs of the constructor
-    double dt;  // Time step of the contact sequence (time step of the MPC)
+    Params* params_;
 
     // Matrices initialisation
     Eigen::Matrix<double, 4, 3> feet_position_ref = Eigen::Matrix<double, 4, 3>::Zero();
@@ -52,9 +53,6 @@ private:
     Eigen::MatrixXd q_step = Eigen::MatrixXd::Zero(12, 1);
     Eigen::MatrixXd dq_cmd = Eigen::MatrixXd::Zero(12, 1);
 
-    // Gains
-    double Kp_flyingfeet = 100.0; // 1000
-    double Kd_flyingfeet = 2.0 * std::sqrt(Kp_flyingfeet); // 5.0 *
 };
 
 template <typename _Matrix_Type_>

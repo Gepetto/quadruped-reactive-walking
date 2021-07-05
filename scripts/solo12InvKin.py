@@ -6,15 +6,15 @@ import libquadruped_reactive_walking as lrw
 from example_robot_data.robots_loader import Solo12Loader
 
 class Solo12InvKin:
-    def __init__(self, dt):
+    def __init__(self, params):
 
         # Robot model
         Solo12Loader.free_flyer = False
         self.robot = Solo12Loader().robot
-        self.dt = dt
 
         # Inverse Kinematics solver in C++
-        self.InvKinCpp = lrw.InvKin(dt)
+        self.InvKinCpp = lrw.InvKin()
+        self.InvKinCpp.initialize(params)
 
         # Memory assignation for variables
         self.cpp_posf = np.zeros((4, 3))

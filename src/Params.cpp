@@ -32,6 +32,7 @@ Params::Params()
 
     , osqp_w_states(12, 0.0) // Fill with zeros, will be filled with values later
     , osqp_w_forces(3, 0.0) // Fill with zeros, will be filled with values later
+    , osqp_Nz_lim(0.0)
 
     , Kp_flyingfeet(0.0)
     , Kd_flyingfeet(0.0)
@@ -45,6 +46,8 @@ Params::Params()
     , I_mat(9, 0.0) // Fill with zeros, will be filled with values later
     , h_ref(0.0)
     , shoulders(12, 0.0) // Fill with zeros, will be filled with values later
+    , footsteps_init(12, 0.0) // Fill with zeros, will be filled with values later
+    , footsteps_under_shoulders(12, 0.0) // Fill with zeros, will be filled with values later
 {  
     initialize(CONFIG_SOLO12_YAML);
 }
@@ -134,6 +137,9 @@ void Params::initialize(const std::string& file_path)
 
     assert_yaml_parsing(robot_node, "robot", "osqp_w_forces");
     osqp_w_forces = robot_node["osqp_w_forces"].as<std::vector<double> >();
+
+    assert_yaml_parsing(robot_node, "robot", "osqp_Nz_lim");
+    osqp_Nz_lim = robot_node["osqp_Nz_lim"].as<double>();
 
     assert_yaml_parsing(robot_node, "robot", "Kp_flyingfeet");
     Kp_flyingfeet = robot_node["Kp_flyingfeet"].as<double>();

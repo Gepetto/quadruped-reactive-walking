@@ -68,6 +68,7 @@ public:
 
     std::vector<double> osqp_w_states;
     std::vector<double> osqp_w_forces;
+    double osqp_Nz_lim;
 
     double Kp_flyingfeet;
     double Kd_flyingfeet;
@@ -83,6 +84,8 @@ public:
     std::vector<double> I_mat;  // Inertia matrix
     double h_ref;  // Reference height for the base
     std::vector<double> shoulders;  // Position of shoulders in base frame
+    std::vector<double> footsteps_init;  // Initial 3D position of footsteps in base frame
+    std::vector<double> footsteps_under_shoulders;  // // Positions of footsteps to be "under the shoulder"
 
 };
 

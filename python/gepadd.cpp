@@ -183,7 +183,8 @@ struct InvKinPythonVisitor : public bp::def_visitor<InvKinPythonVisitor<InvKin>>
     void visit(PyClassInvKin& cl) const
     {
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
-            .def(bp::init<double>(bp::args("dt_in"), "Constructor with parameters."))
+            
+            .def("initialize", &InvKin::initialize, bp::args("params"), "Initialize InvKin from Python.\n")
 
             .def("get_q_step", &InvKin::get_q_step, "Get velocity goals matrix.\n")
             .def("get_dq_cmd", &InvKin::get_dq_cmd, "Get acceleration goals matrix.\n")
@@ -214,6 +215,8 @@ struct QPWBCPythonVisitor : public bp::def_visitor<QPWBCPythonVisitor<QPWBC>>
     void visit(PyClassQPWBC& cl) const
     {
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+
+            .def("initialize", &QPWBC::initialize, bp::args("params"), "Initialize QPWBC from Python.\n")
 
             .def("get_f_res", &QPWBC::get_f_res, "Get velocity goals matrix.\n")
             .def("get_ddq_res", &QPWBC::get_ddq_res, "Get acceleration goals matrix.\n")
@@ -270,7 +273,9 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("mass", &Params::mass)
             .def_readwrite("I_mat", &Params::I_mat)
             .def_readwrite("h_ref", &Params::h_ref)
-            .def_readwrite("shoulders", &Params::shoulders);
+            .def_readwrite("shoulders", &Params::shoulders)
+            .def_readwrite("footsteps_init", &Params::footsteps_init)
+            .def_readwrite("footsteps_under_shoulders", &Params::footsteps_under_shoulders);
 
     }
 

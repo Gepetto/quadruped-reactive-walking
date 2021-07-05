@@ -17,7 +17,7 @@ MPC::MPC(Params& params) {
   gait = Eigen::Matrix<int, Eigen::Dynamic, 4>::Zero(params_->N_gait, 4);
 
   // Predefined variables
-  mass = 2.50000279f;
+  mass = params_->mass;
   mu = 0.9f;
   cpt_ML = 0;
   cpt_P = 0;
@@ -25,10 +25,13 @@ MPC::MPC(Params& params) {
 
   // Predefined matrices
   footholds << 0.19, 0.19, -0.19, -0.19, 0.15005, -0.15005, 0.15005, -0.15005, 0.0, 0.0, 0.0, 0.0;
-  gI << 3.09249e-2, -8.00101e-7, 1.865287e-5, -8.00101e-7, 5.106100e-2, 1.245813e-4, 1.865287e-5, 1.245813e-4,
-      6.939757e-2;
-  q << 0.0f, 0.0f, 0.2027682f, 0.0f, 0.0f, 0.0f;
-  h_ref = q(2, 0);
+  /*for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      gI(i, j) = params_->I_mat[3 * i + j];
+    }
+  }*/
+  gI << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params_->I_mat.data(), params_->I_mat.size());
+  std::cout << gI << std::endl; 
   g(8, 0) = -9.81f * dt;
 
   osqp_set_default_settings(settings);
@@ -296,7 +299,7 @@ int MPC::create_NK() {
   Eigen::Matrix<double, Eigen::Dynamic, 1> inf_lower_bount =
       -std::numeric_limits<double>::infinity() * Eigen::Matrix<double, Eigen::Dynamic, 1>::Ones(20 * n_steps, 1);
   for (int k = 0; (4 + 5 * k) < (20 * n_steps); k++) {
-    inf_lower_bount(4 + 5 * k, 0) = -25.0;
+    inf_lower_bount(4 + 5 * k, 0) = -params_->osqp_Nz_lim;  // Maximum vertical contact force [N]
   }
 
   NK_low.block(0, 0, 12 * n_steps * 2, 1) = NK_up.block(0, 0, 12 * n_steps * 2, 1);

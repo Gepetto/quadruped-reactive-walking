@@ -100,9 +100,8 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
     # Check .yaml file for parameters of the controller
 
     # Enable or disable PyBullet GUI
-    enable_pyb_GUI = params.enable_pyb_GUI
     if not params.SIMULATION:
-        enable_pyb_GUI = False
+        params.enable_pyb_GUI = False
 
     # Time variable to keep track of time
     t = 0.0
@@ -162,7 +161,7 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
     # Initiate communication with the device and calibrate encoders
     if params.SIMULATION:
         device.Init(calibrateEncoders=True, q_init=q_init, envID=params.envID,
-                    use_flat_plane=params.use_flat_plane, enable_pyb_GUI=enable_pyb_GUI, dt=params.dt_wbc)
+                    use_flat_plane=params.use_flat_plane, enable_pyb_GUI=params.enable_pyb_GUI, dt=params.dt_wbc)
     else:
         device.Init(calibrateEncoders=True, q_init=q_init)
 
@@ -249,7 +248,7 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
         cloneResult.value = False
 
     # Stop MPC running in a parallel process
-    if controller.enable_multiprocessing:
+    if params.enable_multiprocessing:
         print("Stopping parallel process")
         controller.mpc_wrapper.stop_parallel_loop()
     # controller.view.stop()  # Stop viewer
@@ -313,7 +312,7 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
         loggerControl.saveAll(loggerSensors)
         print("Log saved")
 
-    if params.SIMULATION and enable_pyb_GUI:
+    if params.SIMULATION and params.enable_pyb_GUI:
         # Disconnect the PyBullet server (also close the GUI)
         device.Stop()
 
@@ -329,6 +328,7 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
     print("End of script")
 
     return finished, des_vel_analysis
+
 
 def main():
     """Main function
