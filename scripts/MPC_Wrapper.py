@@ -217,11 +217,11 @@ class MPC_Wrapper:
                     if self.mpc_type == 0:
                         loop_mpc = MPC.MPC(self.params)
                     elif self.mpc_type == 1:  # Crocoddyl MPC Linear
-                        self.mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=True)
+                        loop_mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=True)
                     elif self.mpc_type == 2:  # Crocoddyl MPC Non-Linear
-                        self.mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=False)
+                        loop_mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=False)
                     else:  # Crocoddyl MPC Non-Linear with footsteps optimization
-                        self.mpc = MPC_crocoddyl_planner.MPC_crocoddyl_planner(self.params, mu=0.9, inner=False)
+                        loop_mpc = MPC_crocoddyl_planner.MPC_crocoddyl_planner(self.params, mu=0.9, inner=False)
 
                 # Run the asynchronous MPC with the data that as been retrieved
                 if self.mpc_type == 0:
