@@ -3,10 +3,9 @@
 import numpy as np
 import libquadruped_reactive_walking as MPC
 from multiprocessing import Process, Value, Array
-from utils_mpc import quaternionToRPY
 import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
-
+import pinocchio as pin
 
 class Dummy:
     """Dummy class to store variables"""
@@ -77,7 +76,7 @@ class MPC_Wrapper:
         # Setup initial result for the first iteration of the main control loop
         x_init = np.zeros(12)
         x_init[0:3] = q_init[0:3, 0]
-        x_init[3:6] = quaternionToRPY(q_init[3:7, 0]).ravel()
+        x_init[3:6] = pin.rpy.matrixToRpy(pin.Quaternion(q_init[3:7, 0]).toRotationMatrix())
         if self.mpc_type == 3:  # Need more space to store optimized footsteps
             self.last_available_result = np.zeros((32, (np.int(self.n_steps))))
         else:

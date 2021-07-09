@@ -4,7 +4,6 @@ import pybullet_data
 import time as time
 import sys
 import pinocchio as pin
-from utils_mpc import quaternionToRPY
 
 
 class pybullet_simulator:
@@ -26,6 +25,8 @@ class pybullet_simulator:
         # Start the client for PyBullet
         if enable_pyb_GUI:
             pyb.connect(pyb.GUI)
+            pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
+
         else:
             pyb.connect(pyb.DIRECT)
         # p.GUI for graphical version
@@ -609,7 +610,7 @@ class PyBulletSimulator():
 
         # Orientation of the base (quaternion)
         self.baseOrientation[:] = np.array(self.baseState[1])
-        RPY = quaternionToRPY(self.baseOrientation)
+        RPY = pin.rpy.matrixToRpy(pin.Quaternion(self.baseOrientation).toRotationMatrix())
         self.hardware.roll = RPY[0]
         self.hardware.pitch = RPY[1]
         self.hardware.yaw = RPY[2]
