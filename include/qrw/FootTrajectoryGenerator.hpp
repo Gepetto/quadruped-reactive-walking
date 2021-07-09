@@ -63,6 +63,10 @@ public:
     ////////////////////////////////////////////////////////////////////////////////////////////////
     void update(int k, MatrixN const& targetFootstep);
 
+    Eigen::MatrixXd getFootPositionBaseFrame(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &T);
+    Eigen::MatrixXd getFootVelocityBaseFrame(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &v_ref, const Eigen::Matrix<double, 3, 1> &w_ref);
+    Eigen::MatrixXd getFootAccelerationBaseFrame(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &w_ref);
+
     MatrixN getTargetPosition() { return targetFootstep_; }  ///< Get the foot goal position
     MatrixN getFootPosition() { return position_; }          ///< Get the next foot position
     MatrixN getFootVelocity() { return velocity_; }          ///< Get the next foot velocity
@@ -70,10 +74,11 @@ public:
 
 private:
     Gait* gait_;        ///< Target lock before the touchdown
-    double dt_tsid;     ///<
+    double dt_wbc;      ///<
     int k_mpc;          ///<
     double maxHeight_;  ///< Apex height of the swinging trajectory
     double lockTime_;   ///< Target lock before the touchdown
+    double vertTime_;   ///< Duration during which feet move only along Z when taking off and landing
 
     std::vector<int> feet;
     Vector4 t0s;
@@ -87,5 +92,9 @@ private:
     Matrix34 position_;      // position computed in updateFootPosition
     Matrix34 velocity_;      // velocity computed in updateFootPosition
     Matrix34 acceleration_;  // acceleration computed in updateFootPosition
+
+    Matrix34 position_base_;      // position computed in updateFootPosition in base frame
+    Matrix34 velocity_base_;      // velocity computed in updateFootPosition in base frame
+    Matrix34 acceleration_base_;  // acceleration computed in updateFootPosition in base frame
 };
 #endif  // TRAJGEN_H_INCLUDED

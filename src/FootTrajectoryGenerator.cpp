@@ -4,7 +4,7 @@
 
 FootTrajectoryGenerator::FootTrajectoryGenerator()
     : gait_(NULL)
-    , dt_tsid(0.0)
+    , dt_wbc(0.0)
     , k_mpc(0)
     , maxHeight_(0.0)
     , lockTime_(0.0)
@@ -17,17 +17,22 @@ FootTrajectoryGenerator::FootTrajectoryGenerator()
     , position_(Matrix34::Zero())
     , velocity_(Matrix34::Zero())
     , acceleration_(Matrix34::Zero())
+    , position_base_(Matrix34::Zero())
+    , velocity_base_(Matrix34::Zero())
+    , acceleration_base_(Matrix34::Zero())
 {
 }
 
 void FootTrajectoryGenerator::initialize(Params& params, Gait& gaitIn)
 {
-    dt_tsid = params.dt_wbc;
+    dt_wbc = params.dt_wbc;
     k_mpc = (int)std::round(params.dt_mpc / params.dt_wbc);
     maxHeight_ = params.max_height;
     lockTime_ = params.lock_time;
+    vertTime_ = params.vert_time;
     targetFootstep_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.footsteps_init.data(), params.footsteps_init.size());
     position_ = targetFootstep_;
+    position_base_ = targetFootstep_;
     gait_ = &gaitIn;
 }
 
@@ -41,9 +46,9 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const& tar
     double x0 = position_(0, j);
     double y0 = position_(1, j);
 
-    double t = t0s[j];
-    double d = t_swing[j];
-    double dt = dt_tsid;
+    double t = t0s[j] - vertTime_;
+    double d = t_swing[j] - 2 * vertTime_;
+    double dt = dt_wbc;
 
     if (t < d - lockTime_)
     {
@@ -67,14 +72,16 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const& tar
     }
 
     // Coefficients for z (deterministic)
+    double Tz = t_swing[j];
     Vector4 Az;
-    Az(0, j) = -maxHeight_ / (std::pow((d / 2), 3) * std::pow((d - d / 2), 3));
-    Az(1, j) = (3 * d * maxHeight_) / (std::pow((d / 2), 3) * std::pow((d - d / 2), 3));
-    Az(2, j) = -(3 * std::pow(d, 2) * maxHeight_) / (std::pow((d / 2), 3) * std::pow((d - d / 2), 3));
-    Az(3, j) = (std::pow(d, 3) * maxHeight_) / (std::pow((d / 2), 3) * std::pow((d - d / 2), 3));
+    Az(0, j) = -maxHeight_ / (std::pow((Tz / 2), 3) * std::pow((Tz - Tz / 2), 3));
+    Az(1, j) = (3 * Tz * maxHeight_) / (std::pow((Tz / 2), 3) * std::pow((Tz - Tz / 2), 3));
+    Az(2, j) = -(3 * std::pow(Tz, 2) * maxHeight_) / (std::pow((Tz / 2), 3) * std::pow((Tz - Tz / 2), 3));
+    Az(3, j) = (std::pow(Tz, 3) * maxHeight_) / (std::pow((Tz / 2), 3) * std::pow((Tz - Tz / 2), 3));
 
     // Get the next point
     double ev = t + dt;
+    double evz = t0s[j] + dt;
 
     if (t < 0.0 || t > d)  // Just vertical motion
     {
@@ -94,9 +101,9 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const& tar
         acceleration_(0, j) = 2 * Ax(3, j) + 3 * 2 * Ax(2, j) * ev + 4 * 3 * Ax(1, j) * std::pow(ev, 2) + 5 * 4 * Ax(0, j) * std::pow(ev, 3);
         acceleration_(1, j) = 2 * Ay(3, j) + 3 * 2 * Ay(2, j) * ev + 4 * 3 * Ay(1, j) * std::pow(ev, 2) + 5 * 4 * Ay(0, j) * std::pow(ev, 3);
     }
-    velocity_(2, j) = 3 * Az(3, j) * std::pow(ev, 2) + 4 * Az(2, j) * std::pow(ev, 3) + 5 * Az(1, j) * std::pow(ev, 4) + 6 * Az(0, j) * std::pow(ev, 5);
-    acceleration_(2, j) = 2 * 3 * Az(3, j) * ev + 3 * 4 * Az(2, j) * std::pow(ev, 2) + 4 * 5 * Az(1, j) * std::pow(ev, 3) + 5 * 6 * Az(0, j) * std::pow(ev, 4);
-    position_(2, j) = Az(3, j) * std::pow(ev, 3) + Az(2, j) * std::pow(ev, 4) + Az(1, j) * std::pow(ev, 5) + Az(0, j) * std::pow(ev, 6);
+    velocity_(2, j) = 3 * Az(3, j) * std::pow(evz, 2) + 4 * Az(2, j) * std::pow(evz, 3) + 5 * Az(1, j) * std::pow(evz, 4) + 6 * Az(0, j) * std::pow(evz, 5);
+    acceleration_(2, j) = 2 * 3 * Az(3, j) * evz + 3 * 4 * Az(2, j) * std::pow(evz, 2) + 4 * 5 * Az(1, j) * std::pow(evz, 3) + 5 * 6 * Az(0, j) * std::pow(evz, 4);
+    position_(2, j) = Az(3, j) * std::pow(evz, 3) + Az(2, j) * std::pow(evz, 4) + Az(1, j) * std::pow(evz, 5) + Az(0, j) * std::pow(evz, 6);
 }
 
 void FootTrajectoryGenerator::update(int k, MatrixN const& targetFootstep)
@@ -119,7 +126,7 @@ void FootTrajectoryGenerator::update(int k, MatrixN const& targetFootstep)
         {
             int i = feet[j];
             t_swing[i] = gait_->getPhaseDuration(0, feet[j], 0.0);  // 0.0 for swing phase
-            double value = t_swing[i] - (gait_->getRemainingTime() * k_mpc - ((k + 1) % k_mpc)) * dt_tsid - dt_tsid;
+            double value = t_swing[i] - (gait_->getRemainingTime() * k_mpc - ((k + 1) % k_mpc)) * dt_wbc - dt_wbc;
             t0s[i] = std::max(0.0, value);
         }
     }
@@ -132,7 +139,7 @@ void FootTrajectoryGenerator::update(int k, MatrixN const& targetFootstep)
         // Increment of one time step for feet in swing phase
         for (int i = 0; i < (int)feet.size(); i++)
         {
-            double value = t0s[feet[i]] + dt_tsid;
+            double value = t0s[feet[i]] + dt_wbc;
             t0s[feet[i]] = std::max(0.0, value);
         }
     }
@@ -142,4 +149,22 @@ void FootTrajectoryGenerator::update(int k, MatrixN const& targetFootstep)
         updateFootPosition(feet[i], targetFootstep.col(feet[i]));
     }
     return;
+}
+
+Eigen::MatrixXd FootTrajectoryGenerator::getFootPositionBaseFrame(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &T) {
+
+    position_base_ = R * (position_ - T.replicate<1, 4>());  // Value saved because it is used to get velocity and acceleration
+    return position_base_;
+}
+
+Eigen::MatrixXd FootTrajectoryGenerator::getFootVelocityBaseFrame(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &v_ref,
+                                                                  const Eigen::Matrix<double, 3, 1> &w_ref) {
+
+    velocity_base_ = R * velocity_ - v_ref.replicate<1, 4>() + position_base_.colwise().cross(w_ref);  // Value saved because it is used to get acceleration
+    return velocity_base_;
+}
+
+Eigen::MatrixXd FootTrajectoryGenerator::getFootAccelerationBaseFrame(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &w_ref) {
+
+    return R * acceleration_ - (position_base_.colwise().cross(w_ref)).colwise().cross(w_ref) + 2 * velocity_base_.colwise().cross(w_ref);
 }

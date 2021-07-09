@@ -65,6 +65,7 @@ public:
 
     double max_height;
     double lock_time;
+    double vert_time;
 
     std::vector<double> osqp_w_states;
     std::vector<double> osqp_w_forces;

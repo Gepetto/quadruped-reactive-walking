@@ -29,7 +29,8 @@ robot:
 
     # Parameters of FootTrajectoryGenerator
     max_height: 0.05  # Apex height of the swinging trajectory [m]
-    lock_time: 0.07  # Target lock before the touchdown [s]
+    lock_time: 0.04  # Target lock before the touchdown [s]
+    vert_time: 0.02  # Duration during which feet move only along Z when taking off and landing
 
     # Parameters of MPC with OSQP
     osqp_w_states: [2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]  # Weights for state tracking error
@@ -43,5 +44,5 @@ robot:
     # Parameters of WBC QP problem
     Q1: 0.1  # Weights for the "delta articular accelerations" optimization variables
     Q2: 5.0  # Weights for the "delta contact forces" optimization variables
-    Fz_max: 25.0  # Maximum vertical contact force [N]
+    Fz_max: 35.0  # Maximum vertical contact force [N]
     Fz_min: 0.0  # Minimal vertical contact force [N]

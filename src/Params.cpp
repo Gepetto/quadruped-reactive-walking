@@ -29,6 +29,7 @@ Params::Params()
 
     , max_height(0.0)
     , lock_time(0.0)
+    , vert_time(0.0)
 
     , osqp_w_states(12, 0.0) // Fill with zeros, will be filled with values later
     , osqp_w_forces(3, 0.0) // Fill with zeros, will be filled with values later

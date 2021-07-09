@@ -293,18 +293,10 @@ class Controller:
             self.b_v[:6, 0] = self.v_ref[:6, 0]  # Base at reference velocity (TODO: add hRb once v_ref is considered in base frame)
             self.b_v[6:, 0] = self.myController.vdes[6:, 0]  # with reference angular velocities of previous loop
 
-            # Feet command acceleration in base frame
-            self.feet_a_cmd = oRh.transpose() @ self.footTrajectoryGenerator.getFootAcceleration() \
-                - self.cross12(self.v_ref[3:6, 0:1], self.cross12(self.v_ref[3:6, 0:1], self.feet_p_cmd)) \
-                - 2 * self.cross12(self.v_ref[3:6, 0:1], self.feet_v_cmd)
-
-            # Feet command velocity in base frame
-            self.feet_v_cmd = oRh.transpose() @ self.footTrajectoryGenerator.getFootVelocity()
-            self.feet_v_cmd = self.feet_v_cmd - self.v_ref[0:3, 0:1] - self.cross12(self.v_ref[3:6, 0:1], self.feet_p_cmd)
-
-            # Feet command position in base frame
-            self.feet_p_cmd = oRh.transpose() @ (self.footTrajectoryGenerator.getFootPosition()
-                                                 - np.array([[0.0], [0.0], [self.h_ref]]) - oTh)
+            # Feet command position, velocity and acceleration in base frame
+            self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(oRh.transpose(), self.v_ref[3:6, 0:1])
+            self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(oRh.transpose(), self.v_ref[0:3, 0:1], self.v_ref[3:6, 0:1])
+            self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), np.array([[0.0], [0.0], [self.h_ref]]) + oTh)
 
             # Run InvKin + WBC QP
             self.myController.compute(self.q_wbc, self.b_v,
@@ -413,15 +405,16 @@ class Controller:
             self.q[2, 0] = self.estimator.q_filt[2, 0]
 
             # Mix perfect yaw with pitch and roll measurements
-            self.yaw_estim += self.v_ref[5, 0:1] * self.myController.dt
-            self.q[3:7, 0] = self.estimator.EulerToQuaternion([self.estimator.RPY[0], self.estimator.RPY[1], self.yaw_estim])
+            self.yaw_estim += self.v_ref[5, 0] * self.myController.dt
+            self.q[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(self.estimator.RPY[0], self.estimator.RPY[1], self.yaw_estim)).coeffs()
 
             # Actuators measurements
             self.q[7:, 0] = self.estimator.q_filt[7:, 0]
 
             # Velocities are the one estimated by the estimator
             self.v = self.estimator.v_filt.copy()
-            hRb = utils_mpc.EulerToRotation(self.estimator.RPY[0], self.estimator.RPY[1], 0.0)
+            hRb = pin.rpy.rpyToMatrix(self.estimator.RPY[0], self.estimator.RPY[1], 0.0)
+
             self.h_v[0:3, 0:1] = hRb @ self.v[0:3, 0:1]
             self.h_v[3:6, 0:1] = hRb @ self.v[3:6, 0:1]
 
@@ -440,17 +433,3 @@ class Controller:
         oTh = np.array([[self.q[0, 0]], [self.q[1, 0]], [0.0]])
 
         return oRh, oTh
-
-    def cross12(self, left, right):
-        """Numpy is inefficient for this
-
-        Args:
-            left (3x1 array): left term of the cross product
-            right (3x4 array): right term of the cross product
-        """
-        res = np.zeros((3, 4))
-        for i in range(4):
-            res[:, i] = np.array([left[1, 0] * right[2, i] - left[2, 0] * right[1, i],
-                                  left[2, 0] * right[0, i] - left[0, 0] * right[2, i],
-                                  left[0, 0] * right[1, i] - left[1, 0] * right[0, i]])
-        return res
