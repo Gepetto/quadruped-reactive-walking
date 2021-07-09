@@ -26,13 +26,10 @@ class MPC_crocoddyl:
         self.T_mpc = params.T_mpc
 
         # Mass of the robot
-        self.mass = 2.50000279
+        self.mass = params.mass
 
         # Inertia matrix of the robot in body frame
-        # self.gI = np.diag([0.00578574, 0.01938108, 0.02476124])
-        self.gI = np.array([[3.09249e-2, -8.00101e-7, 1.865287e-5],
-                            [-8.00101e-7, 5.106100e-2, 1.245813e-4],
-                            [1.865287e-5, 1.245813e-4, 6.939757e-2]])
+        self.gI = np.array(params.I_mat.tolist()).reshape((3, 3))
 
         # Friction coefficient
         if inner:

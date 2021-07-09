@@ -31,7 +31,7 @@ MPC::MPC(Params& params) {
     }
   }*/
   gI << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params_->I_mat.data(), params_->I_mat.size());
-  std::cout << gI << std::endl; 
+
   g(8, 0) = -9.81f * dt;
 
   osqp_set_default_settings(settings);

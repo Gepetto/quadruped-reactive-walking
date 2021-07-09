@@ -190,7 +190,7 @@ void Gait::updateGait(int const k,
                       int const joystickCode)
 {
     changeGait(joystickCode, q);
-    if (k % k_mpc == 0)
+    if (k % k_mpc == 0 && k > 0)
         rollGait();
 }
 
