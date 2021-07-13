@@ -37,21 +37,24 @@ public:
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ~ComplementaryFilter() {}  // Empty destructor
 
-
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
     /// \brief Initialize
     ///
+    /// \param[in] dt time step of the complementary filter    
+    /// \param[in] HP_x initial value for the high pass filter
+    /// \param[in] LP_x initial value for the low pass filter
+    ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void initialize(double dt);
+    void initialize(double dt, Vector3 HP_x, Vector3 LP_x);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
     /// \brief Compute the filtered output of the complementary filter
     ///
-    /// \param[in] x (Vector3): quantity handled by the filter      
-    /// \param[in] dx (Vector3): derivative of the quantity
-    /// \param[in] alpha (Vector3): filtering coefficient between x and dx quantities
+    /// \param[in] x quantity handled by the filter      
+    /// \param[in] dx derivative of the quantity
+    /// \param[in] alpha filtering coefficient between x and dx quantities
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
     Vector3 compute(Vector3 const& x, Vector3 const& dx, Vector3 const& alpha);
@@ -161,9 +164,14 @@ public:
     /// \param[in] b_baseVel velocity of the robot in PyBullet simulator (only for simulation)
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void run_filter(MatrixN4 gait, Matrix34 goals, Vector3 baseLinearAcceleration,
-                    Vector3 baseAngularVelocity, Vector4 baseOrientation, Vector12 q_mes, Vector12 v_mes,
-                    Vector3 dummyPos, Vector3 b_baseVel);
+    void run_filter(MatrixN const& gait, MatrixN const& goals, VectorN const& baseLinearAcceleration,
+                    VectorN const& baseAngularVelocity, VectorN const& baseOrientation, VectorN const& q_mes,
+                    VectorN const& v_mes, VectorN const& dummyPos, VectorN const& b_baseVel);
+
+    MatrixN getQFilt() { return q_filt_dyn_; }
+    MatrixN getVFilt() { return v_filt_dyn_; }
+    MatrixN getVSecu() { return v_secu_dyn_; }
+    Vector3 getRPY() { return IMU_RPY_; }
 
 private:
 
@@ -201,6 +209,10 @@ private:
     Vector19 q_filt_;  // Filtered output configuration
     Vector18 v_filt_;  // Filtered output velocity
     Vector12 v_secu_;  // Filtered output velocity for security check
+
+    MatrixN q_filt_dyn_;  // Dynamic size version of q_filt_
+    MatrixN v_filt_dyn_;  // Dynamic size version of v_filt_
+    MatrixN v_secu_dyn_;  // Dynamic size version of v_secu_
 
     pinocchio::SE3 _1Mi_;  // Transform between the base frame and the IMU frame
 

@@ -57,6 +57,7 @@ set(${PROJECT_NAME}_HEADERS
   include/qrw/InvKin.hpp
   include/qrw/QPWBC.hpp
   include/qrw/Params.hpp
+  include/qrw/Estimator.hpp
   include/other/st_to_cc.hpp
   )
 
@@ -71,6 +72,7 @@ set(${PROJECT_NAME}_SOURCES
   src/InvKin.cpp
   src/QPWBC.cpp
   src/Params.cpp
+  src/Estimator.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})

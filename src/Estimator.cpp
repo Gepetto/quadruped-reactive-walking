@@ -14,9 +14,11 @@ ComplementaryFilter::ComplementaryFilter()
 }
 
 
-void ComplementaryFilter::initialize(double dt)
+void ComplementaryFilter::initialize(double dt, Vector3 HP_x, Vector3 LP_x)
 {
     dt_ = dt;
+    HP_x_ = HP_x;
+    LP_x_ = LP_x;
 }
 
 
@@ -65,6 +67,9 @@ Estimator::Estimator()
     , q_filt_(Vector19::Zero())
     , v_filt_(Vector18::Zero())
     , v_secu_(Vector12::Zero())
+    , q_filt_dyn_(MatrixN::Zero(19, 1))
+    , v_filt_dyn_(MatrixN::Zero(18, 1))
+    , v_secu_dyn_(MatrixN::Zero(12, 1))
 {
 }
 
@@ -85,13 +90,16 @@ void Estimator::initialize(Params& params)
     y = 1 - std::cos(2 * M_PI * fc * dt_wbc);
     alpha_secu_ = -y + std::sqrt(y * y + 2 * y);
 
-    filter_xyz_vel_.initialize(dt_wbc);
-    filter_xyz_pos_.initialize(dt_wbc);
+    FK_xyz_(2, 0) = params.h_ref;
+
+    filter_xyz_vel_.initialize(dt_wbc, Vector3::Zero(), Vector3::Zero());
+    filter_xyz_pos_.initialize(dt_wbc, Vector3::Zero(), FK_xyz_);
 
     _1Mi_ = pinocchio::SE3(pinocchio::SE3::Quaternion(1.0, 0.0, 0.0, 0.0), Vector3(0.1163, 0.0, 0.02));
 
     q_FK_(6, 0) = 1.0;  // Last term of the quaternion
     q_filt_(6, 0) = 1.0;  // Last term of the quaternion
+    q_filt_dyn_(6, 0) = 1.0;  // Last term of the quaternion
 
     // Path to the robot URDF (TODO: Automatic path)
     const std::string filename = std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
@@ -244,12 +252,12 @@ Vector3 Estimator::BaseVelocityFromKinAndIMU(int contactFrameId)
 }
 
 
-void Estimator::run_filter(MatrixN4 gait, Matrix34 goals, Vector3 baseLinearAcceleration,
-                           Vector3 baseAngularVelocity, Vector4 baseOrientation, Vector12 q_mes, Vector12 v_mes,
-                           Vector3 dummyPos, Vector3 b_baseVel)
+void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN const& baseLinearAcceleration,
+                           VectorN const& baseAngularVelocity, VectorN const& baseOrientation, VectorN const& q_mes,
+                           VectorN const& v_mes, VectorN const& dummyPos, VectorN const& b_baseVel)
 {
     int remaining_steps = 1;  // Remaining MPC steps for the current gait phase
-    while((gait.row(0)).isApprox(gait.row(remaining_steps))) {
+    while((gait.block(0, 0, 1, 4)).isApprox(gait.row(remaining_steps))) {
         remaining_steps++;
     }
 
@@ -266,14 +274,14 @@ void Estimator::run_filter(MatrixN4 gait, Matrix34 goals, Vector3 baseLinearAcce
     get_data_joints(q_mes, v_mes);
 
     // Update nb of iterations since contact
-    k_since_contact_ += gait.row(0);  // Increment feet in stance phase
-    k_since_contact_ = k_since_contact_.cwiseProduct(gait.row(0));  // Reset feet in swing phase
+    k_since_contact_ += gait.block(0, 0, 1, 4);  // Increment feet in stance phase
+    k_since_contact_ = k_since_contact_.cwiseProduct(gait.block(0, 0, 1, 4));  // Reset feet in swing phase
 
     // Update forward kinematics data
-    get_data_FK(gait.row(0));
+    get_data_FK(gait.block(0, 0, 1, 4));
 
     // Update forward geometry data
-    get_xyz_feet(gait.row(0), goals);
+    get_xyz_feet(gait.block(0, 0, 1, 4), goals);
 
     // Tune alpha depending on the state of the gait (close to contact switch or not)
     double a = std::ceil(k_since_contact_.maxCoeff() * 0.1) - 1;
@@ -371,6 +379,12 @@ void Estimator::run_filter(MatrixN4 gait, Matrix34 goals, Vector3 baseLinearAcce
 
     // Output filtered actuators velocity for security checks
     v_secu_ = (1 - alpha_secu_) * actuators_vel_ + alpha_secu_ * v_secu_;
+
+    // Copy data to dynamic sized matrices since Python converters for big sized fixed matrices do not exist
+    // TODO: Find a way to cast a fixed size eigen matrix as dynamic size to remove the need for those variables
+    q_filt_dyn_ = q_filt_;
+    v_filt_dyn_ = v_filt_;
+    v_secu_dyn_ = v_secu_;
 
     // Increment iteration counter
     k_log_++;

@@ -131,6 +131,9 @@ class Controller:
         self.footTrajectoryGenerator = lqrw.FootTrajectoryGenerator()
         self.footTrajectoryGenerator.initialize(params, self.gait)
 
+        self.estimator_bis = lqrw.Estimator()
+        self.estimator_bis.initialize(params)
+
         # Wrapper that makes the link with the solver that you want to use for the MPC
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q)
 
@@ -199,9 +202,47 @@ class Controller:
         # Update the reference velocity coming from the gamepad
         self.joystick.update_v_ref(self.k, self.velID)
 
+        self.estimator_bis.run_filter(self.gait.getCurrentGait(),
+                                      self.footTrajectoryGenerator.getFootPosition(),
+                                      device.baseLinearAcceleration.reshape((-1, 1)),
+                                      device.baseAngularVelocity.reshape((-1, 1)),
+                                      device.baseOrientation.reshape((-1, 1)),
+                                      device.q_mes.reshape((-1, 1)),
+                                      device.v_mes.reshape((-1, 1)),
+                                      device.dummyPos.reshape((-1, 1)),
+                                      device.b_baseVel.reshape((-1, 1)))
+
         # Process state estimator
-        self.estimator.run_filter(self.k, self.gait.getCurrentGait(),
-                                  device, self.footTrajectoryGenerator.getFootPosition())
+        """self.estimator.run_filter(self.k, self.gait.getCurrentGait(),
+                                  device, self.footTrajectoryGenerator.getFootPosition())"""
+        """, self.estimator_bis.getVFilt()[0:3]),
+                                  self.estimator_bis.debug2(), self.estimator_bis.debug3(), self.estimator_bis.debug4(), self.estimator_bis.debug5(),
+                                  self.estimator_bis.debug6(), self.estimator_bis.debug7(),
+                                  self.estimator_bis.debug8(), self.estimator_bis.debug9())"""
+
+        self.estimator.q_filt[:, 0] = self.estimator_bis.getQFilt()
+        self.estimator.v_filt[:, 0] = self.estimator_bis.getVFilt()
+        self.estimator.v_secu[:] = self.estimator_bis.getVSecu()
+        self.estimator.RPY = self.estimator_bis.getRPY()
+
+        """from IPython import embed
+        embed()"""
+
+        """if self.k % 10 == 0:
+            print("q_filt: ", np.allclose(self.estimator.q_filt.ravel(), self.estimator_bis.getQFilt()))
+            print("v_filt: ", np.allclose(self.estimator.v_filt.ravel(), self.estimator_bis.getVFilt()))
+            print("v_secu: ", np.allclose(self.estimator.v_secu.ravel(), self.estimator_bis.getVSecu()))
+            print("RPY: ", np.allclose(self.estimator.RPY.ravel(), self.estimator_bis.getRPY()))
+
+            from IPython import embed
+            embed()"""
+        """if self.k == 50:
+            print("q_filt: ", self.estimator.q_filt.ravel())
+            print("v_filt: ", self.estimator.v_filt.ravel())
+            print("v_secu: ", self.estimator.v_secu.ravel())
+            print("RPY: ", self.estimator.RPY.ravel())
+            from IPython import embed
+            embed()"""
 
         t_filter = time.time()
 

@@ -6,6 +6,7 @@
 #include "qrw/FootstepPlanner.hpp"
 #include "qrw/FootTrajectoryGenerator.hpp"
 #include "qrw/QPWBC.hpp"
+#include "qrw/Estimator.hpp"
 #include "qrw/Params.hpp"
 
 #include <boost/python.hpp>
@@ -243,6 +244,39 @@ struct QPWBCPythonVisitor : public bp::def_visitor<QPWBCPythonVisitor<QPWBC>>
 void exposeQPWBC() { QPWBCPythonVisitor<QPWBC>::expose(); }
 
 /////////////////////////////////
+/// Binding Estimator class
+/////////////////////////////////
+template <typename Estimator>
+struct EstimatorPythonVisitor : public bp::def_visitor<EstimatorPythonVisitor<Estimator>>
+{
+    template <class PyClassEstimator>
+    void visit(PyClassEstimator& cl) const
+    {
+        cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+
+            .def("initialize", &Estimator::initialize, bp::args("params"), "Initialize Estimator from Python.\n")
+
+            .def("getQFilt", &Estimator::getQFilt, "Get filtered configuration.\n")
+            .def("getVFilt", &Estimator::getVFilt, "Get filtered velocity.\n")
+            .def("getVSecu", &Estimator::getVSecu, "Get filtered velocity for security check.\n")
+            .def("getRPY", &Estimator::getRPY, "Get Roll Pitch Yaw.\n")
+
+            // Run Estimator from Python
+            .def("run_filter", &Estimator::run_filter, bp::args("gait", "goals", "baseLinearAcceleration",
+                                                                "baseAngularVelocity", "baseOrientation", "q_mes", "v_mes",
+                                                                "dummyPos", "b_baseVel"), "Run Estimator from Python.\n");
+    }
+
+    static void expose()
+    {
+        bp::class_<Estimator>("Estimator", bp::no_init).def(EstimatorPythonVisitor<Estimator>());
+
+        ENABLE_SPECIFIC_MATRIX_TYPE(matXd);
+    }
+};
+void exposeEstimator() { EstimatorPythonVisitor<Estimator>::expose(); }
+
+/////////////////////////////////
 /// Binding Params class
 /////////////////////////////////
 template <typename Params>
@@ -313,5 +347,6 @@ BOOST_PYTHON_MODULE(libquadruped_reactive_walking)
     exposeFootTrajectoryGenerator();
     exposeInvKin();
     exposeQPWBC();
+    exposeEstimator();
     exposeParams();
 }
