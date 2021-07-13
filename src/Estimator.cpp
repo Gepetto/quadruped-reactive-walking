@@ -9,6 +9,7 @@ ComplementaryFilter::ComplementaryFilter()
     , dx_(Vector3::Zero())
     , HP_x_(Vector3::Zero())
     , LP_x_(Vector3::Zero())
+    , alpha_(Vector3::Zero())
     , filt_x_(Vector3::Zero())
 {
 }
@@ -27,6 +28,7 @@ Vector3 ComplementaryFilter::compute(Vector3 const& x, Vector3 const& dx, Vector
     // For logging
     x_ = x;
     dx_ = dx;
+    alpha_ = alpha;
 
     // Process high pass filter
     HP_x_ = alpha.cwiseProduct(HP_x_ + dx_ * dt_);
@@ -60,8 +62,11 @@ Estimator::Estimator()
     , actuators_vel_(Vector12::Zero())
     , q_FK_(Vector19::Zero())
     , v_FK_(Vector18::Zero())
+    , feet_status_(MatrixN::Zero(1, 4))
+    , feet_goals_(MatrixN::Zero(3, 4))
     , FK_lin_vel_(Vector3::Zero())
     , FK_xyz_(Vector3::Zero())
+    , b_filt_lin_vel_(Vector3::Zero())
     , xyz_mean_feet_(Vector3::Zero())
     , k_since_contact_(Eigen::Matrix<double, 1, 4>::Zero())
     , q_filt_(Vector19::Zero())
@@ -118,7 +123,7 @@ void Estimator::initialize(Params& params)
 }
 
 
-void Estimator::get_data_IMU(Vector3 baseLinearAcceleration, Vector3 baseAngularVelocity, Vector4 baseOrientation)
+void Estimator::get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 const& baseAngularVelocity, Vector4 const& baseOrientation)
 {
     // Linear acceleration of the trunk (base frame)
     IMU_lin_acc_ = baseLinearAcceleration;
@@ -142,14 +147,14 @@ void Estimator::get_data_IMU(Vector3 baseLinearAcceleration, Vector3 baseAngular
 }
 
 
-void Estimator::get_data_joints(Vector12 q_mes, Vector12 v_mes) 
+void Estimator::get_data_joints(Vector12 const& q_mes, Vector12 const& v_mes) 
 {
     actuators_pos_ = q_mes;
     actuators_vel_ = v_mes;
 }
 
       
-void Estimator::get_data_FK(Eigen::Matrix<double, 1, 4> feet_status)
+void Estimator::get_data_FK(Eigen::Matrix<double, 1, 4> const& feet_status)
 {
     // Update estimator FK model
     q_FK_.tail(12) = actuators_pos_; // Position of actuators
@@ -209,7 +214,7 @@ void Estimator::get_data_FK(Eigen::Matrix<double, 1, 4> feet_status)
 }
 
 
-void Estimator::get_xyz_feet(Eigen::Matrix<double, 1, 4> feet_status, Matrix34 goals)
+void Estimator::get_xyz_feet(Eigen::Matrix<double, 1, 4> const& feet_status, Matrix34 const& goals)
 {
     int cpt = 0;
     Vector3 xyz_feet = Vector3::Zero();
@@ -256,6 +261,9 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
                            VectorN const& baseAngularVelocity, VectorN const& baseOrientation, VectorN const& q_mes,
                            VectorN const& v_mes, VectorN const& dummyPos, VectorN const& b_baseVel)
 {
+    feet_status_ = gait.block(0, 0, 1, 4);
+    feet_goals_ = goals;
+
     int remaining_steps = 1;  // Remaining MPC steps for the current gait phase
     while((gait.block(0, 0, 1, 4)).isApprox(gait.row(remaining_steps))) {
         remaining_steps++;
@@ -274,14 +282,14 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
     get_data_joints(q_mes, v_mes);
 
     // Update nb of iterations since contact
-    k_since_contact_ += gait.block(0, 0, 1, 4);  // Increment feet in stance phase
-    k_since_contact_ = k_since_contact_.cwiseProduct(gait.block(0, 0, 1, 4));  // Reset feet in swing phase
+    k_since_contact_ += feet_status_;  // Increment feet in stance phase
+    k_since_contact_ = k_since_contact_.cwiseProduct(feet_status_);  // Reset feet in swing phase
 
     // Update forward kinematics data
-    get_data_FK(gait.block(0, 0, 1, 4));
+    get_data_FK(feet_status_);
 
     // Update forward geometry data
-    get_xyz_feet(gait.block(0, 0, 1, 4), goals);
+    get_xyz_feet(feet_status_, goals);
 
     // Tune alpha depending on the state of the gait (close to contact switch or not)
     double a = std::ceil(k_since_contact_.maxCoeff() * 0.1) - 1;
@@ -321,28 +329,14 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
     Vector3 i_filt_lin_vel = oRb.transpose() * oi_filt_lin_vel;
 
     // Filtered estimated velocity at center base (base frame)
-    Vector3 b_filt_lin_vel = i_filt_lin_vel - cross_product;
+    b_filt_lin_vel_ = i_filt_lin_vel - cross_product;
 
     // Filtered estimated velocity at center base (world frame)
-    Vector3 ob_filt_lin_vel = oRb * b_filt_lin_vel;
+    Vector3 ob_filt_lin_vel = oRb * b_filt_lin_vel_;
 
     // Position of the center of the base from FGeometry and filtered velocity (world frame)
     Vector3 filt_lin_pos = filter_xyz_pos_.compute(FK_xyz_ + xyz_mean_feet_, ob_filt_lin_vel, 
                                                    Vector3(0.995, 0.995, 0.9));
-
-    // Velocity of the center of the base (base frame)
-    Vector3 filt_lin_vel = b_filt_lin_vel;
-
-    // Logging
-    /*self.log_alpha[self.k_log] = self.alpha
-    self.feet_status[:] = feet_status  // Save contact status sent to the estimator for logging
-    self.feet_goals[:, :] = goals.copy()  // Save feet goals sent to the estimator for logging
-    self.log_IMU_lin_acc[:, self.k_log] = self.IMU_lin_acc[:]
-    self.log_HP_lin_vel[:, self.k_log] = self.HP_lin_vel[:]
-    self.log_LP_lin_vel[:, self.k_log] = self.LP_lin_vel[:]
-    self.log_FK_lin_vel[:, self.k_log] = self.FK_lin_vel[:]
-    self.log_filt_lin_vel[:, self.k_log] = self.filt_lin_vel[:]
-    self.log_o_filt_lin_vel[:, self.k_log] = self.o_filt_lin_vel[:, 0]*/
 
     // Output filtered position vector (19 x 1)
     q_filt_.head(3) = filt_lin_pos;
@@ -357,7 +351,7 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
         v_filt_.head(3) = (1 - alpha_v_) * v_filt_.head(3) + alpha_v_ * b_baseVel;
     }
     else {
-        v_filt_.head(3) = (1 - alpha_v_) * v_filt_.head(3) + alpha_v_ * filt_lin_vel;
+        v_filt_.head(3) = (1 - alpha_v_) * v_filt_.head(3) + alpha_v_ * b_filt_lin_vel_;
     }
     v_filt_.block(3, 0, 3, 1) = filt_ang_vel;  // Angular velocities are already directly from PyBullet
     v_filt_.tail(12) = actuators_vel_;  // Actuators velocities are already directly from PyBullet

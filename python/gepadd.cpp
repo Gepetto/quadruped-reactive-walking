@@ -260,6 +260,20 @@ struct EstimatorPythonVisitor : public bp::def_visitor<EstimatorPythonVisitor<Es
             .def("getVFilt", &Estimator::getVFilt, "Get filtered velocity.\n")
             .def("getVSecu", &Estimator::getVSecu, "Get filtered velocity for security check.\n")
             .def("getRPY", &Estimator::getRPY, "Get Roll Pitch Yaw.\n")
+            .def("getFeetStatus", &Estimator::getFeetStatus, "")
+            .def("getFeetGoals", &Estimator::getFeetGoals, "")
+            .def("getFKLinVel", &Estimator::getFKLinVel, "")
+            .def("getFKXYZ", &Estimator::getFKXYZ, "")
+            .def("getXYZMeanFeet", &Estimator::getXYZMeanFeet, "")
+            .def("getFiltLinVel", &Estimator::getFiltLinVel, "")
+            .def("getFilterVelX", &Estimator::getFilterVelX, "")
+            .def("getFilterVelDX", &Estimator::getFilterVelDX, "")
+            .def("getFilterVelAlpha", &Estimator::getFilterVelAlpha, "")
+            .def("getFilterVelFiltX", &Estimator::getFilterVelFiltX, "")
+            .def("getFilterPosX", &Estimator::getFilterPosX, "")
+            .def("getFilterPosDX", &Estimator::getFilterPosDX, "")
+            .def("getFilterPosAlpha", &Estimator::getFilterPosAlpha, "")
+            .def("getFilterPosFiltX", &Estimator::getFilterPosFiltX, "")
 
             // Run Estimator from Python
             .def("run_filter", &Estimator::run_filter, bp::args("gait", "goals", "baseLinearAcceleration",

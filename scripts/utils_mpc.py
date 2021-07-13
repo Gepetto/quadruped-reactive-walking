@@ -201,11 +201,7 @@ def init_objects(params):
     # Create Joystick object
     joystick = Joystick.Joystick(params.predefined_vel)
 
-    # Create Estimator object
-    estimator = Estimator.Estimator(params.dt_wbc, params.N_SIMULATION, params.h_ref, params.kf_enabled,
-                                    params.perfect_estimator)
-
-    return joystick, estimator
+    return joystick
 
 
 def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):

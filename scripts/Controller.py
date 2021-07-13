@@ -105,8 +105,8 @@ class Controller:
         # Initialisation of the solo model/data and of the Gepetto viewer
         self.solo = utils_mpc.init_robot(q_init, params, self.enable_gepetto_viewer)
 
-        # Create Joystick, FootstepPlanner, Logger and Interface objects
-        self.joystick, self.estimator = utils_mpc.init_objects(params)
+        # Create Joystick object
+        self.joystick = utils_mpc.init_objects(params)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True
@@ -131,8 +131,8 @@ class Controller:
         self.footTrajectoryGenerator = lqrw.FootTrajectoryGenerator()
         self.footTrajectoryGenerator.initialize(params, self.gait)
 
-        self.estimator_bis = lqrw.Estimator()
-        self.estimator_bis.initialize(params)
+        self.estimator = lqrw.Estimator()
+        self.estimator.initialize(params)
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q)
@@ -202,47 +202,16 @@ class Controller:
         # Update the reference velocity coming from the gamepad
         self.joystick.update_v_ref(self.k, self.velID)
 
-        self.estimator_bis.run_filter(self.gait.getCurrentGait(),
-                                      self.footTrajectoryGenerator.getFootPosition(),
-                                      device.baseLinearAcceleration.reshape((-1, 1)),
-                                      device.baseAngularVelocity.reshape((-1, 1)),
-                                      device.baseOrientation.reshape((-1, 1)),
-                                      device.q_mes.reshape((-1, 1)),
-                                      device.v_mes.reshape((-1, 1)),
-                                      device.dummyPos.reshape((-1, 1)),
-                                      device.b_baseVel.reshape((-1, 1)))
-
         # Process state estimator
-        """self.estimator.run_filter(self.k, self.gait.getCurrentGait(),
-                                  device, self.footTrajectoryGenerator.getFootPosition())"""
-        """, self.estimator_bis.getVFilt()[0:3]),
-                                  self.estimator_bis.debug2(), self.estimator_bis.debug3(), self.estimator_bis.debug4(), self.estimator_bis.debug5(),
-                                  self.estimator_bis.debug6(), self.estimator_bis.debug7(),
-                                  self.estimator_bis.debug8(), self.estimator_bis.debug9())"""
-
-        self.estimator.q_filt[:, 0] = self.estimator_bis.getQFilt()
-        self.estimator.v_filt[:, 0] = self.estimator_bis.getVFilt()
-        self.estimator.v_secu[:] = self.estimator_bis.getVSecu()
-        self.estimator.RPY = self.estimator_bis.getRPY()
-
-        """from IPython import embed
-        embed()"""
-
-        """if self.k % 10 == 0:
-            print("q_filt: ", np.allclose(self.estimator.q_filt.ravel(), self.estimator_bis.getQFilt()))
-            print("v_filt: ", np.allclose(self.estimator.v_filt.ravel(), self.estimator_bis.getVFilt()))
-            print("v_secu: ", np.allclose(self.estimator.v_secu.ravel(), self.estimator_bis.getVSecu()))
-            print("RPY: ", np.allclose(self.estimator.RPY.ravel(), self.estimator_bis.getRPY()))
-
-            from IPython import embed
-            embed()"""
-        """if self.k == 50:
-            print("q_filt: ", self.estimator.q_filt.ravel())
-            print("v_filt: ", self.estimator.v_filt.ravel())
-            print("v_secu: ", self.estimator.v_secu.ravel())
-            print("RPY: ", self.estimator.RPY.ravel())
-            from IPython import embed
-            embed()"""
+        self.estimator.run_filter(self.gait.getCurrentGait(),
+                                  self.footTrajectoryGenerator.getFootPosition(),
+                                  device.baseLinearAcceleration.reshape((-1, 1)),
+                                  device.baseAngularVelocity.reshape((-1, 1)),
+                                  device.baseOrientation.reshape((-1, 1)),
+                                  device.q_mes.reshape((-1, 1)),
+                                  device.v_mes.reshape((-1, 1)),
+                                  device.dummyPos.reshape((-1, 1)),
+                                  device.b_baseVel.reshape((-1, 1)))
 
         t_filter = time.time()
 
@@ -385,14 +354,14 @@ class Controller:
     def security_check(self):
 
         if (self.error_flag == 0) and (not self.myController.error) and (not self.joystick.stop):
-            if np.any(np.abs(self.estimator.q_filt[7:, 0]) > self.q_security):
+            if np.any(np.abs(self.estimator.getQFilt()[7:]) > self.q_security):
                 self.myController.error = True
                 self.error_flag = 1
-                self.error_value = self.estimator.q_filt[7:, 0] * 180 / 3.1415
-            if np.any(np.abs(self.estimator.v_secu) > 50):
+                self.error_value = self.estimator.getQFilt()[7:] * 180 / 3.1415
+            if np.any(np.abs(self.estimator.getVSecu()) > 50):
                 self.myController.error = True
                 self.error_flag = 2
-                self.error_value = self.estimator.v_secu
+                self.error_value = self.estimator.getVSecu()
             if np.any(np.abs(self.myController.tau_ff) > 8):
                 print(self.result.P)
                 print(self.result.D)
@@ -414,10 +383,6 @@ class Controller:
             self.result.tau_ff[:] = np.zeros(12)
 
     def log_misc(self, tic, t_filter, t_planner, t_mpc, t_wbc):
-
-        # Log joystick command
-        if self.joystick is not None:
-            self.estimator.v_ref = self.joystick.v_ref
 
         self.t_list_filter[self.k] = t_filter - tic
         self.t_list_planner[self.k] = t_planner - t_filter
@@ -443,18 +408,18 @@ class Controller:
             self.q[0:2, 0:1] = self.q[0:2, 0:1] + Ryaw @ self.v_ref[0:2, 0:1] * self.myController.dt
 
             # Mix perfect x and y with height measurement
-            self.q[2, 0] = self.estimator.q_filt[2, 0]
+            self.q[2, 0] = self.estimator.getQFilt()[2]
 
             # Mix perfect yaw with pitch and roll measurements
             self.yaw_estim += self.v_ref[5, 0] * self.myController.dt
-            self.q[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(self.estimator.RPY[0], self.estimator.RPY[1], self.yaw_estim)).coeffs()
+            self.q[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(self.estimator.getRPY()[0], self.estimator.getRPY()[1], self.yaw_estim)).coeffs()
 
             # Actuators measurements
-            self.q[7:, 0] = self.estimator.q_filt[7:, 0]
+            self.q[7:, 0] = self.estimator.getQFilt()[7:]
 
             # Velocities are the one estimated by the estimator
-            self.v = self.estimator.v_filt.copy()
-            hRb = pin.rpy.rpyToMatrix(self.estimator.RPY[0], self.estimator.RPY[1], 0.0)
+            self.v = self.estimator.getVFilt().reshape((-1, 1))
+            hRb = pin.rpy.rpyToMatrix(self.estimator.getRPY()[0], self.estimator.getRPY()[1], 0.0)
 
             self.h_v[0:3, 0:1] = hRb @ self.v[0:3, 0:1]
             self.h_v[3:6, 0:1] = hRb @ self.v[3:6, 0:1]

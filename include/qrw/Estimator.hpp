@@ -63,12 +63,13 @@ public:
     Vector3 getDX() { return dx_; }         ///< Get the derivative of the input quantity
     Vector3 getHpX() { return HP_x_; }      ///< Get the high-passed internal quantity
     Vector3 getLpX() { return LP_x_; }      ///< Get the low-passed internal quantity
+    Vector3 getAlpha() {return alpha_; }     ///< Get the alpha coefficient of the filter
     Vector3 getFiltX() { return filt_x_; }  ///< Get the filtered output
 
 private:
     
     double dt_;
-    Vector3 x_, dx_, HP_x_, LP_x_, filt_x_;
+    Vector3 x_, dx_, HP_x_, LP_x_, alpha_, filt_x_;
    
 };
 
@@ -108,7 +109,7 @@ public:
     /// \param[in] baseOrientation Quaternion orientation of the IMU
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void get_data_IMU(Vector3 baseLinearAcceleration, Vector3 baseAngularVelocity, Vector4 baseOrientation);
+    void get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 const& baseAngularVelocity, Vector4 const& baseOrientation);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -118,7 +119,7 @@ public:
     /// \param[in] v_mes velocity of the 12 actuators
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void get_data_joints(Vector12 q_mes, Vector12 v_mes);
+    void get_data_joints(Vector12 const& q_mes, Vector12 const& v_mes);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -127,7 +128,7 @@ public:
     /// \param[in] feet_status contact status of the four feet
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void get_data_FK(Eigen::Matrix<double, 1, 4> feet_status);
+    void get_data_FK(Eigen::Matrix<double, 1, 4> const& feet_status);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -137,7 +138,7 @@ public:
     /// \param[in] goals target positions of the four feet
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void get_xyz_feet(Eigen::Matrix<double, 1, 4> feet_status, Matrix34 goals);
+    void get_xyz_feet(Eigen::Matrix<double, 1, 4> const& feet_status, Matrix34 const& goals);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -172,6 +173,22 @@ public:
     MatrixN getVFilt() { return v_filt_dyn_; }
     MatrixN getVSecu() { return v_secu_dyn_; }
     Vector3 getRPY() { return IMU_RPY_; }
+    MatrixN getFeetStatus() { return feet_status_;}
+    MatrixN getFeetGoals() { return feet_goals_; }
+    Vector3 getFKLinVel() { return FK_lin_vel_; }
+    Vector3 getFKXYZ() { return FK_xyz_; }
+    Vector3 getXYZMeanFeet() { return xyz_mean_feet_; }
+    Vector3 getFiltLinVel() { return b_filt_lin_vel_; }
+
+    Vector3 getFilterVelX() { return filter_xyz_vel_.getX(); }
+    Vector3 getFilterVelDX() { return filter_xyz_vel_.getDX(); }
+    Vector3 getFilterVelAlpha() { return filter_xyz_vel_.getAlpha(); }
+    Vector3 getFilterVelFiltX() { return filter_xyz_vel_.getFiltX(); }
+
+    Vector3 getFilterPosX() { return filter_xyz_pos_.getX(); }
+    Vector3 getFilterPosDX() { return filter_xyz_pos_.getDX(); }
+    Vector3 getFilterPosAlpha() { return filter_xyz_pos_.getAlpha(); }
+    Vector3 getFilterPosFiltX() { return filter_xyz_pos_.getFiltX(); }
 
 private:
 
@@ -195,8 +212,11 @@ private:
 
     Vector19 q_FK_;  // Configuration vector for Forward Kinematics
     Vector18 v_FK_;  // Velocity vector for Forward Kinematics
+    MatrixN feet_status_;  // Contact status of the four feet
+    MatrixN feet_goals_;  // Target positions of the four feet
     Vector3 FK_lin_vel_;  // Base linear velocity estimated by Forward Kinematics
     Vector3 FK_xyz_;  // Base position estimated by Forward Kinematics
+    Vector3 b_filt_lin_vel_;  // Filtered estimated velocity at center base (base frame)
 
     Vector3 xyz_mean_feet_;  // Barycenter of feet in contact
 

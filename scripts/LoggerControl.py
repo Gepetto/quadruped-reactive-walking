@@ -109,29 +109,26 @@ class LoggerControl():
         self.joy_v_ref[self.i] = joystick.v_ref[:, 0]
 
         # Logging from estimator
-        self.esti_feet_status[self.i] = estimator.feet_status[:]
-        self.esti_feet_goals[self.i] = estimator.feet_goals
-        self.esti_q_filt[self.i] = estimator.q_filt[:, 0]
-        self.esti_v_filt[self.i] = estimator.v_filt[:, 0]
-        self.esti_v_secu[self.i] = estimator.v_secu[:]
+        self.esti_feet_status[self.i] = estimator.getFeetStatus()
+        self.esti_feet_goals[self.i] = estimator.getFeetGoals()
+        self.esti_q_filt[self.i] = estimator.getQFilt()
+        self.esti_v_filt[self.i] = estimator.getVFilt()
+        self.esti_v_secu[self.i] = estimator.getVSecu()
 
-        self.esti_FK_lin_vel[self.i] = estimator.FK_lin_vel[:]
-        self.esti_FK_xyz[self.i] = estimator.FK_xyz[:]
-        self.esti_xyz_mean_feet[self.i] = estimator.xyz_mean_feet[:]
-        self.esti_filt_lin_vel[self.i] = estimator.filt_lin_vel[:]
-        if not estimator.kf_enabled:
-            self.esti_HP_x[self.i] = estimator.filter_xyz_vel.x
-            self.esti_HP_dx[self.i] = estimator.filter_xyz_vel.dx
-            self.esti_HP_alpha[self.i] = estimator.filter_xyz_vel.alpha
-            self.esti_HP_filt_x[self.i] = estimator.filter_xyz_vel.filt_x
+        self.esti_FK_lin_vel[self.i] = estimator.getFKLinVel()
+        self.esti_FK_xyz[self.i] = estimator.getFKXYZ()
+        self.esti_xyz_mean_feet[self.i] = estimator.getXYZMeanFeet()
+        self.esti_filt_lin_vel[self.i] = estimator.getFiltLinVel()
 
-            self.esti_LP_x[self.i] = estimator.filter_xyz_pos.x
-            self.esti_LP_dx[self.i] = estimator.filter_xyz_pos.dx
-            self.esti_LP_alpha[self.i] = estimator.filter_xyz_pos.alpha
-            self.esti_LP_filt_x[self.i] = estimator.filter_xyz_pos.filt_x
-        else:
-            self.esti_kf_X[self.i] = estimator.kf.X[:, 0]
-            self.esti_kf_Z[self.i] = estimator.Z[:, 0]
+        self.esti_HP_x[self.i] = estimator.getFilterVelX()
+        self.esti_HP_dx[self.i] = estimator.getFilterVelDX()
+        self.esti_HP_alpha[self.i] = estimator.getFilterVelAlpha()
+        self.esti_HP_filt_x[self.i] = estimator.getFilterVelFiltX()
+
+        self.esti_LP_x[self.i] = estimator.getFilterPosX()
+        self.esti_LP_dx[self.i] = estimator.getFilterPosDX()
+        self.esti_LP_alpha[self.i] = estimator.getFilterPosAlpha()
+        self.esti_LP_filt_x[self.i] = estimator.getFilterPosFiltX()
 
         # Logging from the main loop
         self.loop_o_q_int[self.i] = loop.q[:, 0]
