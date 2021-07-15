@@ -329,7 +329,7 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("I_mat", &Params::I_mat)
             .def_readwrite("h_ref", &Params::h_ref)
             .def_readwrite("shoulders", &Params::shoulders)
-            .def_readwrite("lock_time", &Params::lock_time);
+            .def_readwrite("lock_time", &Params::lock_time)
             .def_readwrite("footsteps_init", &Params::footsteps_init)
             .def_readwrite("footsteps_under_shoulders", &Params::footsteps_under_shoulders);
 
