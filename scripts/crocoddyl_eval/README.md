@@ -1,21 +1,34 @@
-test_1 : Some tests to compare the two MPC solvers in simple case (no obstacles) : ddp & osqp. The solvers operate in parallel and control is looped over the ddp algorithm. All data is stored during the simulation inside the log_eval folder, the algorithms have exactly the same input parameters for each control cycle. Then, to analyze the behavior of solvers, the file analyse_simu.py is used to evaluate each control cycle. Both algorithms can be relaunched and weights on the ddp algorithm can be changed to evaluate the modifications (line 55, Relaunch_DDP boolean to relaunch the ddp algorithm) 
+### EVALUATION 1 : 
 
-	-> Run python3 crocoddyl_eval/test_1/run_scenarios.py
-	-> Run python3 crocoddyl_eval/test_1/analyse_simu.py 
+Some tests to compare the two MPC solvers: ddp & osqp. The data collected during the simulation is used to restart and analyze each control cycle with different MPCs or different parameters. A third DDP MPC can be run to evaluate and compare the parameters. (see bool *Relaunch_DDP*)
 
-
-test_2 : Test to check the derivatives using the crocoddyl.ActionModelNumDiff (derivatives computed with finite differences). The simulation is run for a short time to get initializations of the foot position. The Luu term (hessian of the cost with regards to the command vector) cannot be accurate because it uses the residual cost (Luu ~= R^T R) which is not written that way in that case.
-
-	-> Run python3 crocoddyl_eval/test_2/unit_test.py
-
-
-test_3 : Test to run the simulation using the ddp as foot step planner too. It involves new c++ models with augmented states to  optimises the feet position.  
-
-	-> Run python3 crocoddyl_eval/test_3/run_scenarios.py
+    -> Run the simulation with boolean LOGGING on true.
+    -> Modify the path in *Recover Logged data* section.
+    -> Select the MPC control cycle to be analysed and tune the gains if necessary.
+    -> Run python3 crocoddyl_eval/test_1/analyse_control_cycle.py
 
 
-test_5 : Test to run the simulation using the ddp at the frequency of TSID. The number of node in the ddp has been adjusted to avoid 
-a too large number of them. Each control cycle can be monitored after the log in the analyse_simu file.
+### EVALUATION 2 :
 
-	-> Run python3 crocoddyl_eval/test_5/run_scenarios.py
-	-> Run ipython3 crocoddyl_eval/test_5/analyse_simu.py -i
+Test to check the derivatives computed with the action models. The derivatives are computed with finite differences using the crocodile.ActionMode NumDiff class. The derivatived tested coressponds to :
+
+- Lx : Derivative of the cost wrt states x
+- Lu : Derivative of the cost wrt command u
+- Fx : Derivative of the dynamics wrt states x
+- Fu : Derivative of the dynamics wrt command u
+
+For the Hessian of the cost Lxx and Luu, the results are not accurate. With NumDiff, the hessian is approximated with the residual vector : Lxx ~= R^T R, which is not the case here because of the friction cost, non linear terms...
+
+    -> Modify the parameters of the model in crocoddyl_eval/test_2/unittest_model.py (to evaluate each cost)
+    -> Run python3 crocoddyl_eval/test_2/unittest_model.py
+
+
+### EVALUATION 3 : 
+
+Test to evaluate the MPC with the optimisation of the foosteps. Comparison of : ddp + fstep optimization & osqp. The data collected during the simulation is used to restart and analyze each control cycle. The parameters can be modified in *DDP MPC* section.
+
+    -> Run the simulation with boolean LOGGING on true and type_MPC == 3.
+    -> Modify the path in *Recover Logged data* section.
+    -> Select the MPC control cycle to be analysed and tune the gains if necessary.
+    -> Run python3 crocoddyl_eval/test_1/analyse_control_cycle.py
+

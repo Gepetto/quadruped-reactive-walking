@@ -345,7 +345,7 @@ def main():
                         help='Name of the clone interface that will reproduce the movement of the first one \
                               (use ifconfig in a terminal), for instance "enp1s0"')
 
-    f, v = control_loop(parser.parse_args().interface, parser.parse_args().clone, np.array([1.3, 0.0, 0.0, 0.0, 0.0, 0.0]))
+    f, v = control_loop(parser.parse_args().interface, parser.parse_args().clone, np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print(f, v)
     quit()
 

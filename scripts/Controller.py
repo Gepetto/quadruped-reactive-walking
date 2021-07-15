@@ -232,7 +232,13 @@ class Controller:
         # Solve MPC problem once every k_mpc iterations of the main loop
         if (self.k % self.k_mpc) == 0:
             try:
-                self.mpc_wrapper.solve(self.k, xref, fsteps, cgait)
+                if self.type_MPC == 3 :
+                    # Compute the target foostep in local frame, to stop the optimisation around it when t_lock overpass
+                    l_targetFootstep = self.footstepPlanner.getRz().transpose() @ self.footTrajectoryGenerator.getFootPosition() - self.q[0:3,0:1]
+                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, l_targetFootstep)
+                else :
+                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3,4)))
+
             except ValueError:
                 print("MPC Problem")
 
@@ -249,8 +255,12 @@ class Controller:
         t_mpc = time.time()
 
         # If the MPC optimizes footsteps positions then we use them
-        if self.k > 100 and self.type_MPC == 3:
-            o_targetFootstep[:2, :] = self.footstepPlanner.getRz()[:2, :2] @ self.x_f_mpc[24:, 0].reshape((2, 4), order='F') + self.q[0:2, 0:1]
+        if self.k > 100 and self.type_MPC == 3 :
+            for foot in range(4):
+                id = 0
+                while cgait[id,foot] == 0 :
+                    id += 1
+                o_targetFootstep[:2,foot] = np.array(self.footstepPlanner.getRz()[:2, :2]) @ self.x_f_mpc[24 +  2*foot:24+2*foot+2, id] + np.array([self.q[0, 0] , self.q[1,0] ])
 
         # Update pos, vel and acc references for feet
         self.footTrajectoryGenerator.update(self.k, o_targetFootstep)

@@ -23,6 +23,9 @@ include(cmake/base.cmake)
 include(cmake/boost.cmake)
 include(cmake/python.cmake)
 
+# Disable -Werror on Unix.
+SET(CXX_DISABLE_WERROR True)
+
 # Project definition
 COMPUTE_PROJECT_ARGS(PROJECT_ARGS LANGUAGES CXX)
 project(${PROJECT_NAME} ${PROJECT_ARGS})
