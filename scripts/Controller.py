@@ -364,7 +364,7 @@ class Controller:
                 else:
                     self.error_value = self.myController.tau_ff
 
-        # If something wrong happened in TSID controller we stick to a security controller
+        # If something wrong happened in the controller we stick to a security controller
         if self.myController.error or self.joystick.stop:
 
             # Quantities sent to the control board
