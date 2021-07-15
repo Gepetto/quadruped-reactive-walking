@@ -5,7 +5,6 @@ import numpy as np
 import quadruped_walkgen as quadruped_walkgen
 import pinocchio as pin
 
-
 class MPC_crocoddyl_planner():
     """Wrapper class for the MPC problem to call the ddp solver and
     retrieve the results.
@@ -17,7 +16,7 @@ class MPC_crocoddyl_planner():
         inner(bool): Inside or outside approximation of the friction cone
     """
 
-    def __init__(self, params,  mu=1, inner=True, warm_start=False, min_fz=0.0):
+    def __init__(self, params,  mu=1, inner=True, warm_start=True, min_fz=0.0):
 
         # Time step of the solver
         self.dt = params.dt_mpc
@@ -29,7 +28,6 @@ class MPC_crocoddyl_planner():
         self.mass = 2.50000279
 
         # Inertia matrix of the robot in body frame
-        # self.gI = np.diag([0.00578574, 0.01938108, 0.02476124])
         self.gI = np.array([[3.09249e-2, -8.00101e-7, 1.865287e-5],
                             [-8.00101e-7, 5.106100e-2, 1.245813e-4],
                             [1.865287e-5, 1.245813e-4, 6.939757e-2]])
@@ -40,8 +38,6 @@ class MPC_crocoddyl_planner():
         else:
             self.mu = mu
 
-        # Weights Vector : States
-        # self.stateWeights = np.array([1,1,150,35,30,8,20,20,15,4,4,8])
         # Weights Vector : States
         self.w_x = 0.3
         self.w_y = 0.3
@@ -59,63 +55,47 @@ class MPC_crocoddyl_planner():
                                       self.w_vx, self.w_vy, self.w_vz, self.w_vroll, self.w_vpitch, self.w_vyaw])
 
         # Weight Vector : Force Norm
-        # self.forceWeights = np.full(12,0.02)
         self.forceWeights = np.array(4*[0.01, 0.01, 0.01])
 
         # Weight Vector : Friction cone cost
-        # self.frictionWeights = 10
         self.frictionWeights = 0.5
+
+        # Weights on the heuristic term 
+        self.heuristicWeights = np.array(4*[0.3, 0.4])
+
+        # Weight on the step command (distance between steps)
+        self.stepWeights = np.full(8, 0.05)
+
+        # Weights to stop the optimisation at the end of the flying phase
+        self.stopWeights = np.full(8, 1.)
+
+        # Weight for shoulder-to-contact penalty
+        self.shoulderContactWeight = 5
+        self.shoulder_hlim = 0.225
 
         # Max iteration ddp solver
         self.max_iteration = 10
 
-        # Warm Start for the solver
+        # Warm-start for the solver
+        # Always on, just an approximation, not the previous result
+        # TODO : create a proper warm-start with the previous optimisation
         self.warm_start = warm_start
 
-        # Minimum normal force (N)
+        # Minimum normal force(N) and reference force vector bool
         self.min_fz = min_fz
+        self.relative_forces = True 
 
         # Gait matrix
         self.gait = np.zeros((params.N_gait, 4))
         self.gait_old = np.zeros((1, 4))
-        self.index = 0
 
         # Position of the feet in local frame
         self.fsteps = np.full((params.N_gait, 12), 0.0)
 
-        # List of the actionModel
+        # List to generate the problem
         self.ListAction = []
-
-        # Warm start
         self.x_init = []
-        self.u_init = []
-
-        # Weights on the shoulder term : term 1
-        self.shoulderWeights = np.array(4*[0.3, 0.4])
-
-        # symmetry & centrifugal term in foot position heuristic
-        self.centrifugal_term = True
-        self.symmetry_term = True
-
-        # Weight on the step command
-        self.stepWeights = np.full(4, 0.8)
-
-        # Weights on the previous position predicted : term 2
-        self.lastPositionWeights = np.full(8, 2.)
-
-        # When the the foot reaches 10% of the flying phase, the optimisation of the foot
-        # positions stops by setting the "lastPositionWeight" on.
-        # For exemple, if T_mpc = 0.32s, dt = 0.02s, one flying phase period lasts 7 nodes.
-        # When there are 6 knots left before changing steps, the next knot will have its relative weight activated
-        self.stop_optim = 0.1
-        self.index_stop = int((1 - self.stop_optim)*(int(0.5*self.T_mpc/self.dt) - 1))
-
-        # Index of the control cycle to start the "stopping optimisation"
-        self.start_stop_optim = 20
-
-        # Predicted position of feet computed by previous cycle, it will be used with
-        # the self.lastPositionWeights weight.
-        self.oMl = pin.SE3.Identity()  #  transform from world to local frame ("L")
+        self.u_init = []       
 
         self.l_fsteps = np.zeros((3, 4))
         self.o_fsteps = np.zeros((3, 4))
@@ -133,62 +113,75 @@ class MPC_crocoddyl_planner():
         # Initial foot location (local frame, X,Y plan)
         self.p0 = [0.1946, 0.14695, 0.1946, -0.14695, -0.1946,   0.14695, -0.1946,  -0.14695]
 
-    def solve(self, k, xref, l_feet, oMl=pin.SE3.Identity()):
+        # Index to stop the feet optimisation 
+        self.index_lock_time = int(params.lock_time / params.dt_mpc ) # Row index in the gait matrix when the optimisation of the feet should be stopped
+        self.index_stop_optimisation = [] # List of index to reset the stopWeights to 0 after optimisation
+
+        self.initializeModels(params)
+
+    def initializeModels(self, params):
+        ''' Reset the two lists of augmented and step-by-step models, to avoid recreating them at each loop.
+        Not all models here will necessarily be used.  
+
+        Args : 
+            - params : object containing the parameters of the simulation
+        '''
+        self.models_augmented = []
+        self.models_step = []
+
+        for j in range(params.N_gait) :
+            model = quadruped_walkgen.ActionModelQuadrupedAugmented()            
+            
+            self.update_model_augmented(model)
+            self.models_augmented.append(model)
+
+        for j in range(4 * int(params.T_gait / params.T_mpc) ) :
+            model = quadruped_walkgen.ActionModelQuadrupedStep()   
+            
+            self.update_model_step(model)
+            self.models_step.append(model)
+
+        # Terminal node
+        self.terminalModel = quadruped_walkgen.ActionModelQuadrupedAugmented() 
+        self.update_model_augmented(self.terminalModel)
+        # Weights vectors of terminal node (no command cost)
+        self.terminalModel.forceWeights = np.zeros(12)
+        self.terminalModel.frictionWeights = 0.
+        self.terminalModel.heuristicWeights = np.full(8, 0.0)
+        self.terminalModel.stopWeights = np.full(8, 0.0)
+
+        return 0
+
+    def solve(self, k, xref, l_feet, l_stop):
         """ Solve the MPC problem
 
         Args:
             k : Iteration
             xref : the desired state vector
-            l_feet : current position of the feet
+            l_feet : current position of the feet (given by planner)
+            l_stop : current and target position of the feet (given by footstepTragectory generator)
         """
 
         # Update the dynamic depending on the predicted feet position
-        self.updateProblem(k, xref, l_feet, oMl)
+        self.updateProblem(k, xref, l_feet, l_stop)
 
         # Solve problem
         self.ddp.solve(self.x_init, self.u_init, self.max_iteration)
 
-        """
-        cpt = 0
-        N = int(self.T_mpc / self.dt)
-        result = np.zeros((8, N))
-        for i in range(len(self.ListAction)):
-            if self.ListAction[i].__class__.__name__ != "ActionModelQuadrupedStep" :
-                if cpt >= N:
-                    raise ValueError("Too many action model considering the current MPC prediction horizon")
-                result[:, cpt] = self.ddp.xs[i][12:]
-                cpt += 1
-
-        from matplotlib import pyplot as plt
-        plt.figure()
-        plt.subplot(1, 2, 1)
-        for i in range(4):
-            plt.plot(result[2*i, :], linewidth=2)
-        plt.legend(["FL", "FR", "HL", "HR"])
-        plt.subplot(1, 2, 2)
-        for i in range(4):
-            plt.plot(result[2*i+1, :], linewidth=2)
-        plt.legend(["FL", "FR", "HL", "HR"])
-        plt.show()
-        from IPython import embed
-        embed()"""
-
-        # Get the results
-        self.get_fsteps()
+        # Reset to 0 the stopWeights for next optimisation
+        for index_stopped in self.index_stop_optimisation :
+            self.models_augmented[index_stopped].stopWeights = np.zeros(8)
 
         return 0
 
-    def updateProblem(self, k, xref, l_feet, oMl=pin.SE3.Identity()):
+    def updateProblem(self, k, xref, l_feet, l_stop):
         """Update the dynamic of the model list according to the predicted position of the feet,
         and the desired state.
 
         Args:
         """
-
-        self.oMl = oMl
-
         # Save previous gait state before updating the gait
-        self.gait_old[0, :] = self.gait[0, :].copy()
+        self.gait_old[0, :] = self.gait[0, :].copy()        
 
         # Recontruct the gait based on the computed footsteps
         a = 0
@@ -200,70 +193,101 @@ class MPC_crocoddyl_planner():
         # On swing phase before --> initialised below shoulder
         p0 = (1.0 - np.repeat(self.gait[0, :], 2)) * self.p0
         # On the ground before -->  initialised with the current feet position
-        p0 += np.repeat(self.gait[0, :], 2) * l_feet[0, [0, 1, 3, 4, 6, 7, 9, 10]]  # (x, y) of each foot
+        p0 += np.repeat(self.gait[0, :], 2) * l_feet[0, [0, 1, 3, 4, 6, 7, 9, 10]]  # (x, y) of each foot       
+        
+        self.x_init.clear()
+        self.u_init.clear()
+        self.ListAction.clear()
+        self.index_stop_optimisation.clear()
 
-        if k == 0:
-            # Create the list of models
-            self.create_List_model()
+        index_step = 0
+        index_augmented = 0   
+        j = 0   
 
-            # By default we suppose we were in the same state previously
-            self.gait_old[0, :] = self.gait[0, :].copy()
-        else:
-            # Update list of models
-            self.roll_models()
-
-        j = 0
         # Iterate over all phases of the gait
-        # The first column of xref correspond to the current state
-        # Gap introduced to take into account the Step model (more nodes than gait phases )
-        self.x_init = []
-        self.u_init = []
-        gap = 0
-
-        next_step_flag = True
-        next_step_index = 0  # Get index of incoming step for updatePositionWeights
-
         while np.any(self.gait[j, :]):
+            if j == 0 : # First row, need to take into account previous gait
+                if np.any(self.gait[0,:] - self.gait_old[0,:]) :
+                    # Step model
+                    self.models_step[index_step].updateModel(np.reshape(l_feet[j, :], (3, 4), order='F'),
+                                                       xref[:, j+1], self.gait[0, :] - self.gait_old[0, :])
+                    self.ListAction.append(self.models_step[index_step])
 
-            if self.ListAction[j+gap].__class__.__name__ == "ActionModelQuadrupedStep":
+                    # Augmented model
+                    self.models_augmented[index_augmented].updateModel(np.reshape(l_feet[j, :], (3, 4), order='F'),
+                                                    l_stop, xref[:, j+1], self.gait[j, :])                  
 
-                if next_step_flag:
-                    next_step_index = j+gap
-                    next_step_flag = False
+                    # Activation of the cost to stop the optimisation around l_stop (position locked by the footstepGenerator)
+                    if j < self.index_lock_time :
+                        self.models_augmented[index_augmented].stopWeights = self.stopWeights
+                        self.index_stop_optimisation.append(index_augmented)
+                    
+                    self.ListAction.append(self.models_augmented[index_augmented])
 
-                self.x_init.append(np.zeros(20))
-                self.u_init.append(np.zeros(4))
 
-                if j == 0:
-                    self.ListAction[j+gap].updateModel(np.reshape(l_feet[j, :], (3, 4), order='F'),
-                                                       xref[:, j], self.gait[0, :] - self.gait_old[0, :])
-                else:
-                    self.ListAction[j+gap].updateModel(np.reshape(l_feet[j, :], (3, 4), order='F'),
-                                                       xref[:, j], self.gait[j, :] - self.gait[j-1, :])
+                    index_step += 1
+                    index_augmented += 1
+                    # Warm-start
+                    self.x_init.append(np.concatenate([xref[:, j+1], p0]))
+                    self.u_init.append(np.zeros(8))
+                    self.x_init.append(np.concatenate([xref[:, j+1], p0]))   
+                    self.u_init.append(np.repeat(self.gait[j, :], 3) * np.array(4*[0., 0., 2.5*9.81/np.sum(self.gait[j, :])] ))
+                
+                else : 
+                    # Augmented model
+                    self.models_augmented[index_augmented].updateModel(np.reshape(l_feet[j, :], (3, 4), order='F'),
+                                                     l_stop, xref[:, j+1], self.gait[j, :])
+                    self.ListAction.append(self.models_augmented[index_augmented])
+                    
+                    index_augmented += 1
+                    # Warm-start
+                    self.x_init.append(np.concatenate([xref[:, j+1], p0]))   
+                    self.u_init.append(np.repeat(self.gait[j, :], 3) * np.array(4*[0., 0., 2.5*9.81/np.sum(self.gait[j, :])] ))
+            
+            else : 
+                if np.any(self.gait[j,:] - self.gait[j-1,:]) :
+                    # Step model
+                    self.models_step[index_step].updateModel(np.reshape(l_feet[j, :], (3, 4), order='F'),
+                                                       xref[:, j+1], self.gait[j, :] - self.gait[j-1, :])
+                    self.ListAction.append(self.models_step[index_step])
 
-                self.ListAction[j+gap+1].updateModel(np.reshape(l_feet[j, :], (3, 4), order='F'),
-                                                     xref[:, j], self.gait[j, :])
-                self.x_init.append(np.zeros(20))
-                self.u_init.append(np.zeros(12))
+                    # Augmented model
+                    self.models_augmented[index_augmented].updateModel(np.reshape(l_feet[j, :], (3, 4), order='F'),
+                                                     l_stop, xref[:, j+1], self.gait[j, :])
 
-                gap += 1
-                # self.ListAction[j+1].shoulderWeights = 2*np.array(4*[0.25,0.3])
+                    # Activation of the cost to stop the optimisation around l_stop (position locked by the footstepGenerator)
+                    if j < self.index_lock_time :
+                        self.models_augmented[index_augmented].stopWeights = self.stopWeights
+                        self.index_stop_optimisation.append(index_augmented)
+                    
+                    self.ListAction.append(self.models_augmented[index_augmented])
 
-            else:
-                self.ListAction[j+gap].updateModel(np.reshape(l_feet[j, :], (3, 4),
-                                                              order='F'), xref[:, j], self.gait[j, :])
-                self.x_init.append(np.zeros(20))
-                self.u_init.append(np.zeros(12))
+                    index_step += 1
+                    index_augmented += 1
+                    # Warm-start
+                    self.x_init.append(np.concatenate([xref[:, j+1], p0]))
+                    self.u_init.append(np.zeros(8))
+                    self.x_init.append(np.concatenate([xref[:, j+1], p0]))   
+                    self.u_init.append(np.repeat(self.gait[j, :], 3) * np.array(4*[0., 0., 2.5*9.81/np.sum(self.gait[j, :])] ))
+                    
+                
+                else :
+                    self.models_augmented[index_augmented].updateModel(np.reshape(l_feet[j, :], (3, 4), order='F'),
+                                                     l_stop, xref[:, j+1], self.gait[j, :])
+                    self.ListAction.append(self.models_augmented[index_augmented])
+                    
+                    index_augmented += 1
+                    # Warm-start
+                    self.x_init.append(np.concatenate([xref[:, j+1], p0]))   
+                    self.u_init.append(np.repeat(self.gait[j, :], 3) * np.array(4*[0., 0., 2.5*9.81/np.sum(self.gait[j, :])] ))
 
+            # Update row matrix
             j += 1
 
-        if k > self.start_stop_optim:
-            # Update the lastPositionweight
-            self.updatePositionWeights(next_step_index)
-
-        # Update model of the terminal model # TODO: Check if correct row of l_feet
-        self.terminalModel.updateModel(np.reshape(l_feet[j-1, :], (3, 4), order='F'), xref[:, -1], self.gait[j-1, :])
-        self.x_init.append(np.zeros(20))
+        # Update terminal model 
+        self.terminalModel.updateModel(np.reshape(l_feet[j-1, :], (3, 4), order='F'), l_stop, xref[:, -1], self.gait[j-1, :])
+        # Warm-start
+        self.x_init.append(np.concatenate([xref[:, j-1], p0])) 
 
         # Shooting problem
         self.problem = crocoddyl.ShootingProblem(np.zeros(20),  self.ListAction, self.terminalModel)
@@ -292,7 +316,8 @@ class MPC_crocoddyl_planner():
                 result[24:, cpt] = self.ddp.xs[i][12:]
                 cpt += 1
                 if i > 0 and self.ListAction[i-1].__class__.__name__ == "ActionModelQuadrupedStep":
-                    print(self.ddp.xs[i][12:])
+                    # print(self.ddp.xs[i][12:])
+                    pass
 
         return result
 
@@ -305,6 +330,8 @@ class MPC_crocoddyl_planner():
         model.gI = self.gI
         model.mu = self.mu
         model.min_fz = self.min_fz
+        model.relative_forces = self.relative_forces
+        model.shoulderContactWeight = self.shoulderContactWeight
 
         # Weights vectors
         model.stateWeights = self.stateWeights
@@ -312,178 +339,16 @@ class MPC_crocoddyl_planner():
         model.frictionWeights = self.frictionWeights
 
         # Weight on feet position
-        # will be set when needed
-        model.lastPositionWeights = np.full(8, 0.0)
-        model.shoulderWeights = self.shoulderWeights
-        model.symmetry_term = self.symmetry_term
-        model.centrifugal_term = self.centrifugal_term
+        model.stopWeights = np.full(8, 0.0) # Will be updated when necessary
+        model.heuristicWeights = self.heuristicWeights
 
         return 0
 
     def update_model_step(self, model):
         """Set intern parameters for step model type
         """
-        model.shoulderWeights = self.shoulderWeights
+        model.heuristicWeights = np.zeros(8)
         model.stateWeights = self.stateWeights
         model.stepWeights = self.stepWeights
-        model.symmetry_term = self.symmetry_term
-        model.centrifugal_term = self.centrifugal_term
 
         return 0
-
-    def create_List_model(self):
-        """Create the List model using ActionQuadrupedModel()
-         The same model cannot be used [model]*(T_mpc/dt) because the dynamic changes for each nodes
-        """
-
-        j = 0
-
-        # Iterate over all phases of the gait
-        # The first column of xref correspond to the current state
-        while np.any(self.gait[j, :]):
-
-            model = quadruped_walkgen.ActionModelQuadrupedAugmented()
-
-            # Update intern parameters
-            self.update_model_augmented(model)
-
-            # Add model to the list of model
-            self.ListAction.append(model)
-
-            # No optimisation on the first line
-            if np.any(self.gait[j+1, :]) and not np.array_equal(self.gait[j, :], self.gait[j+1, :]):
-
-                model = quadruped_walkgen.ActionModelQuadrupedStep()
-                # Update intern parameters
-                self.update_model_step(model)
-
-                # Add model to the list of model
-                self.ListAction.append(model)
-
-            j += 1
-
-        # Model parameters of terminal node
-        self.terminalModel = quadruped_walkgen.ActionModelQuadrupedAugmented()
-        self.update_model_augmented(self.terminalModel)
-        # Weights vectors of terminal node
-        self.terminalModel.forceWeights = np.zeros(12)
-        self.terminalModel.frictionWeights = 0.
-        self.terminalModel.shoulderWeights = np.full(8, 0.0)
-        self.terminalModel.lastPositionWeights = np.full(8, 0.0)
-
-        # Shooting problem
-        self.problem = crocoddyl.ShootingProblem(np.zeros(20),  self.ListAction, self.terminalModel)
-
-        # DDP Solver
-        self.ddp = crocoddyl.SolverDDP(self.problem)
-
-        return 0
-
-    def roll_models(self):
-        """
-        Move one step further in the gait cycle
-        Add and remove corresponding model in ListAction
-        """
-
-        # Remove first model
-        flag = False
-        if self.ListAction[0].__class__.__name__ == "ActionModelQuadrupedStep":
-            self.ListAction.pop(0)
-            flag = True
-        model = self.ListAction.pop(0)
-
-        # Add last model & step model if needed
-        if flag:  # not np.array_equal(self.gait_old[0, :], self.gait[0, :]):
-            modelStep = quadruped_walkgen.ActionModelQuadrupedStep()
-            self.update_model_step(modelStep)
-
-            # Add model to the list of model
-            self.ListAction.append(modelStep)
-
-        # reset to 0 the weight lastPosition
-        model.lastPositionWeights = np.full(8, 0.0)
-        self.ListAction.append(model)
-
-        return 0
-
-    def get_fsteps(self):
-        """Create the matrices fstep, the position of the feet predicted during the control cycle.
-
-        To be used after the solve function.
-        """
-        ##################################################
-        # Get command vector without actionModelStep node
-        ##################################################
-        Us = self.ddp.us
-        for elt in Us:
-            if len(elt) == 4:
-                Us.remove(elt)
-        self.Us = np.array(Us)[:, :].transpose()
-
-        ################################################
-        # Get state vector without actionModelStep node
-        ################################################
-        # self.Xs[:,0 ] = np.array(self.ddp.xs[0])
-        k = 1
-        gap = 1
-        for elt in self.ListAction:
-            if elt.__class__.__name__ != "ActionModelQuadrupedStep":
-                self.Xs[:, k - gap] = np.array(self.ddp.xs[k])
-            else:
-                gap += 1
-            k = k + 1
-
-        ########################################
-        # Compute fsteps using the state vector
-        ########################################
-
-        j = 0
-
-        # Iterate over all phases of the gait
-        while np.any(self.gait[j, :]):
-            self.fsteps[j, :] = np.repeat(self.gait[j, :], 3)*np.concatenate([self.Xs[12:14, j], [0.],
-                                                                              self.Xs[14:16, j], [0.],
-                                                                              self.Xs[16:18, j], [0.],
-                                                                              self.Xs[18:20, j], [0.]])
-            j += 1
-
-        ####################################################
-        # Compute the current position of feet in contact
-        # and the position of desired feet in flying phase
-        # in local frame
-        #####################################################
-
-        for i in range(4):
-            index = next((idx for idx, val in np.ndenumerate(
-                self.fsteps[:, 3*i]) if ((not (val == 0)) and (not np.isnan(val)))), [-1])[0]
-            pos_tmp = np.reshape(
-                np.array(self.oMl * (np.array([self.fsteps[index, (i*3):(3+i*3)]]).transpose())), (3, 1))
-            self.o_fsteps[:2, i] = pos_tmp[0:2, 0]
-
-        return self.fsteps
-
-    def updatePositionWeights(self, next_step_index):
-        """Update the parameters in the ListAction to keep the next foot position at the same position computed by the
-         previous control cycle and avoid re-optimization at the end of the flying phase
-        """
-
-        if next_step_index == self.index_stop:
-            self.ListAction[next_step_index + 1].lastPositionWeights = np.repeat(
-                (np.array([1, 1, 1, 1]) - self.gait[0, :]), 2) * self.lastPositionWeights
-
-        return 0
-
-    def get_xrobot(self):
-        """Returns the state vectors predicted by the mpc throughout the time horizon, the initial column is
-        deleted as it corresponds initial state vector
-        Args:
-        """
-
-        return np.array(self.ddp.xs)[1:, :].transpose()
-
-    def get_fpredicted(self):
-        """Returns the force vectors command predicted by the mpc throughout the time horizon,
-        Args:
-        """
-
-        return np.array(self.ddp.us)[:, :].transpose()[:, :]
