@@ -169,6 +169,16 @@ public:
                     VectorN const& baseAngularVelocity, VectorN const& baseOrientation, VectorN const& q_mes,
                     VectorN const& v_mes, VectorN const& dummyPos, VectorN const& b_baseVel);
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///
+    /// \brief Security check to verify that measured positions, velocities and required torques
+    ///        are not above defined tresholds
+    ///
+    /// \param[in] tau_ff feedforward torques outputted by the whole body control for the PD+
+    ///
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    int security_check(VectorN const& tau_ff);
+
     MatrixN getQFilt() { return q_filt_dyn_; }
     MatrixN getVFilt() { return v_filt_dyn_; }
     MatrixN getVSecu() { return v_secu_dyn_; }
@@ -235,6 +245,8 @@ private:
     MatrixN v_secu_dyn_;  // Dynamic size version of v_secu_
 
     pinocchio::SE3 _1Mi_;  // Transform between the base frame and the IMU frame
+
+    Vector12 q_security_;  // Position limits for the actuators above which safety controller is triggered
 
 };
 #endif  // ESTIMATOR_H_INCLUDED

@@ -255,6 +255,7 @@ struct EstimatorPythonVisitor : public bp::def_visitor<EstimatorPythonVisitor<Es
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
             .def("initialize", &Estimator::initialize, bp::args("params"), "Initialize Estimator from Python.\n")
+            .def("security_check", &Estimator::security_check, bp::args("tau_ff"), "Run security check.\n")
 
             .def("getQFilt", &Estimator::getQFilt, "Get filtered configuration.\n")
             .def("getVFilt", &Estimator::getVFilt, "Get filtered velocity.\n")
