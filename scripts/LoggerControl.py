@@ -165,8 +165,8 @@ class LoggerControl():
         self.wbc_feet_vel[self.i] = wbc.feet_vel
         self.wbc_feet_vel_target[self.i] = wbc.log_feet_vel_target[:, :, self.i+1]
         self.wbc_feet_acc_target[self.i] = wbc.log_feet_acc_target[:, :, self.i+1]
-        self.wbc_feet_pos_invkin[self.i] = wbc.invKin.cpp_posf.transpose()
-        self.wbc_feet_vel_invkin[self.i] = wbc.invKin.cpp_vf.transpose()
+        #self.wbc_feet_pos_invkin[self.i] = wbc.invKin.cpp_posf.transpose() # TODO: Adapt logging
+        #self.wbc_feet_vel_invkin[self.i] = wbc.invKin.cpp_vf.transpose()
 
         # Logging timestamp
         self.tstamps[self.i] = time()

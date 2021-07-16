@@ -50,7 +50,7 @@ void InvKin::initialize(Params& params) {
 }
 
 void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
-                                          Matrix43 const& vgoals, Matrix43 const& agoals) {
+                               Matrix43 const& vgoals, Matrix43 const& agoals) {
 
     // Process feet
     for (int i = 0; i < 4; i++) {
@@ -59,10 +59,10 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
         vfeet_ref.row(i) = vgoals.row(i);
 
         afeet.row(i) = + params_->Kp_flyingfeet * pfeet_err.row(i) - params_->Kd_flyingfeet * (vf_.row(i)-vgoals.row(i)) + agoals.row(i);
-        if (contacts(0, i)) {
+        if (contacts(0, i) == 1.0) {
             afeet.row(i) *= 0.0; // Set to 0.0 to disable position/velocity control of feet in contact
         }
-        afeet.row(i) -= af_.row(i) + cross3(wf_.row(i), vf_.row(i)); // Drift
+        afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i)); // Drift
     }
 
     // Store data and invert the Jacobian

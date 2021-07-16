@@ -210,8 +210,8 @@ class Controller:
                                   device.baseOrientation.reshape((-1, 1)),
                                   device.q_mes.reshape((-1, 1)),
                                   device.v_mes.reshape((-1, 1)),
-                                  device.dummyPos.reshape((-1, 1)),
-                                  device.b_baseVel.reshape((-1, 1)))
+                                  np.zeros((3,1)),  # device.dummyPos.reshape((-1, 1)),  # TODO: Case of real device
+                                  np.zeros((3,1)))  # device.b_baseVel.reshape((-1, 1)))
 
         t_filter = time.time()
 

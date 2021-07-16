@@ -201,7 +201,7 @@ struct InvKinPythonVisitor : public bp::def_visitor<InvKinPythonVisitor<InvKin>>
             .def("get_foot_id", &InvKin::get_foot_id, bp::args("i"), "Get food frame id.\n")
 
             // Run InvKin from Python
-            .def("run_InvKin", &InvKin::run_InvKin, bp::args("contacts", "goals", "vgoals", "agoals"),
+            .def("run_InvKin", &InvKin::run_InvKin, bp::args("contacts", "pgoals", "vgoals", "agoals"),
                  "Run InvKin from Python.\n");
     }
 
