@@ -143,7 +143,7 @@ class Controller:
 
         # Define the default controller
         self.myController = wbc_controller(params)
-        self.myController.qdes[7:] = q_init.ravel()
+        self.myController.qdes[:] = q_init.ravel()
 
         self.envID = params.envID
         self.velID = params.velID
@@ -296,12 +296,12 @@ class Controller:
             self.q_wbc = np.zeros((19, 1))
             self.q_wbc[2, 0] = self.h_ref  # at position (0.0, 0.0, h_ref)
             self.q_wbc[6, 0] = 1.0  # with orientation (0.0, 0.0, 0.0)
-            self.q_wbc[7:, 0] = self.myController.qdes[7:]  # with reference angular positions of previous loop
+            self.q_wbc[7:, 0] = self.myController.qdes[:]  # with reference angular positions of previous loop
 
             # Get velocity in base frame for Pinocchio (not current base frame but desired base frame)
             self.b_v = self.v.copy()
             self.b_v[:6, 0] = self.v_ref[:6, 0]  # Base at reference velocity (TODO: add hRb once v_ref is considered in base frame)
-            self.b_v[6:, 0] = self.myController.vdes[6:, 0]  # with reference angular velocities of previous loop
+            self.b_v[6:, 0] = self.myController.vdes[:]  # with reference angular velocities of previous loop
 
             # Feet command position, velocity and acceleration in base frame
             self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(oRh.transpose(), self.v_ref[3:6, 0:1])
@@ -318,8 +318,8 @@ class Controller:
             # Quantities sent to the control board
             self.result.P = 6.0 * np.ones(12)
             self.result.D = 0.3 * np.ones(12)
-            self.result.q_des[:] = self.myController.qdes[7:]
-            self.result.v_des[:] = self.myController.vdes[6:, 0]
+            self.result.q_des[:] = self.myController.qdes[:]
+            self.result.v_des[:] = self.myController.vdes[:]
             self.result.tau_ff[:] = 0.8 * self.myController.tau_ff
 
             # Display robot in Gepetto corba viewer

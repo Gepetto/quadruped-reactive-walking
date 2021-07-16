@@ -3,6 +3,12 @@
 
 #include "pinocchio/math/rpy.hpp"
 #include "pinocchio/spatial/explog.hpp"
+#include "pinocchio/multibody/model.hpp"
+#include "pinocchio/multibody/data.hpp"
+#include "pinocchio/parsers/urdf.hpp"
+#include "pinocchio/algorithm/compute-all-terms.hpp"
+#include "pinocchio/algorithm/jacobian.hpp"
+#include "pinocchio/algorithm/frames.hpp"
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <cmath>
@@ -10,6 +16,7 @@
 #include <iostream>
 #include <string>
 #include "qrw/Params.hpp"
+#include "qrw/Types.h"
 
 class InvKin
 {
@@ -17,41 +24,51 @@ public:
     InvKin();
     void initialize(Params& params);
 
-    Eigen::Matrix<double, 1, 3> cross3(Eigen::Matrix<double, 1, 3> left, Eigen::Matrix<double, 1, 3> right);
+    void refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals, Matrix43 const& vgoals, Matrix43 const& agoals);
+    
+    void run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals, MatrixN const& vgoals, MatrixN const& agoals);
 
-    Eigen::MatrixXd refreshAndCompute(const Eigen::MatrixXd& contacts,
-                                      const Eigen::MatrixXd& goals, const Eigen::MatrixXd& vgoals, const Eigen::MatrixXd& agoals,
-                                      const Eigen::MatrixXd& posf, const Eigen::MatrixXd& vf, const Eigen::MatrixXd& wf,
-                                      const Eigen::MatrixXd& af, const Eigen::MatrixXd& Jf);
-    Eigen::MatrixXd get_q_step();
-    Eigen::MatrixXd get_dq_cmd();
+    VectorN get_q_step() { return q_step_; }
+    VectorN get_q_cmd() { return q_cmd_; }
+    VectorN get_dq_cmd() { return dq_cmd_; }
+    VectorN get_ddq_cmd() { return ddq_cmd_; }
+    int get_foot_id(int i) { return foot_ids_[i];}
 
 private:
     // Inputs of the constructor
     Params* params_;
 
     // Matrices initialisation
-    Eigen::Matrix<double, 4, 3> feet_position_ref = Eigen::Matrix<double, 4, 3>::Zero();
-    Eigen::Matrix<double, 4, 3> feet_velocity_ref = Eigen::Matrix<double, 4, 3>::Zero();
-    Eigen::Matrix<double, 4, 3> feet_acceleration_ref = Eigen::Matrix<double, 4, 3>::Zero();
-    Eigen::Matrix<double, 1, 4> flag_in_contact = Eigen::Matrix<double, 1, 4>::Zero();
     
-    Eigen::Matrix<double, 12, 12> invJ = Eigen::Matrix<double, 12, 12>::Zero();
-    Eigen::Matrix<double, 1, 12> acc = Eigen::Matrix<double, 1, 12>::Zero();
-    Eigen::Matrix<double, 1, 12> x_err = Eigen::Matrix<double, 1, 12>::Zero();
-    Eigen::Matrix<double, 1, 12> dx_r = Eigen::Matrix<double, 1, 12>::Zero();
+    Matrix12 invJ;
+    Matrix112 acc;
+    Matrix112 x_err;
+    Matrix112 dx_r;
 
-    Eigen::Matrix<double, 4, 3> pfeet_err = Eigen::Matrix<double, 4, 3>::Zero();
-    Eigen::Matrix<double, 4, 3> vfeet_ref = Eigen::Matrix<double, 4, 3>::Zero();
-    Eigen::Matrix<double, 4, 3> afeet = Eigen::Matrix<double, 4, 3>::Zero();
-    Eigen::Matrix<double, 1, 3> e_basispos = Eigen::Matrix<double, 1, 3>::Zero();
-    Eigen::Matrix<double, 1, 3> abasis = Eigen::Matrix<double, 1, 3>::Zero();
-    Eigen::Matrix<double, 1, 3> e_basisrot = Eigen::Matrix<double, 1, 3>::Zero();
-    Eigen::Matrix<double, 1, 3> awbasis = Eigen::Matrix<double, 1, 3>::Zero();
+    Matrix43 pfeet_err;
+    Matrix43 vfeet_ref;
+    Matrix43 afeet;
+    Matrix13 e_basispos;
+    Matrix13 abasis;
+    Matrix13 e_basisrot;
+    Matrix13 awbasis;
 
-    Eigen::MatrixXd ddq = Eigen::MatrixXd::Zero(12, 1);
-    Eigen::MatrixXd q_step = Eigen::MatrixXd::Zero(12, 1);
-    Eigen::MatrixXd dq_cmd = Eigen::MatrixXd::Zero(12, 1);
+    int foot_ids_[4] = {0, 0, 0, 0};
+
+    Matrix43 posf_;
+    Matrix43 vf_;
+    Matrix43 wf_;
+    Matrix43 af_;
+    Matrix12 Jf_;
+    Eigen::Matrix<double, 6, 12> Jf_tmp_;
+
+    Vector12 ddq_cmd_;
+    Vector12 dq_cmd_;
+    Vector12 q_cmd_;
+    Vector12 q_step_;
+
+    pinocchio::Model model_;  // Pinocchio model for frame computations and inverse kinematics
+    pinocchio::Data data_;  // Pinocchio datas for frame computations and inverse kinematics
 
 };
 

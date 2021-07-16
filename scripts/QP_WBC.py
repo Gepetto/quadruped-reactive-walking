@@ -22,7 +22,9 @@ class wbc_controller():
 
         self.dt = params.dt_wbc  # Time step
 
-        self.invKin = Solo12InvKin(params)  # Inverse Kinematics object
+        self.invKin = lrw.InvKin() # Inverse Kinematics solver in C++
+        self.invKin.initialize(params)
+
         self.box_qp = lrw.QPWBC()  # Box Quadratic Programming solver
         self.box_qp.initialize(params)
 
@@ -43,8 +45,8 @@ class wbc_controller():
         self.log_feet_acc_target = np.zeros((3, 4, params.N_SIMULATION))
 
         # Arrays to store results (for solo12)
-        self.qdes = np.zeros((19, ))
-        self.vdes = np.zeros((18, 1))
+        self.qdes = np.zeros(12)
+        self.vdes = np.zeros(12)
         self.tau_ff = np.zeros(12)
 
         # Indexes of feet frames in this order: [FL, FR, HL, HR]
@@ -69,13 +71,16 @@ class wbc_controller():
         self.tic = time()
 
         # Compute Inverse Kinematics
-        ddq_cmd = np.array([self.invKin.refreshAndCompute(q[7:, 0:1], dq[6:, 0:1], contacts, pgoals, vgoals, agoals)]).T
+        self.invKin.run_InvKin(q[7:, 0:1], dq[6:, 0:1], contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose())
+        ddq_cmd = np.zeros((18, 1))
+        ddq_cmd[6:, 0] = self.invKin.get_ddq_cmd()
 
-        for i in range(4):
+        # TODO: Adapt logging
+        """for i in range(4):
             self.log_feet_pos[:, i, self.k_log] = self.invKin.robot.data.oMf[self.indexes[i]].translation
             self.log_feet_err[:, i, self.k_log] = pgoals[:, i] - self.invKin.robot.data.oMf[self.indexes[i]].translation # self.invKin.pfeet_err[i]
             self.log_feet_vel[:, i, self.k_log] = pin.getFrameVelocity(self.invKin.robot.model, self.invKin.robot.data,
-                                                                       self.indexes[i], pin.LOCAL_WORLD_ALIGNED).linear
+                                                                       self.indexes[i], pin.LOCAL_WORLD_ALIGNED).linear"""
         self.feet_pos = self.log_feet_pos[:, :, self.k_log]
         self.feet_err = self.log_feet_err[:, :, self.k_log]
         self.feet_vel = self.log_feet_vel[:, :, self.k_log]
@@ -98,7 +103,7 @@ class wbc_controller():
         self.Jc = np.zeros((12, 18))
         for i_ee in range(4):
             if contacts[i_ee]:
-                idx = int(self.invKin.foot_ids[i_ee])
+                idx = self.invKin.get_foot_id(i_ee)
                 self.Jc[(3*i_ee):(3*(i_ee+1)), :] = pin.getFrameJacobian(self.robot.model, self.robot.data, idx, pin.LOCAL_WORLD_ALIGNED)[:3]
 
         # Compute joint torques according to the current state of the system and the desired joint accelerations
@@ -118,8 +123,8 @@ class wbc_controller():
         self.tau_ff[:] = RNEA_delta - ((self.Jc[:, 6:].transpose()) @ self.f_with_delta).ravel()
 
         # Retrieve desired positions and velocities
-        self.vdes[:, 0] = self.invKin.dq_cmd
-        self.qdes[:] = self.invKin.q_cmd
+        self.vdes[:] = self.invKin.get_dq_cmd()
+        self.qdes[:] = self.invKin.get_q_cmd()
 
         self.toc = time()
 

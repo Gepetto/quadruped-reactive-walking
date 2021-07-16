@@ -194,12 +194,14 @@ struct InvKinPythonVisitor : public bp::def_visitor<InvKinPythonVisitor<InvKin>>
             
             .def("initialize", &InvKin::initialize, bp::args("params"), "Initialize InvKin from Python.\n")
 
-            .def("get_q_step", &InvKin::get_q_step, "Get velocity goals matrix.\n")
-            .def("get_dq_cmd", &InvKin::get_dq_cmd, "Get acceleration goals matrix.\n")
+            .def("get_q_step", &InvKin::get_q_step, "Get position step of inverse kinematics.\n")
+            .def("get_q_cmd", &InvKin::get_q_cmd, "Get position command.\n")
+            .def("get_dq_cmd", &InvKin::get_dq_cmd, "Get velocity command.\n")
+            .def("get_ddq_cmd", &InvKin::get_ddq_cmd, "Get acceleration command.\n")
+            .def("get_foot_id", &InvKin::get_foot_id, bp::args("i"), "Get food frame id.\n")
 
             // Run InvKin from Python
-            .def("refreshAndCompute", &InvKin::refreshAndCompute,
-                 bp::args("contacts", "goals", "vgoals", "agoals", "posf", "vf", "wf", "af", "Jf"),
+            .def("run_InvKin", &InvKin::run_InvKin, bp::args("contacts", "goals", "vgoals", "agoals"),
                  "Run InvKin from Python.\n");
     }
 
