@@ -54,13 +54,12 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
 
     // Process feet
     for (int i = 0; i < 4; i++) {
-
         pfeet_err.row(i) = pgoals.row(i) - posf_.row(i);
         vfeet_ref.row(i) = vgoals.row(i);
 
         afeet.row(i) = + params_->Kp_flyingfeet * pfeet_err.row(i) - params_->Kd_flyingfeet * (vf_.row(i)-vgoals.row(i)) + agoals.row(i);
         if (contacts(0, i) == 1.0) {
-            afeet.row(i) *= 0.0; // Set to 0.0 to disable position/velocity control of feet in contact
+            afeet.row(i).setZero(); // Set to 0.0 to disable position/velocity control of feet in contact
         }
         afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i)); // Drift
     }
@@ -102,6 +101,8 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
         vf_.row(i) = nu.linear();
         wf_.row(i) = nu.angular();
         af_.row(i) = pinocchio::getFrameAcceleration(model_, data_, idx, pinocchio::LOCAL_WORLD_ALIGNED).linear();
+        Jf_tmp_.setZero(); // Fill with 0s because getFrameJacobian only acts on the coeffs it changes so the
+        // other coeffs keep their previous value instead of being set to 0 
         pinocchio::getFrameJacobian(model_, data_, idx, pinocchio::LOCAL_WORLD_ALIGNED, Jf_tmp_);
         Jf_.block(3 * i, 0, 3, 12) = Jf_tmp_.block(0, 0, 3, 12);
     }

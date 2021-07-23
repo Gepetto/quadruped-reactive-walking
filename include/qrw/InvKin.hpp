@@ -28,9 +28,9 @@ public:
     
     void run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals, MatrixN const& vgoals, MatrixN const& agoals);
 
-    VectorN get_q_step() { return q_step_; }
+    Eigen::MatrixXd get_q_step() { return q_step_; }
+    Eigen::MatrixXd get_dq_cmd() { return dq_cmd_; }
     VectorN get_q_cmd() { return q_cmd_; }
-    VectorN get_dq_cmd() { return dq_cmd_; }
     VectorN get_ddq_cmd() { return ddq_cmd_; }
     int get_foot_id(int i) { return foot_ids_[i];}
 
@@ -70,6 +70,10 @@ private:
     pinocchio::Model model_;  // Pinocchio model for frame computations and inverse kinematics
     pinocchio::Data data_;  // Pinocchio datas for frame computations and inverse kinematics
 
+    Eigen::Matrix<double, 4, 3> feet_position_ref = Eigen::Matrix<double, 4, 3>::Zero();
+    Eigen::Matrix<double, 4, 3> feet_velocity_ref = Eigen::Matrix<double, 4, 3>::Zero();
+    Eigen::Matrix<double, 4, 3> feet_acceleration_ref = Eigen::Matrix<double, 4, 3>::Zero();
+    Eigen::Matrix<double, 1, 4> flag_in_contact = Eigen::Matrix<double, 1, 4>::Zero();
 };
 
 template <typename _Matrix_Type_>
