@@ -89,8 +89,8 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
 void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals, MatrixN const& vgoals, MatrixN const& agoals)
 {
     // Update model and data of the robot
-    pinocchio::computeJointJacobians(model_, data_, q);
     pinocchio::forwardKinematics(model_, data_, q, dq, VectorN::Zero(model_.nv));
+    pinocchio::computeJointJacobians(model_, data_);
     pinocchio::updateFramePlacements(model_, data_);
 
     // Get data required by IK with Pinocchio

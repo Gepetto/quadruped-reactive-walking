@@ -151,13 +151,13 @@ public:
     VectorN get_qdes() { return qdes_; }
     VectorN get_vdes() { return vdes_; }
     VectorN get_tau_ff() { return tau_ff_; }
-    VectorN get_f_with_delta() { box_qp_->get_f_res(); }
-    MatrixN get_feet_pos() { return MatrixN::Zero(4, 3); }
-    MatrixN get_feet_err() { return MatrixN::Zero(4, 3); }
-    MatrixN get_feet_vel() { return MatrixN::Zero(4, 3); }
-    MatrixN get_feet_pos_target() { return MatrixN::Zero(4, 3); }
-    MatrixN get_feet_vel_target() { return MatrixN::Zero(4, 3); }
-    MatrixN get_feet_acc_target() { return MatrixN::Zero(4, 3); }
+    VectorN get_f_with_delta() { return f_with_delta_; }
+    MatrixN get_feet_pos() { return MatrixN::Zero(3, 4); }
+    MatrixN get_feet_err() { return MatrixN::Zero(3, 4); }
+    MatrixN get_feet_vel() { return MatrixN::Zero(3, 4); }
+    MatrixN get_feet_pos_target() { return MatrixN::Zero(3, 4); }
+    MatrixN get_feet_vel_target() { return MatrixN::Zero(3, 4); }
+    MatrixN get_feet_acc_target() { return MatrixN::Zero(3, 4); }
 
 private:
     

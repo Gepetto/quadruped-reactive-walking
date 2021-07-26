@@ -158,7 +158,7 @@ class LoggerControl():
         self.wbc_q_des[self.i] = loop.result.q_des
         self.wbc_v_des[self.i] = loop.result.v_des
         self.wbc_tau_ff[self.i] = loop.result.tau_ff
-        self.wbc_f_ctc[self.i] = wbc.f_with_delta[:, 0]
+        self.wbc_f_ctc[self.i] = wbc.f_with_delta
         self.wbc_feet_pos[self.i] = wbc.feet_pos
         self.wbc_feet_pos_target[self.i] = wbc.feet_pos_target
         self.wbc_feet_err[self.i] = wbc.feet_err

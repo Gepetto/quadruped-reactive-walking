@@ -201,7 +201,7 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
             loggerControl.sample(controller.joystick, controller.estimator,
                                  controller, controller.gait, controller.statePlanner,
                                  controller.footstepPlanner, controller.footTrajectoryGenerator,
-                                 controller.myController)
+                                 controller.wbcWrapper)
 
         # Send command to the robot
         for i in range(1):

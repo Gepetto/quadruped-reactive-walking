@@ -590,6 +590,17 @@ void WbcWrapper::initialize(Params& params)
 
   // Initialize quaternion
   q_default_(6, 0) = 1.0;
+
+  // Initialize joint positions
+  qdes_.tail(12) = Vector12(params_->q_init.data());
+
+  // Compute the upper triangular part of the joint space inertia matrix M by using the Composite Rigid Body Algorithm
+  // Result is stored in data_.M
+  pinocchio::crba(model_, data_, q_default_);
+
+  // Make mass matrix symetric
+  data_.M.triangularView<Eigen::StrictlyLower>() = data_.M.transpose().triangularView<Eigen::StrictlyLower>();
+
 }
 
 void WbcWrapper::compute(VectorN const& q, VectorN const& dq, MatrixN const& f_cmd, MatrixN const& contacts,
@@ -604,13 +615,6 @@ void WbcWrapper::compute(VectorN const& q, VectorN const& dq, MatrixN const& f_c
   ddq_cmd_.tail(12) = invkin_->get_ddq_cmd();
 
   // TODO: Adapt logging of feet_pos, feet_err, feet_vel
-
-  // Compute the upper triangular part of the joint space inertia matrix M by using the Composite Rigid Body Algorithm
-  // Result is stored in data_.M
-  pinocchio::crba(model_, data_, q_default_);
-
-  // Make mass matrix symetric
-  data_.M.triangularView<Eigen::StrictlyLower>() = data_.M.transpose().triangularView<Eigen::StrictlyLower>();
 
   // TODO: Check if needed because crbaMinimal may allow to directly get the jacobian
   // TODO: Check if possible to use the model of InvKin to avoid computations
