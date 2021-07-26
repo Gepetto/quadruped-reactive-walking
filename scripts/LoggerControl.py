@@ -160,11 +160,11 @@ class LoggerControl():
         self.wbc_tau_ff[self.i] = loop.result.tau_ff
         self.wbc_f_ctc[self.i] = wbc.f_with_delta[:, 0]
         self.wbc_feet_pos[self.i] = wbc.feet_pos
-        self.wbc_feet_pos_target[self.i] = wbc.log_feet_pos_target[:, :, self.i+1]
+        self.wbc_feet_pos_target[self.i] = wbc.feet_pos_target
         self.wbc_feet_err[self.i] = wbc.feet_err
         self.wbc_feet_vel[self.i] = wbc.feet_vel
-        self.wbc_feet_vel_target[self.i] = wbc.log_feet_vel_target[:, :, self.i+1]
-        self.wbc_feet_acc_target[self.i] = wbc.log_feet_acc_target[:, :, self.i+1]
+        self.wbc_feet_vel_target[self.i] = wbc.feet_vel_target
+        self.wbc_feet_acc_target[self.i] = wbc.feet_acc_target
         #self.wbc_feet_pos_invkin[self.i] = wbc.invKin.cpp_posf.transpose() # TODO: Adapt logging
         #self.wbc_feet_vel_invkin[self.i] = wbc.invKin.cpp_vf.transpose()
 

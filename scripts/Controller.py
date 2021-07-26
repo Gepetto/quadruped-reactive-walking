@@ -134,16 +134,15 @@ class Controller:
         self.estimator = lqrw.Estimator()
         self.estimator.initialize(params)
 
+        self.wbcWrapper = lqrw.WbcWrapper()
+        self.wbcWrapper.initialize(params)
+
         # Wrapper that makes the link with the solver that you want to use for the MPC
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q)
 
         # ForceMonitor to display contact forces in PyBullet with red lines
         # import ForceMonitor
         # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
-
-        # Define the default controller
-        self.myController = wbc_controller(params)
-        self.myController.qdes[:] = q_init.ravel()
 
         self.envID = params.envID
         self.velID = params.velID
@@ -173,6 +172,7 @@ class Controller:
         self.feet_v_cmd = np.zeros((3, 4))
         self.feet_p_cmd = np.zeros((3, 4))
 
+        self.error = False  # True if something wrong happens in the controller
         self.error_flag = 0
         self.q_security = np.array([np.pi*0.4, np.pi*80/180, np.pi] * 4)
 
@@ -278,12 +278,12 @@ class Controller:
         # Target state for the whole body control
         self.x_f_wbc = (self.x_f_mpc[:24, 0]).copy()
         if not self.gait.getIsStatic():
-            self.x_f_wbc[0] = self.myController.dt * xref[6, 1]
-            self.x_f_wbc[1] = self.myController.dt * xref[7, 1]
+            self.x_f_wbc[0] = self.dt_wbc * xref[6, 1]
+            self.x_f_wbc[1] = self.dt_wbc * xref[7, 1]
             self.x_f_wbc[2] = self.h_ref
             self.x_f_wbc[3] = 0.0
             self.x_f_wbc[4] = 0.0
-            self.x_f_wbc[5] = self.myController.dt * xref[11, 1]
+            self.x_f_wbc[5] = self.dt_wbc * xref[11, 1]
         else:  # Sort of position control to avoid slow drift
             self.x_f_wbc[0:3] = self.planner.q_static[0:3, 0]  # TODO: Adapt to new code
             self.x_f_wbc[3:6] = self.planner.RPY_static[:, 0]
@@ -291,17 +291,17 @@ class Controller:
 
         # Whole Body Control
         # If nothing wrong happened yet in the WBC controller
-        if (not self.myController.error) and (not self.joystick.stop):
+        if (not self.error) and (not self.joystick.stop):
 
             self.q_wbc = np.zeros((19, 1))
             self.q_wbc[2, 0] = self.h_ref  # at position (0.0, 0.0, h_ref)
             self.q_wbc[6, 0] = 1.0  # with orientation (0.0, 0.0, 0.0)
-            self.q_wbc[7:, 0] = self.myController.qdes[:]  # with reference angular positions of previous loop
+            self.q_wbc[7:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop
 
             # Get velocity in base frame for Pinocchio (not current base frame but desired base frame)
             self.b_v = self.v.copy()
             self.b_v[:6, 0] = self.v_ref[:6, 0]  # Base at reference velocity (TODO: add hRb once v_ref is considered in base frame)
-            self.b_v[6:, 0] = self.myController.vdes[:]  # with reference angular velocities of previous loop
+            self.b_v[6:, 0] = self.wbcWrapper.vdes[:]  # with reference angular velocities of previous loop
 
             # Feet command position, velocity and acceleration in base frame
             self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(oRh.transpose(), self.v_ref[3:6, 0:1])
@@ -309,18 +309,18 @@ class Controller:
             self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), np.array([[0.0], [0.0], [self.h_ref]]) + oTh)
 
             # Run InvKin + WBC QP
-            self.myController.compute(self.q_wbc, self.b_v,
-                                      self.x_f_wbc[12:], cgait[0, :],
-                                      self.feet_p_cmd,
-                                      self.feet_v_cmd,
-                                      self.feet_a_cmd)
+            self.wbcWrapper.compute(self.q_wbc, self.b_v,
+                                    self.x_f_wbc[12:], np.array([cgait[0, :]]),
+                                    self.feet_p_cmd,
+                                    self.feet_v_cmd,
+                                    self.feet_a_cmd)
 
             # Quantities sent to the control board
             self.result.P = 6.0 * np.ones(12)
             self.result.D = 0.3 * np.ones(12)
-            self.result.q_des[:] = self.myController.qdes[:]
-            self.result.v_des[:] = self.myController.vdes[:]
-            self.result.tau_ff[:] = 0.8 * self.myController.tau_ff
+            self.result.q_des[:] = self.wbcWrapper.qdes[:]
+            self.result.v_des[:] = self.wbcWrapper.vdes[:]
+            self.result.tau_ff[:] = 0.8 * self.wbcWrapper.tau_ff
 
             # Display robot in Gepetto corba viewer
             """if self.k % 5 == 0:
@@ -353,19 +353,19 @@ class Controller:
 
     def security_check(self):
 
-        if (self.error_flag == 0) and (not self.myController.error) and (not self.joystick.stop):
-            self.error_flag = self.estimator.security_check(self.myController.tau_ff)
+        if (self.error_flag == 0) and (not self.error) and (not self.joystick.stop):
+            self.error_flag = self.estimator.security_check(self.wbcWrapper.tau_ff)
             if (self.error_flag != 0):
-                self.myController.error = True
+                self.error = True
                 if (self.error_flag == 1):
                     self.error_value = self.estimator.getQFilt()[7:] * 180 / 3.1415
                 elif (self.error_flag == 2):
                     self.error_value = self.estimator.getVSecu()
                 else:
-                    self.error_value = self.myController.tau_ff
+                    self.error_value = self.wbcWrapper.tau_ff
 
         # If something wrong happened in the controller we stick to a security controller
-        if self.myController.error or self.joystick.stop:
+        if self.error or self.joystick.stop:
 
             # Quantities sent to the control board
             self.result.P = np.zeros(12)
@@ -381,8 +381,6 @@ class Controller:
         self.t_list_mpc[self.k] = t_mpc - t_planner
         self.t_list_wbc[self.k] = t_wbc - t_mpc
         self.t_list_loop[self.k] = time.time() - tic
-        self.t_list_InvKin[self.k] = self.myController.tac - self.myController.tic
-        self.t_list_QPWBC[self.k] = self.myController.toc - self.myController.tac
 
     def updateState(self):
 
@@ -397,13 +395,13 @@ class Controller:
             Ryaw = np.array([[math.cos(self.yaw_estim), -math.sin(self.yaw_estim)],
                              [math.sin(self.yaw_estim), math.cos(self.yaw_estim)]])
 
-            self.q[0:2, 0:1] = self.q[0:2, 0:1] + Ryaw @ self.v_ref[0:2, 0:1] * self.myController.dt
+            self.q[0:2, 0:1] = self.q[0:2, 0:1] + Ryaw @ self.v_ref[0:2, 0:1] * self.dt_wbc
 
             # Mix perfect x and y with height measurement
             self.q[2, 0] = self.estimator.getQFilt()[2]
 
             # Mix perfect yaw with pitch and roll measurements
-            self.yaw_estim += self.v_ref[5, 0] * self.myController.dt
+            self.yaw_estim += self.v_ref[5, 0] * self.dt_wbc
             self.q[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(self.estimator.getRPY()[0], self.estimator.getRPY()[1], self.yaw_estim)).coeffs()
 
             # Actuators measurements

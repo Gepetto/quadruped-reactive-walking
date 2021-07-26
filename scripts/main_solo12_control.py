@@ -172,7 +172,7 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
     t = 0.0
     t_max = (params.N_SIMULATION-2) * params.dt_wbc
 
-    while ((not device.hardware.IsTimeout()) and (t < t_max) and (not controller.myController.error)):
+    while ((not device.hardware.IsTimeout()) and (t < t_max) and (not controller.error)):
 
         # Update sensor data (IMU, encoders, Motion capture)
         device.UpdateMeasurment()
@@ -316,7 +316,7 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
         # Disconnect the PyBullet server (also close the GUI)
         device.Stop()
 
-    if controller.myController.error:
+    if controller.error:
         if (controller.error_flag == 1):
             print("-- POSITION LIMIT ERROR --")
         elif (controller.error_flag == 2):

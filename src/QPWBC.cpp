@@ -547,3 +547,130 @@ void QPWBC::update_PQ() {
   my_print_csc_matrix(P, t_char);*/
 
 }
+
+
+
+WbcWrapper::WbcWrapper()
+    : M_(Eigen::Matrix<double, 18, 18>::Zero())
+    , Jc_(Eigen::Matrix<double, 12, 18>::Zero())
+    , Jc_tmp_(Eigen::Matrix<double, 6, 18>::Zero())
+    , k_since_contact_(Eigen::Matrix<double, 1, 4>::Zero())
+    , qdes_(Vector12::Zero())
+    , vdes_(Vector12::Zero())
+    , tau_ff_(Vector12::Zero())
+    , ddq_cmd_(Vector18::Zero())
+    , q_default_(Vector19::Zero())
+    , f_with_delta_(Vector12::Zero())
+    , ddq_with_delta_(Vector18::Zero())
+    , k_log_(0)
+{}
+
+void WbcWrapper::initialize(Params& params) 
+{
+  // Params store parameters
+  params_ = &params;
+
+  // Path to the robot URDF (TODO: Automatic path)
+  const std::string filename = std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
+
+  // Build model from urdf (base is not free flyer)
+  pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
+
+  // Construct data from model
+  data_ = pinocchio::Data(model_);
+
+  // Update all the quantities of the model
+  pinocchio::computeAllTerms(model_, data_ , VectorN::Zero(model_.nq), VectorN::Zero(model_.nv));
+
+  // Initialize inverse kinematic and box QP solvers
+  invkin_ = new InvKin();
+  invkin_->initialize(params);
+  box_qp_ = new QPWBC();
+  box_qp_->initialize(params);
+
+  // Initialize quaternion
+  q_default_(6, 0) = 1.0;
+}
+
+void WbcWrapper::compute(VectorN const& q, VectorN const& dq, MatrixN const& f_cmd, MatrixN const& contacts,
+                         MatrixN const& pgoals, MatrixN const& vgoals, MatrixN const& agoals)
+{
+  //  Update nb of iterations since contact
+  k_since_contact_ += contacts;  // Increment feet in stance phase
+  k_since_contact_ = k_since_contact_.cwiseProduct(contacts);  // Reset feet in swing phase
+
+  // Compute Inverse Kinematics
+  invkin_->run_InvKin(q.tail(12), dq.tail(12), contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose());
+  ddq_cmd_.tail(12) = invkin_->get_ddq_cmd();
+
+  // TODO: Adapt logging of feet_pos, feet_err, feet_vel
+
+  // Compute the upper triangular part of the joint space inertia matrix M by using the Composite Rigid Body Algorithm
+  // Result is stored in data_.M
+  pinocchio::crba(model_, data_, q_default_);
+
+  // Make mass matrix symetric
+  data_.M.triangularView<Eigen::StrictlyLower>() = data_.M.transpose().triangularView<Eigen::StrictlyLower>();
+
+  // TODO: Check if needed because crbaMinimal may allow to directly get the jacobian
+  // TODO: Check if possible to use the model of InvKin to avoid computations
+  pinocchio::computeJointJacobians(model_, data_, q);
+
+  // TODO: Check if we can save time by switching MatrixXd to defined sized vector since they are
+  // not called from python anymore
+
+  // Retrieve feet jacobian
+  Jc_.setZero();
+  for (int i = 0; i < 4; i++) 
+  {
+    if (contacts(0, i))
+    {
+      Jc_tmp_.setZero();
+      pinocchio::getFrameJacobian(model_, data_, indexes_[i], pinocchio::LOCAL_WORLD_ALIGNED, Jc_tmp_);
+      Jc_.block(3 * i, 0, 3, 18) = Jc_tmp_.block(0, 0, 3, 18);
+    }
+  }
+
+  // Compute the inverse dynamics, aka the joint torques according to the current state of the system,
+  // the desired joint accelerations and the external forces, using the Recursive Newton Euler Algorithm.
+  // Result is stored in data_.tau
+  pinocchio::rnea(model_, data_, q, dq, ddq_cmd_);
+
+  /*std::cout << "M" << std::endl;
+  std::cout << data_.M << std::endl;
+  std::cout << "Jc" << std::endl;
+  std::cout << Jc_ << std::endl;
+  std::cout << "f_cmd" << std::endl;
+  std::cout << f_cmd << std::endl;
+  std::cout << "rnea" << std::endl;
+  std::cout << data_.tau.head(6) << std::endl;
+  std::cout << "k_since" << std::endl;
+  std::cout << k_since_contact_ << std::endl;*/
+
+  // Solve the QP problem
+  box_qp_->run(data_.M, Jc_, Eigen::Map<const VectorN>(f_cmd.data(), f_cmd.size()), data_.tau.head(6), k_since_contact_);
+
+  // Add to reference quantities the deltas found by the QP solver
+  f_with_delta_ = box_qp_->get_f_res();
+  ddq_with_delta_.head(6) = ddq_cmd_.head(6) + box_qp_->get_ddq_res();
+  ddq_with_delta_.tail(12) = ddq_cmd_.tail(12);
+
+  // Compute joint torques from contact forces and desired accelerations
+  pinocchio::rnea(model_, data_, q, dq, ddq_with_delta_);
+
+  /*std::cout << "rnea delta" << std::endl;
+  std::cout << data_.tau.tail(12) << std::endl;
+  std::cout << "ddq del" << std::endl;
+  std::cout << ddq_with_delta_ << std::endl;
+  std::cout << "f del" << std::endl;
+  std::cout << f_with_delta_ << std::endl;*/
+
+  tau_ff_ = data_.tau.tail(12) - Jc_.block(0, 6, 12, 12).transpose() * f_with_delta_;
+
+  // Retrieve desired positions and velocities
+  vdes_ = invkin_->get_dq_cmd();
+  qdes_ = invkin_->get_q_cmd();
+
+  // Increment log counter
+  k_log_++;
+}
