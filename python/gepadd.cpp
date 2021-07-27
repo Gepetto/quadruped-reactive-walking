@@ -7,6 +7,7 @@
 #include "qrw/FootTrajectoryGenerator.hpp"
 #include "qrw/QPWBC.hpp"
 #include "qrw/Estimator.hpp"
+#include "qrw/Joystick.hpp"
 #include "qrw/Params.hpp"
 
 #include <boost/python.hpp>
@@ -335,6 +336,30 @@ struct EstimatorPythonVisitor : public bp::def_visitor<EstimatorPythonVisitor<Es
 void exposeEstimator() { EstimatorPythonVisitor<Estimator>::expose(); }
 
 /////////////////////////////////
+/// Binding Joystick class
+/////////////////////////////////
+template <typename Joystick>
+struct JoystickPythonVisitor : public bp::def_visitor<JoystickPythonVisitor<Joystick>>
+{
+    template <class PyClassJoystick>
+    void visit(PyClassJoystick& cl) const
+    {
+        cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+
+            .def("handle_v_switch", &Joystick::handle_v_switch, bp::args("k", "k_switch", "v_switch"), "Run security check.\n");
+    }
+
+    static void expose()
+    {
+        bp::class_<Joystick>("Joystick", bp::no_init).def(JoystickPythonVisitor<Joystick>());
+
+        ENABLE_SPECIFIC_MATRIX_TYPE(matXd);
+    }
+};
+void exposeJoystick() { JoystickPythonVisitor<Joystick>::expose(); }
+
+
+/////////////////////////////////
 /// Binding Params class
 /////////////////////////////////
 template <typename Params>
@@ -407,5 +432,6 @@ BOOST_PYTHON_MODULE(libquadruped_reactive_walking)
     exposeQPWBC();
     exposeWbcWrapper();
     exposeEstimator();
+    exposeJoystick();
     exposeParams();
 }

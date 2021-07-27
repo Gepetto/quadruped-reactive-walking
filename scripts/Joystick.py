@@ -2,7 +2,7 @@
 
 import numpy as np
 import gamepadClient as gC
-
+import libquadruped_reactive_walking as lqrw
 
 class Joystick:
     """Joystick-like controller that outputs the reference velocity in local frame
@@ -56,6 +56,8 @@ class Joystick:
         self.southButton = False
         self.westButton = False
         self.joystick_code = 0  # Code to carry information about pressed buttons
+
+        self.joyCpp = lqrw.Joystick()
 
     def update_v_ref(self, k_loop, velID):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame by
@@ -164,30 +166,7 @@ class Joystick:
             k (int): numero of the current iteration
         """
 
-        i = 1
-        while (i < self.k_switch.shape[0]) and (self.k_switch[i] <= k):
-            i += 1
-        if (i != self.k_switch.shape[0]):
-            self.apply_velocity_change(k, i)
-
-    def apply_velocity_change(self, k, i):
-        """Change the velocity reference sent to the robot
-        4-th order polynomial: zero force and force velocity at start and end
-        (bell-like force trajectory)
-
-        Args:
-            k (int): numero of the current iteration
-            i (int): numero of the active phase of the reference velocity profile
-        """
-
-        ev = k - self.k_switch[i-1]
-        t1 = self.k_switch[i] - self.k_switch[i-1]
-        A3 = 2 * (self.v_switch[:, (i-1):i] -
-                  self.v_switch[:, i:(i+1)]) / t1**3
-        A2 = (-3/2) * t1 * A3
-        self.v_ref = self.v_switch[:, (i-1):i] + A2*ev**2 + A3*ev**3
-
-        return 0
+        self.v_ref[:, 0] = self.joyCpp.handle_v_switch(k, self.k_switch.reshape((-1, 1)), self.v_switch)
 
     def update_v_ref_predefined(self, k_loop, velID):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame

@@ -58,6 +58,7 @@ set(${PROJECT_NAME}_HEADERS
   include/qrw/QPWBC.hpp
   include/qrw/Params.hpp
   include/qrw/Estimator.hpp
+  include/qrw/Joystick.hpp
   include/other/st_to_cc.hpp
   )
 
@@ -73,6 +74,7 @@ set(${PROJECT_NAME}_SOURCES
   src/QPWBC.cpp
   src/Params.cpp
   src/Estimator.cpp
+  src/Joystick.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
