@@ -552,8 +552,7 @@ void QPWBC::update_PQ() {
 
 WbcWrapper::WbcWrapper()
     : M_(Eigen::Matrix<double, 18, 18>::Zero())
-    , Jc_(Eigen::Matrix<double, 12, 18>::Zero())
-    , Jc_tmp_(Eigen::Matrix<double, 6, 18>::Zero())
+    , Jc_(Eigen::Matrix<double, 12, 6>::Zero())
     , k_since_contact_(Eigen::Matrix<double, 1, 4>::Zero())
     , qdes_(Vector12::Zero())
     , vdes_(Vector12::Zero())
@@ -562,6 +561,7 @@ WbcWrapper::WbcWrapper()
     , q_default_(Vector19::Zero())
     , f_with_delta_(Vector12::Zero())
     , ddq_with_delta_(Vector18::Zero())
+    , posf_tmp_(Matrix43::Zero())
     , k_log_(0)
 {}
 
@@ -618,20 +618,25 @@ void WbcWrapper::compute(VectorN const& q, VectorN const& dq, MatrixN const& f_c
 
   // TODO: Check if needed because crbaMinimal may allow to directly get the jacobian
   // TODO: Check if possible to use the model of InvKin to avoid computations
-  pinocchio::computeJointJacobians(model_, data_, q);
+  // pinocchio::computeJointJacobians(model_, data_, q);
 
   // TODO: Check if we can save time by switching MatrixXd to defined sized vector since they are
   // not called from python anymore
 
   // Retrieve feet jacobian
-  Jc_.setZero();
+  posf_tmp_ = invkin_->get_posf();
   for (int i = 0; i < 4; i++) 
   {
     if (contacts(0, i))
     {
-      Jc_tmp_.setZero();
-      pinocchio::getFrameJacobian(model_, data_, indexes_[i], pinocchio::LOCAL_WORLD_ALIGNED, Jc_tmp_);
-      Jc_.block(3 * i, 0, 3, 18) = Jc_tmp_.block(0, 0, 3, 18);
+      Jc_.block(3 * i, 0, 3, 3) = Matrix3::Identity();
+      Jc_.block(3 * i, 3, 3, 3) << 0.0, posf_tmp_(i, 2), -posf_tmp_(i, 1),
+                                   -posf_tmp_(i, 2), 0.0, posf_tmp_(i, 0),
+                                   posf_tmp_(i, 1), -posf_tmp_(i, 0), 0.0;
+    }
+    else
+    {
+      Jc_.block(3 * i, 0, 3, 6).setZero();
     }
   }
 
@@ -669,7 +674,7 @@ void WbcWrapper::compute(VectorN const& q, VectorN const& dq, MatrixN const& f_c
   std::cout << "f del" << std::endl;
   std::cout << f_with_delta_ << std::endl;*/
 
-  tau_ff_ = data_.tau.tail(12) - Jc_.block(0, 6, 12, 12).transpose() * f_with_delta_;
+  tau_ff_ = data_.tau.tail(12) - invkin_->get_Jf().transpose() * f_with_delta_;
 
   // Retrieve desired positions and velocities
   vdes_ = invkin_->get_dq_cmd();

@@ -32,7 +32,9 @@ public:
     Eigen::MatrixXd get_dq_cmd() { return dq_cmd_; }
     VectorN get_q_cmd() { return q_cmd_; }
     VectorN get_ddq_cmd() { return ddq_cmd_; }
+    Matrix12 get_Jf() { return Jf_; }
     int get_foot_id(int i) { return foot_ids_[i];}
+    Matrix43 get_posf() { return posf_; }
 
 private:
     // Inputs of the constructor

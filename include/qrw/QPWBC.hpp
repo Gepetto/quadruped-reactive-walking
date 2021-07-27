@@ -169,8 +169,7 @@ private:
     pinocchio::Data data_;  // Pinocchio datas for frame computations
 
     Eigen::Matrix<double, 18, 18> M_;  // Mass matrix
-    Eigen::Matrix<double, 12, 18> Jc_;  // Jacobian matrix
-    Eigen::Matrix<double, 6, 18> Jc_tmp_;  // Temporary matrix to store result of getFrameJacobian
+    Eigen::Matrix<double, 12, 6> Jc_;  // Jacobian matrix
     Eigen::Matrix<double, 1, 4> k_since_contact_;
     Vector12 qdes_;  // Desired actuator positions
     Vector12 vdes_;  // Desired actuator velocities
@@ -180,6 +179,8 @@ private:
     Vector19 q_default_;  // Default configuration vector to compute the mass matrix
     Vector12 f_with_delta_;  // Contact forces with deltas found by QP solver
     Vector18 ddq_with_delta_;  // Actuator accelerations with deltas found by QP solver
+
+    Matrix43 posf_tmp_;  // Temporary matrix to store posf_ from invkin_
 
     int k_log_;  // Counter for logging purpose
     int indexes_[4] = {10, 18, 26, 34};  // Indexes of feet frames in this order: [FL, FR, HL, HR]
