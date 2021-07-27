@@ -22,6 +22,7 @@ using Vector18 = Eigen::Matrix<double, 18, 1>;
 using Vector19 = Eigen::Matrix<double, 19, 1>;
 using VectorN = Eigen::Matrix<double, Eigen::Dynamic, 1>;
 
+using Matrix2 = Eigen::Matrix<double, 2, 2>;
 using Matrix3 = Eigen::Matrix<double, 3, 3>;
 using Matrix4 = Eigen::Matrix<double, 4, 4>;
 using Matrix12 = Eigen::Matrix<double, 12, 12>;

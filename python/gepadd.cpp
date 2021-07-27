@@ -300,6 +300,7 @@ struct EstimatorPythonVisitor : public bp::def_visitor<EstimatorPythonVisitor<Es
 
             .def("initialize", &Estimator::initialize, bp::args("params"), "Initialize Estimator from Python.\n")
             .def("security_check", &Estimator::security_check, bp::args("tau_ff"), "Run security check.\n")
+            .def("updateState", &Estimator::updateState, bp::args("joystick_v_ref", "gait"), "Update robot state.\n")
 
             .def("getQFilt", &Estimator::getQFilt, "Get filtered configuration.\n")
             .def("getVFilt", &Estimator::getVFilt, "Get filtered velocity.\n")
@@ -319,6 +320,12 @@ struct EstimatorPythonVisitor : public bp::def_visitor<EstimatorPythonVisitor<Es
             .def("getFilterPosDX", &Estimator::getFilterPosDX, "")
             .def("getFilterPosAlpha", &Estimator::getFilterPosAlpha, "")
             .def("getFilterPosFiltX", &Estimator::getFilterPosFiltX, "")
+            .def("getQUpdated", &Estimator::getQUpdated, "")
+            .def("getVRef", &Estimator::getVRef, "")
+            .def("getHV", &Estimator::getHV, "")
+            .def("getoRh", &Estimator::getoRh, "")
+            .def("getoTh", &Estimator::getoTh, "")
+            .def("getYawEstim", &Estimator::getYawEstim, "")
 
             // Run Estimator from Python
             .def("run_filter", &Estimator::run_filter, bp::args("gait", "goals", "baseLinearAcceleration",

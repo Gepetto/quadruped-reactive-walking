@@ -210,13 +210,21 @@ class Controller:
                                   device.baseOrientation.reshape((-1, 1)),
                                   device.q_mes.reshape((-1, 1)),
                                   device.v_mes.reshape((-1, 1)),
-                                  np.zeros((3,1)),  # device.dummyPos.reshape((-1, 1)),  # TODO: Case of real device
-                                  np.zeros((3,1)))  # device.b_baseVel.reshape((-1, 1)))
-
-        t_filter = time.time()
+                                  np.zeros((3, 1)),  # device.dummyPos.reshape((-1, 1)),  # TODO: Case of real device
+                                  np.zeros((3, 1)))  # device.b_baseVel.reshape((-1, 1)))
 
         # Update state vectors of the robot (q and v) + transformation matrices between world and horizontal frames
-        oRh, oTh = self.updateState()
+        self.estimator.updateState(self.joystick.v_ref, self.gait)
+        oRh = self.estimator.getoRh()
+        oTh = self.estimator.getoTh().reshape((3, 1))
+        self.v_ref[0:6, 0] = self.estimator.getVRef()
+        self.h_v[0:6, 0] = self.estimator.getHV()
+        self.q[:, 0] = self.estimator.getQUpdated()
+        self.yaw_estim = self.estimator.getYawEstim()
+        # TODO: Understand why using Python or C++ h_v leads to a slightly different result since the 
+        # difference between them at each time step is 1e-16 at max (butterfly effect?)
+
+        t_filter = time.time()
 
         # Update gait
         self.gait.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick.joystick_code)
@@ -299,7 +307,7 @@ class Controller:
             self.q_wbc[7:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop
 
             # Get velocity in base frame for Pinocchio (not current base frame but desired base frame)
-            self.b_v = self.v.copy()
+            self.b_v = np.zeros((18, 1))
             self.b_v[:6, 0] = self.v_ref[:6, 0]  # Base at reference velocity (TODO: add hRb once v_ref is considered in base frame)
             self.b_v[6:, 0] = self.wbcWrapper.vdes[:]  # with reference angular velocities of previous loop
 

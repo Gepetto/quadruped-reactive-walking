@@ -179,9 +179,21 @@ public:
     ////////////////////////////////////////////////////////////////////////////////////////////////
     int security_check(VectorN const& tau_ff);
 
-    MatrixN getQFilt() { return q_filt_dyn_; }
-    MatrixN getVFilt() { return v_filt_dyn_; }
-    MatrixN getVSecu() { return v_secu_dyn_; }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///
+    /// \brief Update state vectors of the robot (q and v)
+    ///        Update transformation matrices between world and horizontal frames
+    ///
+    /// \param[in] joystick_v_ref reference velocity from the joystick
+    /// \param[in] gait Gait object
+    ///
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    void updateState(VectorN const& joystick_v_ref, Gait& gait);
+
+    VectorN getQFilt() { return q_filt_dyn_; }
+    VectorN getVFilt() { return v_filt_dyn_; }
+    VectorN getVSecu() { return v_secu_dyn_; }
     Vector3 getRPY() { return IMU_RPY_; }
     MatrixN getFeetStatus() { return feet_status_;}
     MatrixN getFeetGoals() { return feet_goals_; }
@@ -199,6 +211,13 @@ public:
     Vector3 getFilterPosDX() { return filter_xyz_pos_.getDX(); }
     Vector3 getFilterPosAlpha() { return filter_xyz_pos_.getAlpha(); }
     Vector3 getFilterPosFiltX() { return filter_xyz_pos_.getFiltX(); }
+
+    VectorN getQUpdated() { return q_up_; }
+    VectorN getVRef() { return v_ref_; }
+    VectorN getHV() { return h_v_; }
+    Matrix3 getoRh() { return oRh_; }
+    Vector3 getoTh() { return oTh_; }
+    double getYawEstim() { return yaw_estim_; }
 
 private:
 
@@ -240,13 +259,20 @@ private:
     Vector18 v_filt_;  // Filtered output velocity
     Vector12 v_secu_;  // Filtered output velocity for security check
 
-    MatrixN q_filt_dyn_;  // Dynamic size version of q_filt_
-    MatrixN v_filt_dyn_;  // Dynamic size version of v_filt_
-    MatrixN v_secu_dyn_;  // Dynamic size version of v_secu_
+    VectorN q_filt_dyn_;  // Dynamic size version of q_filt_
+    VectorN v_filt_dyn_;  // Dynamic size version of v_filt_
+    VectorN v_secu_dyn_;  // Dynamic size version of v_secu_
 
     pinocchio::SE3 _1Mi_;  // Transform between the base frame and the IMU frame
 
     Vector12 q_security_;  // Position limits for the actuators above which safety controller is triggered
 
+    // For updateState function
+    VectorN q_up_;  // Configuration vector
+    VectorN v_ref_;  // Reference velocity vector
+    VectorN h_v_;  // Velocity vector in horizontal frame
+    Matrix3 oRh_;  // Rotation between horizontal and world frame
+    Vector3 oTh_;  // Translation between horizontal and world frame
+    double yaw_estim_;  // Yaw angle in perfect world
 };
 #endif  // ESTIMATOR_H_INCLUDED

@@ -72,9 +72,15 @@ Estimator::Estimator()
     , q_filt_(Vector19::Zero())
     , v_filt_(Vector18::Zero())
     , v_secu_(Vector12::Zero())
-    , q_filt_dyn_(MatrixN::Zero(19, 1))
-    , v_filt_dyn_(MatrixN::Zero(18, 1))
-    , v_secu_dyn_(MatrixN::Zero(12, 1))
+    , q_filt_dyn_(VectorN::Zero(19, 1))
+    , v_filt_dyn_(VectorN::Zero(18, 1))
+    , v_secu_dyn_(VectorN::Zero(12, 1))
+    , q_up_(VectorN::Zero(19))
+    , v_ref_(VectorN::Zero(6))
+    , h_v_(VectorN::Zero(6))
+    , oRh_(Matrix3::Identity())
+    , oTh_(Vector3::Zero())
+    , yaw_estim_(0.0)
 {
 }
 
@@ -107,6 +113,10 @@ void Estimator::initialize(Params& params)
     q_FK_(6, 0) = 1.0;  // Last term of the quaternion
     q_filt_(6, 0) = 1.0;  // Last term of the quaternion
     q_filt_dyn_(6, 0) = 1.0;  // Last term of the quaternion
+
+    q_up_(2, 0) = params.h_ref;  // Reference height
+    q_up_(6, 0) = 1.0;  // Last term of the quaternion
+    q_up_.tail(12) = Vector12(params.q_init.data());  // Actuator initial positions
 
     // Path to the robot URDF (TODO: Automatic path)
     const std::string filename = std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
@@ -361,7 +371,7 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
     //////
 
     // Update model used for the forward kinematics
-    /*pin.forwardKinematics(self.model, self.data, self.q_filt, self.v_filt)
+    /*pin.forwardKinematics(self.model, self.data, q_up__filt, self.v_filt)
     pin.updateFramePlacements(self.model, self.data)
 
     z_min = 100
@@ -369,7 +379,7 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
         // Estimated position of the base using the considered foot
         framePlacement = pin.updateFramePlacement(self.model, self.data, self.indexes[i])
         z_min = np.min((framePlacement.translation[2], z_min))
-    self.q_filt[2, 0] -= z_min*/
+    q_up__filt[2, 0] -= z_min*/
 
     //////
 
@@ -396,4 +406,49 @@ int Estimator::security_check(VectorN const& tau_ff)
         return 3;
     }
     return 0;
+}
+
+void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait)
+{
+    // TODO: Joystick velocity given in base frame and not in horizontal frame (case of non flat ground)
+
+    // Update reference velocity vector
+    v_ref_.head(3) = joystick_v_ref.head(3);
+    v_ref_.tail(3) = joystick_v_ref.tail(3);
+
+    // Update position and velocity state vectors
+    if (!gait.getIsStatic())
+    {
+        // Integration to get evolution of perfect x, y and yaw
+        Matrix2 Ryaw;
+        Ryaw << cos(yaw_estim_), -sin(yaw_estim_), sin(yaw_estim_), cos(yaw_estim_);
+
+        q_up_.head(2) = q_up_.head(2) + Ryaw * v_ref_.head(2) * dt_wbc;
+
+        // Mix perfect x and y with height measurement
+        q_up_[2] = q_filt_dyn_[2];
+
+        // Mix perfect yaw with pitch and roll measurements
+        yaw_estim_ += v_ref_[5] * dt_wbc;
+        q_up_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(IMU_RPY_[0], IMU_RPY_[1], yaw_estim_)).coeffs();
+
+        // Actuators measurements
+        q_up_.tail(12) = q_filt_dyn_.tail(12);
+
+        // Velocities are the one estimated by the estimator
+        Matrix3 hRb = pinocchio::rpy::rpyToMatrix(IMU_RPY_[0], IMU_RPY_[1], 0.0);
+
+        h_v_.head(3) = hRb * v_filt_dyn_.block(0, 0, 3, 1);
+        h_v_.tail(3) = hRb * v_filt_dyn_.block(3, 0, 3, 1);
+    }
+    else
+    {
+        // TODO: Adapt static mode to new version of the code
+    }
+
+    // Transformation matrices between world and horizontal frames
+    oRh_ = Matrix3::Identity();
+    oRh_.block(0, 0, 2, 2) << cos(yaw_estim_), -sin(yaw_estim_), sin(yaw_estim_), cos(yaw_estim_);
+    oTh_ << q_up_[0], q_up_[1], 0.0;
+
 }
