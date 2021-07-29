@@ -10,20 +10,20 @@ class LoggerSensors():
         logSize = np.int(logSize)
         self.logSize = logSize
         self.i = 0
-        if device is not None:
-            nb_motors = device.nb_motors
-        else:
-            nb_motors = 12
+        nb_motors = 12
 
         # Allocate the data:
         # IMU and actuators:
         self.q_mes = np.zeros([logSize, nb_motors])
         self.v_mes = np.zeros([logSize, nb_motors])
         self.torquesFromCurrentMeasurment = np.zeros([logSize, nb_motors])
-        self.baseOrientation = np.zeros([logSize, 4])
+        self.baseOrientation = np.zeros([logSize, 3])
         self.baseAngularVelocity = np.zeros([logSize, 3])
         self.baseLinearAcceleration = np.zeros([logSize, 3])
         self.baseAccelerometer = np.zeros([logSize, 3])
+        self.current = np.zeros(logSize)
+        self.voltage = np.zeros(logSize)
+        self.energy = np.zeros(logSize)
 
         # Motion capture:
         self.mocapPosition = np.zeros([logSize, 3])
@@ -43,13 +43,13 @@ class LoggerSensors():
                 return
 
         # Logging from the device (data coming from the robot)
-        self.q_mes[self.i] = device.q_mes
-        self.v_mes[self.i] = device.v_mes
-        self.baseOrientation[self.i] = device.baseOrientation
-        self.baseAngularVelocity[self.i] = device.baseAngularVelocity
-        self.baseLinearAcceleration[self.i] = device.baseLinearAcceleration
-        self.baseAccelerometer[self.i] = device.baseAccelerometer
-        self.torquesFromCurrentMeasurment[self.i] = device.torquesFromCurrentMeasurment
+        self.q_mes[self.i] = device.joints.positions
+        self.v_mes[self.i] = device.joints.velocities
+        self.baseOrientation[self.i] = device.imu.attitude_euler
+        self.baseAngularVelocity[self.i] = device.imu.gyroscope
+        self.baseLinearAcceleration[self.i] = device.imu.linear_acceleration
+        self.baseAccelerometer[self.i] = device.imu.accelerometer
+        self.torquesFromCurrentMeasurment[self.i] = device.joints.measured_torques
 
         # Logging from qualisys (motion capture)
         if qualisys is not None:

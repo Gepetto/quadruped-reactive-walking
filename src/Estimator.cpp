@@ -135,7 +135,7 @@ void Estimator::initialize(Params& params)
 }
 
 
-void Estimator::get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 const& baseAngularVelocity, Vector4 const& baseOrientation)
+void Estimator::get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 const& baseAngularVelocity, Vector3 const& baseOrientation)
 {
     // Linear acceleration of the trunk (base frame)
     IMU_lin_acc_ = baseLinearAcceleration;
@@ -144,7 +144,7 @@ void Estimator::get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 cons
     IMU_ang_vel_ = baseAngularVelocity;
 
     // Angular position of the trunk (local frame)
-    IMU_RPY_ = pinocchio::rpy::matrixToRpy(pinocchio::SE3::Quaternion(baseOrientation).toRotationMatrix());
+    IMU_RPY_ = baseOrientation;
 
     if(k_log_ <= 1) {
         offset_yaw_IMU_ = IMU_RPY_(2, 0);

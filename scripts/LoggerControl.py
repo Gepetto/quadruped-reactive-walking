@@ -543,6 +543,26 @@ class LoggerControl():
             plt.legend([lgd_Y[i]], prop={'size': 8})
         plt.suptitle("Evolution of the quantities of the position complementary filter")
 
+        # Power supply profile
+        plt.figure()
+        for i in range(3):
+            if i == 0:
+                ax0 = plt.subplot(3, 1, i+1)
+            else:
+                plt.subplot(3, 1, i+1, sharex=ax0)
+
+            if i == 0:
+                plt.plot(t_range, loggerSensors.current[:], linewidth=2)
+                plt.ylabel("Bus current [A]")
+            elif i == 1:
+                plt.plot(t_range, loggerSensors.voltage[:], linewidth=2)
+                plt.ylabel("Bus voltage [V]")
+            else:
+                plt.plot(t_range, loggerSensors.energy[:], linewidth=2)
+                plt.ylabel("Bus energy [J]")
+                plt.xlabel("Time [s]")
+
+        # Display all graphs and wait
         plt.show(block=True)
 
         from IPython import embed

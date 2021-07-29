@@ -38,6 +38,23 @@ class dummyHardware:
 
         return 0.0
 
+class dummyIMU:
+    """Fake IMU for initialisation purpose"""
+
+    def __init__(self):
+
+        self.linear_acceleration = np.zeros(3)
+        self.gyroscope = np.zeros(3)
+        self.attitude_euler = np.zeros(3)
+        self.attitude_quaternion = np.zeros(4)
+
+class dummyJoints:
+    """Fake joints for initialisation purpose"""
+
+    def __init__(self):
+
+        self.positions = np.zeros(12)
+        self.velocities = np.zeros(12)
 
 class dummyDevice:
     """Fake device for initialisation purpose"""
@@ -45,6 +62,8 @@ class dummyDevice:
     def __init__(self):
 
         self.hardware = dummyHardware()
+        self.imu = dummyIMU()
+        self.joints = dummyJoints()
 
 
 class Controller:
@@ -181,13 +200,7 @@ class Controller:
 
         # Run the control loop once with a dummy device for initialization
         dDevice = dummyDevice()
-        dDevice.q_mes = q_init
-        dDevice.v_mes = np.zeros(12)
-        dDevice.baseLinearAcceleration = np.zeros(3)
-        dDevice.baseAngularVelocity = np.zeros(3)
-        dDevice.baseOrientation = np.array([0.0, 0.0, 0.0, 1.0])
-        dDevice.dummyPos = np.array([0.0, 0.0, q_init[2]])
-        dDevice.b_baseVel = np.zeros(3)
+        dDevice.joints.positions = q_init
         self.compute(dDevice)
 
     def compute(self, device):
@@ -205,11 +218,11 @@ class Controller:
         # Process state estimator
         self.estimator.run_filter(self.gait.getCurrentGait(),
                                   self.footTrajectoryGenerator.getFootPosition(),
-                                  device.baseLinearAcceleration.reshape((-1, 1)),
-                                  device.baseAngularVelocity.reshape((-1, 1)),
-                                  device.baseOrientation.reshape((-1, 1)),
-                                  device.q_mes.reshape((-1, 1)),
-                                  device.v_mes.reshape((-1, 1)),
+                                  device.imu.linear_acceleration.reshape((-1, 1)),
+                                  device.imu.gyroscope.reshape((-1, 1)),
+                                  device.imu.attitude_euler.reshape((-1, 1)),
+                                  device.joints.positions.reshape((-1, 1)),
+                                  device.joints.velocities.reshape((-1, 1)),
                                   np.zeros((3, 1)),  # device.dummyPos.reshape((-1, 1)),  # TODO: Case of real device
                                   np.zeros((3, 1)))  # device.b_baseVel.reshape((-1, 1)))
 

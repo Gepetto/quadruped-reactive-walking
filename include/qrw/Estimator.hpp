@@ -106,10 +106,10 @@ public:
     ///
     /// \param[in] baseLinearAcceleration Linear acceleration of the IMU (gravity compensated)
     /// \param[in] baseAngularVelocity Angular velocity of the IMU
-    /// \param[in] baseOrientation Quaternion orientation of the IMU
+    /// \param[in] baseOrientation Euler orientation of the IMU
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 const& baseAngularVelocity, Vector4 const& baseOrientation);
+    void get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 const& baseAngularVelocity, Vector3 const& baseOrientation);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///

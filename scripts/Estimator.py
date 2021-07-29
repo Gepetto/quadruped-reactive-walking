@@ -352,16 +352,16 @@ class Estimator:
         """
 
         # Linear acceleration of the trunk (base frame)
-        self.IMU_lin_acc[:] = device.baseLinearAcceleration
+        self.IMU_lin_acc[:] = device.imu.linear_acceleration
 
         # Angular velocity of the trunk (base frame)
-        self.IMU_ang_vel[:] = device.baseAngularVelocity
+        self.IMU_ang_vel[:] = device.imu.gyroscope
 
         # Angular position of the trunk (local frame)
-        self.RPY = pin.rpy.matrixToRpy(pin.Quaternion(device.baseOrientation).toRotationMatrix())
+        self.RPY = device.imu.attitude_euler
 
         if (self.k_log <= 1):
-            self.offset_yaw_IMU = self.RPY[2]
+            self.offset_yaw_IMU = self.RPY[2].copy()
         self.RPY[2] -= self.offset_yaw_IMU  # Remove initial offset of IMU
 
         self.IMU_ang_pos[:] = pin.Quaternion(pin.rpy.rpyToMatrix(self.RPY[0],
@@ -379,8 +379,8 @@ class Estimator:
             device (object): Interface with the masterboard or the simulation
         """
 
-        self.actuators_pos[:] = device.q_mes
-        self.actuators_vel[:] = device.v_mes
+        self.actuators_pos[:] = device.joints.positions
+        self.actuators_vel[:] = device.joints.velocities
 
         return 0
 

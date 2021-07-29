@@ -12,26 +12,20 @@ import argparse
 from LoggerSensors import LoggerSensors
 from LoggerControl import LoggerControl
 import libquadruped_reactive_walking as lqrw
+import time
 
 params = lqrw.Params()  # Object that holds all controller parameters
 
 if params.SIMULATION:
     from PyBulletSimulator import PyBulletSimulator
 else:
-    # from pynput import keyboard
-    from solopython.solo12 import Solo12
+    import libodri_control_interface_pywrap as oci
     from solopython.utils.qualisysClient import QualisysClient
 
-
-key_pressed = False
-
-
 def get_input():
-    global key_pressed
-    keystrk = input('Put the robot on the floor and press Enter \n')
+    keystrk = input()
     # thread doesn't continue until key is pressed
-    key_pressed = True
-
+    # and so it remains alive
 
 def put_on_the_floor(device, q_init):
     """Make the robot go to the default initial position and wait for the user
@@ -41,25 +35,26 @@ def put_on_the_floor(device, q_init):
         device (robot wrapper): a wrapper to communicate with the robot
         q_init (array): the default position of the robot
     """
-    global key_pressed
-    key_pressed = False
-    Kp_pos = 3.
-    Kd_pos = 0.01
-    imax = 3.0
-    pos = np.zeros(device.nb_motors)
-    for motor in range(device.nb_motors):
-        pos[motor] = q_init[device.motorToUrdf[motor]] * device.gearRatioSigned[motor]
+
+    print("PUT ON THE FLOOR.")
+
+    Kp_pos = 5.
+    Kd_pos = 0.2
+
+    device.joints.set_position_gains(Kp_pos * np.ones(12))
+    device.joints.set_velocity_gains(Kd_pos * np.ones(12))
+    device.joints.set_desired_positions(q_init)
+    device.joints.set_desired_velocities(np.zeros(12))
+    device.joints.set_torques(np.zeros(12))
+
     i = threading.Thread(target=get_input)
     i.start()
-    while not key_pressed:
-        device.UpdateMeasurment()
-        for motor in range(device.nb_motors):
-            ref = Kp_pos*(pos[motor] - device.hardware.GetMotor(motor).GetPosition() -
-                          Kd_pos*device.hardware.GetMotor(motor).GetVelocity())
-            ref = min(imax, max(-imax, ref))
-            device.hardware.GetMotor(motor).SetCurrentReference(ref)
-        device.SendCommand(WaitEndOfCycle=True)
+    print("Put the robot on the floor and press Enter")
 
+    while i.is_alive():
+        device.parse_sensor_data()
+        device.send_command_and_wait_end_of_cycle()
+    
     print("Start the motion.")
 
 
@@ -129,7 +124,8 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
         device = PyBulletSimulator()
         qc = None
     else:
-        device = Solo12(name_interface, dt=params.dt_wbc)
+        device = oci.robot_from_yaml_file('config_solo12.yaml')
+        joint_calibrator = oci.joint_calibrator_from_yaml_file('config_solo12.yaml', device.joints)
         qc = QualisysClient(ip="140.93.16.160", body_id=0)
 
     if name_interface_clone is not None:
@@ -156,14 +152,22 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
                                       logSize=params.N_SIMULATION-3)
 
     # Number of motors
-    nb_motors = device.nb_motors
+    nb_motors = 12
 
     # Initiate communication with the device and calibrate encoders
     if params.SIMULATION:
         device.Init(calibrateEncoders=True, q_init=q_init, envID=params.envID,
                     use_flat_plane=params.use_flat_plane, enable_pyb_GUI=params.enable_pyb_GUI, dt=params.dt_wbc)
     else:
-        device.Init(calibrateEncoders=True, q_init=q_init)
+        # Initialize the communication and the session.
+        device.start()
+        device.wait_until_ready()
+
+        # Calibrate the robot if needed.
+        device.run_calibration(joint_calibrator, q_init)
+        device.joints.set_zero_commands()
+
+        device.parse_sensor_data()
 
         # Wait for Enter input before starting the control loop
         put_on_the_floor(device, q_init)
@@ -172,10 +176,15 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
     t = 0.0
     t_max = (params.N_SIMULATION-2) * params.dt_wbc
 
-    while ((not device.hardware.IsTimeout()) and (t < t_max) and (not controller.error)):
+    t_log_whole = np.zeros((params.N_SIMULATION))
+    k_log_whole = 0
+    t_start_whole = 0.0
+    while ((not device.is_timeout) and (t < t_max) and (not controller.error)):
+
+        t_start_whole = time.time()
 
         # Update sensor data (IMU, encoders, Motion capture)
-        device.UpdateMeasurment()
+        device.parse_sensor_data()
 
         # Desired torques
         controller.compute(device)
@@ -183,17 +192,18 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
         # Check that the initial position of actuators is not too far from the
         # desired position of actuators to avoid breaking the robot
         if (t <= 10 * params.dt_wbc):
-            if np.max(np.abs(controller.result.q_des - device.q_mes)) > 0.15:
-                print("DIFFERENCE: ", controller.result.q_des - device.q_mes)
+            if np.max(np.abs(controller.result.q_des - device.joints.positions)) > 0.15:
+                print("DIFFERENCE: ", controller.result.q_des - device.joints.positions)
                 print("q_des: ", controller.result.q_des)
-                print("q_mes: ", device.q_mes)
+                print("q_mes: ", device.joints.positions)
                 break
 
         # Set desired quantities for the actuators
-        device.SetDesiredJointPDgains(controller.result.P, controller.result.D)
-        device.SetDesiredJointPosition(controller.result.q_des)
-        device.SetDesiredJointVelocity(controller.result.v_des)
-        device.SetDesiredJointTorque(controller.result.tau_ff.ravel())
+        device.joints.set_position_gains(controller.result.P)
+        device.joints.set_velocity_gains(controller.result.D)
+        device.joints.set_desired_positions(controller.result.q_des)
+        device.joints.set_desired_velocities(controller.result.v_des)
+        device.joints.set_torques(controller.result.tau_ff.ravel())
 
         # Call logger
         if params.LOGGING or params.PLOTTING:
@@ -203,11 +213,16 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
                                  controller.footstepPlanner, controller.footTrajectoryGenerator,
                                  controller.wbcWrapper)
 
+
+        t_end_whole = time.time()
         # Send command to the robot
         for i in range(1):
-            device.SendCommand(WaitEndOfCycle=True)
-        """if ((device.cpt % 100) == 0):
-            device.Print()"""
+            device.send_command_and_wait_end_of_cycle()
+        """if (t % 1) < 5e-5:
+            print('IMU attitude:', device.imu.attitude_euler)
+            print('joint pos   :', device.joints.positions)
+            print('joint vel   :', device.joints.velocities)
+            device.robot_interface.PrintStats()"""
 
         """import os
         from matplotlib import pyplot as plt
@@ -236,6 +251,9 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
 
         t += params.dt_wbc  # Increment loop time
 
+        t_log_whole[k_log_whole] = t_end_whole - t_start_whole
+        k_log_whole += 1
+
     # ****************************************************************
 
     if (t >= t_max):
@@ -256,33 +274,36 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
     # DAMPING TO GET ON THE GROUND PROGRESSIVELY *********************
     t = 0.0
     t_max = 2.5
-    while ((not device.hardware.IsTimeout()) and (t < t_max)):
+    while ((not device.is_timeout) and (t < t_max)):
 
-        device.UpdateMeasurment()  # Retrieve data from IMU and Motion capture
+        device.parse_sensor_data()  # Retrieve data from IMU and Motion capture
 
         # Set desired quantities for the actuators
-        device.SetDesiredJointPDgains(np.zeros(12), 0.1 * np.ones(12))
-        device.SetDesiredJointPosition(np.zeros(12))
-        device.SetDesiredJointVelocity(np.zeros(12))
-        device.SetDesiredJointTorque(np.zeros(12))
+        device.joints.set_position_gains(np.zeros(nb_motors))
+        device.joints.set_velocity_gains(0.1 * np.ones(nb_motors))
+        device.joints.set_desired_positions(np.zeros(nb_motors))
+        device.joints.set_desired_velocities(np.zeros(nb_motors))
+        device.joints.set_torques(np.zeros(nb_motors))
 
         # Send command to the robot
-        device.SendCommand(WaitEndOfCycle=True)
-        if ((device.cpt % 1000) == 0):
-            device.Print()
+        device.send_command_and_wait_end_of_cycle()
+        if (t % 1) < 5e-5:
+            print('IMU attitude:', device.imu.attitude_euler)
+            print('joint pos   :', device.joints.positions)
+            print('joint vel   :', device.joints.velocities)
+            device.robot_interface.PrintStats()
 
         t += params.dt_wbc
 
     # FINAL SHUTDOWN *************************************************
 
     # Whatever happened we send 0 torques to the motors.
-    device.SetDesiredJointTorque([0]*nb_motors)
-    device.SendCommand(WaitEndOfCycle=True)
+    device.joints.set_torques(np.zeros(nb_motors))
+    device.send_command_and_wait_end_of_cycle()
 
-    if device.hardware.IsTimeout():
+    if device.is_timeout:
         print("Masterboard timeout detected.")
         print("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.")
-    device.hardware.Stop()  # Shut down the interface between the computer and the master board
 
     # Plot estimated computation time for each step for the control architecture
     from matplotlib import pyplot as plt
@@ -292,15 +313,9 @@ def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=Non
     plt.plot(controller.t_list_mpc[1:], 'b+')
     plt.plot(controller.t_list_wbc[1:], '+', color="violet")
     plt.plot(controller.t_list_loop[1:], 'k+')
-    plt.plot(controller.t_list_InvKin[1:], 'o', color="darkgreen")
-    plt.plot(controller.t_list_QPWBC[1:], 'o', color="royalblue")
-    plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "InvKin", "QP WBC"])
+    plt.plot(t_log_whole, 'x')
+    plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "Whole loop + Interface"])
     plt.title("Loop time [s]")
-    plt.show(block=True)"""
-    """plt.figure()
-    for i in range(3):
-        plt.subplot(3, 1, i+1)
-        plt.plot(controller.o_log_foot[:, i, 0])
     plt.show(block=True)"""
 
     # Plot recorded data
@@ -345,7 +360,7 @@ def main():
                         help='Name of the clone interface that will reproduce the movement of the first one \
                               (use ifconfig in a terminal), for instance "enp1s0"')
 
-    f, v = control_loop(parser.parse_args().interface, parser.parse_args().clone, np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
+    f, v = control_loop(parser.parse_args().interface, parser.parse_args().clone) # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print(f, v)
     quit()
 
