@@ -522,6 +522,76 @@ class Hardware():
         elif i == 2:
             return self.yaw
 
+class IMU():
+    """Dummy class that simulates the IMU class used to communicate with the real masterboard"""
+
+    def __init__(self):
+        self.linear_acceleration = np.zeros((3, 1))
+        self.accelerometer = np.zeros((3, 1))
+        self.gyroscope = np.zeros((3, 1))
+        self.attitude_euler = np.zeros((3, 1))
+        self.attitude_quaternion = np.array([[0.0, 0.0, 0.0, 1.0]]).transpose()
+
+class Joints():
+    """Dummy class that simulates the Joints class used to communicate with the real masterboard"""
+
+    def __init__(self, parent_class):
+        self.parent = parent_class
+        self.positions = np.zeros((12, ))
+        self.velocities = np.zeros((12, ))
+        self.measured_torques = np.zeros((12, ))
+
+    def set_torques(self, torques):
+        """Set desired joint torques
+
+        Args:
+            torques (12 x 0): desired articular feedforward torques
+        """
+        # Save desired torques in a storage array
+        self.parent.tau_ff = torques.copy()
+
+        return
+
+    def set_position_gains(self, P):
+        """Set desired P gains for articular low level control
+
+        Args:
+            P (12 x 0 array): desired position gains
+        """
+        self.parent.P = P
+
+    def set_velocity_gains(self, D):
+        """Set desired D gains for articular low level control
+
+        Args:
+            D (12 x 0 array): desired velocity gains
+        """
+        self.parent.D = D
+
+    def set_desired_positions(self, q_des):
+        """Set desired joint positions
+
+        Args:
+            q_des (12 x 0 array): desired articular positions
+        """
+        self.parent.q_des = q_des
+
+    def set_desired_velocities(self, v_des):
+        """Set desired joint velocities
+
+        Args:
+            v_des (12 x 0 array): desired articular velocities
+        """
+        self.parent.v_des = v_des
+
+class RobotInterface():
+    """Dummy class that simulates the robot_interface class used to communicate with the real masterboard"""
+
+    def __init__(self):
+        pass
+
+    def PrintStats(self):
+        pass
 
 class PyBulletSimulator():
     """Class that wraps a PyBullet simulation environment to seamlessly switch between the real robot or
@@ -534,16 +604,12 @@ class PyBulletSimulator():
         self.nb_motors = 12
         self.jointTorques = np.zeros(self.nb_motors)
         self.revoluteJointIndices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
-        self.hardware = Hardware()
+        self.is_timeout = False
+        self.imu = IMU()
+        self.joints = Joints(self)
+        self.robot_interface = RobotInterface()
 
         # Measured data
-        self.q_mes = np.zeros(12)
-        self.v_mes = np.zeros(12)
-        self.torquesFromCurrentMeasurment = np.zeros(12)
-        self.baseAngularVelocity = np.zeros(3)
-        self.baseOrientation = np.zeros(4)
-        self.baseLinearAcceleration = np.zeros(3)
-        self.baseAccelerometer = np.zeros(3)
         self.o_baseVel = np.zeros((3, 1))
         self.o_imuVel = np.zeros((3, 1))
         self.prev_o_imuVel = np.zeros((3, 1))
@@ -570,6 +636,7 @@ class PyBulletSimulator():
         # Initialisation of the PyBullet simulator
         self.pyb_sim = pybullet_simulator(q_init, envID, use_flat_plane, enable_pyb_GUI, dt)
         self.q_init = q_init
+        self.joints.positions[:] = q_init
         self.dt = dt
         self.time_loop = time.time()
 
@@ -586,17 +653,17 @@ class PyBulletSimulator():
                          [left[2] * right[0] - left[0] * right[2]],
                          [left[0] * right[1] - left[1] * right[0]]])
 
-    def UpdateMeasurment(self):
+    def parse_sensor_data(self):
         """Retrieve data about the robot from the simulation to mimic what the masterboard does
         """
 
         # Position and velocity of actuators
         jointStates = pyb.getJointStates(self.pyb_sim.robotId, self.revoluteJointIndices)  # State of all joints
-        self.q_mes[:] = np.array([state[0] for state in jointStates])
-        self.v_mes[:] = np.array([state[1] for state in jointStates])
+        self.joints.positions[:] = np.array([state[0] for state in jointStates])
+        self.joints.velocities[:] = np.array([state[1] for state in jointStates])
 
         # Measured torques
-        self.torquesFromCurrentMeasurment[:] = self.jointTorques[:].ravel()
+        self.joints.measured_torques[:] = self.jointTorques[:].ravel()
 
         # Position and orientation of the trunk (PyBullet world frame)
         self.baseState = pyb.getBasePositionAndOrientation(self.pyb_sim.robotId)
@@ -609,68 +676,28 @@ class PyBulletSimulator():
         # print("baseVel: ", np.array([self.baseVel[0]]))
 
         # Orientation of the base (quaternion)
-        self.baseOrientation[:] = np.array(self.baseState[1])
-        RPY = pin.rpy.matrixToRpy(pin.Quaternion(self.baseOrientation).toRotationMatrix())
-        self.hardware.roll = RPY[0]
-        self.hardware.pitch = RPY[1]
-        self.hardware.yaw = RPY[2]
-        self.rot_oMb = pin.Quaternion(np.array([self.baseOrientation]).transpose()).toRotationMatrix()
+        self.imu.attitude_quaternion[:, 0] = np.array(self.baseState[1])
+        self.imu.attitude_euler[:, 0] = pin.rpy.matrixToRpy(pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix())
+        self.rot_oMb = pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix()
         self.oMb = pin.SE3(self.rot_oMb, np.array([self.dummyHeight]).transpose())
 
         # Angular velocities of the base
-        self.baseAngularVelocity[:] = (self.oMb.rotation.transpose() @ np.array([self.baseVel[1]]).transpose()).ravel()
+        self.imu.gyroscope[:] = (self.oMb.rotation.transpose() @ np.array([self.baseVel[1]]).transpose())
 
         # Linear Acceleration of the base
         self.o_baseVel = np.array([self.baseVel[0]]).transpose()
         self.b_baseVel = (self.oMb.rotation.transpose() @ self.o_baseVel).ravel()
 
-        self.o_imuVel = self.o_baseVel + self.oMb.rotation @ self.cross3(np.array([0.1163, 0.0, 0.02]), self.baseAngularVelocity[:])
+        self.o_imuVel = self.o_baseVel + self.oMb.rotation @ self.cross3(np.array([0.1163, 0.0, 0.02]), self.imu.gyroscope[:, 0])
 
-        self.baseLinearAcceleration[:] = (self.oMb.rotation.transpose() @ (self.o_imuVel - self.prev_o_imuVel)).ravel() / self.dt
+        self.imu.linear_acceleration[:] = (self.oMb.rotation.transpose() @ (self.o_imuVel - self.prev_o_imuVel)) / self.dt
         self.prev_o_imuVel[:, 0:1] = self.o_imuVel
-        self.baseAccelerometer[:] = self.baseLinearAcceleration[:] + \
-            (self.oMb.rotation.transpose() @ np.array([[0.0], [0.0], [-9.81]])).ravel()
+        self.imu.accelerometer[:] = self.imu.linear_acceleration + \
+            (self.oMb.rotation.transpose() @ np.array([[0.0], [0.0], [-9.81]]))
 
         return
 
-    def SetDesiredJointTorque(self, torques):
-        """Set desired joint torques
-
-        Args:
-            torques (12 x 0): desired articular feedforward torques
-        """
-        # Save desired torques in a storage array
-        self.tau_ff = torques.copy()
-
-        return
-
-    def SetDesiredJointPDgains(self, P, D):
-        """Set desired PD gains for articular low level control
-
-        Args:
-            P (12 x 0 array): desired position gains
-            D (12 x 0 array): desired velocity gains
-        """
-        self.P = P
-        self.D = D
-
-    def SetDesiredJointPosition(self, q_des):
-        """Set desired joint positions
-
-        Args:
-            q_des (12 x 0 array): desired articular positions
-        """
-        self.q_des = q_des
-
-    def SetDesiredJointVelocity(self, v_des):
-        """Set desired joint velocities
-
-        Args:
-            v_des (12 x 0 array): desired articular velocities
-        """
-        self.v_des = v_des
-
-    def SendCommand(self, WaitEndOfCycle=True):
+    def send_command_and_wait_end_of_cycle(self, WaitEndOfCycle=True):
         """Send control commands to the robot
 
         Args:
@@ -679,11 +706,11 @@ class PyBulletSimulator():
 
         # Position and velocity of actuators
         jointStates = pyb.getJointStates(self.pyb_sim.robotId, self.revoluteJointIndices)  # State of all joints
-        self.q_mes[:] = np.array([state[0] for state in jointStates])
-        self.v_mes[:] = np.array([state[1] for state in jointStates])
+        self.joints.positions[:] = np.array([state[0] for state in jointStates])
+        self.joints.velocities[:] = np.array([state[1] for state in jointStates])
 
         # Compute PD torques
-        tau_pd = self.P * (self.q_des - self.q_mes) + self.D * (self.v_des - self.v_mes)
+        tau_pd = self.P * (self.q_des - self.joints.positions) + self.D * (self.v_des - self.joints.velocities)
 
         # Save desired torques in a storage array
         self.jointTorques = tau_pd + self.tau_ff
@@ -716,12 +743,12 @@ class PyBulletSimulator():
         np.set_printoptions(precision=2)
         # print(chr(27) + "[2J")
         print("#######")
-        print("q_mes = ", self.q_mes)
-        print("v_mes = ", self.v_mes)
-        print("torques = ", self.torquesFromCurrentMeasurment)
-        print("orientation = ", self.baseOrientation)
-        print("lin acc = ", self.baseLinearAcceleration)
-        print("ang vel = ", self.baseAngularVelocity)
+        print("q_mes = ", self.joints.positions)
+        print("v_mes = ", self.joints.velocities)
+        print("torques = ", self.joints.measured_torques)
+        print("orientation = ", self.imu.attitude_quaternion)
+        print("lin acc = ", self.imu.linear_acceleration)
+        print("ang vel = ", self.imu.gyroscope)
         sys.stdout.flush()
 
     def Stop(self):

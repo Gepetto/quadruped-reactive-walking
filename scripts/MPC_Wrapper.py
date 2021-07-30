@@ -3,8 +3,8 @@
 import numpy as np
 import libquadruped_reactive_walking as MPC
 from multiprocessing import Process, Value, Array
-import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
-import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
+# import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
+# import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
 import pinocchio as pin
 
 class Dummy:
