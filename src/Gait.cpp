@@ -10,6 +10,7 @@ Gait::Gait()
     , remainingTime_(0.0)
     , newPhase_(false)
     , is_static_(true)
+    , switch_to_gait_(0)
     , q_static_(VectorN::Zero(19))
 {
     // Empty
@@ -189,32 +190,33 @@ void Gait::updateGait(int const k,
                       VectorN const& q,
                       int const joystickCode)
 {
-    changeGait(joystickCode, q);
+    changeGait(k, k_mpc, joystickCode, q);
     if (k % k_mpc == 0 && k > 0)
         rollGait();
 }
 
-bool Gait::changeGait(int const code, VectorN const& q)
+bool Gait::changeGait(int const k, int const k_mpc, int const code, VectorN const& q)
 {
+    if (code != 0 && switch_to_gait_ == 0) 
+    {
+        switch_to_gait_ = code;
+    }
     is_static_ = false;
-    if (code == 1)
+    if (switch_to_gait_ != 0 && std::remainder(static_cast<double>(k - k_mpc), (k_mpc * T_gait_ * 0.5) / dt_) == 0.0)
     {
-        create_pacing();
+        switch(switch_to_gait_) {
+            case 1 : create_pacing(); break;
+            case 2 : create_bounding(); break;
+            case 3 : create_trot(); break;
+            case 4 : create_static(); break;
+        }
+        switch_to_gait_ = 0;
     }
-    else if (code == 2)
-    {
-        create_bounding();
-    }
-    else if (code == 3)
-    {
-        create_trot();
-    }
-    else if (code == 4)
-    {
-        create_static();
-        q_static_.head(7) = q.head(7);
-        is_static_ = true;
-    }
+
+    /* create_static();
+    q_static_.head(7) = q.head(7);
+    is_static_ = true; */
+
     return is_static_;
 }
 

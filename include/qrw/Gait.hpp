@@ -57,11 +57,13 @@ public:
     ///
     /// \brief Handle the joystick code to trigger events (change of gait for instance)
     ///
+    /// \param[in] k numero of the current loop
+    /// \param[in] k_mpc number of loop per mpc time step
     /// \param[in] code integer to trigger events with the joystick
     /// \param[in] q current position vector of the flying base in world frame (linear and angular stacked)
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    bool changeGait(int const code, VectorN const& q);
+    bool changeGait(int const k, int const k_mpc, int const code, VectorN const& q);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -71,10 +73,19 @@ public:
     ///           Transfer current gait phase into past gait matrix
     ///           Insert future desired gait phase at the end of the gait matrix
     ///
+    /// \param[in] k numero of the current loop
+    /// \param[in] k_mpc number of loop per mpc time step
+    /// \param[in] q current position vector of the flying base in world frame (linear and angular stacked)
+    /// \param[in] joystickCode integer to trigger events with the joystick
+    ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
     void updateGait(int const k, int const k_mpc, VectorN const& q, int const joystickCode);
 
-    // TODO
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///
+    /// \brief Move one step further into the gait
+    ///
+    ////////////////////////////////////////////////////////////////////////////////////////////////
     void rollGait();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -152,6 +163,7 @@ private:
 
     bool newPhase_;
     bool is_static_;
+    int switch_to_gait_;
     VectorN q_static_;
 };
 
