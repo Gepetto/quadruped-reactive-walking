@@ -15,7 +15,7 @@ robot:
     
     # General control parameters
     q_init: [0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, 1.4, -0.0, -0.7, 1.4]  # Initial articular positions
-    dt_wbc: 0.002  # Time step of the whole body control
+    dt_wbc: 0.001  # Time step of the whole body control
     N_gait: 20  # Number of rows in the gait matrix. Arbitrary value that should be set high enough
                 # so that there is always at least one empty line at the end of the gait matrix
     dt_mpc: 0.02  # Time step of the model predictive control
