@@ -35,6 +35,7 @@ public:
     Matrix12 get_Jf() { return Jf_; }
     int get_foot_id(int i) { return foot_ids_[i];}
     Matrix43 get_posf() { return posf_; }
+    Matrix43 get_vf() { return vf_; }
 
 private:
     // Inputs of the constructor

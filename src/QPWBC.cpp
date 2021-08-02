@@ -562,6 +562,9 @@ WbcWrapper::WbcWrapper()
     , f_with_delta_(Vector12::Zero())
     , ddq_with_delta_(Vector18::Zero())
     , posf_tmp_(Matrix43::Zero())
+    , log_feet_pos_target(Matrix34::Zero())
+    , log_feet_vel_target(Matrix34::Zero())
+    , log_feet_acc_target(Matrix34::Zero())
     , k_log_(0)
 {}
 
@@ -609,6 +612,11 @@ void WbcWrapper::compute(VectorN const& q, VectorN const& dq, MatrixN const& f_c
   //  Update nb of iterations since contact
   k_since_contact_ += contacts;  // Increment feet in stance phase
   k_since_contact_ = k_since_contact_.cwiseProduct(contacts);  // Reset feet in swing phase
+
+  // Store target positions, velocities and acceleration for logging purpose
+  log_feet_pos_target = pgoals;
+  log_feet_vel_target = vgoals;
+  log_feet_acc_target = agoals;
 
   // Compute Inverse Kinematics
   invkin_->run_InvKin(q.tail(12), dq.tail(12), contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose());

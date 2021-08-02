@@ -3,8 +3,8 @@
 import numpy as np
 import libquadruped_reactive_walking as MPC
 from multiprocessing import Process, Value, Array
-# import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
-# import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
+import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
+import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
 import pinocchio as pin
 
 class Dummy:
@@ -38,7 +38,6 @@ class MPC_Wrapper:
         self.not_first_iter = False
 
         self.params = params
-        self.testoui = True
 
         # Number of WBC steps for 1 step of the MPC
         self.k_mpc = int(params.dt_mpc/params.dt_wbc)
@@ -47,7 +46,9 @@ class MPC_Wrapper:
         self.n_steps = np.int(params.T_mpc/params.dt_mpc)
         self.T_gait = params.T_gait
         self.N_gait = params.N_gait
-        self.gait_memory = np.zeros(4)
+        self.gait_past = np.zeros(4)
+        self.gait_next = np.zeros(4)
+        self.mass = params.mass
 
         self.mpc_type = params.type_MPC
         self.multiprocessing = params.enable_multiprocessing
@@ -100,21 +101,19 @@ class MPC_Wrapper:
         else:  # Run in the same process than main loop
             self.run_MPC_synchronous(k, xref, fsteps, l_targetFootstep)
 
-        if k > 2:
-            self.last_available_result[12:(12+self.n_steps), :] = np.roll(self.last_available_result[12:(12+self.n_steps), :], -1, axis=1)
-            self.testoui = False
+        if not np.allclose(gait[0, :], self.gait_past):  # If gait status has changed
+            if np.allclose(gait[0, :], self.gait_next):  # If we're still doing what was planned the last time MPC was solved
+                self.last_available_result[12:24, 0] = self.last_available_result[12:24, 1].copy()
+            else:  # Otherwise use a default contact force command till we get the actual result of the MPC for this new sequence
+                F = 9.81 * self.mass / np.sum(gait[0, :])
+                self.last_available_result[12:24:3, 0] = 0.0
+                self.last_available_result[13:24:3, 0] = 0.0
+                self.last_available_result[14:24:3, 0] = F
 
-        pt = 0
-        while (np.any(gait[pt, :])):
-            pt += 1
-        if k > 2 and not np.array_equal(gait[0, :], gait[pt-1, :]):
-            mass = 2.5  # TODO: grab from URDF?
-            nb_ctc = np.sum(gait[pt-1, :])
-            F = 9.81 * mass / nb_ctc
-            self.last_available_result[12:24, self.n_steps-1] = np.zeros(12)
-            for i in range(4):
-                if (gait[pt-1, i] == 1):
-                    self.last_available_result[12+3*i+2, self.n_steps-1] = F
+            self.last_available_result[12:24, 1:] = 0.0
+            self.gait_past = gait[0, :].copy()
+
+        self.gait_next = gait[1, :].copy()
 
         return 0
 

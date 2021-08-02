@@ -152,12 +152,12 @@ public:
     VectorN get_vdes() { return vdes_; }
     VectorN get_tau_ff() { return tau_ff_; }
     VectorN get_f_with_delta() { return f_with_delta_; }
-    MatrixN get_feet_pos() { return MatrixN::Zero(3, 4); }
-    MatrixN get_feet_err() { return MatrixN::Zero(3, 4); }
-    MatrixN get_feet_vel() { return MatrixN::Zero(3, 4); }
-    MatrixN get_feet_pos_target() { return MatrixN::Zero(3, 4); }
-    MatrixN get_feet_vel_target() { return MatrixN::Zero(3, 4); }
-    MatrixN get_feet_acc_target() { return MatrixN::Zero(3, 4); }
+    MatrixN get_feet_pos() { return invkin_->get_posf().transpose(); }
+    MatrixN get_feet_err() { return log_feet_pos_target - invkin_->get_posf().transpose(); }
+    MatrixN get_feet_vel() { return invkin_->get_vf().transpose(); }
+    MatrixN get_feet_pos_target() { return log_feet_pos_target; }
+    MatrixN get_feet_vel_target() { return log_feet_vel_target; }
+    MatrixN get_feet_acc_target() { return log_feet_acc_target; }
 
 private:
     
@@ -181,6 +181,10 @@ private:
     Vector18 ddq_with_delta_;  // Actuator accelerations with deltas found by QP solver
 
     Matrix43 posf_tmp_;  // Temporary matrix to store posf_ from invkin_
+
+    Matrix34 log_feet_pos_target;  // Store the target feet positions
+    Matrix34 log_feet_vel_target;  // Store the target feet velocities
+    Matrix34 log_feet_acc_target;  // Store the target feet accelerations
 
     int k_log_;  // Counter for logging purpose
     int indexes_[4] = {10, 18, 26, 34};  // Indexes of feet frames in this order: [FL, FR, HL, HR]
