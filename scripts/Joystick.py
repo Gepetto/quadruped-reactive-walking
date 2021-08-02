@@ -11,7 +11,11 @@ class Joystick:
         predefined (bool): use either a predefined velocity profile (True) or a gamepad (False)
     """
 
-    def __init__(self, predefined, multi_simu=False):
+    def __init__(self, params, multi_simu=False):
+
+        # Controller parameters
+        self.dt_wbc = params.dt_wbc
+        self.dt_mpc = params.dt_mpc
 
         # Reference velocity in local frame
         self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
@@ -19,13 +23,13 @@ class Joystick:
         self.reduced = False
         self.stop = False
 
-        dT = 0.0020  # velocity reference is updated every ms
+        dT = self.dt_wbc  # velocity reference is updated every ms
         fc = 100  #  cutoff frequency
         y = 1 - np.cos(2*np.pi*fc*dT)
         self.alpha = -y+np.sqrt(y*y+2*y)
 
-        tc = 0.02  #  cutoff frequency at 50 Hz
-        dT = 0.0020  # velocity reference is updated every ms
+        tc = self.dt_mpc  #  cutoff frequency at 50 Hz
+        dT = self.dt_wbc  # velocity reference is updated every ms
         self.alpha = dT / tc
 
         # Bool to modify the update of v_ref
@@ -33,7 +37,7 @@ class Joystick:
         self.multi_simu = multi_simu
 
         # If we are using a predefined reference velocity (True) or a joystick (False)
-        self.predefined = predefined
+        self.predefined = params.predefined_vel
 
         # If we are performing an analysis from outside
         self.analysis = False
@@ -179,25 +183,20 @@ class Joystick:
 
         if (k_loop == 0):
             if velID == 0:
-                self.k_switch = np.array(
-                    [0, 500, 2000, 3000, 4000, 13000, 20000, 30000])
+                self.t_switch = np.array([0, 1, 4, 6, 8, 26, 40, 60])
                 self.v_switch = np.array([[0.0, 0.0, 0.25, 0.25, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0,
-                                            0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0,
-                                            0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0,
-                                            0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0,
-                                            0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
             elif velID == 1:
                 V_max = 1.0
                 R_max = 0.3
-                self.k_switch = np.array([0, 1000, 3000, 8000, 12000, 16000, 20000, 22000,
-                                        23000, 26000, 30000, 33000, 34000, 40000, 41000, 43000,
-                                        44000, 45000])
-                self.v_switch = np.zeros((6, self.k_switch.shape[0]))
+                self.t_switch = np.array([0, 2, 6, 16, 24, 32, 40, 44,
+                                          46, 52, 60, 66, 68, 80, 82, 86,
+                                          88, 90])
+                self.v_switch = np.zeros((6, self.t_switch.shape[0]))
                 self.v_switch[0, :] = np.array([0.0, 0.0, V_max, V_max, 0.0, 0.0, 0.0,
                                                 0.0, -V_max, -V_max, 0.0, 0.0, 0.0, V_max, V_max, V_max,
                                                 V_max, V_max])
@@ -208,55 +207,47 @@ class Joystick:
                                                 0.0, 0.0, 0.0, 0.0, R_max, R_max, 0.0, 0.0,
                                                 -R_max, 0.0])
             elif velID == 2:
-                self.k_switch = np.array([0, 7000, 14000, 20000, 30000])
+                self.t_switch = np.array([0, 14, 28, 40, 60])
                 self.v_switch = np.array([[0.0, 0.7, 1.3, 1.3, 1.3],
-                                        [0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0, 0.0, 0.0, 0.0]])
+                                         [0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0, 0.0, 0.0, 0.0]])
             elif velID == 3:
-                self.k_switch = np.array([0, 1000, 2000, 7000, 26000, 30000])
+                self.t_switch = np.array([0, 2, 4, 14, 52, 60])
                 self.v_switch = np.array([[0.0, 0.0,  0.0, 0.3, 0.3, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.3, 0.0, 0.0, 0.0]])
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.3, 0.0, 0.0, 0.0]])
             elif velID == 4:
-                self.k_switch = np.array([0, 1000, 3000, 7000, 9000, 30000])
+                self.t_switch = np.array([0, 2, 6, 14, 18, 60])
                 self.v_switch = np.array([[0.0, 0.0,  1.5, 1.5, 1.5, 1.5],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.4, 0.4]])
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.4, 0.4]])
             elif velID == 5:
-                """self.k_switch = np.array([0, 500, 1500, 2600, 5000, 6500, 8000])
-                self.v_switch = np.array([[0.0, 0.0,  0.7, 0.6, 0.3, 0.3, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.4, 0.6, 0.0, 0.0]])"""
-                self.k_switch = np.array([0, 500, 1500, 2600, 5000, 6500, 7000, 8000, 9000])
+                self.t_switch = np.array([0, 1, 3, 5.2, 10, 13, 14, 16, 18])
                 self.v_switch = np.array([[0.0, 0.0,  0.5, 0.6, 0.3, 0.6, -0.5, 0.7, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.2, 0.7, 0.7, 0.0, -0.4, -0.6, 0.0]])
-
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.2, 0.7, 0.7, 0.0, -0.4, -0.6, 0.0]])
             elif velID == 6:
-                self.k_switch = np.array(
-                    [0, 1000, 2500, 5000, 7500, 8000, 10000])
+                self.t_switch = np.array([0, 2, 5, 10, 15, 16, 20])
                 self.v_switch = np.array([[0.0, 0.0,  0.8, 0.4, 0.8, 0.8, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
-                                        [0.0, 0.0,  0.0, 0.55, 0.3, 0.0, 0.0]])
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                         [0.0, 0.0,  0.0, 0.55, 0.3, 0.0, 0.0]])
 
+        self.k_switch = (self.t_switch / self.dt_wbc).astype(int)
         self.handle_v_switch(k_loop)
         return 0
 
@@ -292,7 +283,7 @@ class Joystick:
 
         self.analysis = True
 
-        self.k_switch = np.array([0, 500, N_analysis, N_analysis + N_steady])
+        self.k_switch = np.array([0, int(1/self.dt_wbc), N_analysis, N_analysis + N_steady])
         self.v_switch = np.zeros((6, 4))
         self.v_switch[:, 2] = des_vel_analysis
         self.v_switch[:, 3] = des_vel_analysis

@@ -199,7 +199,7 @@ def init_objects(params):
     """
 
     # Create Joystick object
-    joystick = Joystick.Joystick(params.predefined_vel)
+    joystick = Joystick.Joystick(params)
 
     return joystick
 

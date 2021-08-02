@@ -207,7 +207,7 @@ void Estimator::get_data_FK(Eigen::Matrix<double, 1, 4> const& feet_status)
             vel_est += vel_estimated_baseframe;  // Linear velocity
             xyz_est += xyz_estimated;  // Position
 
-            double r_foot = 0.025; // 0.0155  // 31mm of diameter on meshlab
+            double r_foot = 0.0155;  // 31mm of diameter on meshlab
             if(j <= 1) {
                 vel_est(0, 0) += r_foot * (actuators_vel_(1+3*j, 0) - actuators_vel_(2+3*j, 0));
             } 
