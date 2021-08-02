@@ -24,7 +24,12 @@ Params::Params()
     , T_mpc(0.0)
     , type_MPC(0)
     , kf_enabled(false)
+    , Kp_main(0.0)
+    , Kd_main(0.0)
+    , Kff_main(0.0)
     
+    , fc_v_esti(0.0)
+
     , k_feedback(0.0)
 
     , max_height(0.0)
@@ -123,6 +128,18 @@ void Params::initialize(const std::string& file_path)
 
     assert_yaml_parsing(robot_node, "robot", "perfect_estimator");
     perfect_estimator = robot_node["perfect_estimator"].as<bool>();
+
+    assert_yaml_parsing(robot_node, "robot", "Kp_main");
+    Kp_main = robot_node["Kp_main"].as<double>();
+
+    assert_yaml_parsing(robot_node, "robot", "Kd_main");
+    Kd_main = robot_node["Kd_main"].as<double>();
+
+    assert_yaml_parsing(robot_node, "robot", "Kff_main");
+    Kff_main = robot_node["Kff_main"].as<double>();
+    
+    assert_yaml_parsing(robot_node, "robot", "fc_v_esti");
+    fc_v_esti = robot_node["fc_v_esti"].as<double>();
 
     assert_yaml_parsing(robot_node, "robot", "k_feedback");
     k_feedback = robot_node["k_feedback"].as<double>();

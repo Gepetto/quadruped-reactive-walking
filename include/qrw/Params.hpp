@@ -60,6 +60,11 @@ public:
     double T_mpc;
     int type_MPC;
     bool kf_enabled;
+    double Kp_main;
+    double Kd_main;
+    double Kff_main;
+
+    double fc_v_esti;
 
     double k_feedback;
 

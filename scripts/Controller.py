@@ -176,6 +176,9 @@ class Controller:
         self.use_flat_plane = params.use_flat_plane
         self.predefined_vel = params.predefined_vel
         self.enable_pyb_GUI = params.enable_pyb_GUI
+        self.Kp_main = params.Kp_main
+        self.Kd_main = params.Kd_main
+        self.Kff_main = params.Kff_main
 
         self.k = 0
 
@@ -337,11 +340,11 @@ class Controller:
                                     self.feet_a_cmd)
 
             # Quantities sent to the control board
-            self.result.P = 6.0 * np.ones(12)
-            self.result.D = 0.3 * np.ones(12)
+            self.result.P = self.Kp_main * np.ones(12)
+            self.result.D = self.Kd_main * np.ones(12)
             self.result.q_des[:] = self.wbcWrapper.qdes[:]
             self.result.v_des[:] = self.wbcWrapper.vdes[:]
-            self.result.tau_ff[:] = 0.8 * self.wbcWrapper.tau_ff
+            self.result.tau_ff[:] = self.Kff_main * self.wbcWrapper.tau_ff
 
             # Display robot in Gepetto corba viewer
             """if self.k % 5 == 0:

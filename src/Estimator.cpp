@@ -92,7 +92,7 @@ void Estimator::initialize(Params& params)
     perfect_estimator = params.perfect_estimator;
 
     // Filtering estimated linear velocity
-    double fc = 50.0;  // Cut frequency
+    double fc = params.fc_v_esti;  // Cut frequency
     double y = 1 - std::cos(2 * M_PI * fc * dt_wbc);
     alpha_v_ = -y + std::sqrt(y * y + 2 * y);
 

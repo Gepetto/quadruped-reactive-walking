@@ -23,6 +23,12 @@ robot:
     T_mpc: 0.32  # Duration of the prediction horizon
     type_MPC: 0  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
     kf_enabled: false  # Use complementary filter (False) or kalman filter (True) for the estimator 
+    Kp_main: 3.0  # Proportional gains for the PD+
+    Kd_main: 0.2  # Derivative gains for the PD+
+    Kff_main: 1.0  # Feedforward torques multiplier for the PD+
+
+    # Parameters of Estimator
+    fc_v_esti: 1.0  # Cut frequency for the low pass that filters the estimated base velocity
 
     # Parameters of FootstepPlanner
     k_feedback: 0.03  # Value of the gain for the feedback heuristic
