@@ -83,16 +83,18 @@ def clone_movements(name_interface_clone, q_init, cloneP, cloneD, cloneQdes, clo
     return 0
 
 
-def control_loop(name_interface, name_interface_clone=None, des_vel_analysis=None):
+def control_loop(name_interface_clone=None, des_vel_analysis=None):
     """Main function that calibrates the robot, get it into a default waiting position then launch
     the main control loop once the user has pressed the Enter key
 
     Args:
-        name_interface (string): name of the interface that is used to communicate with the robot
         name_interface_clone (string): name of the interface that will mimic the movements of the first
     """
 
     # Check .yaml file for parameters of the controller
+
+    # Name of the interface that is used to communicate with the robot
+    name_interface = params.interface
 
     # Enable or disable PyBullet GUI
     if not params.SIMULATION:
@@ -350,17 +352,13 @@ def main():
     """
 
     parser = argparse.ArgumentParser(description='Playback trajectory to show the extent of solo12 workspace.')
-    parser.add_argument('-i',
-                        '--interface',
-                        required=True,
-                        help='Name of the interface (use ifconfig in a terminal), for instance "enp1s0"')
     parser.add_argument('-c',
                         '--clone',
                         required=False,
                         help='Name of the clone interface that will reproduce the movement of the first one \
                               (use ifconfig in a terminal), for instance "enp1s0"')
 
-    f, v = control_loop(parser.parse_args().interface, parser.parse_args().clone) # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
+    f, v = control_loop(parser.parse_args().clone)  # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print(f, v)
     quit()
 
