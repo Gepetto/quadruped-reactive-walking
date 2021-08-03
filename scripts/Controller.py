@@ -5,8 +5,8 @@ import utils_mpc
 import time
 import math
 
-from QP_WBC import wbc_controller
 import MPC_Wrapper
+import Joystick
 import pybullet as pyb
 import pinocchio as pin
 from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
@@ -125,7 +125,7 @@ class Controller:
         self.solo = utils_mpc.init_robot(q_init, params, self.enable_gepetto_viewer)
 
         # Create Joystick object
-        self.joystick = utils_mpc.init_objects(params)
+        self.joystick = Joystick.Joystick(params)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True
@@ -282,9 +282,6 @@ class Controller:
             self.x_save = self.x_f_mpc[12:, :].copy()
         else:
             self.x_f_mpc[12:, :] = self.x_save.copy()"""
-
-        """from IPython import embed
-        embed()"""
 
         t_mpc = time.time()
 
