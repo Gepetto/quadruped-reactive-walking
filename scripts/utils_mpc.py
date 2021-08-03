@@ -5,7 +5,6 @@ from example_robot_data.robots_loader import Solo12Loader
 
 import Joystick
 import Logger
-import Estimator
 import pinocchio as pin
 
 
