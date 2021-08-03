@@ -2,8 +2,7 @@
 import numpy as np
 from datetime import datetime as datetime
 from time import time
-from utils_mpc import quaternionToRPY
-
+import pinocchio as pin
 
 class LoggerControl():
     def __init__(self, dt, N0_gait, joystick=None, estimator=None, loop=None, gait=None, statePlanner=None,
@@ -92,8 +91,6 @@ class LoggerControl():
         self.wbc_feet_vel = np.zeros([logSize, 3, 4])  # current feet velocities according to WBC
         self.wbc_feet_vel_target = np.zeros([logSize, 3, 4])  # current feet velocities targets for WBC
         self.wbc_feet_acc_target = np.zeros([logSize, 3, 4])  # current feet accelerations targets for WBC
-        self.wbc_feet_pos_invkin = np.zeros([logSize, 3, 4])  # current feet positions according to InvKin
-        self.wbc_feet_vel_invkin = np.zeros([logSize, 3, 4])  # current feet velocities according to InvKin
 
         # Timestamps
         self.tstamps = np.zeros(logSize)
@@ -165,8 +162,6 @@ class LoggerControl():
         self.wbc_feet_vel[self.i] = wbc.feet_vel
         self.wbc_feet_vel_target[self.i] = wbc.feet_vel_target
         self.wbc_feet_acc_target[self.i] = wbc.feet_acc_target
-        #self.wbc_feet_pos_invkin[self.i] = wbc.invKin.cpp_posf.transpose() # TODO: Adapt logging
-        #self.wbc_feet_vel_invkin[self.i] = wbc.invKin.cpp_vf.transpose()
 
         # Logging timestamp
         self.tstamps[self.i] = time()
@@ -187,7 +182,7 @@ class LoggerControl():
 
             self.mocap_b_v[i] = (oRb.transpose() @ loggerSensors.mocapVelocity[i].reshape((3, 1))).ravel()
             self.mocap_b_w[i] = (oRb.transpose() @ loggerSensors.mocapAngularVelocity[i].reshape((3, 1))).ravel()
-            self.mocap_RPY[i] = quaternionToRPY(loggerSensors.mocapOrientationQuat[i])[:, 0]
+            self.mocap_RPY[i] = pin.rpy.matrixToRpy(pin.Quaternion(loggerSensors.mocapOrientationQuat[i]).toRotationMatrix())[:, 0]
 
     def plotAll(self, loggerSensors):
 
@@ -226,8 +221,6 @@ class LoggerControl():
             plt.plot(t_range, self.wbc_feet_pos[:, i % 3, np.int(i/3)], color='b', linewidth=3, marker='')
             plt.plot(t_range, self.wbc_feet_err[:, i % 3, np.int(i/3)] + self.wbc_feet_pos[0, i % 3, np.int(i/3)], color='g', linewidth=3, marker='')
             plt.plot(t_range, self.wbc_feet_pos_target[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
-            plt.plot(t_range, self.wbc_feet_pos_invkin[:, i % 3, np.int(i/3)],
-                     color='darkviolet', linewidth=3, linestyle="--", marker='')
             if (i % 3) == 2:
                 mini = np.min(self.wbc_feet_pos[:, i % 3, np.int(i/3)])
                 maxi = np.max(self.wbc_feet_pos[:, i % 3, np.int(i/3)])
@@ -247,8 +240,6 @@ class LoggerControl():
                 plt.subplot(3, 4, index12[i], sharex=ax0)
             plt.plot(t_range, self.wbc_feet_vel[:, i % 3, np.int(i/3)], color='b', linewidth=3, marker='')
             plt.plot(t_range, self.wbc_feet_vel_target[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
-            """plt.plot(t_range, self.wbc_feet_vel_invkin[:, i % 3, np.int(i/3)],
-                     color='darkviolet', linewidth=3, linestyle="--", marker='')"""
             plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)], lgd_Y[i %
                                                                        3] + " " + lgd_X[np.int(i/3)]+" Ref"], prop={'size': 8})
         plt.suptitle("Measured and Reference feet velocities (base frame)")
@@ -874,7 +865,7 @@ class LoggerControl():
 
         fsteps = self.planner_fsteps[0]
         o_step = np.zeros((3*int(fsteps.shape[0]), 1))
-        RPY = utils_mpc.quaternionToRPY(self.loop_o_q_int[0, 3:7])
+        RPY = pin.rpy.matrixToRpy(pin.Quaternion(self.loop_o_q_int[0, 3:7]).toRotationMatrix())
         quat[:, 0] = utils_mpc.EulerToQuaternion([0.0, 0.0, RPY[2]])
         oRh = pin.Quaternion(quat).toRotationMatrix()
         for j in range(4):
@@ -903,7 +894,7 @@ class LoggerControl():
             rounded = int(np.round(time_slider.val / self.dt, decimals=0))
             fsteps = self.planner_fsteps[rounded]
             o_step = np.zeros((3*int(fsteps.shape[0]), 1))
-            RPY = utils_mpc.quaternionToRPY(self.loop_o_q_int[rounded, 3:7])
+            RPY = pin.rpy.matrixToRpy(pin.Quaternion(self.loop_o_q_int[rounded, 3:7]).toRotationMatrix())
             quat[:, 0] = utils_mpc.EulerToQuaternion([0.0, 0.0, RPY[2]])
             oRh = pin.Quaternion(quat).toRotationMatrix()
             for j in range(4):
