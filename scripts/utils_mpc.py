@@ -1,6 +1,4 @@
-import math
 import numpy as np
-
 from example_robot_data.robots_loader import Solo12Loader
 import pinocchio as pin
 
@@ -53,7 +51,10 @@ def init_robot(q_init, params, enable_viewer):
 
     # Initialisation of the position of footsteps
     fsteps_init = np.zeros((3, 4))
-    indexes = [10, 18, 26, 34]  # Feet indexes
+    indexes = [solo.model.getFrameId('FL_FOOT'),
+               solo.model.getFrameId('FR_FOOT'),
+               solo.model.getFrameId('HL_FOOT'),
+               solo.model.getFrameId('HR_FOOT')]
     for i in range(4):
         fsteps_init[:, i] = solo.data.oMf[indexes[i]].translation
     h_init = 0.0
@@ -84,6 +85,7 @@ def init_robot(q_init, params, enable_viewer):
 
     return solo
 
+
 def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
     """Update various objects in the Gepetto viewer: the Solo robot as well as debug spheres
 
@@ -108,6 +110,6 @@ def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
 
     qu_pinocchio = np.array(solo.q0).flatten()
     qu_pinocchio[0:3] = mpc.q_w[0:3, 0]
-    qu_pinocchio[3:7] = getQuaternion(np.array([mpc.q_w[3:6, 0]])).flatten()
+    qu_pinocchio[3:7] = pin.rpy.matrixToRpy(pin.Quaternion(mpc.q_w[3:6, 0]).toRotationMatrix()).ravel()
     # Refresh the gepetto viewer display
     solo.display(qu_pinocchio)
