@@ -12,6 +12,11 @@
 #define FOOTSTEPPLANNER_H_INCLUDED
 
 #include "pinocchio/math/rpy.hpp"
+#include "pinocchio/multibody/model.hpp"
+#include "pinocchio/multibody/data.hpp"
+#include "pinocchio/parsers/urdf.hpp"
+#include "pinocchio/algorithm/compute-all-terms.hpp"
+#include "pinocchio/algorithm/frames.hpp"
 #include "qrw/Gait.hpp"
 #include "qrw/Params.hpp"
 #include "qrw/Types.h"
@@ -56,7 +61,7 @@ public:
     ///
     ///  \param[in] refresh  true if we move one step further in the gait
     ///  \param[in] k  number of remaining wbc time step for the current mpc time step (wbc frequency is higher so there are inter-steps)
-    ///  \param[in] q  current position vector of the flying base in horizontal frame (linear and angular stacked)
+    ///  \param[in] q  current position vector of the flying base in horizontal frame (linear and angular stacked) + actuators
     ///  \param[in] b_v  current velocity vector of the flying base in horizontal frame (linear and angular stacked)
     ///  \param[in] b_vref  desired velocity vector of the flying base in horizontal frame (linear and angular stacked)
     ///
@@ -78,14 +83,16 @@ private:
     ///  \param[in] b_vref  desired velocity vector of the flying base in horizontal frame (linear and angular stacked)
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    MatrixN computeTargetFootstep(int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref);
+    MatrixN computeTargetFootstep(int k, Vector7 const& q, Vector6 const& b_v, Vector6 const& b_vref);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
     /// \brief Refresh feet position when entering a new contact phase
     ///
+    ///  \param[in] q  current configuration vector
+    ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void updateNewContact();
+    void updateNewContact(Vector19 const& q);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -156,6 +163,13 @@ private:
     Vector3 q_dxdy;
     Vector3 RPY_;
     Eigen::Quaterniond quat_;
+
+    pinocchio::Model model_;  // Pinocchio model for forward kinematics
+    pinocchio::Data data_;  // Pinocchio datas for forward kinematics
+    int foot_ids_[4] = {0, 0, 0, 0};  // Indexes of feet frames
+    Matrix34 pos_feet_;  // Estimated feet positions based on measurements
+    Vector19 q_FK_;
+
 };
 
 #endif  // FOOTSTEPPLANNER_H_INCLUDED

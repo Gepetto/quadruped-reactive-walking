@@ -14,6 +14,8 @@ FootstepPlanner::FootstepPlanner()
     , q_tmp(Vector3::Zero())
     , q_dxdy(Vector3::Zero())
     , RPY_(Vector3::Zero())
+    , pos_feet_(Matrix34::Zero())
+    , q_FK_(Vector19::Zero())
 {
     // Empty
 }
@@ -40,6 +42,26 @@ void FootstepPlanner::initialize(Params& params, Gait& gaitIn)
         footsteps_.push_back(Matrix34::Zero());
     }
     Rz(2, 2) = 1.0;
+
+    // Path to the robot URDF (TODO: Automatic path)
+    const std::string filename = std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
+
+    // Build model from urdf (base is not free flyer)
+    pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
+
+    // Construct data from model
+    data_ = pinocchio::Data(model_);
+
+    // Update all the quantities of the model
+    VectorN q_tmp = VectorN::Zero(model_.nq);
+    q_tmp(6, 0) = 1.0;  // Quaternion (0, 0, 0, 1)
+    pinocchio::computeAllTerms(model_, data_ , q_tmp, VectorN::Zero(model_.nv));
+
+    // Get feet frame IDs
+    foot_ids_[0] = static_cast<int>(model_.getFrameId("FL_FOOT")); // from long uint to int
+    foot_ids_[1] = static_cast<int>(model_.getFrameId("FR_FOOT"));
+    foot_ids_[2] = static_cast<int>(model_.getFrameId("HL_FOOT"));
+    foot_ids_[3] = static_cast<int>(model_.getFrameId("HR_FOOT"));
 }
 
 MatrixN FootstepPlanner::updateFootsteps(bool refresh, int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref)
@@ -47,7 +69,7 @@ MatrixN FootstepPlanner::updateFootsteps(bool refresh, int k, VectorN const& q, 
     // Update location of feet in stance phase (for those which just entered stance phase)
     if (refresh && gait_->isNewPhase())
     {
-        updateNewContact();
+        updateNewContact(q);
     }
 
     // Feet in contact with the ground are moving in base frame (they don't move in world frame)
@@ -65,7 +87,7 @@ MatrixN FootstepPlanner::updateFootsteps(bool refresh, int k, VectorN const& q, 
     }
 
     // Compute location of footsteps
-    return computeTargetFootstep(k, q, b_v, b_vref);
+    return computeTargetFootstep(k, q.head(7), b_v, b_vref);
 }
 
 void FootstepPlanner::computeFootsteps(int k, Vector6 const& b_v, Vector6 const& b_vref)
@@ -192,7 +214,7 @@ void FootstepPlanner::updateTargetFootsteps()
     }
 }
 
-MatrixN FootstepPlanner::computeTargetFootstep(int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref)
+MatrixN FootstepPlanner::computeTargetFootstep(int k, Vector7 const& q, Vector6 const& b_v, Vector6 const& b_vref)
 {
     // Compute the desired location of footsteps over the prediction horizon
     computeFootsteps(k, b_v, b_vref);
@@ -214,8 +236,31 @@ MatrixN FootstepPlanner::computeTargetFootstep(int k, VectorN const& q, Vector6 
     return o_targetFootstep_;
 }
 
-void FootstepPlanner::updateNewContact()
+void FootstepPlanner::updateNewContact(Vector19 const& q)
 {
+    // Remove translation and yaw rotation to get position in local frame
+    q_FK_ = q;
+    q_FK_.head(2) = Vector2::Zero();
+    Vector3 RPY = pinocchio::rpy::matrixToRpy(pinocchio::SE3::Quaternion(q_FK_(6), q_FK_(3), q_FK_(4), q_FK_(5)).toRotationMatrix());
+    q_FK_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(RPY(0, 0), RPY(1, 0), 0.0)).coeffs();
+
+    // Update model and data of the robot
+    pinocchio::forwardKinematics(model_, data_, q_FK_);
+    pinocchio::updateFramePlacements(model_, data_);
+
+    // Get data required by IK with Pinocchio
+    for (int i = 0; i < 4; i++) 
+    {
+        pos_feet_.col(i) = data_.oMf[foot_ids_[i]].translation();
+    }
+
+    /*std::cout << "q: " << q.transpose() << std::endl;
+    */
+
+    std::cout << "--- pos_feet_: " << std::endl << pos_feet_ << std::endl;
+    std::cout << "--- footsteps_:" << std::endl << footsteps_[1] << std::endl;
+
+    // Refresh position with estimated position if foot is in stance phase
     for (int i = 0; i < 4; i++)
     {
         if (gait_->getCurrentGaitCoeff(0, i) == 1.0)

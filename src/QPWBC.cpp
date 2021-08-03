@@ -583,7 +583,9 @@ void WbcWrapper::initialize(Params& params)
   data_ = pinocchio::Data(model_);
 
   // Update all the quantities of the model
-  pinocchio::computeAllTerms(model_, data_ , VectorN::Zero(model_.nq), VectorN::Zero(model_.nv));
+  VectorN q_tmp = VectorN::Zero(model_.nq);
+  q_tmp(6, 0) = 1.0;  // Quaternion (0, 0, 0, 1)
+  pinocchio::computeAllTerms(model_, data_ , q_tmp, VectorN::Zero(model_.nv));
 
   // Initialize inverse kinematic and box QP solvers
   invkin_ = new InvKin();

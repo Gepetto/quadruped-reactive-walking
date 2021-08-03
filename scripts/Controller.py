@@ -248,7 +248,7 @@ class Controller:
         # Compute target footstep based on current and reference velocities
         o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
                                                                 int(self.k_mpc - self.k % self.k_mpc),
-                                                                self.q[0:7, 0:1],
+                                                                self.q[:, 0:1],
                                                                 self.h_v[0:6, 0:1].copy(),
                                                                 self.v_ref[0:6, 0])
 
