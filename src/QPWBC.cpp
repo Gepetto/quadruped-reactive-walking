@@ -622,12 +622,6 @@ void WbcWrapper::compute(VectorN const& q, VectorN const& dq, MatrixN const& f_c
   invkin_->run_InvKin(q.tail(12), dq.tail(12), contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose());
   ddq_cmd_.tail(12) = invkin_->get_ddq_cmd();
 
-  // TODO: Adapt logging of feet_pos, feet_err, feet_vel
-
-  // TODO: Check if needed because crbaMinimal may allow to directly get the jacobian
-  // TODO: Check if possible to use the model of InvKin to avoid computations
-  // pinocchio::computeJointJacobians(model_, data_, q);
-
   // TODO: Check if we can save time by switching MatrixXd to defined sized vector since they are
   // not called from python anymore
 
