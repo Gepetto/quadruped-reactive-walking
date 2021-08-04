@@ -122,16 +122,16 @@ void FootstepPlanner::computeFootsteps(int k, Vector6 const& b_v, Vector6 const&
     {
         for (uint j = 0; j < footsteps_.size(); j++)
         {
-            dx(j) = (b_v(0) * std::sin(b_vref(5) * dt_cum(j)) + b_v(1) * (std::cos(b_vref(5) * dt_cum(j)) - 1.0)) / b_vref(5);
-            dy(j) = (b_v(1) * std::sin(b_vref(5) * dt_cum(j)) - b_v(0) * (std::cos(b_vref(5) * dt_cum(j)) - 1.0)) / b_vref(5);
+            dx(j) = (b_vref(0) * std::sin(b_vref(5) * dt_cum(j)) + b_vref(1) * (std::cos(b_vref(5) * dt_cum(j)) - 1.0)) / b_vref(5);
+            dy(j) = (b_vref(1) * std::sin(b_vref(5) * dt_cum(j)) - b_vref(0) * (std::cos(b_vref(5) * dt_cum(j)) - 1.0)) / b_vref(5);
         }
     }
     else
     {
         for (uint j = 0; j < footsteps_.size(); j++)
         {
-            dx(j) = b_v(0) * dt_cum(j);
-            dy(j) = b_v(1) * dt_cum(j);
+            dx(j) = b_vref(0) * dt_cum(j);
+            dy(j) = b_vref(1) * dt_cum(j);
         }
     }
 
@@ -257,8 +257,9 @@ void FootstepPlanner::updateNewContact(Vector19 const& q)
     /*std::cout << "q: " << q.transpose() << std::endl;
     */
 
-    std::cout << "--- pos_feet_: " << std::endl << pos_feet_ << std::endl;
-    std::cout << "--- footsteps_:" << std::endl << footsteps_[1] << std::endl;
+    // TODO: Put pos_feet_ into currentFootsteps_
+    // std::cout << "--- pos_feet_: " << std::endl << pos_feet_ << std::endl;
+    // std::cout << "--- footsteps_:" << std::endl << footsteps_[1] << std::endl;
 
     // Refresh position with estimated position if foot is in stance phase
     for (int i = 0; i < 4; i++)
