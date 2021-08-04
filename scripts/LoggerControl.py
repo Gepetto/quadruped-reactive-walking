@@ -47,6 +47,7 @@ class LoggerControl():
         self.loop_o_q_int = np.zeros([logSize, 19])  # position in world frame (esti_q_filt + dt * loop_o_v)
         self.loop_o_v = np.zeros([logSize, 18])  # estimated velocity in world frame
         self.loop_h_v = np.zeros([logSize, 18])  # estimated velocity in horizontal frame
+        self.loop_h_v_bis = np.zeros([logSize, 3])  # estimated velocity in horizontal frame
         self.loop_pos_virtual_world = np.zeros([logSize, 3])  # x, y, yaw perfect position in world
 
         # Gait
@@ -131,6 +132,7 @@ class LoggerControl():
         self.loop_o_q_int[self.i] = loop.q[:, 0]
         self.loop_o_v[self.i] = loop.v[:, 0]
         self.loop_h_v[self.i] = loop.h_v[:, 0]
+        self.loop_h_v_bis[self.i] = loop.h_v_bis[0:3, 0]
         self.loop_pos_virtual_world[self.i] = np.array([loop.q[0, 0], loop.q[1, 0], loop.yaw_estim])
 
         # Logging from the planner
@@ -182,7 +184,7 @@ class LoggerControl():
 
             self.mocap_b_v[i] = (oRb.transpose() @ loggerSensors.mocapVelocity[i].reshape((3, 1))).ravel()
             self.mocap_b_w[i] = (oRb.transpose() @ loggerSensors.mocapAngularVelocity[i].reshape((3, 1))).ravel()
-            self.mocap_RPY[i] = pin.rpy.matrixToRpy(pin.Quaternion(loggerSensors.mocapOrientationQuat[i]).toRotationMatrix())[:, 0]
+            self.mocap_RPY[i] = pin.rpy.matrixToRpy(pin.Quaternion(loggerSensors.mocapOrientationQuat[i]).toRotationMatrix())
 
     def plotAll(self, loggerSensors):
 
@@ -297,6 +299,7 @@ class LoggerControl():
             plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
             if i < 3:
                 plt.plot(t_range, self.mocap_b_v[:, i], "k", linewidth=3)
+                plt.plot(t_range, self.loop_h_v_bis[:, i], "forestgreen", linewidth=2)
                 # plt.plot(t_range, self.esti_FK_lin_vel[:, i], "violet", linewidth=3, linestyle="--")
                 plt.plot(t_range, self.esti_filt_lin_vel[:, i], "violet", linewidth=3, linestyle="--")
             else:
@@ -309,7 +312,7 @@ class LoggerControl():
             # plt.plot(t_range, self.log_dq[i, :], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_invkin[i, :-2], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_ref_invkin[i, :-2], "violet", linewidth=2, linestyle="--")
-            plt.legend(["Robot state", "Robot reference state", "Ground truth"], prop={'size': 8})
+            plt.legend(["Robot state", "Robot reference state", "Ground truth", "Alternative"], prop={'size': 8})
             plt.ylabel(lgd[i])
         plt.suptitle("Measured & Reference linear and angular velocities")
 

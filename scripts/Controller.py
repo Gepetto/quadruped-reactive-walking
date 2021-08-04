@@ -187,6 +187,7 @@ class Controller:
 
         self.v_ref = np.zeros((18, 1))
         self.h_v = np.zeros((18, 1))
+        self.h_v_bis = np.zeros((6, 1))
         self.yaw_estim = 0.0
         self.RPY_filt = np.zeros(3)
 
@@ -235,6 +236,8 @@ class Controller:
         oTh = self.estimator.getoTh().reshape((3, 1))
         self.v_ref[0:6, 0] = self.estimator.getVRef()
         self.h_v[0:6, 0] = self.estimator.getHV()
+        self.h_v_bis[0:3, 0] = self.estimator.getHVBis()
+        self.h_v_bis[3:6, 0] = self.h_v[3:6, 0].copy()
         self.q[:, 0] = self.estimator.getQUpdated()
         self.yaw_estim = self.estimator.getYawEstim()
         # TODO: Understand why using Python or C++ h_v leads to a slightly different result since the 
@@ -249,7 +252,7 @@ class Controller:
         o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
                                                                 int(self.k_mpc - self.k % self.k_mpc),
                                                                 self.q[:, 0:1],
-                                                                self.h_v[0:6, 0:1].copy(),
+                                                                self.h_v_bis[0:6, 0:1].copy(),
                                                                 self.v_ref[0:6, 0])
 
         # Run state planner (outputs the reference trajectory of the base)
@@ -262,6 +265,8 @@ class Controller:
         cgait = self.gait.getCurrentGait()
 
         t_planner = time.time()
+
+        # TODO: Add 25Hz filter for the inputs of the MPC
 
         # Solve MPC problem once every k_mpc iterations of the main loop
         if (self.k % self.k_mpc) == 0:

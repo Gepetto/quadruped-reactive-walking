@@ -526,10 +526,10 @@ class IMU():
     """Dummy class that simulates the IMU class used to communicate with the real masterboard"""
 
     def __init__(self):
-        self.linear_acceleration = np.zeros((3, 1))
-        self.accelerometer = np.zeros((3, 1))
-        self.gyroscope = np.zeros((3, 1))
-        self.attitude_euler = np.zeros((3, 1))
+        self.linear_acceleration = np.zeros((3, ))
+        self.accelerometer = np.zeros((3, ))
+        self.gyroscope = np.zeros((3, ))
+        self.attitude_euler = np.zeros((3, ))
         self.attitude_quaternion = np.array([[0.0, 0.0, 0.0, 1.0]]).transpose()
 
 class Joints():
@@ -677,23 +677,23 @@ class PyBulletSimulator():
 
         # Orientation of the base (quaternion)
         self.imu.attitude_quaternion[:, 0] = np.array(self.baseState[1])
-        self.imu.attitude_euler[:, 0] = pin.rpy.matrixToRpy(pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix())
+        self.imu.attitude_euler[:] = pin.rpy.matrixToRpy(pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix())
         self.rot_oMb = pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix()
         self.oMb = pin.SE3(self.rot_oMb, np.array([self.dummyHeight]).transpose())
 
         # Angular velocities of the base
-        self.imu.gyroscope[:] = (self.oMb.rotation.transpose() @ np.array([self.baseVel[1]]).transpose())
+        self.imu.gyroscope[:] = (self.oMb.rotation.transpose() @ np.array([self.baseVel[1]]).transpose()).ravel()
 
         # Linear Acceleration of the base
         self.o_baseVel = np.array([self.baseVel[0]]).transpose()
         self.b_baseVel = (self.oMb.rotation.transpose() @ self.o_baseVel).ravel()
 
-        self.o_imuVel = self.o_baseVel + self.oMb.rotation @ self.cross3(np.array([0.1163, 0.0, 0.02]), self.imu.gyroscope[:, 0])
+        self.o_imuVel = self.o_baseVel + self.oMb.rotation @ self.cross3(np.array([0.1163, 0.0, 0.02]), self.imu.gyroscope[:])
 
-        self.imu.linear_acceleration[:] = (self.oMb.rotation.transpose() @ (self.o_imuVel - self.prev_o_imuVel)) / self.dt
+        self.imu.linear_acceleration[:] = (self.oMb.rotation.transpose() @ (self.o_imuVel - self.prev_o_imuVel)).ravel() / self.dt
         self.prev_o_imuVel[:, 0:1] = self.o_imuVel
         self.imu.accelerometer[:] = self.imu.linear_acceleration + \
-            (self.oMb.rotation.transpose() @ np.array([[0.0], [0.0], [-9.81]]))
+            (self.oMb.rotation.transpose() @ np.array([[0.0], [0.0], [-9.81]])).ravel()
 
         return
 

@@ -45,10 +45,10 @@ class LoggerSensors():
         # Logging from the device (data coming from the robot)
         self.q_mes[self.i] = device.joints.positions
         self.v_mes[self.i] = device.joints.velocities
-        self.baseOrientation[self.i] = device.imu.attitude_euler[:, 0]
-        self.baseAngularVelocity[self.i] = device.imu.gyroscope[:, 0]
-        self.baseLinearAcceleration[self.i] = device.imu.linear_acceleration[:, 0]
-        self.baseAccelerometer[self.i] = device.imu.accelerometer[:, 0]
+        self.baseOrientation[self.i] = device.imu.attitude_euler
+        self.baseAngularVelocity[self.i] = device.imu.gyroscope
+        self.baseLinearAcceleration[self.i] = device.imu.linear_acceleration
+        self.baseAccelerometer[self.i] = device.imu.accelerometer
         self.torquesFromCurrentMeasurment[self.i] = device.joints.measured_torques
 
         # Logging from qualisys (motion capture)

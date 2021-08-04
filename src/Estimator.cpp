@@ -81,6 +81,9 @@ Estimator::Estimator()
     , oRh_(Matrix3::Identity())
     , oTh_(Vector3::Zero())
     , yaw_estim_(0.0)
+    , N_queue_(0)
+    , v_filt_bis_(Vector3::Zero())
+    , h_v_bis_(Vector3::Zero())
 {
 }
 
@@ -95,6 +98,11 @@ void Estimator::initialize(Params& params)
     double fc = params.fc_v_esti;  // Cut frequency
     double y = 1 - std::cos(2 * M_PI * fc * dt_wbc);
     alpha_v_ = -y + std::sqrt(y * y + 2 * y);
+
+    N_queue_ = static_cast<int>(std::round(1.0/(dt_wbc * 3.0)));
+    vx_queue_.resize(N_queue_, 0.0);  // Buffer full of 0.0
+    vy_queue_.resize(N_queue_, 0.0);  // Buffer full of 0.0
+    vz_queue_.resize(N_queue_, 0.0);  // Buffer full of 0.0
 
     // Filtering velocities used for security checks
     fc = 6.0;  // Cut frequency
@@ -368,6 +376,13 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
     v_filt_.block(3, 0, 3, 1) = filt_ang_vel;  // Angular velocities are already directly from PyBullet
     v_filt_.tail(12) = actuators_vel_;  // Actuators velocities are already directly from PyBullet
 
+    vx_queue_.push_back(b_filt_lin_vel_(0));
+    vy_queue_.push_back(b_filt_lin_vel_(1));
+    vz_queue_.push_back(b_filt_lin_vel_(2));
+    v_filt_bis_(0) = std::accumulate(vx_queue_.begin(), vx_queue_.end(), 0.0) / N_queue_;
+    v_filt_bis_(1) = std::accumulate(vy_queue_.begin(), vy_queue_.end(), 0.0) / N_queue_;
+    v_filt_bis_(2) = std::accumulate(vz_queue_.begin(), vz_queue_.end(), 0.0) / N_queue_;
+
     //////
 
     // Update model used for the forward kinematics
@@ -440,6 +455,7 @@ void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait)
 
         h_v_.head(3) = hRb * v_filt_dyn_.block(0, 0, 3, 1);
         h_v_.tail(3) = hRb * v_filt_dyn_.block(3, 0, 3, 1);
+        h_v_bis_ = hRb * v_filt_bis_;
     }
     else
     {
