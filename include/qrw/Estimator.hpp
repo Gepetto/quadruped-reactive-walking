@@ -19,7 +19,7 @@
 #include "pinocchio/multibody/data.hpp"
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/algorithm/compute-all-terms.hpp"
-#include <boost/circular_buffer.hpp>
+#include <deque>
 
 class ComplementaryFilter
 {
@@ -281,7 +281,7 @@ private:
     int N_queue_;
     Vector3 v_filt_bis_;
     Vector3 h_v_bis_;
-    boost::circular_buffer<double> vx_queue_, vy_queue_, vz_queue_;
+    std::deque<double> vx_queue_, vy_queue_, vz_queue_;
 
 };
 #endif  // ESTIMATOR_H_INCLUDED
