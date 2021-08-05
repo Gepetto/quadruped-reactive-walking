@@ -283,10 +283,6 @@ class Controller:
 
         # Retrieve reference contact forces in horizontal frame
         self.x_f_mpc = self.mpc_wrapper.get_latest_result()
-        """if self.k == 0:
-            self.x_save = self.x_f_mpc[12:, :].copy()
-        else:
-            self.x_f_mpc[12:, :] = self.x_save.copy()"""
 
         t_mpc = time.time()
 
@@ -300,20 +296,6 @@ class Controller:
 
         # Update pos, vel and acc references for feet
         self.footTrajectoryGenerator.update(self.k, o_targetFootstep)
-
-        # Target state for the whole body control
-        self.x_f_wbc = (self.x_f_mpc[:24, 0]).copy()
-        if not self.gait.getIsStatic():
-            self.x_f_wbc[0] = self.dt_wbc * xref[6, 1]
-            self.x_f_wbc[1] = self.dt_wbc * xref[7, 1]
-            self.x_f_wbc[2] = self.h_ref
-            self.x_f_wbc[3] = 0.0
-            self.x_f_wbc[4] = 0.0
-            self.x_f_wbc[5] = self.dt_wbc * xref[11, 1]
-        else:  # Sort of position control to avoid slow drift
-            self.x_f_wbc[0:3] = self.planner.q_static[0:3, 0]  # TODO: Adapt to new code
-            self.x_f_wbc[3:6] = self.planner.RPY_static[:, 0]
-        self.x_f_wbc[6:12] = xref[6:, 1]
 
         # Whole Body Control
         # If nothing wrong happened yet in the WBC controller
@@ -336,7 +318,7 @@ class Controller:
 
             # Run InvKin + WBC QP
             self.wbcWrapper.compute(self.q_wbc, self.b_v,
-                                    self.x_f_wbc[12:], np.array([cgait[0, :]]),
+                                    (self.x_f_mpc[12:24, 0]).copy(), np.array([cgait[0, :]]),
                                     self.feet_p_cmd,
                                     self.feet_v_cmd,
                                     self.feet_a_cmd)

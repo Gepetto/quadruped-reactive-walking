@@ -79,7 +79,6 @@ class LoggerControl():
                 self.mpc_x_f = np.zeros([logSize, 24, statePlanner.getNSteps()])
 
         # Whole body control
-        self.wbc_x_f = np.zeros([logSize, 24])  # input vector of the WBC (next state + reference contact force)
         self.wbc_P = np.zeros([logSize, 12])  # proportionnal gains of the PD+
         self.wbc_D = np.zeros([logSize, 12])  # derivative gains of the PD+
         self.wbc_q_des = np.zeros([logSize, 12])  # desired position of actuators
@@ -151,7 +150,6 @@ class LoggerControl():
         self.mpc_x_f[self.i] = loop.x_f_mpc
 
         # Logging from whole body control
-        self.wbc_x_f[self.i] = loop.x_f_wbc
         self.wbc_P[self.i] = loop.result.P
         self.wbc_D[self.i] = loop.result.D
         self.wbc_q_des[self.i] = loop.result.q_des
@@ -611,7 +609,6 @@ class LoggerControl():
 
                  mpc_x_f=self.mpc_x_f,
 
-                 wbc_x_f=self.wbc_x_f,
                  wbc_P=self.wbc_P,
                  wbc_D=self.wbc_D,
                  wbc_q_des=self.wbc_q_des,
@@ -696,7 +693,6 @@ class LoggerControl():
 
         self.mpc_x_f = data["mpc_x_f"]
 
-        self.wbc_x_f = data["wbc_x_f"]
         self.wbc_P = data["wbc_P"]
         self.wbc_D = data["wbc_D"]
         self.wbc_q_des = data["wbc_q_des"]
