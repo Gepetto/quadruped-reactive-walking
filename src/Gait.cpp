@@ -187,15 +187,14 @@ double Gait::getPhaseDuration(int i, int j, double value)
 
 void Gait::updateGait(int const k,
                       int const k_mpc,
-                      VectorN const& q,
                       int const joystickCode)
 {
-    changeGait(k, k_mpc, joystickCode, q);
+    changeGait(k, k_mpc, joystickCode);
     if (k % k_mpc == 0 && k > 0)
         rollGait();
 }
 
-bool Gait::changeGait(int const k, int const k_mpc, int const code, VectorN const& q)
+bool Gait::changeGait(int const k, int const k_mpc, int const code)
 {
     if (code != 0 && switch_to_gait_ == 0) 
     {
@@ -212,10 +211,6 @@ bool Gait::changeGait(int const k, int const k_mpc, int const code, VectorN cons
         }
         switch_to_gait_ = 0;
     }
-
-    /* create_static();
-    q_static_.head(7) = q.head(7);
-    is_static_ = true; */
 
     return is_static_;
 }

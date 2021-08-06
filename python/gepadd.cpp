@@ -8,6 +8,7 @@
 #include "qrw/QPWBC.hpp"
 #include "qrw/Estimator.hpp"
 #include "qrw/Joystick.hpp"
+#include "qrw/Filter.hpp"
 #include "qrw/Params.hpp"
 
 #include <boost/python.hpp>
@@ -42,6 +43,34 @@ struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC>>
 };
 
 void exposeMPC() { MPCPythonVisitor<MPC>::expose(); }
+
+/////////////////////////////////
+/// Binding Filter class
+/////////////////////////////////
+template <typename Filter>
+struct FilterPythonVisitor : public bp::def_visitor<FilterPythonVisitor<Filter>>
+{
+    template <class PyClassFilter>
+    void visit(PyClassFilter& cl) const
+    {
+        cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+
+            .def("initialize", &Filter::initialize, bp::args("params"),
+                 "Initialize Filter from Python.\n")
+
+            // Run Filter from Python
+            .def("filter", &Filter::filter, bp::args("x"), "Run Filter from Python.\n")
+            .def("getFilt", &Filter::getFilt, "Get filtered quantity.\n");
+    }
+
+    static void expose()
+    {
+        bp::class_<Filter>("Filter", bp::no_init).def(FilterPythonVisitor<Filter>());
+
+        ENABLE_SPECIFIC_MATRIX_TYPE(matXd);
+    }
+};
+void exposeFilter() { FilterPythonVisitor<Filter>::expose(); }
 
 /////////////////////////////////
 /// Binding StatePlanner class
@@ -93,7 +122,7 @@ struct GaitPythonVisitor : public bp::def_visitor<GaitPythonVisitor<Gait>>
                  "Initialize Gait from Python.\n")
 
             // Update current gait matrix from Python
-            .def("updateGait", &Gait::updateGait, bp::args("k", "k_mpc", "q", "joystickCode"),
+            .def("updateGait", &Gait::updateGait, bp::args("k", "k_mpc", "joystickCode"),
                  "Update current gait matrix from Python.\n")
 
             // Set current gait matrix from Python
@@ -436,6 +465,7 @@ BOOST_PYTHON_MODULE(libquadruped_reactive_walking)
     eigenpy::enableEigenPy();
 
     exposeMPC();
+    exposeFilter();
     exposeStatePlanner();
     exposeGait();
     exposeFootstepPlanner();

@@ -199,6 +199,16 @@ class Controller:
         self.error_flag = 0
         self.q_security = np.array([np.pi*0.4, np.pi*80/180, np.pi] * 4)
 
+        self.q_filt_mpc = np.zeros((6, 1))
+        self.v_filt_mpc = np.zeros((6, 1))
+        self.vref_filt_mpc = np.zeros((6, 1))
+        self.filter_mpc_q = lqrw.Filter()
+        self.filter_mpc_q.initialize(params)
+        self.filter_mpc_v = lqrw.Filter()
+        self.filter_mpc_v.initialize(params)
+        self.filter_mpc_vref = lqrw.Filter()
+        self.filter_mpc_vref.initialize(params)
+
         # Interface with the PD+ on the control board
         self.result = Result()
 
@@ -246,7 +256,15 @@ class Controller:
         t_filter = time.time()
 
         # Update gait
-        self.gait.updateGait(self.k, self.k_mpc, self.q[0:7, 0:1], self.joystick.joystick_code)
+        self.gait.updateGait(self.k, self.k_mpc, self.joystick.joystick_code)
+
+        self.q[3:7, 0] = np.array([0, 0, 0.3826834, 0.9238795])
+        self.filter_mpc_q.filter(self.q[:7, 0:1])
+        self.filter_mpc_v.filter(self.h_v[:6, 0:1])
+        self.filter_mpc_vref.filter(self.v_ref[:6, 0:1])
+
+        from IPython import embed
+        embed()
 
         # Compute target footstep based on current and reference velocities
         o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,

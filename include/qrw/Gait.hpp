@@ -60,10 +60,9 @@ public:
     /// \param[in] k numero of the current loop
     /// \param[in] k_mpc number of loop per mpc time step
     /// \param[in] code integer to trigger events with the joystick
-    /// \param[in] q current position vector of the flying base in world frame (linear and angular stacked)
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    bool changeGait(int const k, int const k_mpc, int const code, VectorN const& q);
+    bool changeGait(int const k, int const k_mpc, int const code);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -75,11 +74,10 @@ public:
     ///
     /// \param[in] k numero of the current loop
     /// \param[in] k_mpc number of loop per mpc time step
-    /// \param[in] q current position vector of the flying base in world frame (linear and angular stacked)
     /// \param[in] joystickCode integer to trigger events with the joystick
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void updateGait(int const k, int const k_mpc, VectorN const& q, int const joystickCode);
+    void updateGait(int const k, int const k_mpc, int const joystickCode);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
