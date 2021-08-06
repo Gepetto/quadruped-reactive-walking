@@ -433,6 +433,7 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("Kd_main", &Params::Kd_main)
             .def_readwrite("Kff_main", &Params::Kff_main)
             .def_readwrite("enable_pyb_GUI", &Params::enable_pyb_GUI)
+            .def_readwrite("enable_corba_viewer", &Params::enable_corba_viewer)
             .def_readwrite("enable_multiprocessing", &Params::enable_multiprocessing)
             .def_readwrite("perfect_estimator", &Params::perfect_estimator)
             .def_readwrite("mass", &Params::mass)

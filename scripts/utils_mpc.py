@@ -8,19 +8,18 @@ import pinocchio as pin
 ##################
 
 
-def init_robot(q_init, params, enable_viewer):
+def init_robot(q_init, params):
     """Load the solo model and initialize the Gepetto viewer if it is enabled
 
     Args:
         q_init (array): the default position of the robot actuators
         params (object): store parameters
-        enable_viewer (bool): if the Gepetto viewer is enabled or not
     """
 
     # Load robot model and data
     # Initialisation of the Gepetto viewer
     Solo12Loader.free_flyer = True
-    solo = Solo12Loader().robot  # TODO:enable_viewer
+    solo = Solo12Loader().robot
     q = solo.q0.reshape((-1, 1))
 
     # Initialisation of the position of footsteps to be under the shoulder
@@ -36,13 +35,12 @@ def init_robot(q_init, params, enable_viewer):
     # Initial angular positions of actuators
     q[7:, 0] = q_init
 
-    """if enable_viewer:
+    if params.enable_corba_viewer:
         solo.initViewer(loadModel=True)
         if ('viewer' in solo.viz.__dict__):
             solo.viewer.gui.addFloor('world/floor')
             solo.viewer.gui.setRefreshIsSynchronous(False)
-    if enable_viewer:
-        solo.display(q)"""
+        solo.display(q)
 
     # Initialisation of model quantities
     pin.centerOfMass(solo.model, solo.data, q, np.zeros((18, 1)))

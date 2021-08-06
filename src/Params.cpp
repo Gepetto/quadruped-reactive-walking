@@ -13,6 +13,7 @@ Params::Params()
     , velID(0)
     , N_SIMULATION(0)
     , enable_pyb_GUI(false)
+    , enable_corba_viewer(false)
     , enable_multiprocessing(false)
     , perfect_estimator(false)
 
@@ -122,6 +123,9 @@ void Params::initialize(const std::string& file_path)
 
     assert_yaml_parsing(robot_node, "robot", "enable_pyb_GUI");
     enable_pyb_GUI = robot_node["enable_pyb_GUI"].as<bool>();
+
+    assert_yaml_parsing(robot_node, "robot", "enable_corba_viewer");
+    enable_corba_viewer = robot_node["enable_corba_viewer"].as<bool>();
 
     assert_yaml_parsing(robot_node, "robot", "enable_multiprocessing");
     enable_multiprocessing = robot_node["enable_multiprocessing"].as<bool>();

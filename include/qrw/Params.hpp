@@ -49,6 +49,7 @@ public:
     int velID;
     int N_SIMULATION;
     bool enable_pyb_GUI;
+    bool enable_corba_viewer;
     bool enable_multiprocessing;
     bool perfect_estimator;
 

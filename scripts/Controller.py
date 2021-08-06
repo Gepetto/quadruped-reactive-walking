@@ -112,17 +112,12 @@ class Controller:
         # List to store the IDs of debug lines
         self.ID_deb_lines = []
 
-        # Enable/Disable Gepetto viewer
-        self.enable_gepetto_viewer = False
-        '''if self.enable_gepetto_viewer:
-            self.view = viewerClient()'''
-
         # Disable perfect estimator if we are not in simulation
         if not params.SIMULATION:
             params.perfectEstimator = False  # Cannot use perfect estimator if we are running on real robot
 
         # Initialisation of the solo model/data and of the Gepetto viewer
-        self.solo = utils_mpc.init_robot(q_init, params, self.enable_gepetto_viewer)
+        self.solo = utils_mpc.init_robot(q_init, params)
 
         # Create Joystick object
         self.joystick = Joystick.Joystick(params)
@@ -176,6 +171,7 @@ class Controller:
         self.use_flat_plane = params.use_flat_plane
         self.predefined_vel = params.predefined_vel
         self.enable_pyb_GUI = params.enable_pyb_GUI
+        self.enable_corba_viewer = params.enable_corba_viewer
         self.Kp_main = params.Kp_main
         self.Kd_main = params.Kd_main
         self.Kff_main = params.Kff_main
@@ -349,8 +345,8 @@ class Controller:
             self.result.tau_ff[:] = self.Kff_main * self.wbcWrapper.tau_ff
 
             # Display robot in Gepetto corba viewer
-            """if self.k % 5 == 0:
-                self.solo.display(self.q)"""
+            if self.enable_corba_viewer and (self.k % 5 == 0):
+                self.solo.display(self.q)
 
         t_wbc = time.time()
 
