@@ -20,8 +20,11 @@ void StatePlanner::initialize(Params& params)
 
 void StatePlanner::computeReferenceStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, double z_average)
 {
-    Eigen::Quaterniond quat(q(6), q(3), q(4), q(5));  // w, x, y, z
-    RPY_ << pinocchio::rpy::matrixToRpy(quat.toRotationMatrix());
+    if (q.rows() != 6)
+    {
+        throw std::runtime_error("q should be a vector of size 6");
+    }
+    RPY_ = q.tail(3);
 
     // Update the current state
     referenceStates_(0, 0) = 0.0;  // In horizontal frame x = 0.0

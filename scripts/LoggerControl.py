@@ -44,7 +44,7 @@ class LoggerControl():
         self.esti_kf_Z = np.zeros([logSize, 16])  # measurement for the Kalman filter
 
         # Loop
-        self.loop_o_q_int = np.zeros([logSize, 19])  # position in world frame (esti_q_filt + dt * loop_o_v)
+        self.loop_o_q_int = np.zeros([logSize, 18])  # position in world frame (esti_q_filt + dt * loop_o_v)
         self.loop_o_v = np.zeros([logSize, 18])  # estimated velocity in world frame
         self.loop_h_v = np.zeros([logSize, 18])  # estimated velocity in horizontal frame
         self.loop_h_v_bis = np.zeros([logSize, 6])  # estimated velocity in horizontal frame

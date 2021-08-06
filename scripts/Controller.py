@@ -116,9 +116,9 @@ class Controller:
         self.enable_hybrid_control = True
 
         self.h_ref = params.h_ref
-        self.q = np.zeros((19, 1))
-        self.q[0:7, 0] = np.array([0.0, 0.0, self.h_ref, 0.0, 0.0, 0.0, 1.0])
-        self.q[7:, 0] = q_init
+        self.q = np.zeros((18, 1))  # Orientation part is in roll pitch yaw
+        self.q[0:6, 0] = np.array([0.0, 0.0, self.h_ref, 0.0, 0.0, 0.0])
+        self.q[6:, 0] = q_init
         self.v = np.zeros((18, 1))
         self.b_v = np.zeros((18, 1))
         self.o_v_filt = np.zeros((18, 1))
@@ -248,10 +248,10 @@ class Controller:
         self.gait.updateGait(self.k, self.k_mpc, self.joystick.joystick_code)
 
         # Quantities go through a 1st order low pass filter with fc = 15 Hz
-        self.q_filt_mpc[:, 0] = self.filter_mpc_q.filter(self.q[:7, 0:1])
-        self.h_v_filt_mpc[:, 0] = self.filter_mpc_v.filter(self.h_v[:6, 0:1])
-        self.h_v_bis_filt_mpc[:, 0] = self.filter_mpc_v_bis.filter(self.h_v_bis[:6, 0:1])
-        self.vref_filt_mpc[:, 0] = self.filter_mpc_vref.filter(self.v_ref[:6, 0:1])
+        self.q_filt_mpc[:, 0] = self.filter_mpc_q.filter(self.q[:6, 0:1], True)
+        self.h_v_filt_mpc[:, 0] = self.filter_mpc_v.filter(self.h_v[:6, 0:1], False)
+        self.h_v_bis_filt_mpc[:, 0] = self.filter_mpc_v_bis.filter(self.h_v_bis[:6, 0:1], False)
+        self.vref_filt_mpc[:, 0] = self.filter_mpc_vref.filter(self.v_ref[:6, 0:1], False)
 
         # Compute target footstep based on current and reference velocities
         o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
@@ -261,7 +261,7 @@ class Controller:
                                                                 self.v_ref[0:6, 0])
 
         # Run state planner (outputs the reference trajectory of the base)
-        self.statePlanner.computeReferenceStates(self.q[0:7, 0:1], self.h_v[0:6, 0:1].copy(),
+        self.statePlanner.computeReferenceStates(self.q[0:6, 0:1], self.h_v[0:6, 0:1].copy(),
                                                  self.v_ref[0:6, 0:1], 0.0)
 
         # Result can be retrieved with self.statePlanner.getReferenceStates()

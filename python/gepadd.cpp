@@ -59,7 +59,7 @@ struct FilterPythonVisitor : public bp::def_visitor<FilterPythonVisitor<Filter>>
                  "Initialize Filter from Python.\n")
 
             // Run Filter from Python
-            .def("filter", &Filter::filter, bp::args("x"), "Run Filter from Python.\n")
+            .def("filter", &Filter::filter, bp::args("x", "check_modulo"), "Run Filter from Python.\n")
             .def("getFilt", &Filter::getFilt, "Get filtered quantity.\n");
     }
 

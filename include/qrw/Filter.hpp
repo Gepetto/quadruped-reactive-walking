@@ -41,9 +41,10 @@ public:
     /// \brief Run one iteration of the filter and return the filtered measurement
     ///
     /// \param[in] x Quantity to filter
+    /// \param[in] check_modulo Check for the +-pi modulo of orientation if true
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    VectorN filter(VectorN const& x);
+    VectorN filter(Vector6 const& x, bool check_modulo);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///

@@ -66,6 +66,11 @@ void FootstepPlanner::initialize(Params& params, Gait& gaitIn)
 
 MatrixN FootstepPlanner::updateFootsteps(bool refresh, int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref)
 {
+    if (q.rows() != 18)
+    {
+        throw std::runtime_error("q should be a vector of size 18 (pos+RPY+mot)");
+    }
+
     // Update location of feet in stance phase (for those which just entered stance phase)
     if (refresh && gait_->isNewPhase())
     {
@@ -87,7 +92,7 @@ MatrixN FootstepPlanner::updateFootsteps(bool refresh, int k, VectorN const& q, 
     }
 
     // Compute location of footsteps
-    return computeTargetFootstep(k, q.head(7), b_v, b_vref);
+    return computeTargetFootstep(k, q.head(6), b_v, b_vref);
 }
 
 void FootstepPlanner::computeFootsteps(int k, Vector6 const& b_v, Vector6 const& b_vref)
@@ -214,7 +219,7 @@ void FootstepPlanner::updateTargetFootsteps()
     }
 }
 
-MatrixN FootstepPlanner::computeTargetFootstep(int k, Vector7 const& q, Vector6 const& b_v, Vector6 const& b_vref)
+MatrixN FootstepPlanner::computeTargetFootstep(int k, Vector6 const& q, Vector6 const& b_v, Vector6 const& b_vref)
 {
     // Compute the desired location of footsteps over the prediction horizon
     computeFootsteps(k, b_v, b_vref);
@@ -223,8 +228,7 @@ MatrixN FootstepPlanner::computeTargetFootstep(int k, Vector7 const& q, Vector6 
     updateTargetFootsteps();
 
     // Get o_targetFootstep_ in world frame from targetFootstep_ in horizontal frame
-    quat_ = {q(6), q(3), q(4), q(5)};  // w, x, y, z
-    RPY_ << pinocchio::rpy::matrixToRpy(quat_.toRotationMatrix());
+    RPY_ = q.tail(3);
     double c = std::cos(RPY_(2));
     double s = std::sin(RPY_(2));
     Rz.topLeftCorner<2, 2>() << c, -s, s, c;
@@ -236,13 +240,13 @@ MatrixN FootstepPlanner::computeTargetFootstep(int k, Vector7 const& q, Vector6 
     return o_targetFootstep_;
 }
 
-void FootstepPlanner::updateNewContact(Vector19 const& q)
+void FootstepPlanner::updateNewContact(Vector18 const& q)
 {
     // Remove translation and yaw rotation to get position in local frame
-    q_FK_ = q;
     q_FK_.head(2) = Vector2::Zero();
-    Vector3 RPY = pinocchio::rpy::matrixToRpy(pinocchio::SE3::Quaternion(q_FK_(6), q_FK_(3), q_FK_(4), q_FK_(5)).toRotationMatrix());
-    q_FK_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(RPY(0, 0), RPY(1, 0), 0.0)).coeffs();
+    q_FK_(2, 0) = q(2, 0);
+    q_FK_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q(3, 0), q(4, 0), 0.0)).coeffs();
+    q_FK_.tail(12) = q.tail(12);
 
     // Update model and data of the robot
     pinocchio::forwardKinematics(model_, data_, q_FK_);

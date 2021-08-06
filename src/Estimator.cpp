@@ -75,7 +75,7 @@ Estimator::Estimator()
     , q_filt_dyn_(VectorN::Zero(19, 1))
     , v_filt_dyn_(VectorN::Zero(18, 1))
     , v_secu_dyn_(VectorN::Zero(12, 1))
-    , q_up_(VectorN::Zero(19))
+    , q_up_(VectorN::Zero(18))
     , v_ref_(VectorN::Zero(6))
     , h_v_(VectorN::Zero(6))
     , oRh_(Matrix3::Identity())
@@ -123,7 +123,6 @@ void Estimator::initialize(Params& params)
     q_filt_dyn_(6, 0) = 1.0;  // Last term of the quaternion
 
     q_up_(2, 0) = params.h_ref;  // Reference height
-    q_up_(6, 0) = 1.0;  // Last term of the quaternion
     q_up_.tail(12) = Vector12(params.q_init.data());  // Actuator initial positions
 
     // Path to the robot URDF (TODO: Automatic path)
@@ -448,7 +447,7 @@ void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait)
 
         // Mix perfect yaw with pitch and roll measurements
         yaw_estim_ += v_ref_[5] * dt_wbc;
-        q_up_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(IMU_RPY_[0], IMU_RPY_[1], yaw_estim_)).coeffs();
+        q_up_.block(3, 0, 3, 1) << IMU_RPY_[0], IMU_RPY_[1], yaw_estim_;
 
         // Actuators measurements
         q_up_.tail(12) = q_filt_dyn_.tail(12);

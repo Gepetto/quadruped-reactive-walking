@@ -23,15 +23,14 @@ void Filter::initialize(Params& params)
   y_queue_.resize(a_.rows()-1, Vector6::Zero());
 }
 
-VectorN Filter::filter(VectorN const& x)
+VectorN Filter::filter(Vector6 const& x, bool check_modulo)
 {
-  // If x is position + quaternion then we convert quaternion to RPY
-  if (x.rows() == 7)
-  {
-    x_.head(3) = x.head(3);
-    Eigen::Quaterniond quat(x(6, 0), x(3, 0), x(4, 0), x(5, 0));  // w, x, y, z
-    x_.tail(3) = pinocchio::rpy::matrixToRpy(quat.toRotationMatrix());
+  // Retrieve measurement
+  x_ = x;
 
+  // Handle modulo for orientation
+  if (check_modulo)
+  {
     // Handle 2 pi modulo for roll, pitch and yaw
     // Should happen sometimes for yaw but now for roll and pitch except
     // if the robot rolls over
@@ -42,10 +41,6 @@ VectorN Filter::filter(VectorN const& x)
         handle_modulo(i, x_(i, 0) - y_(i, 0) > 0);
       }
     }
-  }
-  else  // Otherwise we can directly use x
-  {
-    x_ = x;
   }
 
   // Initialisation of the value in the queues to the first measurement
