@@ -247,6 +247,34 @@ class Controller:
         # Update gait
         self.gait.updateGait(self.k, self.k_mpc, self.joystick.joystick_code)
 
+        # self.q[3:7, 0] = np.array([0, 0, 0.3826834, 0.9238795])
+        """state = np.array([0.0, 0.0, 45.0 / 180 * np.pi])
+                log = np.zeros((600, 3))
+                for i in range(600):
+                    print(i)
+                    if i < 300:
+                        state += np.array([-np.pi/180, 0.0, 0.0])
+                    else:
+                        state -= np.array([-np.pi/180, 0.0, 0.0])
+                    for j in range(3):
+                        if state[j] > np.pi: 
+                            state[j] -= 2*np.pi
+                        elif state[j] < -np.pi: 
+                            state[j] += 2*np.pi
+                    self.q[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(state)).coeffs()
+                    self.filter_mpc_q.filter(self.q[:7, 0:1])
+                    log[i, :] = self.filter_mpc_q.getFilt()[3:]
+
+                from matplotlib import pyplot as plt
+                plt.figure()
+                for i in range(3):
+                    plt.plot(log[:, i], linewidth=3)
+                plt.legend(["Roll", "Pitch", "Yaw"])
+                plt.show()
+
+                from IPython import embed
+                embed()"""
+
         # Quantities go through a 1st order low pass filter with fc = 15 Hz
         self.q_filt_mpc[:, 0] = self.filter_mpc_q.filter(self.q[:6, 0:1], True)
         self.h_v_filt_mpc[:, 0] = self.filter_mpc_v.filter(self.h_v[:6, 0:1], False)
