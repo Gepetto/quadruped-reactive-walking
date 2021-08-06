@@ -38,12 +38,12 @@ public:
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
-    /// \brief Run one iteration of the filter
+    /// \brief Run one iteration of the filter and return the filtered measurement
     ///
     /// \param[in] x Quantity to filter
     ///
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    void filter(VectorN const& x);
+    VectorN filter(VectorN const& x);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -59,8 +59,8 @@ public:
 
 private:
 
-    Vector5 b_;  // Denominator coefficients of the filter transfer function
-    Vector5 a_;  // Numerator coefficients of the filter transfer function
+    Vector1 b_;  // Denominator coefficients of the filter transfer function
+    Vector2 a_;  // Numerator coefficients of the filter transfer function
     Vector6 x_;  // Latest measurement
     VectorN y_;  // Latest result
     Vector6 accum_;  // Used to compute the result (accumulation)

@@ -1,8 +1,8 @@
 #include "qrw/Filter.hpp"
 
 Filter::Filter()
-  : b_(Vector5::Zero())
-  , a_(Vector5::Zero())
+  : b_(Vector1::Zero())
+  , a_(Vector2::Zero())
   , x_(Vector6::Zero())
   , y_(VectorN::Zero(6, 1))
   , accum_(Vector6::Zero())
@@ -13,26 +13,17 @@ Filter::Filter()
 
 void Filter::initialize(Params& params)
 {
-  if (params.dt_wbc == 0.001)
-  {
-    b_ << 3.12389769e-5, 1.24955908e-4, 1.87433862e-4, 1.24955908e-4, 3.12389769e-5;
-    a_ << 1., -3.58973389, 4.85127588, -2.92405266, 0.66301048;
-  }
-  else if (params.dt_wbc == 0.002)
-  {
-    b_ << 0.0004166, 0.0016664, 0.0024996, 0.0016664, 0.0004166;
-    a_ << 1., -3.18063855, 3.86119435, -2.11215536, 0.43826514;
-  }
-  else
-  {
-    throw std::runtime_error("No coefficients defined for this time step.");
-  }
+  const double fc = 15.0;
+  double alpha = (2 * M_PI * params.dt_wbc * fc) / (2 * M_PI * params.dt_wbc * fc + 1.0);
   
+  b_ << alpha;
+  a_ << 1.0, -(1.0 - alpha);
+
   x_queue_.resize(b_.rows(), Vector6::Zero());
   y_queue_.resize(a_.rows()-1, Vector6::Zero());
 }
 
-void Filter::filter(VectorN const& x)
+VectorN Filter::filter(VectorN const& x)
 {
   // If x is position + quaternion then we convert quaternion to RPY
   if (x.rows() == 7)
@@ -48,7 +39,6 @@ void Filter::filter(VectorN const& x)
     {
       if (std::abs(x_(i, 0) - y_(i, 0)) > 1.5 * M_PI)
       {
-        std::cout << "Modulo for " << i << std::endl;
         handle_modulo(i, x_(i, 0) - y_(i, 0) > 0);
       }
     }
@@ -88,6 +78,8 @@ void Filter::filter(VectorN const& x)
   // Filtered result is stored in y_queue_.front()
   // Assigned to dynamic-sized vector for binding purpose
   y_ = y_queue_.front();
+
+  return y_;
 }
 
 void Filter::handle_modulo(int a, bool dir)

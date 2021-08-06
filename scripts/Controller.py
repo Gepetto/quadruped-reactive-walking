@@ -96,16 +96,6 @@ class Controller:
         #                        Parameters definition                         #
         ########################################################################
 
-        # Lists to log the duration of 1 iteration of the MPC/TSID
-        self.t_list_filter = [0] * int(params.N_SIMULATION)
-        self.t_list_planner = [0] * int(params.N_SIMULATION)
-        self.t_list_mpc = [0] * int(params.N_SIMULATION)
-        self.t_list_wbc = [0] * int(params.N_SIMULATION)
-        self.t_list_loop = [0] * int(params.N_SIMULATION)
-
-        self.t_list_InvKin = [0] * int(params.N_SIMULATION)
-        self.t_list_QPWBC = [0] * int(params.N_SIMULATION)
-
         # Init joint torques to correct shape
         self.jointTorques = np.zeros((12, 1))
 
@@ -196,12 +186,15 @@ class Controller:
         self.q_security = np.array([np.pi*0.4, np.pi*80/180, np.pi] * 4)
 
         self.q_filt_mpc = np.zeros((6, 1))
-        self.v_filt_mpc = np.zeros((6, 1))
+        self.h_v_filt_mpc = np.zeros((6, 1))
+        self.h_v_bis_filt_mpc = np.zeros((6, 1))
         self.vref_filt_mpc = np.zeros((6, 1))
         self.filter_mpc_q = lqrw.Filter()
         self.filter_mpc_q.initialize(params)
         self.filter_mpc_v = lqrw.Filter()
         self.filter_mpc_v.initialize(params)
+        self.filter_mpc_v_bis = lqrw.Filter()
+        self.filter_mpc_v_bis.initialize(params)
         self.filter_mpc_vref = lqrw.Filter()
         self.filter_mpc_vref.initialize(params)
 
@@ -254,13 +247,11 @@ class Controller:
         # Update gait
         self.gait.updateGait(self.k, self.k_mpc, self.joystick.joystick_code)
 
-        self.q[3:7, 0] = np.array([0, 0, 0.3826834, 0.9238795])
-        self.filter_mpc_q.filter(self.q[:7, 0:1])
-        self.filter_mpc_v.filter(self.h_v[:6, 0:1])
-        self.filter_mpc_vref.filter(self.v_ref[:6, 0:1])
-
-        from IPython import embed
-        embed()
+        # Quantities go through a 1st order low pass filter with fc = 15 Hz
+        self.q_filt_mpc[:, 0] = self.filter_mpc_q.filter(self.q[:7, 0:1])
+        self.h_v_filt_mpc[:, 0] = self.filter_mpc_v.filter(self.h_v[:6, 0:1])
+        self.h_v_bis_filt_mpc[:, 0] = self.filter_mpc_v_bis.filter(self.h_v_bis[:6, 0:1])
+        self.vref_filt_mpc[:, 0] = self.filter_mpc_vref.filter(self.v_ref[:6, 0:1])
 
         # Compute target footstep based on current and reference velocities
         o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
@@ -398,11 +389,11 @@ class Controller:
 
     def log_misc(self, tic, t_filter, t_planner, t_mpc, t_wbc):
 
-        self.t_list_filter[self.k] = t_filter - tic
-        self.t_list_planner[self.k] = t_planner - t_filter
-        self.t_list_mpc[self.k] = t_mpc - t_planner
-        self.t_list_wbc[self.k] = t_wbc - t_mpc
-        self.t_list_loop[self.k] = time.time() - tic
+        self.t_filter = t_filter - tic
+        self.t_planner = t_planner - t_filter
+        self.t_mpc = t_mpc - t_planner
+        self.t_wbc = t_wbc - t_mpc
+        self.t_loop = time.time() - tic
 
     def updateState(self):
 

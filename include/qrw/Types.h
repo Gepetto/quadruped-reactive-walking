@@ -10,6 +10,7 @@
 #include <string>
 #include <memory>
 
+using Vector1 = Eigen::Matrix<double, 1, 1>;
 using Vector2 = Eigen::Matrix<double, 2, 1>;
 using Vector3 = Eigen::Matrix<double, 3, 1>;
 using Vector4 = Eigen::Matrix<double, 4, 1>;

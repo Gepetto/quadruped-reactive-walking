@@ -307,19 +307,6 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         print("Masterboard timeout detected.")
         print("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.")
 
-    # Plot estimated computation time for each step for the control architecture
-    from matplotlib import pyplot as plt
-    """plt.figure()
-    plt.plot(controller.t_list_filter[1:], 'r+')
-    plt.plot(controller.t_list_planner[1:], 'g+')
-    plt.plot(controller.t_list_mpc[1:], 'b+')
-    plt.plot(controller.t_list_wbc[1:], '+', color="violet")
-    plt.plot(controller.t_list_loop[1:], 'k+')
-    plt.plot(t_log_whole, 'x')
-    plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop", "Whole loop + Interface"])
-    plt.title("Loop time [s]")
-    plt.show(block=True)"""
-
     # Plot recorded data
     if params.PLOTTING:
         loggerControl.plotAll(loggerSensors)
