@@ -583,8 +583,23 @@ class LoggerControl():
         plt.xlabel("Time [s]")
         plt.ylabel("Time [s]")
 
-        # Comparison between quantities before and after 15Hz low-pass filtering
+        # Comparison between position quantities before and after 15Hz low-pass filtering
+        lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw"]
         plt.figure()
+        for i in range(6):
+            if i == 0:
+                ax0 = plt.subplot(3, 2, index6[i])
+            else:
+                plt.subplot(3, 2, index6[i], sharex=ax0)
+
+            plt.plot(t_range, self.loop_o_q_int[:, i], linewidth=3)
+            plt.plot(t_range, self.loop_q_filt_mpc[:, i], linewidth=3)
+
+            plt.legend(["Estimated", "Estimated 15Hz filt"], prop={'size': 8})
+            plt.ylabel(lgd[i])
+        plt.suptitle("Comparison between position quantities before and after 15Hz low-pass filtering")
+
+        # Comparison between velocity quantities before and after 15Hz low-pass filtering
         lgd = ["Linear vel X", "Linear vel Y", "Linear vel Z",
                "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
         plt.figure()
@@ -603,7 +618,7 @@ class LoggerControl():
             plt.legend(["Estimated", "Estimated 3Hz windowed", "Estimated 15Hz filt",
                         "Estimated 15Hz filt 3Hz windowed", "Reference 15Hz filt"], prop={'size': 8})
             plt.ylabel(lgd[i])
-        plt.suptitle("Comparison between quantities before and after 15Hz low-pass filtering")
+        plt.suptitle("Comparison between velocity quantities before and after 15Hz low-pass filtering")
 
 
         # Display all graphs and wait
