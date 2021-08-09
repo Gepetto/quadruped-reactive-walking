@@ -1,7 +1,6 @@
 #include "qrw/MPC.hpp"
 
-MPC::MPC(Params& params) {
-
+MPC::MPC(Params &params) {
   params_ = &params;
 
   dt = params_->dt_mpc;
@@ -21,7 +20,7 @@ MPC::MPC(Params& params) {
   mu = 0.9f;
   cpt_ML = 0;
   cpt_P = 0;
-  offset_CoM(2, 0) = - 0.03;  // Approximation of the vertical offset between center of base and CoM
+  offset_CoM(2, 0) = -0.03;  // Approximation of the vertical offset between center of base and CoM
 
   // Predefined matrices
   footholds << 0.19, 0.19, -0.19, -0.19, 0.15005, -0.15005, 0.15005, -0.15005, 0.0, 0.0, 0.0, 0.0;
@@ -37,7 +36,7 @@ MPC::MPC(Params& params) {
   osqp_set_default_settings(settings);
 }
 
-MPC::MPC() { }
+MPC::MPC() {}
 
 int MPC::create_matrices() {
   // Create the constraint matrices
@@ -145,7 +144,7 @@ int MPC::create_ML() {
   int nst = cpt_ML;                          // number of non zero elements
   int ncc = st_to_cc_size(nst, r_ML, c_ML);  // number of CC values
   // int m = 12 * n_steps * 2 + 20 * n_steps;   // number of rows
-  int n = 12 * n_steps * 2;                  // number of columns
+  int n = 12 * n_steps * 2;  // number of columns
 
   /*int i_min = i4vec_min(nst, r_ML);
   int i_max = i4vec_max(nst, r_ML);
@@ -343,7 +342,7 @@ int MPC::create_weight_matrices() {
   int nst = cpt_P;                         // number of non zero elements
   int ncc = st_to_cc_size(nst, r_P, c_P);  // number of CC values
   // int m = 12 * n_steps * 2;                // number of rows
-  int n = 12 * n_steps * 2;                // number of columns
+  int n = 12 * n_steps * 2;  // number of columns
 
   // Get the CC indices.
   icc = (int *)malloc(ncc * sizeof(int));
@@ -411,7 +410,7 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
 
       // Get skew-symetric matrix for each foothold
       // Eigen::Map<Eigen::Matrix<double, 3, 4>> fsteps_tmp((fsteps.block(j, 1, 1, 12)).data(), 3, 4);
-      footholds_tmp = fsteps.row(j); // block(j, 1, 1, 12);
+      footholds_tmp = fsteps.row(j);  // block(j, 1, 1, 12);
       // footholds = footholds_tmp.reshaped(3, 4);
       Eigen::Map<Eigen::MatrixXd> footholds_bis(footholds_tmp.data(), 3, 4);
 
@@ -497,7 +496,7 @@ int MPC::call_solver(int k) {
     save_dns_matrix(v_NK_low, 12 * n_steps * 2 + 20 * n_steps, "l");
     save_dns_matrix(v_NK_up, 12 * n_steps * 2 + 20 * n_steps, "u");*/
 
-    //settings->rho = 0.1f;
+    // settings->rho = 0.1f;
     settings->sigma = (c_float)1e-6;
     // settings->max_iter = 4000;
     settings->eps_abs = (c_float)1e-6;
@@ -524,9 +523,9 @@ int MPC::call_solver(int k) {
     // osqp_warm_start_x(workspce, &v_warmxf[0]);
   }
 
-  //char t_char[1] = {'M'};
-  //my_print_csc_matrix(ML, t_char);
-  //std::cout << v_NK_low[1] << " <= A x <= " << v_NK_up[1] << std::endl;
+  // char t_char[1] = {'M'};
+  // my_print_csc_matrix(ML, t_char);
+  // std::cout << v_NK_low[1] << " <= A x <= " << v_NK_up[1] << std::endl;
 
   // Run the solver to solve the QP problem
   osqp_solve(workspce);
@@ -541,8 +540,8 @@ int MPC::retrieve_result() {
   // Retrieve the "contact forces" part of the solution of the QP problem
   for (int i = 0; i < (n_steps); i++) {
     for (int k = 0; k < 12; k++) {
-      x_f_applied(k, i) = (workspce->solution->x)[k + 12*i] + xref(k, 1+i);
-      x_f_applied(k + 12, i) = (workspce->solution->x)[12 * (n_steps+i) + k];
+      x_f_applied(k, i) = (workspce->solution->x)[k + 12 * i] + xref(k, 1 + i);
+      x_f_applied(k + 12, i) = (workspce->solution->x)[12 * (n_steps + i) + k];
     }
   }
   for (int k = 0; k < 12; k++) {
@@ -629,7 +628,6 @@ int MPC::construct_S() {
 }
 
 int MPC::construct_gait(Eigen::MatrixXd fsteps_in) {
-
   int k = 0;
   while (!fsteps_in.row(k).isZero()) {
     for (int i = 0; i < 4; i++) {

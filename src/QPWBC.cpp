@@ -1,9 +1,8 @@
 #include "qrw/QPWBC.hpp"
 
-
 QPWBC::QPWBC() {
-  /* 
-  Constructor of the QP solver. Initialization of matrices 
+  /*
+  Constructor of the QP solver. Initialization of matrices
   */
 
   // Slipping constraints
@@ -17,15 +16,14 @@ QPWBC::QPWBC() {
 
   // Add slipping constraints to inequality matrix
   for (int i = 0; i < 4; i++) {
-    G.block(5*i, 3*i, 5, 3) = SC;
+    G.block(5 * i, 3 * i, 5, 3) = SC;
   }
 
   // Set OSQP settings to default
   osqp_set_default_settings(settings);
-
 }
 
-void QPWBC::initialize(Params& params) {
+void QPWBC::initialize(Params &params) {
   params_ = &params;
   Q1 = params.Q1 * Eigen::Matrix<double, 6, 6>::Identity();
   Q2 = params.Q2 * Eigen::Matrix<double, 12, 12>::Identity();
@@ -33,10 +31,9 @@ void QPWBC::initialize(Params& params) {
   // Set the lower and upper limits of the box
   std::fill_n(v_NK_up, size_nz_NK, params_->Fz_max);
   std::fill_n(v_NK_low, size_nz_NK, params_->Fz_min);
-} 
+}
 
 int QPWBC::create_matrices() {
-
   // Create the constraint matrices
   create_ML();
 
@@ -61,7 +58,6 @@ inline void QPWBC::add_to_P(int i, int j, double v, int *r_P, int *c_P, double *
 }
 
 int QPWBC::create_ML() {
-
   int *r_ML = new int[size_nz_ML];        // row indexes of non-zero values in matrix ML
   int *c_ML = new int[size_nz_ML];        // col indexes of non-zero values in matrix ML
   double *v_ML = new double[size_nz_ML];  // non-zero values in matrix ML
@@ -84,7 +80,7 @@ int QPWBC::create_ML() {
   int nst = cpt_ML;                          // number of non zero elements
   int ncc = st_to_cc_size(nst, r_ML, c_ML);  // number of CC values
   // int m = 20;   // number of rows
-  int n = 12;   // number of columns
+  int n = 12;  // number of columns
 
   // std::cout << "Number of CC values: " << ncc << std::endl;
 
@@ -121,9 +117,7 @@ int QPWBC::create_ML() {
   return 0;
 }
 
-
 int QPWBC::create_weight_matrices() {
-
   int *r_P = new int[size_nz_P];        // row indexes of non-zero values in matrix P
   int *c_P = new int[size_nz_P];        // col indexes of non-zero values in matrix P
   double *v_P = new double[size_nz_P];  // non-zero values in matrix P
@@ -147,7 +141,7 @@ int QPWBC::create_weight_matrices() {
   int nst = cpt_P;                         // number of non zero elements
   int ncc = st_to_cc_size(nst, r_P, c_P);  // number of CC values
   // int m = 12;                // number of rows
-  int n = 12;                // number of columns
+  int n = 12;  // number of columns
 
   // std::cout << "Number of CC values: " << ncc << std::endl;
 
@@ -181,15 +175,14 @@ int QPWBC::create_weight_matrices() {
 }
 
 int QPWBC::call_solver() {
-
   // Setup the solver (first iteration) then just update it
   if (not initialized)  // Setup the solver with the matrices
   {
     data = (OSQPData *)c_malloc(sizeof(OSQPData));
-    data->n = 12;            // number of variables
-    data->m = 20;            // number of constraints
-    data->P = P;             // the upper triangular part of the quadratic cost matrix P in csc format (size n x n)
-    data->A = ML;            // linear constraints matrix A in csc format (size m x n)
+    data->n = 12;        // number of variables
+    data->m = 20;        // number of constraints
+    data->P = P;         // the upper triangular part of the quadratic cost matrix P in csc format (size n x n)
+    data->A = ML;        // linear constraints matrix A in csc format (size m x n)
     data->q = Q;         // dense array for linear part of cost function (size n)
     data->l = v_NK_low;  // dense array for lower bound (size m)
     data->u = v_NK_up;   // dense array for upper bound (size m)
@@ -229,7 +222,6 @@ int QPWBC::call_solver() {
     // Update upper bound of the OSQP solver
     osqp_update_upper_bound(workspce, &v_NK_up[0]);
     osqp_update_lower_bound(workspce, &v_NK_low[0]);
-
   }
 
   // Run the solver to solve the QP problem
@@ -241,7 +233,6 @@ int QPWBC::call_solver() {
 }
 
 int QPWBC::retrieve_result(const Eigen::MatrixXd &f_cmd) {
-
   // Retrieve the solution of the QP problem
   for (int k = 0; k < 12; k++) {
     f_res(k, 0) = (workspce->solution->x)[k];
@@ -261,22 +252,21 @@ Getters
 */
 Eigen::MatrixXd QPWBC::get_f_res() { return f_res; }
 Eigen::MatrixXd QPWBC::get_ddq_res() { return ddq_res; }
-Eigen::MatrixXd QPWBC::get_H() { 
-  Eigen::MatrixXd Hxd = Eigen::MatrixXd::Zero(12, 12); 
+Eigen::MatrixXd QPWBC::get_H() {
+  Eigen::MatrixXd Hxd = Eigen::MatrixXd::Zero(12, 12);
   Hxd = H;
-  return Hxd; 
+  return Hxd;
 }
 
-int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA,
-               const Eigen::MatrixXd &k_contact) {
-
+int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd,
+               const Eigen::MatrixXd &RNEA, const Eigen::MatrixXd &k_contact) {
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + 2 x^T.Q with constraints M.X == N and L.X <= K
   if (not initialized) {
     create_matrices();
     // std::cout << G << std::endl;
   }
-  
+
   // Compute the different matrices involved in the box QP
   compute_matrices(M, Jc, f_cmd, RNEA);
 
@@ -284,10 +274,10 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
   update_PQ();
 
   Eigen::Matrix<double, 20, 1> Gf = G * f_cmd;
-  
+
   for (int i = 0; i < G.rows(); i++) {
-    v_NK_low[i] = - Gf(i, 0) + params_->Fz_min;
-    v_NK_up[i] = - Gf(i, 0) + params_->Fz_max;
+    v_NK_low[i] = -Gf(i, 0) + params_->Fz_min;
+    v_NK_up[i] = -Gf(i, 0) + params_->Fz_max;
   }
 
   // Limit max force when contact is activated
@@ -296,17 +286,17 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
     if (k_contact(0, i) < k_max) {
       v_NK_up[5*i+4] -= Nz_max * (1.0 - k_contact(0, i) / k_max);
     }*/
-    /*else if (k_contact(0, i) == (k_max+10))
-    {
-      //char t_char[1] = {'M'};
-      //cc_print( (data->A)->m, (data->A)->n, (data->A)->nzmax, (data->A)->i, (data->A)->p, (data->A)->x, t_char);
-      std::cout << " ### " << k_contact(0, i) << std::endl;
+  /*else if (k_contact(0, i) == (k_max+10))
+  {
+    //char t_char[1] = {'M'};
+    //cc_print( (data->A)->m, (data->A)->n, (data->A)->nzmax, (data->A)->i, (data->A)->p, (data->A)->x, t_char);
+    std::cout << " ### " << k_contact(0, i) << std::endl;
 
-      for (int i = 0; i < data->m; i++) {
-        std::cout << data->l[i] << " | " << data->u[i] << " | " << f_cmd(i, 0) << std::endl;
-      }
-    }*/
-    
+    for (int i = 0; i < data->m; i++) {
+      std::cout << data->l[i] << " | " << data->u[i] << " | " << f_cmd(i, 0) << std::endl;
+    }
+  }*/
+
   //}
 
   // Create an initial guess and call the solver to solve the QP problem
@@ -338,7 +328,6 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
 }
 
 void QPWBC::my_print_csc_matrix(csc *M, const char *name) {
-
   c_int j, i, row_start, row_stop;
   c_int k = 0;
 
@@ -357,14 +346,12 @@ void QPWBC::my_print_csc_matrix(csc *M, const char *name) {
         int b = (int)j;
         double c = M->x[k++];
         printf("\t%3u [%3u,%3u] = %.3g\n", k - 1, a, b, c);
-        
       }
     }
   }
 }
 
 void QPWBC::save_csc_matrix(csc *M, std::string filename) {
-
   c_int j, i, row_start, row_stop;
   c_int k = 0;
 
@@ -391,7 +378,6 @@ void QPWBC::save_csc_matrix(csc *M, std::string filename) {
 }
 
 void QPWBC::save_dns_matrix(double *M, int size, std::string filename) {
-  
   // Open file
   std::ofstream myfile;
   myfile.open(filename + ".csv");
@@ -403,9 +389,8 @@ void QPWBC::save_dns_matrix(double *M, int size, std::string filename) {
   myfile.close();
 }
 
-
-void QPWBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA) {
-
+void QPWBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd,
+                             const Eigen::MatrixXd &RNEA) {
   Y = M.block(0, 0, 6, 6);
   X = Jc.block(0, 0, 12, 6).transpose();
   Yinv = pseudoInverse(Y);
@@ -430,18 +415,15 @@ void QPWBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc
   std::cout << g << std::endl;
   std::cout << "H" << std::endl;
   std::cout << H << std::endl;*/
-
-
 }
 
 void QPWBC::update_PQ() {
-
   // Update P matrix of min xT P x + 2 xT Q
   int cpt = 0;
   for (int i = 0; i < 12; i++) {
     for (int j = 0; j <= i; j++) {
-       P->x[cpt] = H(j, i);
-       cpt++;
+      P->x[cpt] = H(j, i);
+      cpt++;
     }
   }
 
@@ -454,36 +436,32 @@ void QPWBC::update_PQ() {
 
   /*char t_char[1] = {'P'};
   my_print_csc_matrix(P, t_char);*/
-
 }
 
-
-
 WbcWrapper::WbcWrapper()
-    : M_(Eigen::Matrix<double, 18, 18>::Zero())
-    , Jc_(Eigen::Matrix<double, 12, 6>::Zero())
-    , k_since_contact_(Eigen::Matrix<double, 1, 4>::Zero())
-    , qdes_(Vector12::Zero())
-    , vdes_(Vector12::Zero())
-    , tau_ff_(Vector12::Zero())
-    , ddq_cmd_(Vector18::Zero())
-    , q_default_(Vector19::Zero())
-    , f_with_delta_(Vector12::Zero())
-    , ddq_with_delta_(Vector18::Zero())
-    , posf_tmp_(Matrix43::Zero())
-    , log_feet_pos_target(Matrix34::Zero())
-    , log_feet_vel_target(Matrix34::Zero())
-    , log_feet_acc_target(Matrix34::Zero())
-    , k_log_(0)
-{}
+    : M_(Eigen::Matrix<double, 18, 18>::Zero()),
+      Jc_(Eigen::Matrix<double, 12, 6>::Zero()),
+      k_since_contact_(Eigen::Matrix<double, 1, 4>::Zero()),
+      qdes_(Vector12::Zero()),
+      vdes_(Vector12::Zero()),
+      tau_ff_(Vector12::Zero()),
+      ddq_cmd_(Vector18::Zero()),
+      q_default_(Vector19::Zero()),
+      f_with_delta_(Vector12::Zero()),
+      ddq_with_delta_(Vector18::Zero()),
+      posf_tmp_(Matrix43::Zero()),
+      log_feet_pos_target(Matrix34::Zero()),
+      log_feet_vel_target(Matrix34::Zero()),
+      log_feet_acc_target(Matrix34::Zero()),
+      k_log_(0) {}
 
-void WbcWrapper::initialize(Params& params) 
-{
+void WbcWrapper::initialize(Params &params) {
   // Params store parameters
   params_ = &params;
 
   // Path to the robot URDF (TODO: Automatic path)
-  const std::string filename = std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
+  const std::string filename =
+      std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
 
   // Build model from urdf (base is not free flyer)
   pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
@@ -494,7 +472,7 @@ void WbcWrapper::initialize(Params& params)
   // Update all the quantities of the model
   VectorN q_tmp = VectorN::Zero(model_.nq);
   q_tmp(6, 0) = 1.0;  // Quaternion (0, 0, 0, 1)
-  pinocchio::computeAllTerms(model_, data_ , q_tmp, VectorN::Zero(model_.nv));
+  pinocchio::computeAllTerms(model_, data_, q_tmp, VectorN::Zero(model_.nv));
 
   // Initialize inverse kinematic and box QP solvers
   invkin_ = new InvKin();
@@ -514,14 +492,12 @@ void WbcWrapper::initialize(Params& params)
 
   // Make mass matrix symetric
   data_.M.triangularView<Eigen::StrictlyLower>() = data_.M.transpose().triangularView<Eigen::StrictlyLower>();
-
 }
 
-void WbcWrapper::compute(VectorN const& q, VectorN const& dq, MatrixN const& f_cmd, MatrixN const& contacts,
-                         MatrixN const& pgoals, MatrixN const& vgoals, MatrixN const& agoals)
-{
+void WbcWrapper::compute(VectorN const &q, VectorN const &dq, MatrixN const &f_cmd, MatrixN const &contacts,
+                         MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals) {
   //  Update nb of iterations since contact
-  k_since_contact_ += contacts;  // Increment feet in stance phase
+  k_since_contact_ += contacts;                                // Increment feet in stance phase
   k_since_contact_ = k_since_contact_.cwiseProduct(contacts);  // Reset feet in swing phase
 
   // Store target positions, velocities and acceleration for logging purpose
@@ -538,17 +514,12 @@ void WbcWrapper::compute(VectorN const& q, VectorN const& dq, MatrixN const& f_c
 
   // Retrieve feet jacobian
   posf_tmp_ = invkin_->get_posf();
-  for (int i = 0; i < 4; i++) 
-  {
-    if (contacts(0, i))
-    {
+  for (int i = 0; i < 4; i++) {
+    if (contacts(0, i)) {
       Jc_.block(3 * i, 0, 3, 3) = Matrix3::Identity();
-      Jc_.block(3 * i, 3, 3, 3) << 0.0, posf_tmp_(i, 2), -posf_tmp_(i, 1),
-                                   -posf_tmp_(i, 2), 0.0, posf_tmp_(i, 0),
-                                   posf_tmp_(i, 1), -posf_tmp_(i, 0), 0.0;
-    }
-    else
-    {
+      Jc_.block(3 * i, 3, 3, 3) << 0.0, posf_tmp_(i, 2), -posf_tmp_(i, 1), -posf_tmp_(i, 2), 0.0, posf_tmp_(i, 0),
+          posf_tmp_(i, 1), -posf_tmp_(i, 0), 0.0;
+    } else {
       Jc_.block(3 * i, 0, 3, 6).setZero();
     }
   }
@@ -570,7 +541,8 @@ void WbcWrapper::compute(VectorN const& q, VectorN const& dq, MatrixN const& f_c
   std::cout << k_since_contact_ << std::endl;*/
 
   // Solve the QP problem
-  box_qp_->run(data_.M, Jc_, Eigen::Map<const VectorN>(f_cmd.data(), f_cmd.size()), data_.tau.head(6), k_since_contact_);
+  box_qp_->run(data_.M, Jc_, Eigen::Map<const VectorN>(f_cmd.data(), f_cmd.size()), data_.tau.head(6),
+               k_since_contact_);
 
   // Add to reference quantities the deltas found by the QP solver
   f_with_delta_ = box_qp_->get_f_res();
