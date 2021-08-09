@@ -2,8 +2,9 @@
 ///
 /// \brief This is the header for Params class
 ///
-/// \details Planner that outputs the reference trajectory of the base based on the reference 
-///          velocity given by the user and the current position/velocity of the base
+/// \details This class retrieves and stores all parameters written in the main .yaml so that the user can easily
+/// change their value without digging into the code. It also stores some model parameters whose values depends on what
+/// is in the yaml
 ///
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -13,116 +14,124 @@
 #include "qrw/Types.h"
 #include <yaml-cpp/yaml.h>
 
-class Params
-{
-public:
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    ///
-    /// \brief Empty constructor
-    ///
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    Params();
+class Params {
+ public:
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Empty constructor
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  Params();
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    ///
-    /// \brief Destructor.
-    ///
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    ~Params() {}
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Destructor.
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ~Params() {}
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    ///
-    /// \brief Initializer
-    ///
-    ////////////////////////////////////////////////////////////////////////////////////////////////
-    void initialize(const std::string& file_path);
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Initializer
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void initialize(const std::string& file_path);
 
+  // See .yaml file for meaning of parameters
+  // General parameters
+  std::string interface;  // Name of the communication interface (check with ifconfig)
+  bool SIMULATION;        // Enable/disable PyBullet simulation or running on real robot
+  bool LOGGING;           //  Enable/disable logging during the experiment
+  bool PLOTTING;          // Enable/disable automatic plotting at the end of the experiment
+  int envID;              // Identifier of the environment to choose in which one the simulation will happen
+  bool use_flat_plane;    // If True the ground is flat, otherwise it has bumps
+  bool predefined_vel;    // If we are using a predefined reference velocity (True) or a joystick (False)
+  int velID;              // Identifier of the reference velocity profile to choose which one will be sent to the robot
+  int N_SIMULATION;       // Number of simulated wbc time steps
+  bool enable_pyb_GUI;    // Enable/disable PyBullet GUI
+  bool enable_corba_viewer;     // Enable/disable Corba Viewer
+  bool enable_multiprocessing;  // Enable/disable running the MPC in another process in parallel of the main loop
+  bool perfect_estimator;       // Enable/disable perfect estimator by using data directly from PyBullet
 
-    // See .yaml file for meaning of parameters
-    std::string interface;
-    bool SIMULATION;
-    bool LOGGING;
-    bool PLOTTING;
-    int envID;
-    bool use_flat_plane;
-    bool predefined_vel;
-    int velID;
-    int N_SIMULATION;
-    bool enable_pyb_GUI;
-    bool enable_corba_viewer;
-    bool enable_multiprocessing;
-    bool perfect_estimator;
+  // General control parameters
+  std::vector<double> q_init;  // Initial articular positions
+  double dt_wbc;               // Time step of the whole body control
+  int N_gait;  // Number of rows in the gait matrix. Arbitrary value that should be set high enough  so that there is
+               // always at least one empty line at the end of the gait matrix
+  double dt_mpc;    // Time step of the model predictive control
+  double T_gait;    // Duration of one gait period
+  double T_mpc;     // Duration of the prediction horizon
+  int type_MPC;     // Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
+  bool kf_enabled;  // Use complementary filter (False) or kalman filter (True) for the estimator
+  double Kp_main;   // Proportional gains for the PD+
+  double Kd_main;   // Derivative gains for the PD+
+  double Kff_main;  // Feedforward torques multiplier for the PD+
 
-    std::vector<double> q_init;
-    double dt_wbc;
-    int N_gait;
-    double dt_mpc;
-    double T_gait;
-    double T_mpc;
-    int type_MPC;
-    bool kf_enabled;
-    double Kp_main;
-    double Kd_main;
-    double Kff_main;
+  // Parameters of Estimator
+  double fc_v_esti;  // Cut frequency for the low pass that filters the estimated base velocity
 
-    double fc_v_esti;
+  // Parameters of FootstepPlanner
+  double k_feedback;  // Value of the gain for the feedback heuristic
 
-    double k_feedback;
+  // Parameters of FootTrajectoryGenerator
+  double max_height;  // Apex height of the swinging trajectory [m]
+  double lock_time;   // Target lock before the touchdown [s]
+  double vert_time;   // Duration during which feet move only along Z when taking off and landing
 
-    double max_height;
-    double lock_time;
-    double vert_time;
+  // Parameters of MPC with OSQP
+  std::vector<double> osqp_w_states;  // Weights for state tracking error
+  std::vector<double> osqp_w_forces;  // Weights for force regularisation
+  double osqp_Nz_lim;                 // Maximum vertical force that can be applied at contact points
 
-    std::vector<double> osqp_w_states;
-    std::vector<double> osqp_w_forces;
-    double osqp_Nz_lim;
+  //  Parameters of InvKin
+  double Kp_flyingfeet;  // Proportional gain for feet position tasks
+  double Kd_flyingfeet;  // Derivative gain for feet position tasks
 
-    double Kp_flyingfeet;
-    double Kd_flyingfeet;
+  // Parameters of WBC QP problem
+  double Q1;      // Weights for the "delta articular accelerations" optimization variables
+  double Q2;      // Weights for the "delta contact forces" optimization variables
+  double Fz_max;  // Maximum vertical contact force [N]
+  double Fz_min;  // Minimal vertical contact force [N]
 
-    double Q1;
-    double Q2;
-    double Fz_max;
-    double Fz_min;
-
-
-    // Not defined in yaml
-    double mass;  // Mass of the robot
-    std::vector<double> I_mat;  // Inertia matrix
-    double h_ref;  // Reference height for the base
-    std::vector<double> shoulders;  // Position of shoulders in base frame
-    std::vector<double> footsteps_init;  // Initial 3D position of footsteps in base frame
-    std::vector<double> footsteps_under_shoulders;  // // Positions of footsteps to be "under the shoulder"
-
+  // Not defined in yaml
+  double mass;                                    // Mass of the robot
+  std::vector<double> I_mat;                      // Inertia matrix
+  double h_ref;                                   // Reference height for the base
+  std::vector<double> shoulders;                  // Position of shoulders in base frame
+  std::vector<double> footsteps_init;             // Initial 3D position of footsteps in base frame
+  std::vector<double> footsteps_under_shoulders;  // Positions of footsteps to be "under the shoulder"
 };
 
-namespace yaml_control_interface
-{
-#define assert_yaml_parsing(yaml_node, parent_node_name, child_node_name)      \
-    if (!yaml_node[child_node_name])                                           \
-    {                                                                          \
-        std::ostringstream oss;                                                \
-        oss << "Error: Wrong parsing of the YAML file from src file: ["        \
-            << __FILE__ << "], in function: [" << __FUNCTION__ << "], line: [" \
-            << __LINE__ << ". Node [" << child_node_name                       \
-            << "] does not exists under the node [" << parent_node_name        \
-            << "].";                                                           \
-        throw std::runtime_error(oss.str());                                   \
-    }                                                                          \
-    assert(true)
+////////////////////////////////////////////////////////////////////////////////////////////////
+///
+/// \brief Check if a parameter exists in a given yaml file (bofore we try retrieving its value)
+///
+////////////////////////////////////////////////////////////////////////////////////////////////
+namespace yaml_control_interface {
+#define assert_yaml_parsing(yaml_node, parent_node_name, child_node_name)                              \
+  if (!yaml_node[child_node_name]) {                                                                   \
+    std::ostringstream oss;                                                                            \
+    oss << "Error: Wrong parsing of the YAML file from src file: [" << __FILE__ << "], in function: [" \
+        << __FUNCTION__ << "], line: [" << __LINE__ << ". Node [" << child_node_name                   \
+        << "] does not exists under the node [" << parent_node_name << "].";                           \
+    throw std::runtime_error(oss.str());                                                               \
+  }                                                                                                    \
+  assert(true)
 
-#define assert_file_exists(filename)                                    \
-    std::ifstream f(filename.c_str());                                  \
-    if (!f.good())                                                      \
-    {                                                                   \
-        std::ostringstream oss;                                         \
-        oss << "Error: Problem opening the file [" << filename          \
-            << "], from src file: [" << __FILE__ << "], in function: [" \
-            << __FUNCTION__ << "], line: [" << __LINE__                 \
-            << ". The file may not exists.";                            \
-        throw std::runtime_error(oss.str());                            \
-    }                                                                   \
-    assert(true)
-}  // end of yaml_control_interface namespace
+////////////////////////////////////////////////////////////////////////////////////////////////
+///
+/// \brief Check if a file exists (before we try loading it)
+///
+////////////////////////////////////////////////////////////////////////////////////////////////
+#define assert_file_exists(filename)                                                                        \
+  std::ifstream f(filename.c_str());                                                                        \
+  if (!f.good()) {                                                                                          \
+    std::ostringstream oss;                                                                                 \
+    oss << "Error: Problem opening the file [" << filename << "], from src file: [" << __FILE__             \
+        << "], in function: [" << __FUNCTION__ << "], line: [" << __LINE__ << ". The file may not exists."; \
+    throw std::runtime_error(oss.str());                                                                    \
+  }                                                                                                         \
+  assert(true)
+}  // namespace yaml_control_interface
 
 #endif  // PARAMS_H_INCLUDED

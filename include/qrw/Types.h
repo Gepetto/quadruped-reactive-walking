@@ -1,7 +1,6 @@
 #ifndef TYPES_H_INCLUDED
 #define TYPES_H_INCLUDED
 
-#include <Eigen/Eigen>
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <cmath>

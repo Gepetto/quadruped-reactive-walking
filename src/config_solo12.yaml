@@ -1,6 +1,6 @@
 robot:
     # General parameters
-    interface: enp2s0
+    interface: enp2s0  # Name of the communication interface (check with ifconfig)
     SIMULATION: true  # Enable/disable PyBullet simulation or running on real robot
     LOGGING: false  # Enable/disable logging during the experiment
     PLOTTING: true  # Enable/disable automatic plotting at the end of the experiment

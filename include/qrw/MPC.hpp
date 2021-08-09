@@ -16,36 +16,232 @@
 typedef Eigen::MatrixXd matXd;
 
 class MPC {
+ public:
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Constructor
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  MPC();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Constructor with parameters
+  ///
+  /// \param[in] params Object that stores parameters
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  MPC(Params &params);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Destructor
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ~MPC() {}  // Empty destructor
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Run one iteration of the whole MPC by calling all the necessary functions (data retrieval, update
+  ///        of constraint matrices, update of the solver, running the solver, retrieving result)
+  ///
+  /// \param[in] num_iter Number of the current iteration of the MPC
+  /// \param[in] xref_in Reference state trajectory over the prediction horizon
+  /// \param[in] fsteps_in Footsteps location over the prediction horizon stored in a Nx12 matrix
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in);
+
+  // Getters
+  Eigen::MatrixXd get_latest_result();  // Return the latest desired contact forces that have been computed
+  Eigen::MatrixXd get_gait();           // Return the gait matrix
+  Eigen::MatrixXd get_Sgait();          // Return the S_gait matrix
+  double *get_x_next();                 // Return the next predicted state of the base
+
  private:
-  Params* params_;
-  double dt, mass, mu, T_gait;
-  int n_steps, cpt_ML, cpt_P;
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Print positions and value of coefficients in a csc matrix
+  ///
+  /// \param[in] M (csc*): pointer to the csc matrix you want to print
+  /// \param[in] name (char*): name that should be displayed for the matrix (one char)
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void my_print_csc_matrix(csc *M, const char *name);
 
-  Eigen::Matrix<double, 3, 3> gI;
-  Eigen::Matrix<double, 3, 4> footholds = Eigen::Matrix<double, 3, 4>::Zero();
-  Eigen::Matrix<double, 1, 12> footholds_tmp = Eigen::Matrix<double, 12, 1>::Zero();
-  Eigen::Matrix<double, 3, 4> lever_arms = Eigen::Matrix<double, 3, 4>::Zero();
-  Eigen::Matrix<int, Eigen::Dynamic, 4> gait;
-  Eigen::Matrix<int, Eigen::Dynamic, 4> inv_gait;
-  Eigen::Matrix<double, 12, 1> g = Eigen::Matrix<double, 12, 1>::Zero();
-  Eigen::Matrix<double, 3, 1> offset_CoM = Eigen::Matrix<double, 3, 1>::Zero();
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Save positions and value of coefficients of a csc matrix in a csc file
+  ///
+  /// \param[in] M (csc*): pointer to the csc matrix you want to save
+  /// \param[in] filename (string): name of the generated csv file
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void save_csc_matrix(csc *M, std::string filename);
 
-  Eigen::Matrix<double, 12, 12> A = Eigen::Matrix<double, 12, 12>::Identity();
-  Eigen::Matrix<double, 12, 12> B = Eigen::Matrix<double, 12, 12>::Zero();
-  Eigen::Matrix<double, 12, 1> x0 = Eigen::Matrix<double, 12, 1>::Zero();
-  double x_next[12] = {};
-  Eigen::MatrixXd x_f_applied;
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Save positions and value of coefficients of a dense matrix in a csc file
+  ///
+  /// \param[in] M (double*): pointer to the dense matrix you want to save
+  /// \param[in] size (int): size of the dense matrix
+  /// \param[in] filename (string): name of the generated csv file
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void save_dns_matrix(double *M, int size, std::string filename);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Add a new non-zero coefficient to the sparse ML matrix by filling the triplet r_ML / c_ML / v_ML
+  ///
+  /// \param[in] i Row index of the new entry
+  /// \param[in] j Column index of the new entry
+  /// \param[in] v Value of the new entry
+  /// \param[in] r_ML Pointer to the table that contains row indexes
+  /// \param[in] c_ML Pointer to the table that contains column indexes
+  /// \param[in] v_ML Pointer to the table that contains values
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  inline void add_to_ML(int i, int j, double v, int *r_ML, int *c_ML, double *v_ML);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Add a new non-zero coefficient to the P matrix by filling the triplet r_P / c_P / v_P
+  ///
+  /// \param[in] i Row index of the new entry
+  /// \param[in] j Column index of the new entry
+  /// \param[in] v Value of the new entry
+  /// \param[in] r_P Pointer to the table that contains row indexes
+  /// \param[in] c_P Pointer to the table that contains column indexes
+  /// \param[in] v_P Pointer to the table that contains values
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  inline void add_to_P(int i, int j, double v, int *r_P, int *c_P, double *v_P);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Create the constraint matrices (M.X = N and L.X <= K)
+  ///        Create the weight matrices P and Q (cost 1/2 x^T * P * X + X^T * Q)
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int create_matrices();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Create the M and L matrices involved in the constraint equations
+  ///        the solution has to respect: M.X = N and L.X <= K
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int create_ML();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Create the N and K matrices involved in the MPC constraint equations
+  ///        the solution has to respect: M.X = N and L.X <= K
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int create_NK();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Create the weight matrices P and Q in the cost function
+  ///        1/2 x^T.P.x + x^T.q of the QP problem
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int create_weight_matrices();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Update the M, N, L and K constraint matrices depending on what happened
+  ///
+  /// \param[in] fsteps Footsteps location over the prediction horizon stored in a Nx12 matrix
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int update_matrices(Eigen::MatrixXd fsteps);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Update the M and L constaint matrices depending on the current state of the gait
+  ///
+  /// \param[in] fsteps Footsteps location over the prediction horizon stored in a Nx12 matrix
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int update_ML(Eigen::MatrixXd fsteps);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Update the N and K matrices involved in the MPC constraint equations M.X = N and L.X <= K
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int update_NK();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Initialize the solver (first iteration) or update it (next iterations) then call the
+  ///        OSQP solver to solve the QP problem
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int call_solver(int);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Extract relevant information from the output of the QP solver
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int retrieve_result();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Returns the skew matrix of a 3 by 1 column vector
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  Matrix3 getSkew(Vector3 v);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Construct an array of size 12*N that contains information about the contact state of feet.
+  ///        This matrix is used to enable/disable contact forces in the QP problem.
+  ///        N is the number of time step in the prediction horizon.
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int construct_S();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Reconstruct the gait matrix based on the fsteps matrix since only the last one is received by the MPC
+  ///
+  /// \param[in] fsteps Footsteps location over the prediction horizon stored in a Nx12 matrix
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int construct_gait(Eigen::MatrixXd fsteps_in);
+
+  Params *params_;  // Object that stores parameters
+  double dt;        // Time step
+  double mass;      // Total mass
+  double mu;        // Friction coefficient
+  double T_gait;    // Period of the gait
+  int n_steps;      // Number of time steps in the prediction horizon
+  int cpt_ML;       // Counter of ML coefficients
+  int cpt_P;        // Counter of P coefficients
+
+  Matrix3 gI;                                      // Inertia matrix
+  Matrix34 footholds = Matrix34::Zero();           // Initial position of footsteps
+  Matrix112 footholds_tmp = Matrix112::Zero();     // Updated position of footsteps
+  Matrix34 lever_arms = Matrix34::Zero();          // Lever arms of footsteps with the center of mass
+  Eigen::Matrix<int, Eigen::Dynamic, 4> gait;      // Contact status over the prediction horizon
+  Eigen::Matrix<int, Eigen::Dynamic, 4> inv_gait;  // Inversed contact status over the prediction horizon
+  Vector12 g = Vector12::Zero();                   // Gravity vector
+  Vector3 offset_CoM = Vector3::Zero();            // Offset of the CoM position compared to center of base
+
+  Matrix12 A = Matrix12::Identity();  // Of evolution X+ = A*X + B*f + C
+  Matrix12 B = Matrix12::Zero();      // Of evolution X+ = A*X + B*f + C
+  Vector12 x0 = Vector12::Zero();     // Current state of the robot
+  double x_next[12] = {};             // Next state of the robot (difference with reference state)
+  Eigen::MatrixXd x_f_applied;        // Next predicted state of the robot + Desired contact forces to reach it
 
   // Matrix ML
   const static int size_nz_ML = 5000;
-  // int r_ML [size_nz_ML] = {}; // row indexes of non-zero values in matrix ML
-  // int c_ML [size_nz_ML] = {}; // col indexes of non-zero values in matrix ML
-  // double v_ML [size_nz_ML] = {};  // non-zero values in matrix ML
-  // csc* ML_triplet; // Compressed Sparse Column matrix (triplet format)
   csc *ML;  // Compressed Sparse Column matrix
-  inline void add_to_ML(int i, int j, double v, int *r_ML, int *c_ML,
-                        double *v_ML);                                            // function to fill the triplet r/c/v
-  inline void add_to_P(int i, int j, double v, int *r_P, int *c_P, double *v_P);  // function to fill the triplet r/c/v
 
   // Indices that are used to udpate ML
   int i_x_B[12 * 4] = {};
@@ -61,9 +257,6 @@ class MPC {
 
   // Matrix P
   const static int size_nz_P = 5000;
-  // c_int r_P [size_nz_P] = {}; // row indexes of non-zero values in matrix ML
-  // c_int c_P [size_nz_P] = {}; // col indexes of non-zero values in matrix ML
-  // c_float v_P [size_nz_P] = {};  // non-zero values in matrix ML
   csc *P;  // Compressed Sparse Column matrix
 
   // Matrix Q
@@ -76,55 +269,16 @@ class MPC {
   OSQPSettings *settings = (OSQPSettings *)c_malloc(sizeof(OSQPSettings));
 
   // Matrices whose size depends on the arguments sent to the constructor function
-  Eigen::Matrix<double, 12, Eigen::Dynamic> xref;
-  Eigen::Matrix<double, Eigen::Dynamic, 1> x;
-  Eigen::Matrix<int, Eigen::Dynamic, 1> S_gait;
-  Eigen::Matrix<double, Eigen::Dynamic, 1> warmxf;
-  Eigen::Matrix<double, Eigen::Dynamic, 1> NK_up;
-  Eigen::Matrix<double, Eigen::Dynamic, 1> NK_low;
-  Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> D;
-  Eigen::Matrix<int, Eigen::Dynamic, 1> i_off;
-
- public:
-  MPC();
-  MPC(Params& params);
-
-  int create_matrices();
-  int create_ML();
-  int create_NK();
-  int create_weight_matrices();
-  int update_matrices(Eigen::MatrixXd fsteps);
-  int update_ML(Eigen::MatrixXd fsteps);
-  int update_NK();
-  int call_solver(int);
-  int retrieve_result();
-  double *get_x_next();
-  int run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in);
-
-  Eigen::Matrix<double, 3, 3> getSkew(Eigen::Matrix<double, 3, 1> v);
-  int construct_S();
-  int construct_gait(Eigen::MatrixXd fsteps_in);
-
-  // Getters
-  Eigen::MatrixXd get_latest_result();
-  Eigen::MatrixXd get_gait();
-  Eigen::MatrixXd get_Sgait();
-
-
-  // Utils
-  void my_print_csc_matrix(csc *M, const char *name);
-  void save_csc_matrix(csc *M, std::string filename);
-  void save_dns_matrix(double *M, int size, std::string filename);
-
-  // Bindings
-  void run_python(const matXd &xref_py, const matXd &fsteps_py);
-
-  // Eigen::Matrix<double, 12, 12> getA() { return A; }
-  // Eigen::MatrixXf getML() { return ML; }
-  /*void setDate(int year, int month, int day);
-  int getYear();
-  int getMonth();
-  int getDay();*/
+  Eigen::Matrix<double, 12, Eigen::Dynamic> xref;  // Reference state trajectory over the prediction horizon
+  VectorN x;                                       // State vector
+  Eigen::Matrix<int, Eigen::Dynamic, 1> S_gait;    // Matrix used to enable/disable feet in the solver
+  VectorN warmxf;                                  // Vector to store the solver warm start
+  VectorN NK_up;                                   // Upper constraint limit
+  VectorN NK_low;                                  // Lower constraint limit
+  // There is no M.X = N and L.X <= K, it's actually NK_low <= ML.X <= NK_up for the solver
+  MatrixN D;                                    // Matrix used to create NK matrix
+  Eigen::Matrix<int, Eigen::Dynamic, 1> i_off;  // Coefficient offsets to directly update the data field
+  // Sparse matrix coefficents are all stored in M->x so if we know the indexes we can update them directly
 };
 
 #endif  // MPC_H_INCLUDED

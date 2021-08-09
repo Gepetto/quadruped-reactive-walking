@@ -36,10 +36,6 @@ void QPWBC::initialize(Params& params) {
 } 
 
 int QPWBC::create_matrices() {
-  /*
-  Create the constraint matrices (M.X = N and L.X <= K)
-  Create the weight matrices P and Q (cost 1/2 x^T * P * X + X^T * Q)
-  */
 
   // Create the constraint matrices
   create_ML();
@@ -51,18 +47,6 @@ int QPWBC::create_matrices() {
 }
 
 inline void QPWBC::add_to_ML(int i, int j, double v, int *r_ML, int *c_ML, double *v_ML) {
-  /*
-  Add a new non-zero coefficient to the ML matrix by filling the triplet r_ML / c_ML / v_ML
-  
-  Args:
-    - i (int): row index of the new entry
-    - j (int): column index of the new entry
-    - v (double): value of the new entry
-    - r_ML (int*): table that contains row indexes
-    - c_ML (int*): table that contains column indexes
-    - v_ML (double*): table that contains values
-  */
-  
   r_ML[cpt_ML] = i;  // row index
   c_ML[cpt_ML] = j;  // column index
   v_ML[cpt_ML] = v;  // value of coefficient
@@ -70,18 +54,6 @@ inline void QPWBC::add_to_ML(int i, int j, double v, int *r_ML, int *c_ML, doubl
 }
 
 inline void QPWBC::add_to_P(int i, int j, double v, int *r_P, int *c_P, double *v_P) {
-  /*
-  Add a new non-zero coefficient to the P matrix by filling the triplet r_P / c_P / v_P
-  
-  Args:
-    - i (int): row index of the new entry
-    - j (int): column index of the new entry
-    - v (double): value of the new entry
-    - r_P (int*): table that contains row indexes
-    - c_P (int*): table that contains column indexes
-    - v_P (double*): table that contains values
-  */
-
   r_P[cpt_P] = i;  // row index
   c_P[cpt_P] = j;  // column index
   v_P[cpt_P] = v;  // value of coefficient
@@ -89,10 +61,6 @@ inline void QPWBC::add_to_P(int i, int j, double v, int *r_P, int *c_P, double *
 }
 
 int QPWBC::create_ML() {
-  /*
-  Create the M and L matrices involved in the constraint equations
-  the solution has to respect: M.X = N and L.X <= K
-  */
 
   int *r_ML = new int[size_nz_ML];        // row indexes of non-zero values in matrix ML
   int *c_ML = new int[size_nz_ML];        // col indexes of non-zero values in matrix ML
@@ -155,10 +123,6 @@ int QPWBC::create_ML() {
 
 
 int QPWBC::create_weight_matrices() {
-  /*
-  Create the weight matrices P and Q in the cost function 
-  1/2 x^T.P.x + x^T.q of the QP problem
-  */
 
   int *r_P = new int[size_nz_P];        // row indexes of non-zero values in matrix P
   int *c_P = new int[size_nz_P];        // col indexes of non-zero values in matrix P
@@ -217,10 +181,6 @@ int QPWBC::create_weight_matrices() {
 }
 
 int QPWBC::call_solver() {
-  /*
-  Initialize the solver (first iteration) or update it (next iterations)
-  then call the OSQP solver to solve the QP problem
-  */
 
   // Setup the solver (first iteration) then just update it
   if (not initialized)  // Setup the solver with the matrices
@@ -281,12 +241,6 @@ int QPWBC::call_solver() {
 }
 
 int QPWBC::retrieve_result(const Eigen::MatrixXd &f_cmd) {
-  /*
-  Extract relevant information from the output of the QP solver
-
-  Args:
-    - f_cmd (Eigen::MatrixXd): reference contact forces received from the MPC
-  */
 
   // Retrieve the solution of the QP problem
   for (int k = 0; k < 12; k++) {
@@ -315,17 +269,6 @@ Eigen::MatrixXd QPWBC::get_H() {
 
 int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA,
                const Eigen::MatrixXd &k_contact) {
-  /*
-  Run one iteration of the whole WBC QP problem by calling all the necessary functions (data retrieval,
-  update of constraint matrices, update of the solver, running the solver, retrieving result)
-  
-  Args:
-    - M (Eigen::MatrixXd): joint space inertia matrix computed with crba
-    - Jc (Eigen::MatrixXd): Jacobian of contact points
-    - f_cmd (Eigen::MatrixXd): reference contact forces coming from the MPC
-    - RNEA (Eigen::MatrixXd): joint torques according to the current state of the system and the desired joint accelerations
-    - k_contact (Eigen::MatrixXd): nb of iterations since contact has been enabled for each foot
-  */
 
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + 2 x^T.Q with constraints M.X == N and L.X <= K
@@ -395,13 +338,6 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
 }
 
 void QPWBC::my_print_csc_matrix(csc *M, const char *name) {
-  /*
-  Print positions and value of coefficients in a csc matrix
-
-  Args:
-    - M (csc*): pointer to the csc matrix you want to print
-    - name (char*): name that should be displayed for the matrix (one char)
-  */
 
   c_int j, i, row_start, row_stop;
   c_int k = 0;
@@ -428,13 +364,6 @@ void QPWBC::my_print_csc_matrix(csc *M, const char *name) {
 }
 
 void QPWBC::save_csc_matrix(csc *M, std::string filename) {
-  /*
-  Save positions and value of coefficients of a csc matrix in a csc file
-
-  Args:
-    - M (csc*): pointer to the csc matrix you want to save
-    - filename (string): name of the generated csv file
-  */
 
   c_int j, i, row_start, row_stop;
   c_int k = 0;
@@ -462,14 +391,6 @@ void QPWBC::save_csc_matrix(csc *M, std::string filename) {
 }
 
 void QPWBC::save_dns_matrix(double *M, int size, std::string filename) {
-  /*
-  Save positions and value of coefficients of a dense matrix in a csc file
-
-  Args:
-    - M (double*): pointer to the dense matrix you want to save
-    - size (int): size of the dense matrix
-    - filename (string): name of the generated csv file
-  */
   
   // Open file
   std::ofstream myfile;
@@ -484,15 +405,6 @@ void QPWBC::save_dns_matrix(double *M, int size, std::string filename) {
 
 
 void QPWBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA) {
-  /*
-  Compute all matrices of the Box QP problem
-
-  Args:
-    - M (Eigen::MatrixXd): joint space inertia matrix computed with crba
-    - Jc (Eigen::MatrixXd): Jacobian of contact points
-    - f_cmd (Eigen::MatrixXd): reference contact forces coming from the MPC
-    - RNEA (Eigen::MatrixXd): joint torques according to the current state of the system and the desired joint accelerations
-  */
 
   Y = M.block(0, 0, 6, 6);
   X = Jc.block(0, 0, 12, 6).transpose();
@@ -523,9 +435,6 @@ void QPWBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc
 }
 
 void QPWBC::update_PQ() {
-  /*
-  Update P and Q matrices in the cost function xT P x + 2 xT Q
-  */
 
   // Update P matrix of min xT P x + 2 xT Q
   int cpt = 0;
