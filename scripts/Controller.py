@@ -13,6 +13,7 @@ from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRob
 import libquadruped_reactive_walking as lqrw
 from example_robot_data.robots_loader import Solo12Loader
 
+
 class Result:
     """Object to store the result of the control loop
     It contains what is sent to the robot (gains, desired positions and velocities,
@@ -38,6 +39,7 @@ class dummyHardware:
 
         return 0.0
 
+
 class dummyIMU:
     """Fake IMU for initialisation purpose"""
 
@@ -48,6 +50,7 @@ class dummyIMU:
         self.attitude_euler = np.zeros(3)
         self.attitude_quaternion = np.zeros(4)
 
+
 class dummyJoints:
     """Fake joints for initialisation purpose"""
 
@@ -55,6 +58,7 @@ class dummyJoints:
 
         self.positions = np.zeros(12)
         self.velocities = np.zeros(12)
+
 
 class dummyDevice:
     """Fake device for initialisation purpose"""
@@ -68,28 +72,14 @@ class dummyDevice:
 
 class Controller:
 
-    def __init__(self, params, q_init, t):  # , envID, velID, dt_wbc, dt_mpc, k_mpc, t, T_gait, T_mpc, N_SIMULATION, type_MPC, use_flat_plane, predefined_vel, enable_pyb_GUI, kf_enabled, N_gait, isSimulation, params):
+    def __init__(self, params, q_init, t):
         """Function that runs a simulation scenario based on a reference velocity profile, an environment and
         various parameters to define the gait
 
         Args:
-            envID (int): identifier of the current environment to be able to handle different scenarios
-            velID (int): identifier of the current velocity profile to be able to handle different scenarios
-            dt_wbc (float): time step of the whole body control
-            dt_mpc (float): time step of the MPC
-            k_mpc (int): number of iterations of inverse dynamics for one iteration of the MPC
-            t (float): time of the simulation
-            T_gait (float): duration of one gait period in seconds
-            T_mpc (float): duration of mpc prediction horizon
-            N_SIMULATION (int): number of iterations of inverse dynamics during the simulation
-            type_mpc (int): 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
-            use_flat_plane (bool): to use either a flat ground or a rough ground
-            predefined_vel (bool): to use either a predefined velocity profile or a gamepad
-            enable_pyb_GUI (bool): to display PyBullet GUI or not
-            kf_enabled (bool): complementary filter (False) or kalman filter (True)
-            N_gait (int): number of spare lines in the gait matrix
-            isSimulation (bool): if we are in simulation mode
             params (Params object): store parameters
+            q_init (array): initial position of actuators
+            t (float): time of the simulation
         """
 
         ########################################################################
@@ -116,7 +106,7 @@ class Controller:
         self.enable_hybrid_control = True
 
         self.h_ref = params.h_ref
-        self.q = np.zeros((18, 1))  # Orientation part is in roll pitch yaw
+        self.q = np.zeros((18, 1))  # Orientation part is in roll pitch yaw
         self.q[0:6, 0] = np.array([0.0, 0.0, self.h_ref, 0.0, 0.0, 0.0])
         self.q[6:, 0] = q_init
         self.v = np.zeros((18, 1))
@@ -247,40 +237,7 @@ class Controller:
         # Update gait
         self.gait.updateGait(self.k, self.k_mpc, self.joystick.joystick_code)
 
-        # self.q[3:7, 0] = np.array([0, 0, 0.3826834, 0.9238795])
-        state = np.array([0.0, 0.0, 45.0 / 180 * np.pi])
-        log = np.zeros((600, 3))
-        log_state = np.zeros((600, 3))
-        for i in range(600):
-            print(i)
-            if i < 300:
-                state += np.array([-np.pi/180, -1.5*np.pi/180, np.pi/180])
-            else:
-                state -= np.array([-np.pi/180, -1.5*np.pi/180, np.pi/180])
-            for j in range(3):
-                if state[j] > np.pi: 
-                        if state[j] > np.pi: 
-                if state[j] > np.pi: 
-                    state[j] -= 2*np.pi
-                elif state[j] < -np.pi: 
-                    state[j] += 2*np.pi
-            self.q[3:6, 0] = state.copy()
-            self.filter_mpc_q.filter(self.q[:6, 0:1], True)
-            log[i, :] = self.filter_mpc_q.getFilt()[3:]
-            log_state[i, :] = state.copy()
-
-        from matplotlib import pyplot as plt
-        plt.figure()
-        for i in range(3):
-            plt.plot(log[:, i], linewidth=3)
-            plt.plot(log_state[:, i], linewidth=3, linestyle='--')
-        plt.legend(["Roll", "Pitch", "Yaw"])
-        plt.show()
-
-        from IPython import embed
-        embed()
-
-        # Quantities go through a 1st order low pass filter with fc = 15 Hz
+        # Quantities go through a 1st order low pass filter with fc = 15 Hz
         self.q_filt_mpc[:, 0] = self.filter_mpc_q.filter(self.q[:6, 0:1], True)
         self.h_v_filt_mpc[:, 0] = self.filter_mpc_v.filter(self.h_v[:6, 0:1], False)
         self.h_v_bis_filt_mpc[:, 0] = self.filter_mpc_v_bis.filter(self.h_v_bis[:6, 0:1], False)
@@ -304,7 +261,7 @@ class Controller:
 
         t_planner = time.time()
 
-        # TODO: Add 25Hz filter for the inputs of the MPC
+        # TODO: Add 25Hz filter for the inputs of the MPC
 
         # Solve MPC problem once every k_mpc iterations of the main loop
         if (self.k % self.k_mpc) == 0:
