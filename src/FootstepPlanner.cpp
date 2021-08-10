@@ -232,16 +232,13 @@ void FootstepPlanner::updateNewContact(Vector18 const& q) {
     pos_feet_.col(i) = data_.oMf[foot_ids_[i]].translation();
   }
 
-  /*std::cout << "q: " << q.transpose() << std::endl; */
-
-  // TODO: Put pos_feet_ into currentFootsteps_
   // std::cout << "--- pos_feet_: " << std::endl << pos_feet_ << std::endl;
   // std::cout << "--- footsteps_:" << std::endl << footsteps_[1] << std::endl;
 
   // Refresh position with estimated position if foot is in stance phase
   for (int i = 0; i < 4; i++) {
     if (gait_->getCurrentGaitCoeff(0, i) == 1.0) {
-      currentFootstep_.col(i) = (footsteps_[1]).col(i);
+      currentFootstep_.block(0, i, 2, 1) = pos_feet_.block(0, i, 2, 1);  // Get only x and y to let z = 0 for contacts
     }
   }
 }
