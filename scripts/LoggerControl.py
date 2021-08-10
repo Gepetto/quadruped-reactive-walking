@@ -227,6 +227,24 @@ class LoggerControl():
             tmp_x = tmp_x[switch > 0]
             plt.plot(tmp_x, tmp_y, linewidth=3)"""
 
+        from example_robot_data.robots_loader import Solo12Loader
+        Solo12Loader.free_flyer = False
+        solo12 = Solo12Loader().robot
+        FL_FOOT_ID = solo12.model.getFrameId('FL_FOOT')
+        FR_FOOT_ID = solo12.model.getFrameId('FR_FOOT')
+        HL_FOOT_ID = solo12.model.getFrameId('HL_FOOT')
+        HR_FOOT_ID = solo12.model.getFrameId('HR_FOOT')
+        foot_ids = np.array([FL_FOOT_ID, FR_FOOT_ID, HL_FOOT_ID, HR_FOOT_ID])
+        q = np.zeros((12, 1))
+        pin.computeAllTerms(solo12.model, solo12.data, q, np.zeros((12, 1)))
+        feet_pos = np.zeros([self.esti_q_filt.shape[0], 3, 4])
+        for i in range(self.esti_q_filt.shape[0]):
+            q[:, 0] = self.loop_o_q_int[i, 6:]
+            pin.forwardKinematics(solo12.model, solo12.data, q)
+            pin.updateFramePlacements(solo12.model, solo12.data)
+            for j, idx in enumerate(foot_ids):
+                feet_pos[i, :, j] = solo12.data.oMf[int(idx)].translation
+
         lgd_X = ["FL", "FR", "HL", "HR"]
         lgd_Y = ["Pos X", "Pos Y", "Pos Z"]
         plt.figure()
@@ -239,13 +257,15 @@ class LoggerControl():
             plt.plot(t_range, self.wbc_feet_pos[:, i % 3, np.int(i/3)], color='b', linewidth=3, marker='')
             plt.plot(t_range, self.wbc_feet_err[:, i % 3, np.int(i/3)] + self.wbc_feet_pos[0, i % 3, np.int(i/3)], color='g', linewidth=3, marker='')
             plt.plot(t_range, self.wbc_feet_pos_target[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
+            plt.plot(t_range, feet_pos[:, i % 3, np.int(i/3)], color='rebeccapurple', linewidth=3, marker='')
             if (i % 3) == 2:
                 mini = np.min(self.wbc_feet_pos[:, i % 3, np.int(i/3)])
                 maxi = np.max(self.wbc_feet_pos[:, i % 3, np.int(i/3)])
                 plt.plot(t_range, self.planner_gait[:, 0, np.int(
                     i/3)] * (maxi - mini) + mini, color='k', linewidth=3, marker='')
             plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+"", "error",
-                        lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref", "Contact state"], prop={'size': 8})
+                        lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref",
+                        lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Robot", "Contact state"], prop={'size': 8})
         plt.suptitle("Measured & Reference feet positions (base frame)")
 
         lgd_X = ["FL", "FR", "HL", "HR"]
@@ -619,7 +639,6 @@ class LoggerControl():
                         "Estimated 15Hz filt 3Hz windowed", "Reference 15Hz filt"], prop={'size': 8})
             plt.ylabel(lgd[i])
         plt.suptitle("Comparison between velocity quantities before and after 15Hz low-pass filtering")
-
 
         # Display all graphs and wait
         plt.show(block=True)
