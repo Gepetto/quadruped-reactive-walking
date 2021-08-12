@@ -19,18 +19,12 @@ class Joystick:
 
         # Reference velocity in local frame
         self.v_ref = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
+        self.v_gp = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T
 
         self.reduced = False
         self.stop = False
 
-        dT = self.dt_wbc  # velocity reference is updated every ms
-        fc = 100  #  cutoff frequency
-        y = 1 - np.cos(2*np.pi*fc*dT)
-        self.alpha = -y+np.sqrt(y*y+2*y)
-
-        tc = self.dt_mpc  #  cutoff frequency at 50 Hz
-        dT = self.dt_wbc  # velocity reference is updated every ms
-        self.alpha = dT / tc
+        self.alpha = 0.0005  # Coefficient to low pass the joystick velocity
 
         # Bool to modify the update of v_ref
         # Used to launch multiple simulations
@@ -46,9 +40,9 @@ class Joystick:
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 0.6
-        self.VyScale = 1.2
-        self.vYawScale = 1.6
+        self.VxScale = 0.5
+        self.VyScale = 0.8
+        self.vYawScale = 0.8
 
         self.Vx_ref = 0.3
         self.Vy_ref = 0.0
@@ -139,8 +133,8 @@ class Joystick:
             self.westButton = True
 
         # Low pass filter to slow down the changes of velocity when moving the joysticks
+        self.v_gp[(self.v_gp < 0.004) & (self.v_gp > -0.004)] = 0.0
         self.v_ref = self.alpha * self.v_gp + (1-self.alpha) * self.v_ref
-        self.v_ref[(self.v_ref < 0.005) & (self.v_ref > -0.005)] = 0.0
 
         # Update joystick code depending on which buttons are pressed
         self.computeCode()
@@ -215,13 +209,13 @@ class Joystick:
                                          [0.0, 0.0, 0.0, 0.0, 0.0],
                                          [0.0, 0.0, 0.0, 0.0, 0.0]])
             elif velID == 3:
-                self.t_switch = np.array([0, 2, 4, 14, 52, 60])
-                self.v_switch = np.array([[0.0, 0.0,  0.0, 0.3, 0.3, 0.0],
+                self.t_switch = np.array([0, 2, 6, 8, 12, 60])
+                self.v_switch = np.array([[0.0, 0.0,  0.4, 0.4, 0.0, 0.0],
                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
                                          [0.0, 0.0,  0.0, 0.0, 0.0, 0.0],
-                                         [0.0, 0.0,  0.3, 0.0, 0.0, 0.0]])
+                                         [0.0, 0.0,  0.0, 0.0, 0.0, 0.0]])
             elif velID == 4:
                 self.t_switch = np.array([0, 2, 6, 14, 18, 60])
                 self.v_switch = np.array([[0.0, 0.0,  1.5, 1.5, 1.5, 1.5],
@@ -289,3 +283,36 @@ class Joystick:
         self.v_switch[:, 3] = des_vel_analysis
 
         return 0
+
+if __name__ == "__main__":
+
+    from matplotlib import pyplot as plt
+    import libquadruped_reactive_walking as lqrw
+    from time import clock
+    params = lqrw.Params()  # Object that holds all controller parameters
+    params.predefined_vel = False
+    joystick = Joystick(params)
+    k = 0
+    vx = [0.0] * 1000
+    fig = plt.figure()
+    ax = plt.gca()
+    ax.set_ylim([-0.5, 0.5])
+    h, = plt.plot(np.linspace(0.001, 1.0, 1000), vx, "b", linewidth=2)
+    plt.xlabel("Time [s]")
+    plt.ylabel("Forward reference velocity [m/s]")
+    plt.show(block=False)
+    
+    print("Start")
+    while True:
+        # Update the reference velocity coming from the gamepad
+        joystick.update_v_ref(k, 0)
+        vx.pop(0)
+        vx.append(joystick.v_ref[0, 0])
+
+        if k % 50 == 0:
+            h.set_ydata(vx)
+            print("Joystick raw:      ", joystick.v_gp[0, 0])
+            print("Joystick filtered: ", joystick.v_ref[0, 0])
+            plt.pause(0.0001)
+
+        k += 1
