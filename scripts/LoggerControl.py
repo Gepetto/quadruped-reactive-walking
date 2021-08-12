@@ -54,6 +54,7 @@ class LoggerControl():
         self.loop_t_mpc = np.zeros([logSize])  # time taken by the mcp
         self.loop_t_wbc = np.zeros([logSize])  # time taken by the whole body control
         self.loop_t_loop = np.zeros([logSize])  # time taken by the whole loop (without interface)
+        self.loop_t_loop_if = np.zeros([logSize])  # time taken by the whole loop (with interface)
         self.loop_q_filt_mpc = np.zeros([logSize, 6])  # position in world frame filtered by 1st order low pass
         self.loop_h_v_filt_mpc = np.zeros([logSize, 6])  # vel in base frame filtered by 1st order low pass
         self.loop_h_v_bis_filt_mpc = np.zeros([logSize, 6])  # alt vel in base frame filtered by 1st order low pass
@@ -86,6 +87,7 @@ class LoggerControl():
                 self.mpc_x_f = np.zeros([logSize, 32, statePlanner.getNSteps()])
             else:
                 self.mpc_x_f = np.zeros([logSize, 24, statePlanner.getNSteps()])
+        self.mpc_solving_duration = np.zeros([logSize])
 
         # Whole body control
         self.wbc_P = np.zeros([logSize, 12])  # proportionnal gains of the PD+
@@ -104,7 +106,7 @@ class LoggerControl():
         # Timestamps
         self.tstamps = np.zeros(logSize)
 
-    def sample(self, joystick, estimator, loop, gait, statePlanner, footstepPlanner, footTrajectoryGenerator, wbc):
+    def sample(self, joystick, estimator, loop, gait, statePlanner, footstepPlanner, footTrajectoryGenerator, wbc, dT_whole):
         if (self.i >= self.logSize):
             if self.ringBuffer:
                 self.i = 0
@@ -147,7 +149,8 @@ class LoggerControl():
         self.loop_t_mpc[self.i] = loop.t_mpc
         self.loop_t_wbc[self.i] = loop.t_wbc
         self.loop_t_loop[self.i] = loop.t_loop
-        self.loop_q_filt_mpc[self.i] = loop.q_filt_mpc[:, 0]
+        self.loop_t_loop_if[self.i] = dT_whole
+        self.loop_q_filt_mpc[self.i] = loop.q_filt_mpc[:6, 0]
         self.loop_h_v_filt_mpc[self.i] = loop.h_v_filt_mpc[:, 0]
         self.loop_h_v_bis_filt_mpc[self.i] = loop.h_v_bis_filt_mpc[:, 0]
         self.loop_vref_filt_mpc[self.i] = loop.vref_filt_mpc[:, 0]
@@ -166,6 +169,7 @@ class LoggerControl():
 
         # Logging from model predictive control
         self.mpc_x_f[self.i] = loop.x_f_mpc
+        self.mpc_solving_duration[self.i] = loop.mpc_wrapper.t_mpc_solving_duration
 
         # Logging from whole body control
         self.wbc_P[self.i] = loop.result.P
@@ -188,19 +192,26 @@ class LoggerControl():
 
     def processMocap(self, N, loggerSensors):
 
-        self.mocap_b_v = np.zeros([N, 3])
+        self.mocap_pos = np.zeros([N, 3])
+        self.mocap_h_v = np.zeros([N, 3])
         self.mocap_b_w = np.zeros([N, 3])
         self.mocap_RPY = np.zeros([N, 3])
+   
+        for i in range(N):
+            self.mocap_RPY[i] = pin.rpy.matrixToRpy(pin.Quaternion(loggerSensors.mocapOrientationQuat[i]).toRotationMatrix())
+
+        # Robot world to Mocap initial translationa and rotation
+        mTo = np.array([loggerSensors.mocapPosition[0, 0], loggerSensors.mocapPosition[0, 1], 0.02])  
+        mRo = pin.rpy.rpyToMatrix(0.0, 0.0, self.mocap_RPY[0, 2])
 
         for i in range(N):
             oRb = loggerSensors.mocapOrientationMat9[i]
 
-            """from IPython import embed
-            embed()"""
+            oRh = pin.rpy.rpyToMatrix(0.0, 0.0, self.mocap_RPY[i, 2] - self.mocap_RPY[0, 2])
 
-            self.mocap_b_v[i] = (oRb.transpose() @ loggerSensors.mocapVelocity[i].reshape((3, 1))).ravel()
+            self.mocap_h_v[i] = (oRh.transpose() @ mRo.transpose() @ loggerSensors.mocapVelocity[i].reshape((3, 1))).ravel()
             self.mocap_b_w[i] = (oRb.transpose() @ loggerSensors.mocapAngularVelocity[i].reshape((3, 1))).ravel()
-            self.mocap_RPY[i] = pin.rpy.matrixToRpy(pin.Quaternion(loggerSensors.mocapOrientationQuat[i]).toRotationMatrix())
+            self.mocap_pos[i] = (mRo.transpose() @ (loggerSensors.mocapPosition[i, :] - mTo).reshape((3, 1))).ravel()
 
     def plotAll(self, loggerSensors):
 
@@ -312,7 +323,7 @@ class LoggerControl():
                 plt.plot(t_range, self.planner_xref[:, i, 0], "b", linewidth=2)
                 plt.plot(t_range, self.planner_xref[:, i, 1], "r", linewidth=3)
             if i < 3:
-                plt.plot(t_range, loggerSensors.mocapPosition[:, i], "k", linewidth=3)
+                plt.plot(t_range, self.mocap_pos[:, i], "k", linewidth=3)
             else:
                 plt.plot(t_range, self.mocap_RPY[:, i-3], "k", linewidth=3)
             # plt.plot(t_range, self.log_q[i, :], "grey", linewidth=4)
@@ -334,10 +345,8 @@ class LoggerControl():
             plt.plot(t_range, self.loop_h_v[:, i], "b", linewidth=2)
             plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
             if i < 3:
-                plt.plot(t_range, self.mocap_b_v[:, i], "k", linewidth=3)
-                plt.plot(t_range, self.loop_h_v_bis[:, i], "forestgreen", linewidth=2)
-                # plt.plot(t_range, self.esti_FK_lin_vel[:, i], "violet", linewidth=3, linestyle="--")
-                plt.plot(t_range, self.esti_filt_lin_vel[:, i], "violet", linewidth=3, linestyle="--")
+                plt.plot(t_range, self.mocap_h_v[:, i], "k", linewidth=3)
+                plt.plot(t_range, self.loop_h_v_bis_filt_mpc[:, i], "forestgreen", linewidth=2)
             else:
                 plt.plot(t_range, self.mocap_b_w[:, i-3], "k", linewidth=3)
 
@@ -599,7 +608,15 @@ class LoggerControl():
         plt.plot(t_range, self.loop_t_mpc, 'b+')
         plt.plot(t_range, self.loop_t_wbc, '+', color="violet")
         plt.plot(t_range, self.loop_t_loop, 'k+')
-        plt.legend(["Estimator", "Planner", "MPC", "WBC", "Whole loop"])
+        plt.plot(t_range, self.loop_t_loop_if, '+', color="rebeccapurple")
+        plt.legend(["Estimator", "Planner", "MPC", "WBC", "Control loop", "Whole loop"])
+        plt.xlabel("Time [s]")
+        plt.ylabel("Time [s]")
+
+        # Plot estimated solving time of the model prediction control
+        plt.figure()
+        plt.plot(t_range[35:], self.mpc_solving_duration[35:], 'k+')
+        plt.legend(["Solving duration"])
         plt.xlabel("Time [s]")
         plt.ylabel("Time [s]")
 
@@ -686,10 +703,11 @@ class LoggerControl():
                  loop_t_mpc=self.loop_t_mpc,
                  loop_t_wbc=self.loop_t_wbc,
                  loop_t_loop=self.loop_t_loop,
+                 loop_t_loop_if=self.loop_t_loop_if,
                  loop_q_filt_mpc=self.loop_q_filt_mpc,
                  loop_h_v_filt_mpc=self.loop_h_v_filt_mpc,
                  loop_h_v_bis_filt_mpc=self.loop_h_v_bis_filt_mpc,
-                 loop_vref_mpc=self.loop_vref_filt_mpc,
+                 loop_vref_filt_mpc=self.loop_vref_filt_mpc,
 
                  planner_q_static=self.planner_q_static,
                  planner_RPY_static=self.planner_RPY_static,
@@ -703,6 +721,7 @@ class LoggerControl():
                  planner_h_ref=self.planner_h_ref,
 
                  mpc_x_f=self.mpc_x_f,
+                 mpc_solving_duration=self.mpc_solving_duration,
 
                  wbc_P=self.wbc_P,
                  wbc_D=self.wbc_D,
@@ -779,6 +798,7 @@ class LoggerControl():
         self.loop_t_mpc = data["loop_t_mpc"]
         self.loop_t_wbc = data["loop_t_wbc"]
         self.loop_t_loop = data["loop_t_loop"]
+        self.loop_t_loop_if = data["loop_t_loop_if"]
         self.loop_q_filt_mpc = data["loop_q_filt_mpc"]
         self.loop_h_v_filt_mpc = data["loop_h_v_filt_mpc"]
         self.loop_h_v_bis_filt_mpc = data["loop_h_v_bis_filt_mpc"]
@@ -796,6 +816,7 @@ class LoggerControl():
         self.planner_h_ref = data["planner_h_ref"]
 
         self.mpc_x_f = data["mpc_x_f"]
+        self.mpc_solving_duration = data["mpc_solving_duration"]
 
         self.wbc_P = data["wbc_P"]
         self.wbc_D = data["wbc_D"]
@@ -1018,13 +1039,13 @@ if __name__ == "__main__":
     import LoggerSensors
 
     # Create loggers
-    loggerSensors = LoggerSensors.LoggerSensors(logSize=5997)
-    logger = LoggerControl(0.002, 100, logSize=5997)
+    loggerSensors = LoggerSensors.LoggerSensors(logSize=15000-3)
+    logger = LoggerControl(0.001, 30, logSize=15000-3)
 
     # Load data from .npz file
     logger.loadAll(loggerSensors)
 
     # Call all ploting functions
-    #logger.plotAll(loggerSensors)
+    logger.plotAll(loggerSensors)
 
-    logger.slider_predicted_trajectory()
+    # logger.slider_predicted_trajectory()

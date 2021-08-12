@@ -175,7 +175,7 @@ class Controller:
         self.error_flag = 0
         self.q_security = np.array([np.pi*0.4, np.pi*80/180, np.pi] * 4)
 
-        self.q_filt_mpc = np.zeros((6, 1))
+        self.q_filt_mpc = np.zeros((18, 1))
         self.h_v_filt_mpc = np.zeros((6, 1))
         self.h_v_bis_filt_mpc = np.zeros((6, 1))
         self.vref_filt_mpc = np.zeros((6, 1))
@@ -225,8 +225,7 @@ class Controller:
         oTh = self.estimator.getoTh().reshape((3, 1))
         self.v_ref[0:6, 0] = self.estimator.getVRef()
         self.h_v[0:6, 0] = self.estimator.getHV()
-        self.h_v_bis[0:3, 0] = self.estimator.getHVBis()
-        self.h_v_bis[3:6, 0] = self.h_v[3:6, 0].copy()
+        self.h_v_bis[0:6, 0] = self.estimator.getHVBis()
         self.q[:, 0] = self.estimator.getQUpdated()
         self.yaw_estim = self.estimator.getYawEstim()
         # TODO: Understand why using Python or C++ h_v leads to a slightly different result since the 
@@ -237,8 +236,9 @@ class Controller:
         # Update gait
         self.gait.updateGait(self.k, self.k_mpc, self.joystick.joystick_code)
 
-        # Quantities go through a 1st order low pass filter with fc = 15 Hz
-        self.q_filt_mpc[:, 0] = self.filter_mpc_q.filter(self.q[:6, 0:1], True)
+        # Quantities go through a 1st order low pass filter with fc = 15 Hz (avoid >25Hz foldback)
+        self.q_filt_mpc[:6, 0] = self.filter_mpc_q.filter(self.q[:6, 0:1], True)
+        self.q_filt_mpc[6:, 0] = self.q[6:, 0].copy()
         self.h_v_filt_mpc[:, 0] = self.filter_mpc_v.filter(self.h_v[:6, 0:1], False)
         self.h_v_bis_filt_mpc[:, 0] = self.filter_mpc_v_bis.filter(self.h_v_bis[:6, 0:1], False)
         self.vref_filt_mpc[:, 0] = self.filter_mpc_vref.filter(self.v_ref[:6, 0:1], False)
@@ -246,9 +246,9 @@ class Controller:
         # Compute target footstep based on current and reference velocities
         o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
                                                                 int(self.k_mpc - self.k % self.k_mpc),
-                                                                self.q[:, 0:1],
-                                                                self.h_v_bis[0:6, 0:1].copy(),
-                                                                self.v_ref[0:6, 0])
+                                                                self.q_filt_mpc[:, 0],
+                                                                self.h_v_bis_filt_mpc[0:6, 0:1].copy(),
+                                                                self.vref_filt_mpc[0:6, 0])
 
         # Run state planner (outputs the reference trajectory of the base)
         self.statePlanner.computeReferenceStates(self.q[0:6, 0:1], self.h_v[0:6, 0:1].copy(),

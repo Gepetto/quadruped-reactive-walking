@@ -6,6 +6,7 @@ from multiprocessing import Process, Value, Array
 import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
 import pinocchio as pin
+from time import time
 
 class Dummy:
     """Dummy class to store variables"""
@@ -38,6 +39,9 @@ class MPC_Wrapper:
         self.not_first_iter = False
 
         self.params = params
+
+        self.t_mpc_solving_start = 0.0
+        self.t_mpc_solving_duration = 0.0
 
         # Number of WBC steps for 1 step of the MPC
         self.k_mpc = int(params.dt_mpc/params.dt_wbc)
@@ -95,6 +99,8 @@ class MPC_Wrapper:
             l_targetFootstep (3x4 array) : 4*[x, y, z]^T target position in local frame, to stop the optimisation of the feet location around it
         """
 
+        self.t_mpc_solving_start = time()
+
         if self.multiprocessing:  # Run in parallel process
             self.run_MPC_asynchronous(k, xref, fsteps, l_targetFootstep)
         else:  # Run in the same process than main loop
@@ -125,6 +131,7 @@ class MPC_Wrapper:
             if self.multiprocessing:
                 if self.newResult.value:
                     self.newResult.value = False
+                    self.t_mpc_solving_duration = time() - self.t_mpc_solving_start
                     # Retrieve desired contact forces with through the memory shared with the asynchronous
                     self.last_available_result = self.convert_dataOut()
                     return self.last_available_result
