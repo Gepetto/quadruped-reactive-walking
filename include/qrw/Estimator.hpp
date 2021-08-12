@@ -190,7 +190,7 @@ class Estimator {
   VectorN getQFilt() { return q_filt_dyn_; }
   VectorN getVFilt() { return v_filt_dyn_; }
   VectorN getVSecu() { return v_secu_dyn_; }
-  Vector3 getVFiltBis() { return v_filt_bis_; }
+  VectorN getVFiltBis() { return v_filt_bis_; }
   Vector3 getRPY() { return IMU_RPY_; }
   MatrixN getFeetStatus() { return feet_status_; }
   MatrixN getFeetGoals() { return feet_goals_; }
@@ -212,7 +212,7 @@ class Estimator {
   VectorN getQUpdated() { return q_up_; }
   VectorN getVRef() { return v_ref_; }
   VectorN getHV() { return h_v_; }
-  Vector3 getHVBis() { return h_v_bis_; }
+  VectorN getHVBis() { return h_v_bis_; }
   Matrix3 getoRh() { return oRh_; }
   Vector3 getoTh() { return oTh_; }
   double getYawEstim() { return yaw_estim_; }
@@ -273,8 +273,8 @@ class Estimator {
   double yaw_estim_;  // Yaw angle in perfect world
 
   int N_queue_;
-  Vector3 v_filt_bis_;
-  Vector3 h_v_bis_;
-  std::deque<double> vx_queue_, vy_queue_, vz_queue_;
+  VectorN v_filt_bis_;
+  VectorN h_v_bis_;
+  std::deque<double> vx_queue_, vy_queue_, vz_queue_, wR_queue_, wP_queue_, wY_queue_;
 };
 #endif  // ESTIMATOR_H_INCLUDED

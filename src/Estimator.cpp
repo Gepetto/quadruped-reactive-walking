@@ -76,8 +76,8 @@ Estimator::Estimator()
       oTh_(Vector3::Zero()),
       yaw_estim_(0.0),
       N_queue_(0),
-      v_filt_bis_(Vector3::Zero()),
-      h_v_bis_(Vector3::Zero()) {}
+      v_filt_bis_(VectorN::Zero(6, 1)),
+      h_v_bis_(VectorN::Zero(6, 1)) {}
 
 void Estimator::initialize(Params& params) {
   dt_wbc = params.dt_wbc;
@@ -88,11 +88,15 @@ void Estimator::initialize(Params& params) {
   double fc = params.fc_v_esti;  // Cut frequency
   double y = 1 - std::cos(2 * M_PI * fc * dt_wbc);
   alpha_v_ = -y + std::sqrt(y * y + 2 * y);
+  alpha_v_ = 1.0;
 
-  N_queue_ = static_cast<int>(std::round(1.0 / (dt_wbc * 3.0)));
+  N_queue_ = static_cast<int>(std::round(params.T_gait / dt_wbc));
   vx_queue_.resize(N_queue_, 0.0);  // List full of 0.0
   vy_queue_.resize(N_queue_, 0.0);  // List full of 0.0
   vz_queue_.resize(N_queue_, 0.0);  // List full of 0.0
+  wR_queue_.resize(N_queue_, 0.0);  // List full of 0.0
+  wP_queue_.resize(N_queue_, 0.0);  // List full of 0.0
+  wY_queue_.resize(N_queue_, 0.0);  // List full of 0.0
 
   // Filtering velocities used for security checks
   fc = 6.0;  // Cut frequency
@@ -356,7 +360,17 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
   v_filt_bis_(0) = std::accumulate(vx_queue_.begin(), vx_queue_.end(), 0.0) / N_queue_;
   v_filt_bis_(1) = std::accumulate(vy_queue_.begin(), vy_queue_.end(), 0.0) / N_queue_;
   v_filt_bis_(2) = std::accumulate(vz_queue_.begin(), vz_queue_.end(), 0.0) / N_queue_;
-
+  /*
+  wR_queue_.pop_back();
+  wP_queue_.pop_back();
+  wY_queue_.pop_back();
+  wR_queue_.push_front(filt_ang_vel(0));
+  wP_queue_.push_front(filt_ang_vel(1));
+  wY_queue_.push_front(filt_ang_vel(2));
+  v_filt_bis_(3) = std::accumulate(wR_queue_.begin(), wR_queue_.end(), 0.0) / N_queue_;
+  v_filt_bis_(4) = std::accumulate(wP_queue_.begin(), wP_queue_.end(), 0.0) / N_queue_;
+  v_filt_bis_(5) = std::accumulate(wY_queue_.begin(), wY_queue_.end(), 0.0) / N_queue_;*/
+  v_filt_bis_.tail(3) = filt_ang_vel;  // No filtering for angular velocity
   //////
 
   // Update model used for the forward kinematics
@@ -426,7 +440,8 @@ void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait) {
 
     h_v_.head(3) = hRb * v_filt_dyn_.block(0, 0, 3, 1);
     h_v_.tail(3) = hRb * v_filt_dyn_.block(3, 0, 3, 1);
-    h_v_bis_ = hRb * v_filt_bis_;
+    h_v_bis_.head(3) = hRb * v_filt_bis_.block(0, 0, 3, 1);
+    h_v_bis_.tail(3) = hRb * v_filt_bis_.block(3, 0, 3, 1);
   } else {
     // TODO: Adapt static mode to new version of the code
   }
