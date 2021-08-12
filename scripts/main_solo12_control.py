@@ -53,7 +53,7 @@ def put_on_the_floor(device, q_init):
 
     while i.is_alive():
         device.parse_sensor_data()
-        device.send_command_and_wait_end_of_cycle()
+        device.send_command_and_wait_end_of_cycle(params.dt_wbc)
     
     print("Start the motion.")
 
@@ -127,7 +127,6 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         qc = None
     else:
         device = oci.robot_from_yaml_file('config_solo12.yaml')
-        joint_calibrator = oci.joint_calibrator_from_yaml_file('config_solo12.yaml', device.joints)
         qc = QualisysClient(ip="140.93.16.160", body_id=0)
 
     if name_interface_clone is not None:
@@ -162,11 +161,7 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
                     use_flat_plane=params.use_flat_plane, enable_pyb_GUI=params.enable_pyb_GUI, dt=params.dt_wbc)
     else:
         # Initialize the communication and the session.
-        device.start()
-        device.wait_until_ready()
-
-        # Calibrate the robot if needed.
-        device.run_calibration(joint_calibrator, q_init)
+        device.initialize(q_init[:])
         device.joints.set_zero_commands()
 
         device.parse_sensor_data()
@@ -181,9 +176,11 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
     t_log_whole = np.zeros((params.N_SIMULATION))
     k_log_whole = 0
     t_start_whole = 0.0
+    T_whole = time.clock()
+    dT_whole = 0.0
     while ((not device.is_timeout) and (t < t_max) and (not controller.error)):
 
-        t_start_whole = time.time()
+        t_start_whole = time.clock()
 
         # Update sensor data (IMU, encoders, Motion capture)
         device.parse_sensor_data()
@@ -213,13 +210,13 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
             loggerControl.sample(controller.joystick, controller.estimator,
                                  controller, controller.gait, controller.statePlanner,
                                  controller.footstepPlanner, controller.footTrajectoryGenerator,
-                                 controller.wbcWrapper)
+                                 controller.wbcWrapper, dT_whole)
 
 
         t_end_whole = time.time()
         # Send command to the robot
         for i in range(1):
-            device.send_command_and_wait_end_of_cycle()
+            device.send_command_and_wait_end_of_cycle(params.dt_wbc)
         """if (t % 1) < 5e-5:
             print('IMU attitude:', device.imu.attitude_euler)
             print('joint pos   :', device.joints.positions)
@@ -252,6 +249,10 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         cpt_frames += 1"""
 
         t += params.dt_wbc  # Increment loop time
+
+        dT_whole = T_whole
+        T_whole = time.clock()
+        dT_whole = T_whole - dT_whole
 
         t_log_whole[k_log_whole] = t_end_whole - t_start_whole
         k_log_whole += 1
@@ -288,7 +289,7 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         device.joints.set_torques(np.zeros(nb_motors))
 
         # Send command to the robot
-        device.send_command_and_wait_end_of_cycle()
+        device.send_command_and_wait_end_of_cycle(params.dt_wbc)
         if (t % 1) < 5e-5:
             print('IMU attitude:', device.imu.attitude_euler)
             print('joint pos   :', device.joints.positions)
@@ -301,7 +302,7 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
 
     # Whatever happened we send 0 torques to the motors.
     device.joints.set_torques(np.zeros(nb_motors))
-    device.send_command_and_wait_end_of_cycle()
+    device.send_command_and_wait_end_of_cycle(params.dt_wbc)
 
     if device.is_timeout:
         print("Masterboard timeout detected.")
