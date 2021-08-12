@@ -37,6 +37,6 @@ joint_calibrator:
     Kp: 3.
     Kd: 0.05
     T: 1.
-    dt: 0.002
+    dt: 0.001
 
 
