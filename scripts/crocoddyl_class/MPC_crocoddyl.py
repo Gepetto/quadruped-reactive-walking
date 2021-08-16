@@ -38,24 +38,42 @@ class MPC_crocoddyl:
             self.mu = mu
 
         # Gain from OSQP MPC
-        self.w_x = np.sqrt(0.5)
-        self.w_y = np.sqrt(0.5)
-        self.w_z = np.sqrt(2.)
-        self.w_roll = np.sqrt(0.11)
-        self.w_pitch = np.sqrt(0.11)
-        self.w_yaw = np.sqrt(0.11)
-        self.w_vx = np.sqrt(2.*np.sqrt(0.5))
-        self.w_vy = np.sqrt(2.*np.sqrt(0.5))
-        self.w_vz = np.sqrt(2.*np.sqrt(2.))
-        self.w_vroll = np.sqrt(0.05*np.sqrt(0.11))
-        self.w_vpitch = np.sqrt(0.05*np.sqrt(0.11))
-        self.w_vyaw = np.sqrt(0.05*np.sqrt(0.11))
+
+        # self.w_x = np.sqrt(0.5)
+        # self.w_y = np.sqrt(0.5)
+        # self.w_z = np.sqrt(2.)
+        # self.w_roll = np.sqrt(0.11)
+        # self.w_pitch = np.sqrt(0.11)
+        # self.w_yaw = np.sqrt(0.11)
+        # self.w_vx = np.sqrt(2.*np.sqrt(0.5))
+        # self.w_vy = np.sqrt(2.*np.sqrt(0.5))
+        # self.w_vz = np.sqrt(2.*np.sqrt(2.))
+        # self.w_vroll = np.sqrt(0.05*np.sqrt(0.11))
+        # self.w_vpitch = np.sqrt(0.05*np.sqrt(0.11))
+        # self.w_vyaw = np.sqrt(0.05*np.sqrt(0.11))
+
+        # from osqp, config
+        # self.stateWeight = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 0.25, 0.2, 0.2, 5., 0.0, 0.0, 0.3])
+
+        # Set of gains to get a better behaviour with mpc height used in WBC
+        self.w_x = 0.3
+        self.w_y = 0.3
+        self.w_z = 2
+        self.w_roll = 0.9
+        self.w_pitch = 1.
+        self.w_yaw = 0.4
+        self.w_vx = 1.5*np.sqrt(self.w_x)
+        self.w_vy = 2*np.sqrt(self.w_y)
+        self.w_vz = 2*np.sqrt(self.w_z)
+        self.w_vroll = 0.05*np.sqrt(self.w_roll)
+        self.w_vpitch = 0.07*np.sqrt(self.w_pitch)
+        self.w_vyaw = 0.05*np.sqrt(self.w_yaw)
 
         self.stateWeight = np.array([self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw,
                                      self.w_vx, self.w_vy, self.w_vz, self.w_vroll, self.w_vpitch, self.w_vyaw])
 
         # Weight Vector : Force Norm
-        self.forceWeights = np.array(4*[0.01, 0.01, 0.01])
+        self.forceWeights = np.array(4*[0.007, 0.007, 0.007])
 
         # Weight Vector : Friction cone cost
         self.frictionWeights = 1.0
@@ -68,18 +86,18 @@ class MPC_crocoddyl:
 
         # Minimum normal force (N)
         self.min_fz = 0.2
-        self.max_fz = 25
+        self.max_fz = 25    
 
         # Gait matrix
         self.gait = np.zeros((params.N_gait, 4))
         self.index = 0
 
         # Weight on the shoulder term :
-        self.shoulderWeights = 10.
-        self.shoulder_hlim = 0.27
+        self.shoulderWeights = 5.
+        self.shoulder_hlim = 0.23
 
         # Integration scheme
-        self.implicit_integration = False
+        self.implicit_integration = True
 
         # Position of the feet
         self.fsteps = np.full((params.N_gait, 12), np.nan)
@@ -135,7 +153,7 @@ class MPC_crocoddyl:
         self.terminalModel.implicit_integration = self.implicit_integration
 
         # Weights vectors of terminal node
-        self.terminalModel.stateWeights = self.stateWeight
+        self.terminalModel.stateWeights = 10*self.stateWeight
         self.terminalModel.forceWeights = np.zeros(12)
         self.terminalModel.frictionWeights = 0.
 
@@ -208,6 +226,17 @@ class MPC_crocoddyl:
             self.x_init = self.ddp.xs[2:]
             self.x_init.insert(0, xref[:, 0])
             self.x_init.append(self.ddp.xs[-1])
+        
+        else :
+
+            self.x_init.append(xref[:, 0] )
+
+            for i in range(len(self.ListAction)) :
+                self.x_init.append(np.zeros(12) )
+                self.u_init.append(np.zeros(12) )
+            
+
+       
 
         """print("1")
         from IPython import embed

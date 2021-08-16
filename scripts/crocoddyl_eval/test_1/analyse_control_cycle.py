@@ -9,20 +9,27 @@ import numpy as np
 import matplotlib.pylab as plt
 import libquadruped_reactive_walking as lqrw
 import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
-
+import crocoddyl
+import utils_mpc
 
 ##############
 #  Parameters
 ##############
-iteration_mpc = 205 # Control cycle
+iteration_mpc = 250 # Control cycle
 Relaunch_DDP = True # Compare a third MPC with != parameters
 linear_mpc = True
 params = lqrw.Params()  # Object that holds all controller parameters
 
+# Default position after calibration
+q_init = np.array(params.q_init.tolist())
+
+# Update I_mat, etc...
+solo = utils_mpc.init_robot(q_init, params) 
+
 ######################
 # Recover Logged data 
 ######################
-file_name = "crocoddyl_eval/logs/logs_2021_07_05_22_43.npz"
+file_name = "crocoddyl_eval/logs/new_controller_test1.npz"
 logs = np.load(file_name)
 planner_gait = logs.get("planner_gait")
 planner_xref = logs.get("planner_xref")
@@ -42,7 +49,7 @@ osqp_xs = np.vstack([planner_xref[k,:,0] , osqp_xs.transpose()]).transpose() # A
 osqp_us = mpc_osqp.get_latest_result()[12:,:] # Forces computed over the whole predicted horizon
 
 # DDP MPC 
-mpc_ddp = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=linear_mpc)
+mpc_ddp = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=True)
 # Without warm-start :
 # mpc_ddp.warm_start = False
 # mpc_ddp.solve(k, planner_xref[k] , planner_fsteps[k] ) # Without warm-start
@@ -82,7 +89,7 @@ ddp_us = mpc_ddp.get_latest_result()[12:,:] # Forces computed over the whole pre
 # Relaunch DDP to adjust the gains 
 ######################################
 
-mpc_ddp = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=True) # To modify the linear model if wanted, recreate a list with proper model
+mpc_ddp_2 = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False  , linearModel=False) # To modify the linear model if wanted, recreate a list with proper model
 
 # Weight Vector : State 
 # w_x = 0.2
@@ -100,60 +107,46 @@ mpc_ddp = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=T
 # mpc_ddp.stateWeight = np.array([w_x,w_y,w_z,w_roll,w_pitch,w_yaw,
 #                             w_vx,w_vy,w_vz,w_vroll,w_vpitch,w_vyaw])
 # OSQP values, in ddp formulation, terms are put in square
-mpc_ddp.stateWeight = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]) 
+mpc_ddp_2.stateWeight = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]) 
 
 # Friction coefficient
-mpc_ddp.mu = 0.9
-mpc_ddp.max_iteration = 550
-mpc_ddp.warm_start = False
+# mpc_ddp_2.mu = 0.9
+# mpc_ddp_2.max_iteration = 10
+# mpc_ddp_2.warm_start = True
 
 # Minimum normal force (N)
-mpc_ddp.min_fz = 0.
-mpc_ddp.max_fz = 25
+# mpc_ddp_2.min_fz = 0.2
+# mpc_ddp_2.max_fz = 25
 
 # Integration scheme
 # V+ = V + dt*B*u   ; P+ = P + dt*V+ != explicit : P+ = P + dt*V
-mpc_ddp.implicit_integration = False
+# mpc_ddp_2.implicit_integration = False
 
 # Weight on the shoulder term :
-mpc_ddp.shoulderWeights = 0.
-mpc_ddp.shoulder_hlim = 0.27
+# mpc_ddp_2.shoulderWeights = 0.
+# mpc_ddp_2.shoulder_hlim = 0.27
 
 # Weight Vector : Force Norm
 # mpc_ddp.forceWeights = np.array(4*[0.01,0.01,0.01])
-mpc_ddp.forceWeights = np.sqrt(4*[0.00005, 0.00005, 0.00005]) # OSQP values
+# mpc_ddp_2.forceWeights = np.sqrt(4*[0.00005, 0.00005, 0.00005]) # OSQP values
 
 # Weight Vector : Friction cone cost
-mpc_ddp.frictionWeights = 0.5
+# mpc_ddp_2.frictionWeights = 0.5
 
-mpc_ddp.relative_forces = False
+# mpc_ddp_2.relative_forces = False
 
 # Update weights and params inside the models 
-mpc_ddp.updateActionModel()
+# mpc_ddp_2.updateActionModel()
 
 # Run ddp solver
 # Update the dynamic depending on the predicted feet position
 if Relaunch_DDP :
-    mpc_ddp_2.problem = crocoddyl.ShootingProblem(np.zeros(12),  mpc_ddp_2.ListAction, mpc_ddp_2.terminalModel)
     mpc_ddp_2.updateProblem( planner_fsteps[k], planner_xref[k])
-    # x_init = []
-    # u_init = []
-    x_zeros = np.zeros(12)
-    x_zeros[2] = 0.2477
-    x_init = []
-    x_init.append( planner_fsteps[k][0])
     mpc_ddp_2.ddp.solve(x_init,  u_init, mpc_ddp_2.max_iteration, isFeasible = False)
-
-    # mpc_ddp_2.updateProblem( planner_fsteps[k], planner_xref[k])
-    # # DDP Solver    
-    # mpc_ddp_2.problem = crocoddyl.ShootingProblem(np.zeros(12),  mpc_ddp_2.ListAction, mpc_ddp_2.terminalModel)
-    # mpc_ddp_2.ddp = crocoddyl.SolverDDP(mpc_ddp_2.problem)
-    # u_init = [np.zeros(12) for k in range(24)]
-    # x_init = [np.zeros(12) for k in range(25)]
-    # mpc_ddp_2.ddp.solve(x_init,  u_init, 10)
+    
     ddp_xs_relaunch = mpc_ddp_2.get_latest_result()[:12,:] # States computed over the whole predicted horizon 
     ddp_xs_relaunch = np.vstack([planner_xref[k,:,0] , ddp_xs_relaunch.transpose()]).transpose() # Add current state 
-    ddp_us_relaunch = mpc_ddp.get_latest_result()[12:,:] # Forces computed over the whole predicted horizon
+    ddp_us_relaunch = mpc_ddp_2.get_latest_result()[12:,:] # Forces computed over the whole predicted horizon
 
 #############
 #  Plot     #
