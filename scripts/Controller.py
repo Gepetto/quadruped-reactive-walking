@@ -261,6 +261,8 @@ class Controller:
 
         t_planner = time.time()
 
+        print("iteration : " , self.k) # print iteration
+
         # TODO: Add 25Hz filter for the inputs of the MPC
 
         # Solve MPC problem once every k_mpc iterations of the main loop
@@ -297,7 +299,7 @@ class Controller:
         if (not self.error) and (not self.joystick.stop):
 
             self.q_wbc = np.zeros((19, 1))
-            self.q_wbc[2, 0] = self.h_ref  # at position (0.0, 0.0, h_ref)
+            self.q_wbc[2, 0] = self.x_f_mpc[2, 0]  # using height from mpc ant not h_ref
             self.q_wbc[6, 0] = 1.0  # with orientation (0.0, 0.0, 0.0)
             self.q_wbc[7:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop
 
@@ -309,7 +311,7 @@ class Controller:
             # Feet command position, velocity and acceleration in base frame
             self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(oRh.transpose(), self.v_ref[3:6, 0:1])
             self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(oRh.transpose(), self.v_ref[0:3, 0:1], self.v_ref[3:6, 0:1])
-            self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), np.array([[0.0], [0.0], [self.h_ref]]) + oTh)
+            self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), np.array([[0.0], [0.0], [self.x_f_mpc[2, 0]]]) + oTh) # using height from mpc ant not h_ref
 
             # Run InvKin + WBC QP
             self.wbcWrapper.compute(self.q_wbc, self.b_v,

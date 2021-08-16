@@ -134,9 +134,24 @@ mpc_ddp.updateActionModel()
 # Run ddp solver
 # Update the dynamic depending on the predicted feet position
 if Relaunch_DDP :
-    mpc_ddp.updateProblem( planner_fsteps[k], planner_xref[k])
-    mpc_ddp.ddp.solve(x_init,  u_init, mpc_ddp.max_iteration)
-    ddp_xs_relaunch = mpc_ddp.get_latest_result()[:12,:] # States computed over the whole predicted horizon 
+    mpc_ddp_2.problem = crocoddyl.ShootingProblem(np.zeros(12),  mpc_ddp_2.ListAction, mpc_ddp_2.terminalModel)
+    mpc_ddp_2.updateProblem( planner_fsteps[k], planner_xref[k])
+    # x_init = []
+    # u_init = []
+    x_zeros = np.zeros(12)
+    x_zeros[2] = 0.2477
+    x_init = []
+    x_init.append( planner_fsteps[k][0])
+    mpc_ddp_2.ddp.solve(x_init,  u_init, mpc_ddp_2.max_iteration, isFeasible = False)
+
+    # mpc_ddp_2.updateProblem( planner_fsteps[k], planner_xref[k])
+    # # DDP Solver    
+    # mpc_ddp_2.problem = crocoddyl.ShootingProblem(np.zeros(12),  mpc_ddp_2.ListAction, mpc_ddp_2.terminalModel)
+    # mpc_ddp_2.ddp = crocoddyl.SolverDDP(mpc_ddp_2.problem)
+    # u_init = [np.zeros(12) for k in range(24)]
+    # x_init = [np.zeros(12) for k in range(25)]
+    # mpc_ddp_2.ddp.solve(x_init,  u_init, 10)
+    ddp_xs_relaunch = mpc_ddp_2.get_latest_result()[:12,:] # States computed over the whole predicted horizon 
     ddp_xs_relaunch = np.vstack([planner_xref[k,:,0] , ddp_xs_relaunch.transpose()]).transpose() # Add current state 
     ddp_us_relaunch = mpc_ddp.get_latest_result()[12:,:] # Forces computed over the whole predicted horizon
 
