@@ -161,6 +161,7 @@ class Controller:
         self.qmes12 = np.zeros((19, 1))
         self.vmes12 = np.zeros((18, 1))
 
+        self.q_display = np.zeros((19, 1))
         self.v_ref = np.zeros((18, 1))
         self.h_v = np.zeros((18, 1))
         self.h_v_bis = np.zeros((6, 1))
@@ -251,8 +252,8 @@ class Controller:
                                                                 self.vref_filt_mpc[0:6, 0])
 
         # Run state planner (outputs the reference trajectory of the base)
-        self.statePlanner.computeReferenceStates(self.q[0:6, 0:1], self.h_v[0:6, 0:1].copy(),
-                                                 self.v_ref[0:6, 0:1], 0.0)
+        self.statePlanner.computeReferenceStates(self.q[0:6, 0:1], self.h_v_filt_mpc[0:6, 0:1].copy(),
+                                                 self.vref_filt_mpc[0:6, 0:1], 0.0)
 
         # Result can be retrieved with self.statePlanner.getReferenceStates()
         xref = self.statePlanner.getReferenceStates()
@@ -327,7 +328,10 @@ class Controller:
 
             # Display robot in Gepetto corba viewer
             if self.enable_corba_viewer and (self.k % 5 == 0):
-                self.solo.display(self.q)
+                self.q_display[:3, 0] = self.q[:3, 0]
+                self.q_display[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(self.q[3:6, 0])).coeffs()
+                self.q_display[7:, 0] = self.q[6:, 0]
+                self.solo.display(self.q_display)
 
         t_wbc = time.time()
 
