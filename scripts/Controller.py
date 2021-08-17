@@ -13,7 +13,6 @@ from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRob
 import libquadruped_reactive_walking as lqrw
 from example_robot_data.robots_loader import Solo12Loader
 
-
 class Result:
     """Object to store the result of the control loop
     It contains what is sent to the robot (gains, desired positions and velocities,
@@ -133,7 +132,8 @@ class Controller:
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q)
-
+        self.o_targetFootstep = np.zeros((3,4)) # Store result for MPC_planner
+       
         # ForceMonitor to display contact forces in PyBullet with red lines
         # import ForceMonitor
         # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
@@ -262,6 +262,8 @@ class Controller:
 
         t_planner = time.time()
 
+        print("iteration : " , self.k) # print iteration
+
         # TODO: Add 25Hz filter for the inputs of the MPC
 
         # Solve MPC problem once every k_mpc iterations of the main loop
@@ -269,8 +271,8 @@ class Controller:
             try:
                 if self.type_MPC == 3 :
                     # Compute the target foostep in local frame, to stop the optimisation around it when t_lock overpass
-                    l_targetFootstep = self.footstepPlanner.getRz().transpose() @ self.footTrajectoryGenerator.getFootPosition() - self.q[0:3,0:1]
-                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, l_targetFootstep)
+                    l_targetFootstep = oRh.transpose() @ (self.o_targetFootstep - oTh)
+                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, l_targetFootstep, oRh, oTh)
                 else :
                     self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3,4)))
 
@@ -280,25 +282,29 @@ class Controller:
         # Retrieve reference contact forces in horizontal frame
         self.x_f_mpc = self.mpc_wrapper.get_latest_result()
 
+        # Store o_targetFootstep, used with MPC_planner
+        self.o_targetFootstep = o_targetFootstep.copy()
+
         t_mpc = time.time()
 
         # If the MPC optimizes footsteps positions then we use them
         if self.k > 100 and self.type_MPC == 3 :
-            for foot in range(4):
-                id = 0
-                while cgait[id,foot] == 0 :
-                    id += 1
-                o_targetFootstep[:2,foot] = np.array(self.footstepPlanner.getRz()[:2, :2]) @ self.x_f_mpc[24 +  2*foot:24+2*foot+2, id] + np.array([self.q[0, 0] , self.q[1,0] ])
-
+            for foot in range(4):                  
+                if cgait[0,foot] == 0 :
+                    id = 0
+                    while cgait[id,foot] == 0 :
+                        id += 1
+                    self.o_targetFootstep[:2,foot] = self.x_f_mpc[24 +  2*foot:24+2*foot+2, id+1]
+        
         # Update pos, vel and acc references for feet
-        self.footTrajectoryGenerator.update(self.k, o_targetFootstep)
+        self.footTrajectoryGenerator.update(self.k, self.o_targetFootstep)
 
         # Whole Body Control
         # If nothing wrong happened yet in the WBC controller
         if (not self.error) and (not self.joystick.stop):
 
             self.q_wbc = np.zeros((19, 1))
-            self.q_wbc[2, 0] = self.h_ref  # at position (0.0, 0.0, h_ref)
+            self.q_wbc[2, 0] = self.x_f_mpc[2, 0]  # using height from mpc ant not h_ref
             self.q_wbc[6, 0] = 1.0  # with orientation (0.0, 0.0, 0.0)
             self.q_wbc[7:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop
 
@@ -310,7 +316,7 @@ class Controller:
             # Feet command position, velocity and acceleration in base frame
             self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(oRh.transpose(), self.v_ref[3:6, 0:1])
             self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(oRh.transpose(), self.v_ref[0:3, 0:1], self.v_ref[3:6, 0:1])
-            self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), np.array([[0.0], [0.0], [self.h_ref]]) + oTh)
+            self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), np.array([[0.0], [0.0], [self.x_f_mpc[2, 0]]]) + oTh) # using height from mpc ant not h_ref
 
             # Run InvKin + WBC QP
             self.wbcWrapper.compute(self.q_wbc, self.b_v,

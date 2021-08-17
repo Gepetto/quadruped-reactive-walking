@@ -176,11 +176,11 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
     t_log_whole = np.zeros((params.N_SIMULATION))
     k_log_whole = 0
     t_start_whole = 0.0
-    T_whole = time.clock()
+    T_whole = time.time()
     dT_whole = 0.0
     while ((not device.is_timeout) and (t < t_max) and (not controller.error)):
 
-        t_start_whole = time.clock()
+        t_start_whole = time.time()
 
         # Update sensor data (IMU, encoders, Motion capture)
         device.parse_sensor_data()
@@ -251,7 +251,7 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         t += params.dt_wbc  # Increment loop time
 
         dT_whole = T_whole
-        T_whole = time.clock()
+        T_whole = time.time()
         dT_whole = T_whole - dT_whole
 
         t_log_whole[k_log_whole] = t_end_whole - t_start_whole

@@ -201,13 +201,13 @@ class Joystick:
                                                 0.0, 0.0, 0.0, 0.0, R_max, R_max, 0.0, 0.0,
                                                 -R_max, 0.0])
             elif velID == 2:
-                self.t_switch = np.array([0, 14, 28, 40, 60])
-                self.v_switch = np.array([[0.0, 0.7, 1.3, 1.3, 1.3],
+                self.t_switch = np.array([0, 5, 8, 10, 12])
+                self.v_switch = np.array([[0.0, 0.8, 0.8, 0.8, 0.8  ],
                                          [0.0, 0.0, 0.0, 0.0, 0.0],
                                          [0.0, 0.0, 0.0, 0.0, 0.0],
                                          [0.0, 0.0, 0.0, 0.0, 0.0],
                                          [0.0, 0.0, 0.0, 0.0, 0.0],
-                                         [0.0, 0.0, 0.0, 0.0, 0.0]])
+                                         [0.0, 0., 1., 0., -1. ]])
             elif velID == 3:
                 self.t_switch = np.array([0, 2, 6, 8, 12, 60])
                 self.v_switch = np.array([[0.0, 0.0,  0.4, 0.4, 0.0, 0.0],
