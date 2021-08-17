@@ -13,7 +13,6 @@ from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRob
 import libquadruped_reactive_walking as lqrw
 from example_robot_data.robots_loader import Solo12Loader
 
-
 class Result:
     """Object to store the result of the control loop
     It contains what is sent to the robot (gains, desired positions and velocities,
@@ -134,7 +133,7 @@ class Controller:
         # Wrapper that makes the link with the solver that you want to use for the MPC
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q)
         self.o_targetFootstep = np.zeros((3,4)) # Store result for MPC_planner
-
+       
         # ForceMonitor to display contact forces in PyBullet with red lines
         # import ForceMonitor
         # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
@@ -294,10 +293,10 @@ class Controller:
                     id = 0
                     while cgait[id,foot] == 0 :
                         id += 1
-                    self.o_targetFootstep[:2,foot] = self.x_f_mpc[24 +  2*foot:24+2*foot+2, id]
-
+                    self.o_targetFootstep[:2,foot] = self.x_f_mpc[24 +  2*foot:24+2*foot+2, id+1]
+        
         # Update pos, vel and acc references for feet
-        self.footTrajectoryGenerator.update(self.k, o_targetFootstep)
+        self.footTrajectoryGenerator.update(self.k, self.o_targetFootstep)
 
         # Whole Body Control
         # If nothing wrong happened yet in the WBC controller

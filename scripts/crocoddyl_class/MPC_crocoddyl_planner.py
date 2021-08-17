@@ -22,7 +22,7 @@ class MPC_crocoddyl_planner():
         self.T_mpc = params.T_mpc                 # Period of the MPC    
         self.n_nodes = int(self.T_mpc/self.dt)    # Number of nodes    
         self.mass = params.mass                   # Mass of the robot
-        self.max_iteration = 20                   # Max iteration ddp solver
+        self.max_iteration = 10                   # Max iteration ddp solver
         self.gI = np.array(params.I_mat.tolist()).reshape((3, 3)) # Inertia matrix in ody frame
 
         # Friction coefficient
