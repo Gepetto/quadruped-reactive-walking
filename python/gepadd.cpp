@@ -190,6 +190,7 @@ struct FootTrajectoryGeneratorPythonVisitor : public bp::def_visitor<FootTraject
             .def("getFootAccelerationBaseFrame", &FootTrajectoryGenerator::getFootAccelerationBaseFrame,
                  bp::args("R", "w_ref"), "Get acceleration_ matrix in base frame.\n")
 
+            .def("getTargetPosition", &FootTrajectoryGenerator::getTargetPosition, "Get targetFootstep_ matrix.\n")
             .def("getFootPosition", &FootTrajectoryGenerator::getFootPosition, "Get position_ matrix.\n")
             .def("getFootVelocity", &FootTrajectoryGenerator::getFootVelocity, "Get velocity_ matrix.\n")
             .def("getFootAcceleration", &FootTrajectoryGenerator::getFootAcceleration, "Get acceleration_ matrix.\n")
