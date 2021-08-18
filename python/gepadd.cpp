@@ -151,6 +151,7 @@ struct FootstepPlannerPythonVisitor : public bp::def_visitor<FootstepPlannerPyth
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
             .def("getFootsteps", &FootstepPlanner::getFootsteps, "Get footsteps_ matrix.\n")
+            .def("getTargetFootsteps", &FootstepPlanner::getTargetFootsteps, "Get footsteps_ matrix.\n")
             .def("getRz", &FootstepPlanner::getRz, "Get rotation along z matrix.\n")
 
             .def("initialize", &FootstepPlanner::initialize, bp::args("params", "gaitIn"),
