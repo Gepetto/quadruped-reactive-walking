@@ -1,10 +1,5 @@
 # coding: utf8
 
-import os
-import sys
-
-sys.path.insert(0, './solopython')
-
 import threading
 from Controller import Controller
 import numpy as np
