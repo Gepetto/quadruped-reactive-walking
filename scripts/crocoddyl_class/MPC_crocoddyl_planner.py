@@ -31,29 +31,29 @@ class MPC_crocoddyl_planner():
         else:
             self.mu = mu
 
-        # self.stateWeight = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 0.25, 0.2, 0.2, 5., 0.0, 0.0, 0.3]) 
+        # self.stateWeight = np.sqrt([0., 0., 20.0, 1., 1., 0., 0.5, 0.5, 0., 0.0, 0.0, 0.5]) 
 
         # Weights Vector : States
         self.w_x = 0.3
         self.w_y = 0.3
-        self.w_z = 2
+        self.w_z = 20
         self.w_roll = 0.9
         self.w_pitch = 1.
-        self.w_yaw = 0.4
+        self.w_yaw = 0.5
         self.w_vx = 1.5*np.sqrt(self.w_x)
         self.w_vy = 2*np.sqrt(self.w_y)
         self.w_vz = 1*np.sqrt(self.w_z)
         self.w_vroll = 0.05*np.sqrt(self.w_roll)
         self.w_vpitch = 0.07*np.sqrt(self.w_pitch)
-        self.w_vyaw = 0.05*np.sqrt(self.w_yaw)
+        self.w_vyaw = 0.08*np.sqrt(self.w_yaw)
         self.stateWeights = np.array([self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw,
                                       self.w_vx, self.w_vy, self.w_vz, self.w_vroll, self.w_vpitch, self.w_vyaw])
 
-        self.forceWeights = 2*np.array(4*[0.01, 0.01, 0.01])  # Weight Vector : Force Norm
+        self.forceWeights = 1*np.array(4*[0.007, 0.007, 0.007])  # Weight Vector : Force Norm
         self.frictionWeights = 1.                          # Weight Vector : Friction cone cost
-        self.heuristicWeights = np.array(4*[0.3, 0.4])      # Weights on the heuristic term
+        self.heuristicWeights = np.array(4*[0.03, 0.04])      # Weights on the heuristic term
         self.stepWeights = np.full(8, 0.005)                 # Weight on the step command (distance between steps)
-        self.stopWeights = 2.5*np.ones(8)                       # Weights to stop the optimisation at the end of the flying phase
+        self.stopWeights = 2.*np.ones(8)                       # Weights to stop the optimisation at the end of the flying phase
         self.shoulderContactWeight = 5.                      # Weight for shoulder-to-contact penalty
         self.shoulder_hlim = 0.235
 

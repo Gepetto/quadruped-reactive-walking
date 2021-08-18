@@ -35,7 +35,7 @@ class MPC_crocoddyl:
         # Weights on the state vector
         self.w_x = 0.3
         self.w_y = 0.3
-        self.w_z = 2
+        self.w_z = 20
         self.w_roll = 0.9
         self.w_pitch = 1.
         self.w_yaw = 0.4
@@ -44,20 +44,20 @@ class MPC_crocoddyl:
         self.w_vz = 2*np.sqrt(self.w_z)
         self.w_vroll = 0.05*np.sqrt(self.w_roll)
         self.w_vpitch = 0.07*np.sqrt(self.w_pitch)
-        self.w_vyaw = 0.05*np.sqrt(self.w_yaw)
+        self.w_vyaw = 0.08*np.sqrt(self.w_yaw)
 
         self.stateWeights = np.array([self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw,
                                      self.w_vx, self.w_vy, self.w_vz, self.w_vroll, self.w_vpitch, self.w_vyaw])
 
         
-        self.forceWeights = np.array(4*[0.007, 0.007, 0.007]) # Weight Vector : Force Norm
+        self.forceWeights = 1*np.array(4*[0.007, 0.007, 0.007]) # Weight Vector : Force Norm
         self.frictionWeights = 1.0                            # Weight Vector : Friction cone cost
 
         self.min_fz = 0.2       # Minimum normal force (N)
         self.max_fz = 25        # Maximum normal force (N)   
 
         self.shoulderWeights = 5.       # Weight on the shoulder term :
-        self.shoulder_hlim = 0.23       # shoulder maximum height
+        self.shoulder_hlim = 0.235       # shoulder maximum height
 
         # Integration scheme
         self.implicit_integration = True
