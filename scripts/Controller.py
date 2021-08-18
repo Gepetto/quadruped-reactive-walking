@@ -164,7 +164,7 @@ class Controller:
         self.q_display = np.zeros((19, 1))
         self.v_ref = np.zeros((18, 1))
         self.h_v = np.zeros((18, 1))
-        self.h_v_bis = np.zeros((6, 1))
+        self.h_v_windowed = np.zeros((6, 1))
         self.yaw_estim = 0.0
         self.RPY_filt = np.zeros(3)
 
@@ -178,14 +178,11 @@ class Controller:
 
         self.q_filt_mpc = np.zeros((18, 1))
         self.h_v_filt_mpc = np.zeros((6, 1))
-        self.h_v_bis_filt_mpc = np.zeros((6, 1))
         self.vref_filt_mpc = np.zeros((6, 1))
         self.filter_mpc_q = lqrw.Filter()
         self.filter_mpc_q.initialize(params)
         self.filter_mpc_v = lqrw.Filter()
         self.filter_mpc_v.initialize(params)
-        self.filter_mpc_v_bis = lqrw.Filter()
-        self.filter_mpc_v_bis.initialize(params)
         self.filter_mpc_vref = lqrw.Filter()
         self.filter_mpc_vref.initialize(params)
 
@@ -226,7 +223,7 @@ class Controller:
         oTh = self.estimator.getoTh().reshape((3, 1))
         self.v_ref[0:6, 0] = self.estimator.getVRef()
         self.h_v[0:6, 0] = self.estimator.getHV()
-        self.h_v_bis[0:6, 0] = self.estimator.getHVBis()
+        self.h_v_windowed[0:6, 0] = self.estimator.getHVWindowed()
         self.q[:, 0] = self.estimator.getQUpdated()
         self.yaw_estim = self.estimator.getYawEstim()
         # TODO: Understand why using Python or C++ h_v leads to a slightly different result since the 
@@ -241,18 +238,17 @@ class Controller:
         self.q_filt_mpc[:6, 0] = self.filter_mpc_q.filter(self.q[:6, 0:1], True)
         self.q_filt_mpc[6:, 0] = self.q[6:, 0].copy()
         self.h_v_filt_mpc[:, 0] = self.filter_mpc_v.filter(self.h_v[:6, 0:1], False)
-        self.h_v_bis_filt_mpc[:, 0] = self.filter_mpc_v_bis.filter(self.h_v_bis[:6, 0:1], False)
         self.vref_filt_mpc[:, 0] = self.filter_mpc_vref.filter(self.v_ref[:6, 0:1], False)
 
         # Compute target footstep based on current and reference velocities
         o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
                                                                 int(self.k_mpc - self.k % self.k_mpc),
-                                                                self.q_filt_mpc[:, 0],
-                                                                self.h_v_bis_filt_mpc[0:6, 0:1].copy(),
-                                                                self.vref_filt_mpc[0:6, 0])
+                                                                self.q[:, 0],
+                                                                self.h_v_windowed[0:6, 0:1].copy(),
+                                                                self.v_ref[0:6, 0])
 
         # Run state planner (outputs the reference trajectory of the base)
-        self.statePlanner.computeReferenceStates(self.q[0:6, 0:1], self.h_v_filt_mpc[0:6, 0:1].copy(),
+        self.statePlanner.computeReferenceStates(self.q_filt_mpc[0:6, 0:1], self.h_v_filt_mpc[0:6, 0:1].copy(),
                                                  self.vref_filt_mpc[0:6, 0:1], 0.0)
 
         # Result can be retrieved with self.statePlanner.getReferenceStates()

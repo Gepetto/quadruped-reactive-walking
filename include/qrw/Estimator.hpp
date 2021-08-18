@@ -212,7 +212,7 @@ class Estimator {
   VectorN getQUpdated() { return q_up_; }
   VectorN getVRef() { return v_ref_; }
   VectorN getHV() { return h_v_; }
-  VectorN getHVBis() { return h_v_bis_; }
+  VectorN getHVWindowed() { return h_v_windowed_; }
   Matrix3 getoRh() { return oRh_; }
   Vector3 getoTh() { return oTh_; }
   double getYawEstim() { return yaw_estim_; }
@@ -274,7 +274,7 @@ class Estimator {
 
   int N_queue_;
   VectorN v_filt_bis_;
-  VectorN h_v_bis_;
+  VectorN h_v_windowed_;
   std::deque<double> vx_queue_, vy_queue_, vz_queue_, wR_queue_, wP_queue_, wY_queue_;
 };
 #endif  // ESTIMATOR_H_INCLUDED
