@@ -354,6 +354,7 @@ struct EstimatorPythonVisitor : public bp::def_visitor<EstimatorPythonVisitor<Es
             .def("getVRef", &Estimator::getVRef, "")
             .def("getHV", &Estimator::getHV, "")
             .def("getHVWindowed", &Estimator::getHVWindowed, "")
+            .def("getoRb", &Estimator::getoRb, "")
             .def("getoRh", &Estimator::getoRh, "")
             .def("getoTh", &Estimator::getoTh, "")
             .def("getYawEstim", &Estimator::getYawEstim, "")

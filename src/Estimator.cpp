@@ -51,6 +51,7 @@ Estimator::Estimator()
       IMU_lin_acc_(Vector3::Zero()),
       IMU_ang_vel_(Vector3::Zero()),
       IMU_RPY_(Vector3::Zero()),
+      oRb_(Matrix3::Identity()),
       IMU_ang_pos_(pinocchio::SE3::Quaternion(1.0, 0.0, 0.0, 0.0)),
       actuators_pos_(Vector12::Zero()),
       actuators_vel_(Vector12::Zero()),
@@ -431,6 +432,9 @@ void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait) {
     // Mix perfect yaw with pitch and roll measurements
     yaw_estim_ += v_ref_[5] * dt_wbc;
     q_up_.block(3, 0, 3, 1) << IMU_RPY_[0], IMU_RPY_[1], yaw_estim_;
+
+    // Transformation matrices between world and base frames
+    oRb_ = pinocchio::rpy::rpyToMatrix(IMU_RPY_(0, 0), IMU_RPY_(1, 0), yaw_estim_);
 
     // Actuators measurements
     q_up_.tail(12) = q_filt_dyn_.tail(12);

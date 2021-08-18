@@ -219,6 +219,7 @@ class Controller:
 
         # Update state vectors of the robot (q and v) + transformation matrices between world and horizontal frames
         self.estimator.updateState(self.joystick.v_ref, self.gait)
+        oRb = self.estimator.getoRb()
         oRh = self.estimator.getoRh()
         oTh = self.estimator.getoTh().reshape((3, 1))
         self.v_ref[0:6, 0] = self.estimator.getVRef()
@@ -258,7 +259,8 @@ class Controller:
 
         t_planner = time.time()
 
-        print("iteration : " , self.k) # print iteration
+        if self.k % 250 == 0:
+            print("iteration : " , self.k) # print iteration
 
         # TODO: Add 25Hz filter for the inputs of the MPC
 

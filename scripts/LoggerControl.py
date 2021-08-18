@@ -344,6 +344,7 @@ class LoggerControl():
             plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
             if i < 3:
                 plt.plot(t_range, self.mocap_h_v[:, i], "k", linewidth=3)
+                plt.plot(t_range, self.loop_h_v_filt_mpc[:, i], linewidth=3, color="forestgreen")
             else:
                 plt.plot(t_range, self.mocap_b_w[:, i-3], "k", linewidth=3)
 
@@ -354,7 +355,7 @@ class LoggerControl():
             # plt.plot(t_range, self.log_dq[i, :], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_invkin[i, :-2], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_ref_invkin[i, :-2], "violet", linewidth=2, linestyle="--")
-            plt.legend(["Robot state", "Robot reference state", "Ground truth", "Alternative"], prop={'size': 8})
+            plt.legend(["Robot state", "Robot reference state", "Ground truth", "Robot state (LP 15Hz)"], prop={'size': 8})
             plt.ylabel(lgd[i])
         plt.suptitle("Measured & Reference linear and angular velocities")
 
