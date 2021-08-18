@@ -1,5 +1,10 @@
 # coding: utf8
 
+import os
+import sys
+
+sys.path.insert(0, '../scripts')
+
 import time
 import multiprocessing as mp
 import numpy as np
@@ -15,7 +20,7 @@ def run_simu_wyaw(speed):
     desired_speed[0] = speed[0]
     desired_speed[5] = speed[1]
 
-    return control_loop("test", None, desired_speed)
+    return control_loop(None, desired_speed)
 
 
 def run_simu_vy(speed):
@@ -23,7 +28,7 @@ def run_simu_vy(speed):
     desired_speed[0] = speed[0]
     desired_speed[1] = speed[1]
 
-    return control_loop("test", None, desired_speed)
+    return control_loop(None, desired_speed)
 
 
 """
@@ -79,13 +84,13 @@ np.save(pathIn + "results_wyaw_all_true.npy", np.array(res))
 ###########################
 
 # List of arguments
-X = np.hstack((np.linspace(-1.4, 1.4, 15)))
-Y = np.hstack((np.linspace(-1.4, 1.4, 15)))
+X = np.hstack((np.linspace(-0.4, 0.4, 5)))
+Y = np.hstack((np.linspace(-0.4, 0.4, 5)))
 list_param = []
 for i in range(X.size):
     for j in range(Y.size):
-        if (np.abs(X[i]) >= 0.79) and (np.abs(Y[j]) >= 0.79):
-            list_param.append([X[i], Y[j]])
+        #if (np.abs(X[i]) >= 0.79) and (np.abs(Y[j]) >= 0.79):
+        list_param.append([X[i], Y[j]])
 
 """from IPython import embed
 embed()"""
