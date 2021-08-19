@@ -73,17 +73,17 @@ class LoggerSensors():
     def saveAll(self, fileName="dataSensors"):
         date_str = datetime.now().strftime('_%Y_%m_%d_%H_%M')
 
-        np.savez(fileName + date_str + ".npz",
-                 q_mes=self.q_mes,
-                 v_mes=self.v_mes,
-                 baseOrientation=self.baseOrientation,
-                 baseAngularVelocity=self.baseAngularVelocity,
-                 baseLinearAcceleration=self.baseLinearAcceleration,
-                 baseAccelerometer=self.baseAccelerometer,
-                 torquesFromCurrentMeasurment=self.torquesFromCurrentMeasurment,
-                 mocapPosition=self.mocapPosition,
-                 mocapVelocity=self.mocapVelocity,
-                 mocapAngularVelocity=self.mocapAngularVelocity,
-                 mocapOrientationMat9=self.mocapOrientationMat9,
-                 mocapOrientationQuat=self.mocapOrientationQuat,
-                 tstamps=self.tstamps)
+        np.savez_compressed(fileName + date_str + ".npz",
+                            q_mes=self.q_mes,
+                            v_mes=self.v_mes,
+                            baseOrientation=self.baseOrientation,
+                            baseAngularVelocity=self.baseAngularVelocity,
+                            baseLinearAcceleration=self.baseLinearAcceleration,
+                            baseAccelerometer=self.baseAccelerometer,
+                            torquesFromCurrentMeasurment=self.torquesFromCurrentMeasurment,
+                            mocapPosition=self.mocapPosition,
+                            mocapVelocity=self.mocapVelocity,
+                            mocapAngularVelocity=self.mocapAngularVelocity,
+                            mocapOrientationMat9=self.mocapOrientationMat9,
+                            mocapOrientationQuat=self.mocapOrientationQuat,
+                            tstamps=self.tstamps)
