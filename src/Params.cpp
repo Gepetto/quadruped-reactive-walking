@@ -153,6 +153,9 @@ void Params::initialize(const std::string& file_path) {
   assert_yaml_parsing(robot_node, "robot", "lock_time");
   lock_time = robot_node["lock_time"].as<double>();
 
+  assert_yaml_parsing(robot_node, "robot", "vert_time");
+  vert_time = robot_node["vert_time"].as<double>();
+
   assert_yaml_parsing(robot_node, "robot", "osqp_w_states");
   osqp_w_states = robot_node["osqp_w_states"].as<std::vector<double> >();
 
