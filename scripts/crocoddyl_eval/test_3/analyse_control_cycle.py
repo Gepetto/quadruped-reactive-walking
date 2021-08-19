@@ -10,19 +10,27 @@ import matplotlib.pylab as plt
 import libquadruped_reactive_walking as lqrw
 import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
 import time 
+import utils_mpc
+
 
 ##############
 #  Parameters
 ##############
-iteration_mpc = 62 # Control cycle
+iteration_mpc = 45 # Control cycle
 Relaunch_DDP = False # Compare a third MPC with != parameters
 linear_mpc = True
 params = lqrw.Params()  # Object that holds all controller parameters
 
+# Default position after calibration
+q_init = np.array(params.q_init.tolist())
+
+# Update I_mat, etc...
+solo = utils_mpc.init_robot(q_init, params) 
+
 ######################
 # Recover Logged data 
 ######################
-file_name = "crocoddyl_eval/logs/data_2021_07_12_09_25.npz"
+file_name = "crocoddyl_eval/logs/data_2021_08_18_13_23.npz"
 logs = np.load(file_name)
 planner_gait = logs.get("planner_gait")
 planner_xref = logs.get("planner_xref")
@@ -55,17 +63,22 @@ mpc_ddp = MPC_crocoddyl_planner.MPC_crocoddyl_planner(params, mu=0.9, inner=Fals
 mpc_ddp.heuristicWeights = np.array(4*[0.3, 0.4])
 mpc_ddp.stepWeights = np.full(8, 0.5)
 mpc_ddp.stateWeights = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]) # fit osqp gains
-mpc_ddp.initializeModels(params) # re-initialize the model list with the new gains
+mpc_ddp.initialize_models(params) # re-initialize the model list with the new gains
 
 mpc_ddp.gait = planner_gait[k_previous].copy() # gait_old will be initialised with that
+
+print(mpc_ddp.gait)
 mpc_ddp.updateProblem(k , planner_xref[k] , planner_fsteps[k], planner_goals[k])
 
 mpc_ddp.ddp.solve(mpc_ddp.x_init,  mpc_ddp.u_init, mpc_ddp.max_iteration)
 
-ddp_xs = mpc_ddp.get_latest_result()[:12,:] # States computed over the whole predicted horizon 
+oRh = np.eye(3)
+oTh = np.zeros((3,1))
+
+ddp_xs = mpc_ddp.get_latest_result(oRh, oTh)[:12,:] # States computed over the whole predicted horizon 
 ddp_xs = np.vstack([planner_xref[k,:,0] , ddp_xs.transpose()]).transpose() # Add current state 
-ddp_us = mpc_ddp.get_latest_result()[12:,:] # Forces computed over the whole predicted horizon
-ddp_fsteps = mpc_ddp.get_latest_result()[24:,:]
+ddp_us = mpc_ddp.get_latest_result(oRh, oTh)[12:,:] # Forces computed over the whole predicted horizon
+ddp_fsteps = mpc_ddp.get_latest_result(oRh, oTh)[24:,:]
 ddp_fsteps = np.vstack([planner_fsteps[k,0,:][[0,1,3,4,6,7,9,10]] , ddp_fsteps.transpose()]).transpose() # Add current state 
 
 
