@@ -42,7 +42,6 @@ Vector3 ComplementaryFilter::compute(Vector3 const& x, Vector3 const& dx, Vector
 
 Estimator::Estimator()
     : dt_wbc(0.0),
-      alpha_v_(0.0),
       alpha_secu_(0.0),
       offset_yaw_IMU_(0.0),
       perfect_estimator(false),
@@ -71,6 +70,7 @@ Estimator::Estimator()
       v_filt_dyn_(VectorN::Zero(18, 1)),
       v_secu_dyn_(VectorN::Zero(12, 1)),
       q_up_(VectorN::Zero(18)),
+      v_up_(VectorN::Zero(18)),
       v_ref_(VectorN::Zero(6)),
       h_v_(VectorN::Zero(6)),
       oRh_(Matrix3::Identity()),
@@ -86,11 +86,6 @@ void Estimator::initialize(Params& params) {
   perfect_estimator = params.perfect_estimator;
 
   // Filtering estimated linear velocity
-  double fc = params.fc_v_esti;  // Cut frequency
-  double y = 1 - std::cos(2 * M_PI * fc * dt_wbc);
-  alpha_v_ = -y + std::sqrt(y * y + 2 * y);
-  alpha_v_ = 1.0;
-
   N_queue_ = static_cast<int>(std::round(params.T_gait / dt_wbc));
   vx_queue_.resize(N_queue_, 0.0);  // List full of 0.0
   vy_queue_.resize(N_queue_, 0.0);  // List full of 0.0
@@ -100,8 +95,8 @@ void Estimator::initialize(Params& params) {
   wY_queue_.resize(N_queue_, 0.0);  // List full of 0.0
 
   // Filtering velocities used for security checks
-  fc = 6.0;  // Cut frequency
-  y = 1 - std::cos(2 * M_PI * fc * dt_wbc);
+  double fc = 6.0;  // Cut frequency
+  double y = 1 - std::cos(2 * M_PI * fc * dt_wbc);
   alpha_secu_ = -y + std::sqrt(y * y + 2 * y);
 
   FK_xyz_(2, 0) = params.h_ref;
@@ -260,7 +255,7 @@ Vector3 Estimator::BaseVelocityFromKinAndIMU(int contactFrameId) {
 
 void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN const& baseLinearAcceleration,
                            VectorN const& baseAngularVelocity, VectorN const& baseOrientation, VectorN const& q_mes,
-                           VectorN const& v_mes, VectorN const& dummyPos, VectorN const& b_baseVel) {
+                           VectorN const& v_mes, VectorN const& dummyPos, Vector3 const& b_baseVel) {
   feet_status_ = gait.block(0, 0, 1, 4);
   feet_goals_ = goals;
 
@@ -344,20 +339,17 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
   q_filt_.tail(12) = actuators_pos_;  // Actuators pos are already directly from PyBullet
 
   // Output filtered velocity vector (18 x 1)
-  if (perfect_estimator) {  // Linear velocities directly from PyBullet
-    v_filt_.head(3) = (1 - alpha_v_) * v_filt_.head(3) + alpha_v_ * b_baseVel;
-  } else {
-    v_filt_.head(3) = (1 - alpha_v_) * v_filt_.head(3) + alpha_v_ * b_filt_lin_vel_;
-  }
+  // Linear velocities directly from PyBullet if perfect estimator
+  v_filt_.head(3) = perfect_estimator ? b_baseVel : b_filt_lin_vel_;
   v_filt_.block(3, 0, 3, 1) = filt_ang_vel;  // Angular velocities are already directly from PyBullet
   v_filt_.tail(12) = actuators_vel_;         // Actuators velocities are already directly from PyBullet
 
   vx_queue_.pop_back();
   vy_queue_.pop_back();
   vz_queue_.pop_back();
-  vx_queue_.push_front(b_filt_lin_vel_(0));
-  vy_queue_.push_front(b_filt_lin_vel_(1));
-  vz_queue_.push_front(b_filt_lin_vel_(2));
+  vx_queue_.push_front(perfect_estimator ? b_baseVel(0) : b_filt_lin_vel_(0));
+  vy_queue_.push_front(perfect_estimator ? b_baseVel(1) : b_filt_lin_vel_(1));
+  vz_queue_.push_front(perfect_estimator ? b_baseVel(2) : b_filt_lin_vel_(2));
   v_filt_bis_(0) = std::accumulate(vx_queue_.begin(), vx_queue_.end(), 0.0) / N_queue_;
   v_filt_bis_(1) = std::accumulate(vy_queue_.begin(), vy_queue_.end(), 0.0) / N_queue_;
   v_filt_bis_(2) = std::accumulate(vz_queue_.begin(), vz_queue_.end(), 0.0) / N_queue_;
@@ -424,12 +416,14 @@ void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait) {
     Matrix2 Ryaw;
     Ryaw << cos(yaw_estim_), -sin(yaw_estim_), sin(yaw_estim_), cos(yaw_estim_);
 
-    q_up_.head(2) = q_up_.head(2) + Ryaw * v_ref_.head(2) * dt_wbc;
+    v_up_.head(2) = Ryaw * v_ref_.head(2);
+    q_up_.head(2) = q_up_.head(2) + v_up_.head(2) * dt_wbc;
 
     // Mix perfect x and y with height measurement
     q_up_[2] = q_filt_dyn_[2];
 
     // Mix perfect yaw with pitch and roll measurements
+    v_up_[5] = v_ref_[5];
     yaw_estim_ += v_ref_[5] * dt_wbc;
     q_up_.block(3, 0, 3, 1) << IMU_RPY_[0], IMU_RPY_[1], yaw_estim_;
 
@@ -438,12 +432,13 @@ void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait) {
 
     // Actuators measurements
     q_up_.tail(12) = q_filt_dyn_.tail(12);
+    v_up_.tail(12) = v_filt_dyn_.tail(12);
 
     // Velocities are the one estimated by the estimator
     Matrix3 hRb = pinocchio::rpy::rpyToMatrix(IMU_RPY_[0], IMU_RPY_[1], 0.0);
 
-    h_v_.head(3) = hRb * v_filt_dyn_.block(0, 0, 3, 1);
-    h_v_.tail(3) = hRb * v_filt_dyn_.block(3, 0, 3, 1);
+    h_v_.head(3) = hRb * v_filt_.block(0, 0, 3, 1);
+    h_v_.tail(3) = hRb * v_filt_.block(3, 0, 3, 1);
     h_v_windowed_.head(3) = hRb * v_filt_bis_.block(0, 0, 3, 1);
     h_v_windowed_.tail(3) = hRb * v_filt_bis_.block(3, 0, 3, 1);
   } else {

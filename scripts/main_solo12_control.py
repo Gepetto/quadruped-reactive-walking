@@ -197,7 +197,7 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         device.joints.set_velocity_gains(controller.result.D)
         device.joints.set_desired_positions(controller.result.q_des)
         device.joints.set_desired_velocities(controller.result.v_des)
-        device.joints.set_torques(controller.result.tau_ff.ravel())
+        device.joints.set_torques(controller.result.FF * controller.result.tau_ff.ravel())
 
         # Call logger
         if params.LOGGING or params.PLOTTING:

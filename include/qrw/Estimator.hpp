@@ -164,7 +164,7 @@ class Estimator {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void run_filter(MatrixN const& gait, MatrixN const& goals, VectorN const& baseLinearAcceleration,
                   VectorN const& baseAngularVelocity, VectorN const& baseOrientation, VectorN const& q_mes,
-                  VectorN const& v_mes, VectorN const& dummyPos, VectorN const& b_baseVel);
+                  VectorN const& v_mes, VectorN const& dummyPos, Vector3 const& b_baseVel);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -210,6 +210,7 @@ class Estimator {
   Vector3 getFilterPosFiltX() { return filter_xyz_pos_.getFiltX(); }
 
   VectorN getQUpdated() { return q_up_; }
+  VectorN getVUpdated() { return v_up_; }
   VectorN getVRef() { return v_ref_; }
   VectorN getHV() { return h_v_; }
   VectorN getHVWindowed() { return h_v_windowed_; }
@@ -223,7 +224,6 @@ class Estimator {
   ComplementaryFilter filter_xyz_vel_;  // Complementary filter for base velocity
 
   double dt_wbc;           // Time step of the estimator
-  double alpha_v_;         // Low pass coefficient for the outputted filtered velocity
   double alpha_secu_;      // Low pass coefficient for the outputted filtered velocity for security check
   double offset_yaw_IMU_;  // Yaw orientation of the IMU at startup
   bool perfect_estimator;  // Enable perfect estimator (directly from the PyBullet simulation)
@@ -267,7 +267,8 @@ class Estimator {
   Vector12 q_security_;  // Position limits for the actuators above which safety controller is triggered
 
   // For updateState function
-  VectorN q_up_;      // Configuration vector
+  VectorN q_up_;      // Configuration vector in ideal world frame
+  VectorN v_up_;      // Velocity vector in ideal world frame
   VectorN v_ref_;     // Reference velocity vector
   VectorN h_v_;       // Velocity vector in horizontal frame
   Matrix3 oRh_;       // Rotation between horizontal and world frame

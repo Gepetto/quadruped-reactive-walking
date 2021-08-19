@@ -292,7 +292,9 @@ class WbcWrapper {
   VectorN get_qdes() { return qdes_; }
   VectorN get_vdes() { return vdes_; }
   VectorN get_tau_ff() { return tau_ff_; }
+  VectorN get_ddq_cmd() { return ddq_cmd_; }
   VectorN get_f_with_delta() { return f_with_delta_; }
+  VectorN get_ddq_with_delta() { return ddq_with_delta_; }
   MatrixN get_feet_pos() { return invkin_->get_posf().transpose(); }
   MatrixN get_feet_err() { return log_feet_pos_target - invkin_->get_posf().transpose(); }
   MatrixN get_feet_vel() { return invkin_->get_vf().transpose(); }

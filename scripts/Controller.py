@@ -189,8 +189,6 @@ class Controller:
         # Interface with the PD+ on the control board
         self.result = Result()
 
-        test_footTrajectoryGenerator(params)
-
         # Run the control loop once with a dummy device for initialization
         dDevice = dummyDevice()
         dDevice.joints.positions = q_init
@@ -228,6 +226,7 @@ class Controller:
         self.h_v[0:6, 0] = self.estimator.getHV()
         self.h_v_windowed[0:6, 0] = self.estimator.getHVWindowed()
         self.q[:, 0] = self.estimator.getQUpdated()
+        self.v[:, 0] = self.estimator.getVUpdated()
         self.yaw_estim = self.estimator.getYawEstim()
         # TODO: Understand why using Python or C++ h_v leads to a slightly different result since the 
         # difference between them at each time step is 1e-16 at max (butterfly effect?)
@@ -330,7 +329,8 @@ class Controller:
             self.result.D = self.Kd_main * np.ones(12)
             self.result.q_des[:] = self.wbcWrapper.qdes[:]
             self.result.v_des[:] = self.wbcWrapper.vdes[:]
-            self.result.tau_ff[:] = self.Kff_main * self.wbcWrapper.tau_ff
+            self.result.FF = self.Kff_main * np.ones(12)
+            self.result.tau_ff[:] = self.wbcWrapper.tau_ff
 
             # Display robot in Gepetto corba viewer
             if self.enable_corba_viewer and (self.k % 5 == 0):
@@ -385,6 +385,7 @@ class Controller:
             self.result.D = 0.1 * np.ones(12)
             self.result.q_des[:] = np.zeros(12)
             self.result.v_des[:] = np.zeros(12)
+            self.result.FF = np.zeros(12)
             self.result.tau_ff[:] = np.zeros(12)
 
     def log_misc(self, tic, t_filter, t_planner, t_mpc, t_wbc):
@@ -394,59 +395,3 @@ class Controller:
         self.t_mpc = t_mpc - t_planner
         self.t_wbc = t_wbc - t_mpc
         self.t_loop = time.time() - tic
-
-def test_footTrajectoryGenerator(params):
-
-    gait = lqrw.Gait()
-    gait.initialize(params)
-
-    ftg = lqrw.FootTrajectoryGenerator()
-    ftg.initialize(params, gait)
-
-    o_targetFootstep = np.zeros((3, 4))
-    o_targetFootstep = 2.0 * ftg.getFootPosition()
-    k = 0
-    N = 1000
-    log_p_ref = np.zeros((N, 3, 4))
-    log_p_target = np.zeros((N, 3, 4))
-    log_p = np.zeros((N, 3, 4))
-    log_v = np.zeros((N, 3, 4))
-    log_a = np.zeros((N, 3, 4))
-    while k < N:
-
-        # Update reference
-        o_targetFootstep[0, :] -= 0.0001 
-
-        # Update gait
-        gait.updateGait(k, 20, 0)
-
-        # Update foot trajectory generator
-        ftg.update(k, o_targetFootstep)
-        log_p_ref[k] = o_targetFootstep
-        log_p_target[k] = ftg.getTargetPosition()
-        log_p[k] = ftg.getFootPosition()
-        log_v[k] = ftg.getFootVelocity()
-        log_a[k] = ftg.getFootAcceleration()
-
-        k += 1
-
-    from matplotlib import pyplot as plt
-
-    index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
-    lgd_X = ["FL", "FR", "HL", "HR"]
-    lgd_Y = ["Pos X", "Pos Y", "Pos Z"]
-    plt.figure()
-    for i in range(12):
-        if i == 0:
-            ax0 = plt.subplot(3, 4, index12[i])
-        else:
-            plt.subplot(3, 4, index12[i], sharex=ax0)
-        plt.plot(log_p_ref[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
-        plt.plot(log_p_target[:, i % 3, np.int(i/3)], color='forestgreen', linewidth=3, marker='')
-        plt.plot(log_p[:, i % 3, np.int(i/3)], color='b', linewidth=3, marker='')
-        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"], prop={'size': 8})
-    plt.suptitle("")
-
-    plt.show(block=True)
-
-    print("END TEST")
