@@ -161,9 +161,10 @@ class Controller:
         self.qmes12 = np.zeros((19, 1))
         self.vmes12 = np.zeros((18, 1))
 
+        self.q_display = np.zeros((19, 1))
         self.v_ref = np.zeros((18, 1))
         self.h_v = np.zeros((18, 1))
-        self.h_v_bis = np.zeros((6, 1))
+        self.h_v_windowed = np.zeros((6, 1))
         self.yaw_estim = 0.0
         self.RPY_filt = np.zeros(3)
 
@@ -177,19 +178,18 @@ class Controller:
 
         self.q_filt_mpc = np.zeros((18, 1))
         self.h_v_filt_mpc = np.zeros((6, 1))
-        self.h_v_bis_filt_mpc = np.zeros((6, 1))
         self.vref_filt_mpc = np.zeros((6, 1))
         self.filter_mpc_q = lqrw.Filter()
         self.filter_mpc_q.initialize(params)
         self.filter_mpc_v = lqrw.Filter()
         self.filter_mpc_v.initialize(params)
-        self.filter_mpc_v_bis = lqrw.Filter()
-        self.filter_mpc_v_bis.initialize(params)
         self.filter_mpc_vref = lqrw.Filter()
         self.filter_mpc_vref.initialize(params)
 
         # Interface with the PD+ on the control board
         self.result = Result()
+
+        test_footTrajectoryGenerator(params)
 
         # Run the control loop once with a dummy device for initialization
         dDevice = dummyDevice()
@@ -221,11 +221,12 @@ class Controller:
 
         # Update state vectors of the robot (q and v) + transformation matrices between world and horizontal frames
         self.estimator.updateState(self.joystick.v_ref, self.gait)
+        oRb = self.estimator.getoRb()
         oRh = self.estimator.getoRh()
         oTh = self.estimator.getoTh().reshape((3, 1))
         self.v_ref[0:6, 0] = self.estimator.getVRef()
         self.h_v[0:6, 0] = self.estimator.getHV()
-        self.h_v_bis[0:6, 0] = self.estimator.getHVBis()
+        self.h_v_windowed[0:6, 0] = self.estimator.getHVWindowed()
         self.q[:, 0] = self.estimator.getQUpdated()
         self.yaw_estim = self.estimator.getYawEstim()
         # TODO: Understand why using Python or C++ h_v leads to a slightly different result since the 
@@ -240,19 +241,18 @@ class Controller:
         self.q_filt_mpc[:6, 0] = self.filter_mpc_q.filter(self.q[:6, 0:1], True)
         self.q_filt_mpc[6:, 0] = self.q[6:, 0].copy()
         self.h_v_filt_mpc[:, 0] = self.filter_mpc_v.filter(self.h_v[:6, 0:1], False)
-        self.h_v_bis_filt_mpc[:, 0] = self.filter_mpc_v_bis.filter(self.h_v_bis[:6, 0:1], False)
         self.vref_filt_mpc[:, 0] = self.filter_mpc_vref.filter(self.v_ref[:6, 0:1], False)
 
         # Compute target footstep based on current and reference velocities
         o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
                                                                 int(self.k_mpc - self.k % self.k_mpc),
-                                                                self.q_filt_mpc[:, 0],
-                                                                self.h_v_bis_filt_mpc[0:6, 0:1].copy(),
-                                                                self.vref_filt_mpc[0:6, 0])
+                                                                self.q[:, 0],
+                                                                self.h_v_windowed[0:6, 0:1].copy(),
+                                                                self.v_ref[0:6, 0])
 
         # Run state planner (outputs the reference trajectory of the base)
-        self.statePlanner.computeReferenceStates(self.q[0:6, 0:1], self.h_v[0:6, 0:1].copy(),
-                                                 self.v_ref[0:6, 0:1], 0.0)
+        self.statePlanner.computeReferenceStates(self.q_filt_mpc[0:6, 0:1], self.h_v_filt_mpc[0:6, 0:1].copy(),
+                                                 self.vref_filt_mpc[0:6, 0:1], 0.0)
 
         # Result can be retrieved with self.statePlanner.getReferenceStates()
         xref = self.statePlanner.getReferenceStates()
@@ -261,7 +261,8 @@ class Controller:
 
         t_planner = time.time()
 
-        print("iteration : " , self.k) # print iteration
+        """if self.k % 250 == 0:
+            print("iteration : " , self.k) # print iteration"""
 
         # TODO: Add 25Hz filter for the inputs of the MPC
 
@@ -303,7 +304,7 @@ class Controller:
         if (not self.error) and (not self.joystick.stop):
 
             self.q_wbc = np.zeros((19, 1))
-            self.q_wbc[2, 0] = self.h_ref  # using height from mpc ant not h_ref
+            self.q_wbc[2, 0] = self.h_ref
             self.q_wbc[6, 0] = 1.0  # with orientation (0.0, 0.0, 0.0)
             self.q_wbc[7:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop
 
@@ -315,7 +316,7 @@ class Controller:
             # Feet command position, velocity and acceleration in base frame
             self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(oRh.transpose(), self.v_ref[3:6, 0:1])
             self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(oRh.transpose(), self.v_ref[0:3, 0:1], self.v_ref[3:6, 0:1])
-            self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), np.array([[0.0], [0.0], [self.h_ref]]) + oTh) # using height from mpc ant not h_ref
+            self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), np.array([[0.0], [0.0], [self.h_ref]]) + oTh)
 
             # Run InvKin + WBC QP
             self.wbcWrapper.compute(self.q_wbc, self.b_v,
@@ -333,7 +334,10 @@ class Controller:
 
             # Display robot in Gepetto corba viewer
             if self.enable_corba_viewer and (self.k % 5 == 0):
-                self.solo.display(self.q)
+                self.q_display[:3, 0] = self.q[:3, 0]
+                self.q_display[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(self.q[3:6, 0])).coeffs()
+                self.q_display[7:, 0] = self.q[6:, 0]
+                self.solo.display(self.q_display)
 
         t_wbc = time.time()
 
@@ -390,3 +394,59 @@ class Controller:
         self.t_mpc = t_mpc - t_planner
         self.t_wbc = t_wbc - t_mpc
         self.t_loop = time.time() - tic
+
+def test_footTrajectoryGenerator(params):
+
+    gait = lqrw.Gait()
+    gait.initialize(params)
+
+    ftg = lqrw.FootTrajectoryGenerator()
+    ftg.initialize(params, gait)
+
+    o_targetFootstep = np.zeros((3, 4))
+    o_targetFootstep = 2.0 * ftg.getFootPosition()
+    k = 0
+    N = 1000
+    log_p_ref = np.zeros((N, 3, 4))
+    log_p_target = np.zeros((N, 3, 4))
+    log_p = np.zeros((N, 3, 4))
+    log_v = np.zeros((N, 3, 4))
+    log_a = np.zeros((N, 3, 4))
+    while k < N:
+
+        # Update reference
+        o_targetFootstep[0, :] -= 0.0001 
+
+        # Update gait
+        gait.updateGait(k, 20, 0)
+
+        # Update foot trajectory generator
+        ftg.update(k, o_targetFootstep)
+        log_p_ref[k] = o_targetFootstep
+        log_p_target[k] = ftg.getTargetPosition()
+        log_p[k] = ftg.getFootPosition()
+        log_v[k] = ftg.getFootVelocity()
+        log_a[k] = ftg.getFootAcceleration()
+
+        k += 1
+
+    from matplotlib import pyplot as plt
+
+    index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+    lgd_X = ["FL", "FR", "HL", "HR"]
+    lgd_Y = ["Pos X", "Pos Y", "Pos Z"]
+    plt.figure()
+    for i in range(12):
+        if i == 0:
+            ax0 = plt.subplot(3, 4, index12[i])
+        else:
+            plt.subplot(3, 4, index12[i], sharex=ax0)
+        plt.plot(log_p_ref[:, i % 3, np.int(i/3)], color='r', linewidth=3, marker='')
+        plt.plot(log_p_target[:, i % 3, np.int(i/3)], color='forestgreen', linewidth=3, marker='')
+        plt.plot(log_p[:, i % 3, np.int(i/3)], color='b', linewidth=3, marker='')
+        plt.legend([lgd_Y[i % 3] + " " + lgd_X[np.int(i/3)]+" Ref"], prop={'size': 8})
+    plt.suptitle("")
+
+    plt.show(block=True)
+
+    print("END TEST")

@@ -51,6 +51,7 @@ Estimator::Estimator()
       IMU_lin_acc_(Vector3::Zero()),
       IMU_ang_vel_(Vector3::Zero()),
       IMU_RPY_(Vector3::Zero()),
+      oRb_(Matrix3::Identity()),
       IMU_ang_pos_(pinocchio::SE3::Quaternion(1.0, 0.0, 0.0, 0.0)),
       actuators_pos_(Vector12::Zero()),
       actuators_vel_(Vector12::Zero()),
@@ -77,7 +78,7 @@ Estimator::Estimator()
       yaw_estim_(0.0),
       N_queue_(0),
       v_filt_bis_(VectorN::Zero(6, 1)),
-      h_v_bis_(VectorN::Zero(6, 1)) {}
+      h_v_windowed_(VectorN::Zero(6, 1)) {}
 
 void Estimator::initialize(Params& params) {
   dt_wbc = params.dt_wbc;
@@ -432,6 +433,9 @@ void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait) {
     yaw_estim_ += v_ref_[5] * dt_wbc;
     q_up_.block(3, 0, 3, 1) << IMU_RPY_[0], IMU_RPY_[1], yaw_estim_;
 
+    // Transformation matrices between world and base frames
+    oRb_ = pinocchio::rpy::rpyToMatrix(IMU_RPY_(0, 0), IMU_RPY_(1, 0), yaw_estim_);
+
     // Actuators measurements
     q_up_.tail(12) = q_filt_dyn_.tail(12);
 
@@ -440,8 +444,8 @@ void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait) {
 
     h_v_.head(3) = hRb * v_filt_dyn_.block(0, 0, 3, 1);
     h_v_.tail(3) = hRb * v_filt_dyn_.block(3, 0, 3, 1);
-    h_v_bis_.head(3) = hRb * v_filt_bis_.block(0, 0, 3, 1);
-    h_v_bis_.tail(3) = hRb * v_filt_bis_.block(3, 0, 3, 1);
+    h_v_windowed_.head(3) = hRb * v_filt_bis_.block(0, 0, 3, 1);
+    h_v_windowed_.tail(3) = hRb * v_filt_bis_.block(3, 0, 3, 1);
   } else {
     // TODO: Adapt static mode to new version of the code
   }

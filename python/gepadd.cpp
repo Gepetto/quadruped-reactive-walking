@@ -151,6 +151,7 @@ struct FootstepPlannerPythonVisitor : public bp::def_visitor<FootstepPlannerPyth
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
             .def("getFootsteps", &FootstepPlanner::getFootsteps, "Get footsteps_ matrix.\n")
+            .def("getTargetFootsteps", &FootstepPlanner::getTargetFootsteps, "Get footsteps_ matrix.\n")
             .def("getRz", &FootstepPlanner::getRz, "Get rotation along z matrix.\n")
 
             .def("initialize", &FootstepPlanner::initialize, bp::args("params", "gaitIn"),
@@ -189,6 +190,7 @@ struct FootTrajectoryGeneratorPythonVisitor : public bp::def_visitor<FootTraject
             .def("getFootAccelerationBaseFrame", &FootTrajectoryGenerator::getFootAccelerationBaseFrame,
                  bp::args("R", "w_ref"), "Get acceleration_ matrix in base frame.\n")
 
+            .def("getTargetPosition", &FootTrajectoryGenerator::getTargetPosition, "Get targetFootstep_ matrix.\n")
             .def("getFootPosition", &FootTrajectoryGenerator::getFootPosition, "Get position_ matrix.\n")
             .def("getFootVelocity", &FootTrajectoryGenerator::getFootVelocity, "Get velocity_ matrix.\n")
             .def("getFootAcceleration", &FootTrajectoryGenerator::getFootAcceleration, "Get acceleration_ matrix.\n")
@@ -353,7 +355,8 @@ struct EstimatorPythonVisitor : public bp::def_visitor<EstimatorPythonVisitor<Es
             .def("getQUpdated", &Estimator::getQUpdated, "")
             .def("getVRef", &Estimator::getVRef, "")
             .def("getHV", &Estimator::getHV, "")
-            .def("getHVBis", &Estimator::getHVBis, "")
+            .def("getHVWindowed", &Estimator::getHVWindowed, "")
+            .def("getoRb", &Estimator::getoRb, "")
             .def("getoRh", &Estimator::getoRh, "")
             .def("getoTh", &Estimator::getoTh, "")
             .def("getYawEstim", &Estimator::getYawEstim, "")

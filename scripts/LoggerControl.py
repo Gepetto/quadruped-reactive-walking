@@ -47,7 +47,7 @@ class LoggerControl():
         self.loop_o_q_int = np.zeros([logSize, 18])  # position in world frame (esti_q_filt + dt * loop_o_v)
         self.loop_o_v = np.zeros([logSize, 18])  # estimated velocity in world frame
         self.loop_h_v = np.zeros([logSize, 18])  # estimated velocity in horizontal frame
-        self.loop_h_v_bis = np.zeros([logSize, 6])  # estimated velocity in horizontal frame
+        self.loop_h_v_windowed = np.zeros([logSize, 6])  # estimated velocity in horizontal frame
         self.loop_pos_virtual_world = np.zeros([logSize, 3])  # x, y, yaw perfect position in world
         self.loop_t_filter = np.zeros([logSize])  # time taken by the estimator
         self.loop_t_planner = np.zeros([logSize])  # time taken by the planning
@@ -57,7 +57,6 @@ class LoggerControl():
         self.loop_t_loop_if = np.zeros([logSize])  # time taken by the whole loop (with interface)
         self.loop_q_filt_mpc = np.zeros([logSize, 6])  # position in world frame filtered by 1st order low pass
         self.loop_h_v_filt_mpc = np.zeros([logSize, 6])  # vel in base frame filtered by 1st order low pass
-        self.loop_h_v_bis_filt_mpc = np.zeros([logSize, 6])  # alt vel in base frame filtered by 1st order low pass
         self.loop_vref_filt_mpc = np.zeros([logSize, 6])  # ref vel in base frame filtered by 1st order low pass
 
         # Gait
@@ -142,7 +141,7 @@ class LoggerControl():
         self.loop_o_q_int[self.i] = loop.q[:, 0]
         self.loop_o_v[self.i] = loop.v[:, 0]
         self.loop_h_v[self.i] = loop.h_v[:, 0]
-        self.loop_h_v_bis[self.i] = loop.h_v_bis[:, 0]
+        self.loop_h_v_windowed[self.i] = loop.h_v_windowed[:, 0]
         self.loop_pos_virtual_world[self.i] = np.array([loop.q[0, 0], loop.q[1, 0], loop.yaw_estim])
         self.loop_t_filter[self.i] = loop.t_filter
         self.loop_t_planner[self.i] = loop.t_planner
@@ -152,7 +151,6 @@ class LoggerControl():
         self.loop_t_loop_if[self.i] = dT_whole
         self.loop_q_filt_mpc[self.i] = loop.q_filt_mpc[:6, 0]
         self.loop_h_v_filt_mpc[self.i] = loop.h_v_filt_mpc[:, 0]
-        self.loop_h_v_bis_filt_mpc[self.i] = loop.h_v_bis_filt_mpc[:, 0]
         self.loop_vref_filt_mpc[self.i] = loop.vref_filt_mpc[:, 0]
 
         # Logging from the planner
@@ -346,7 +344,8 @@ class LoggerControl():
             plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
             if i < 3:
                 plt.plot(t_range, self.mocap_h_v[:, i], "k", linewidth=3)
-                plt.plot(t_range, self.loop_h_v_bis_filt_mpc[:, i], "forestgreen", linewidth=2)
+                plt.plot(t_range, self.loop_h_v_filt_mpc[:, i], linewidth=3, color="forestgreen")
+                plt.plot(t_range, self.loop_h_v_windowed[:, i], linewidth=3, color="rebeccapurple")
             else:
                 plt.plot(t_range, self.mocap_b_w[:, i-3], "k", linewidth=3)
 
@@ -357,7 +356,8 @@ class LoggerControl():
             # plt.plot(t_range, self.log_dq[i, :], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_invkin[i, :-2], "g", linewidth=2)
             # plt.plot(t_range[:-2], self.log_dx_ref_invkin[i, :-2], "violet", linewidth=2, linestyle="--")
-            plt.legend(["Robot state", "Robot reference state", "Ground truth", "Alternative"], prop={'size': 8})
+            plt.legend(["Robot state", "Robot reference state", "Ground truth",
+                        "Robot state (LP 15Hz)", "Robot state (windowed)"], prop={'size': 8})
             plt.ylabel(lgd[i])
         plt.suptitle("Measured & Reference linear and angular velocities")
 
@@ -647,9 +647,8 @@ class LoggerControl():
                 plt.subplot(3, 2, index6[i], sharex=ax0)
 
             plt.plot(t_range, self.loop_h_v[:, i], linewidth=3)
-            plt.plot(t_range, self.loop_h_v_bis[:, i], linewidth=3)
+            plt.plot(t_range, self.loop_h_v_windowed[:, i], linewidth=3)
             plt.plot(t_range, self.loop_h_v_filt_mpc[:, i], linewidth=3)
-            plt.plot(t_range, self.loop_h_v_bis_filt_mpc[:, i], linewidth=3)
             plt.plot(t_range, self.loop_vref_filt_mpc[:, i], linewidth=3)
 
             plt.legend(["Estimated", "Estimated 3Hz windowed", "Estimated 15Hz filt",
@@ -706,7 +705,6 @@ class LoggerControl():
                  loop_t_loop_if=self.loop_t_loop_if,
                  loop_q_filt_mpc=self.loop_q_filt_mpc,
                  loop_h_v_filt_mpc=self.loop_h_v_filt_mpc,
-                 loop_h_v_bis_filt_mpc=self.loop_h_v_bis_filt_mpc,
                  loop_vref_filt_mpc=self.loop_vref_filt_mpc,
 
                  planner_q_static=self.planner_q_static,
@@ -801,7 +799,6 @@ class LoggerControl():
         self.loop_t_loop_if = data["loop_t_loop_if"]
         self.loop_q_filt_mpc = data["loop_q_filt_mpc"]
         self.loop_h_v_filt_mpc = data["loop_h_v_filt_mpc"]
-        self.loop_h_v_bis_filt_mpc = data["loop_h_v_bis_filt_mpc"]
         self.loop_vref_filt_mpc = data["loop_vref_filt_mpc"]
 
         self.planner_q_static = data["planner_q_static"]

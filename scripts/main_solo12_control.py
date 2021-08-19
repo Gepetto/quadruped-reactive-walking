@@ -1,10 +1,5 @@
 # coding: utf8
 
-import os
-import sys
-
-sys.path.insert(0, './solopython')
-
 import threading
 from Controller import Controller
 import numpy as np
@@ -38,8 +33,8 @@ def put_on_the_floor(device, q_init):
 
     print("PUT ON THE FLOOR.")
 
-    Kp_pos = 5.
-    Kd_pos = 0.2
+    Kp_pos = 6.
+    Kd_pos = 0.3
 
     device.joints.set_position_gains(Kp_pos * np.ones(12))
     device.joints.set_velocity_gains(Kd_pos * np.ones(12))

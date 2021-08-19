@@ -212,7 +212,8 @@ class Estimator {
   VectorN getQUpdated() { return q_up_; }
   VectorN getVRef() { return v_ref_; }
   VectorN getHV() { return h_v_; }
-  VectorN getHVBis() { return h_v_bis_; }
+  VectorN getHVWindowed() { return h_v_windowed_; }
+  Matrix3 getoRb() { return oRb_; }
   Matrix3 getoRh() { return oRh_; }
   Vector3 getoTh() { return oTh_; }
   double getYawEstim() { return yaw_estim_; }
@@ -232,6 +233,7 @@ class Estimator {
   Vector3 IMU_lin_acc_;                     // Linear acceleration of the IMU (gravity compensated)
   Vector3 IMU_ang_vel_;                     // Angular velocity of the IMU
   Vector3 IMU_RPY_;                         // Roll Pitch Yaw orientation of the IMU
+  Matrix3 oRb_;                             // Rotation between base and world frame
   pinocchio::SE3::Quaternion IMU_ang_pos_;  // Quaternion orientation of the IMU
   Vector12 actuators_pos_;                  // Measured positions of actuators
   Vector12 actuators_vel_;                  // Measured velocities of actuators
@@ -274,7 +276,7 @@ class Estimator {
 
   int N_queue_;
   VectorN v_filt_bis_;
-  VectorN h_v_bis_;
+  VectorN h_v_windowed_;
   std::deque<double> vx_queue_, vy_queue_, vz_queue_, wR_queue_, wP_queue_, wY_queue_;
 };
 #endif  // ESTIMATOR_H_INCLUDED
