@@ -5,7 +5,7 @@ from time import time
 import pinocchio as pin
 
 class LoggerControl():
-    def __init__(self, dt, N0_gait, joystick=None, estimator=None, loop=None, gait=None, statePlanner=None,
+    def __init__(self, dt, N0_gait, type_MPC=None, joystick=None, estimator=None, loop=None, gait=None, statePlanner=None,
                  footstepPlanner=None, footTrajectoryGenerator=None, logSize=60e3, ringBuffer=False):
         self.ringBuffer = ringBuffer
         logSize = np.int(logSize)
@@ -13,6 +13,10 @@ class LoggerControl():
         self.i = 0
 
         self.dt = dt
+        if type_MPC is not None:
+            self.type_MPC = int(type_MPC)
+        else:
+            self.type_MPC = 0
 
         # Allocate the data:
         # Joystick
@@ -671,7 +675,7 @@ class LoggerControl():
     def saveAll(self, loggerSensors, fileName="data"):
         date_str = datetime.now().strftime('_%Y_%m_%d_%H_%M')
 
-        np.savez_compressed(fileName + date_str + ".npz",
+        np.savez_compressed(fileName + date_str + "_" + str(self.type_MPC) + ".npz",
 
                             joy_v_ref=self.joy_v_ref,
 
@@ -699,6 +703,7 @@ class LoggerControl():
                             loop_o_q=self.loop_o_q,
                             loop_o_v=self.loop_o_v,
                             loop_h_v=self.loop_h_v,
+                            loop_h_v_windowed=self.loop_h_v_windowed,
                             loop_t_filter=self.loop_t_filter,
                             loop_t_planner=self.loop_t_planner,
                             loop_t_mpc=self.loop_t_mpc,
@@ -790,6 +795,7 @@ class LoggerControl():
         self.loop_o_q = data["loop_o_q"]
         self.loop_o_v = data["loop_o_v"]
         self.loop_h_v = data["loop_h_v"]
+        self.loop_h_v_windowed = data["loop_h_v_windowed"]
         self.loop_t_filter = data["loop_t_filter"]
         self.loop_t_planner = data["loop_t_planner"]
         self.loop_t_mpc = data["loop_t_mpc"]
@@ -1036,8 +1042,8 @@ if __name__ == "__main__":
     import LoggerSensors
 
     # Create loggers
-    loggerSensors = LoggerSensors.LoggerSensors(logSize=10000-3)
-    logger = LoggerControl(0.001, 30, logSize=10000-3)
+    loggerSensors = LoggerSensors.LoggerSensors(logSize=15000-3)
+    logger = LoggerControl(0.001, 30, logSize=15000-3)
 
     # Load data from .npz file
     logger.loadAll(loggerSensors)
