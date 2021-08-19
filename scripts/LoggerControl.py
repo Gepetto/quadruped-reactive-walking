@@ -40,9 +40,6 @@ class LoggerControl():
         self.esti_LP_alpha = np.zeros([logSize, 3])  # alpha parameter of the position complementary filter
         self.esti_LP_filt_x = np.zeros([logSize, 3])  # filtered output of the position complementary filter
 
-        self.esti_kf_X = np.zeros([logSize, 18])  # state of the Kalman filter
-        self.esti_kf_Z = np.zeros([logSize, 16])  # measurement for the Kalman filter
-
         # Loop
         self.loop_o_q_int = np.zeros([logSize, 18])  # position in world frame (esti_q_filt + dt * loop_o_v)
         self.loop_o_v = np.zeros([logSize, 18])  # estimated velocity in world frame
@@ -690,9 +687,6 @@ class LoggerControl():
                  esti_LP_alpha=self.esti_LP_alpha,
                  esti_LP_filt_x=self.esti_LP_filt_x,
 
-                 esti_kf_X=self.esti_kf_X,
-                 esti_kf_Z=self.esti_kf_Z,
-
                  loop_o_q_int=self.loop_o_q_int,
                  loop_o_v=self.loop_o_v,
                  loop_h_v=self.loop_h_v,
@@ -783,9 +777,6 @@ class LoggerControl():
         self.esti_LP_dx = data["esti_LP_dx"]
         self.esti_LP_alpha = data["esti_LP_alpha"]
         self.esti_LP_filt_x = data["esti_LP_filt_x"]
-
-        self.esti_kf_X = data["esti_kf_X"]
-        self.esti_kf_Z = data["esti_kf_Z"]
 
         self.loop_o_q_int = data["loop_o_q_int"]
         self.loop_o_v = data["loop_o_v"]
