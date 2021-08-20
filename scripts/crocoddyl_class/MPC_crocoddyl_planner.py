@@ -31,7 +31,7 @@ class MPC_crocoddyl_planner():
         else:
             self.mu = mu
 
-        # self.stateWeight = np.sqrt([0., 0., 20.0, 1., 1., 0., 0.5, 0.5, 0., 0.0, 0.0, 0.5]) 
+        # self.stateWeights = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]) 
 
         # Weights Vector : States
         self.w_x = 0.3
@@ -64,6 +64,9 @@ class MPC_crocoddyl_planner():
         self.min_fz = 1.
         self.relative_forces = True 
 
+        # Offset CoM
+        self.offset_com = -0.03
+
         # Gait matrix
         self.gait = np.zeros((params.N_gait, 4))
         self.gait_old = np.zeros(4)
@@ -82,6 +85,7 @@ class MPC_crocoddyl_planner():
 
         # Initial foot location (local frame, X,Y plan)
         self.shoulders = [0.1946, 0.14695, 0.1946, -0.14695, -0.1946,   0.14695, -0.1946,  -0.14695]
+        self.xref = np.full((12, int(params.T_gait / params.dt_mpc + 1 )), np.nan)
 
         # Index to stop the feet optimisation
         self.index_lock_time = int(params.lock_time / params.dt_mpc)  # Row index in the gait matrix when the optimisation of the feet should be stopped
@@ -128,7 +132,10 @@ class MPC_crocoddyl_planner():
             footsteps : current position of the feet (given by planner)
             l_stop : current and target position of the feet (given by footstepTragectory generator)
         """
-        self.updateProblem(k, xref, footsteps, l_stop)
+        self.xref[:,:] = xref
+        self.xref[2,:] += self.offset_com
+
+        self.updateProblem(k, self.xref, footsteps, l_stop)
         self.ddp.solve(self.x_init, self.u_init, self.max_iteration)
 
         # Reset to 0 the stopWeights for next optimisation
@@ -164,24 +171,24 @@ class MPC_crocoddyl_planner():
 
         # Augmented model, first node, j = 0
         self.models_augmented[index_augmented].updateModel(np.reshape(footsteps[0, :], (3, 4), order='F'),
-                                                            l_stop, xref[:, 1], self.gait[0, :])
+                                                            l_stop, xref[:, 0], self.gait[0, :])
         self.action_models.append(self.models_augmented[index_augmented])
 
         index_augmented += 1
         # Warm-start
-        self.x_init.append(np.concatenate([xref[:, 1], p0]))
+        self.x_init.append(np.concatenate([xref[:, 0], p0]))
         self.u_init.append(np.repeat(self.gait[0, :], 3) * np.array(4*[0., 0., 2.5*9.81/np.sum(self.gait[0, :])]))
 
         while np.any(self.gait[j, :]):            
             if np.any(self.gait[j, :] - self.gait[j-1, :]):
                 # Step model
                 self.models_step[index_step].updateModel(np.reshape(footsteps[j, :], (3, 4), order='F'),
-                                                            xref[:, j+1], self.gait[j, :] - self.gait[j-1, :])
+                                                            xref[:, j], self.gait[j, :] - self.gait[j-1, :])
                 self.action_models.append(self.models_step[index_step])
 
                 # Augmented model
                 self.models_augmented[index_augmented].updateModel(np.reshape(footsteps[j, :], (3, 4), order='F'),
-                                                                    l_stop, xref[:, j+1], self.gait[j, :])
+                                                                    l_stop, xref[:, j], self.gait[j, :])
 
                 # Activation of the cost to stop the optimisation around l_stop (position locked by the footstepGenerator)
                 # if j < self.index_lock_time:
@@ -206,14 +213,14 @@ class MPC_crocoddyl_planner():
                 index_step += 1
                 index_augmented += 1
                 # Warm-start
-                self.x_init.append(np.concatenate([xref[:, j+1], p0]))
+                self.x_init.append(np.concatenate([xref[:, j], p0]))
                 self.u_init.append(np.zeros(8))
-                self.x_init.append(np.concatenate([xref[:, j+1], p0]))
+                self.x_init.append(np.concatenate([xref[:, j], p0]))
                 self.u_init.append(np.repeat(self.gait[j, :], 3) * np.array(4*[0., 0., 2.5*9.81/np.sum(self.gait[j, :])]))
 
             else:
                 self.models_augmented[index_augmented].updateModel(np.reshape(footsteps[j, :], (3, 4), order='F'),
-                                                                    l_stop, xref[:, j+1], self.gait[j, :])
+                                                                    l_stop, xref[:, j], self.gait[j, :])
                 self.action_models.append(self.models_augmented[index_augmented])
 
                 feet_ground = np.where(self.gait[j,:] == 1)[0]
@@ -230,7 +237,7 @@ class MPC_crocoddyl_planner():
 
                 index_augmented += 1
                 # Warm-start
-                self.x_init.append(np.concatenate([xref[:, j+1], p0]))
+                self.x_init.append(np.concatenate([xref[:, j], p0]))
                 self.u_init.append(np.repeat(self.gait[j, :], 3) * np.array(4*[0., 0., 2.5*9.81/np.sum(self.gait[j, :])]))
 
             # Update row matrix
@@ -239,7 +246,7 @@ class MPC_crocoddyl_planner():
         # Update terminal model
         self.terminal_model.updateModel(np.reshape(footsteps[j-1, :], (3, 4), order='F'), l_stop, xref[:, -1], self.gait[j-1, :])
         # Warm-start
-        self.x_init.append(np.concatenate([xref[:, j-1], p0]))
+        self.x_init.append(np.concatenate([xref[:, -1], p0]))
 
         self.problem = crocoddyl.ShootingProblem(np.zeros(20),  self.action_models, self.terminal_model)
         self.problem.x0 = np.concatenate([xref[:, 0], p0])
