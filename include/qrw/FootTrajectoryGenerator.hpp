@@ -65,7 +65,8 @@ class FootTrajectoryGenerator {
                                            const Eigen::Matrix<double, 3, 1> &v_ref,
                                            const Eigen::Matrix<double, 3, 1> &w_ref);
   Eigen::MatrixXd getFootAccelerationBaseFrame(const Eigen::Matrix<double, 3, 3> &R,
-                                               const Eigen::Matrix<double, 3, 1> &w_ref);
+                                               const Eigen::Matrix<double, 3, 1> &w_ref,
+                                               const Eigen::Matrix<double, 3, 1> &a_ref);
 
   MatrixN getTargetPosition() { return targetFootstep_; }  // Get the foot goal position
   MatrixN getFootPosition() { return position_; }          // Get the next foot position

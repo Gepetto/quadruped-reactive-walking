@@ -212,6 +212,7 @@ class Estimator {
   VectorN getQUpdated() { return q_up_; }
   VectorN getVUpdated() { return v_up_; }
   VectorN getVRef() { return v_ref_; }
+  VectorN getARef() { return a_ref_; }
   VectorN getHV() { return h_v_; }
   VectorN getHVWindowed() { return h_v_windowed_; }
   Matrix3 getoRb() { return oRb_; }
@@ -270,6 +271,7 @@ class Estimator {
   VectorN q_up_;      // Configuration vector in ideal world frame
   VectorN v_up_;      // Velocity vector in ideal world frame
   VectorN v_ref_;     // Reference velocity vector
+  VectorN a_ref_;     // Reference acceleration vector
   VectorN h_v_;       // Velocity vector in horizontal frame
   Matrix3 oRh_;       // Rotation between horizontal and world frame
   Vector3 oTh_;       // Translation between horizontal and world frame

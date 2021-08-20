@@ -72,6 +72,7 @@ Estimator::Estimator()
       q_up_(VectorN::Zero(18)),
       v_up_(VectorN::Zero(18)),
       v_ref_(VectorN::Zero(6)),
+      a_ref_(VectorN::Zero(6)),
       h_v_(VectorN::Zero(6)),
       oRh_(Matrix3::Identity()),
       oTh_(Vector3::Zero()),
@@ -405,6 +406,10 @@ int Estimator::security_check(VectorN const& tau_ff) {
 
 void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait) {
   // TODO: Joystick velocity given in base frame and not in horizontal frame (case of non flat ground)
+
+  // Update reference acceleration vector
+  a_ref_.head(3) = (joystick_v_ref.head(3) - pinocchio::rpy::rpyToMatrix(0.0, 0.0, - v_ref_[5] * dt_wbc) * v_ref_.head(3)) / dt_wbc;
+  a_ref_.tail(3) = (joystick_v_ref.tail(3) - pinocchio::rpy::rpyToMatrix(0.0, 0.0, - v_ref_[5] * dt_wbc) * v_ref_.tail(3)) / dt_wbc;
 
   // Update reference velocity vector
   v_ref_.head(3) = joystick_v_ref.head(3);

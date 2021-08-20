@@ -188,7 +188,7 @@ struct FootTrajectoryGeneratorPythonVisitor : public bp::def_visitor<FootTraject
             .def("getFootVelocityBaseFrame", &FootTrajectoryGenerator::getFootVelocityBaseFrame,
                  bp::args("R", "v_ref", "w_ref"), "Get velocity_ matrix in base frame.\n")
             .def("getFootAccelerationBaseFrame", &FootTrajectoryGenerator::getFootAccelerationBaseFrame,
-                 bp::args("R", "w_ref"), "Get acceleration_ matrix in base frame.\n")
+                 bp::args("R", "w_ref", "a_ref"), "Get acceleration_ matrix in base frame.\n")
 
             .def("getTargetPosition", &FootTrajectoryGenerator::getTargetPosition, "Get targetFootstep_ matrix.\n")
             .def("getFootPosition", &FootTrajectoryGenerator::getFootPosition, "Get position_ matrix.\n")
@@ -357,6 +357,7 @@ struct EstimatorPythonVisitor : public bp::def_visitor<EstimatorPythonVisitor<Es
             .def("getQUpdated", &Estimator::getQUpdated, "")
             .def("getVUpdated", &Estimator::getVUpdated, "")
             .def("getVRef", &Estimator::getVRef, "")
+            .def("getARef", &Estimator::getARef, "")
             .def("getHV", &Estimator::getHV, "")
             .def("getHVWindowed", &Estimator::getHVWindowed, "")
             .def("getoRb", &Estimator::getoRb, "")

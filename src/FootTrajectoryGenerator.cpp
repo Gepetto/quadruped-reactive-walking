@@ -224,7 +224,8 @@ Eigen::MatrixXd FootTrajectoryGenerator::getFootVelocityBaseFrame(const Eigen::M
 }
 
 Eigen::MatrixXd FootTrajectoryGenerator::getFootAccelerationBaseFrame(const Eigen::Matrix<double, 3, 3> &R,
-                                                                      const Eigen::Matrix<double, 3, 1> &w_ref) {
+                                                                      const Eigen::Matrix<double, 3, 1> &w_ref,
+                                                                      const Eigen::Matrix<double, 3, 1> &a_ref) {
   return R * acceleration_ - (position_base_.colwise().cross(w_ref)).colwise().cross(w_ref) +
-         2 * velocity_base_.colwise().cross(w_ref);
+         2 * velocity_base_.colwise().cross(w_ref) - a_ref.replicate<1, 4>();
 }

@@ -163,6 +163,7 @@ class Controller:
 
         self.q_display = np.zeros((19, 1))
         self.v_ref = np.zeros((18, 1))
+        self.a_ref = np.zeros((18, 1))
         self.h_v = np.zeros((18, 1))
         self.h_v_windowed = np.zeros((6, 1))
         self.yaw_estim = 0.0
@@ -222,6 +223,7 @@ class Controller:
         oRb = self.estimator.getoRb()
         oRh = self.estimator.getoRh()
         oTh = self.estimator.getoTh().reshape((3, 1))
+        # self.a_ref[0:6, 0] = self.estimator.getARef()
         self.v_ref[0:6, 0] = self.estimator.getVRef()
         self.h_v[0:6, 0] = self.estimator.getHV()
         self.h_v_windowed[0:6, 0] = self.estimator.getHVWindowed()
@@ -313,7 +315,7 @@ class Controller:
             self.b_v[6:, 0] = self.wbcWrapper.vdes[:]  # with reference angular velocities of previous loop
 
             # Feet command position, velocity and acceleration in base frame
-            self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(oRh.transpose(), self.v_ref[3:6, 0:1])
+            self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(oRh.transpose(), self.v_ref[3:6, 0:1], self.a_ref[0:3, 0:1])
             self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(oRh.transpose(), self.v_ref[0:3, 0:1], self.v_ref[3:6, 0:1])
             self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), np.array([[0.0], [0.0], [self.h_ref]]) + oTh)
 
