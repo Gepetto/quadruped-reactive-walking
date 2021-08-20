@@ -3,6 +3,7 @@
 import crocoddyl
 import numpy as np
 import quadruped_walkgen as quadruped_walkgen
+np.set_printoptions(formatter={'float': lambda x: "{0:0.7f}".format(x)}, linewidth = 450)
 
 
 class MPC_crocoddyl:
@@ -30,8 +31,8 @@ class MPC_crocoddyl:
         else:
             self.mu = mu
 
-        # self.stateWeight = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 0.25, 0.2, 0.2, 5., 0.0, 0.0, 0.3]) 
-
+        # self.stateWeights = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]) 
+        
         # Weights on the state vector
         self.w_x = 0.3
         self.w_y = 0.3
@@ -48,19 +49,19 @@ class MPC_crocoddyl:
 
         self.stateWeights = np.array([self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw,
                                      self.w_vx, self.w_vy, self.w_vz, self.w_vroll, self.w_vpitch, self.w_vyaw])
-
         
-        self.forceWeights = 1*np.array(4*[0.007, 0.007, 0.007]) # Weight Vector : Force Norm
+        self.forceWeights = 1*np.array(4*[0.0071, 0.0071, 0.0071]) # Weight Vector : Force Norm
         self.frictionWeights = 1.0                            # Weight Vector : Friction cone cost
 
         self.min_fz = 0.2       # Minimum normal force (N)
         self.max_fz = 25        # Maximum normal force (N)   
 
-        self.shoulderWeights = 5.       # Weight on the shoulder term :
+        self.shoulderWeights = 0.       # Weight on the shoulder term :
         self.shoulder_hlim = 0.235       # shoulder maximum height
 
         # Integration scheme
-        self.implicit_integration = True
+        self.implicit_integration = False
+        self.relative_forces = True
 
         self.max_iteration = 10     # Max iteration ddp solver        
         self.warm_start = True      # Warm Start for the solver
@@ -68,7 +69,11 @@ class MPC_crocoddyl:
         # Position of the feet
         self.fsteps = np.full((params.N_gait, 12), np.nan)
         self.gait = np.zeros((params.N_gait, 4))
+        self.xref = np.full((12, int(params.T_gait / params.dt_mpc + 1 )), np.nan)
         self.index = 0
+
+        # Offset CoM
+        self.offset_com = -0.03
 
         # Action models
         self.ListAction = []
@@ -117,7 +122,7 @@ class MPC_crocoddyl:
         for j in range(self.index):
             # Update model
             self.ListAction[j].updateModel(np.reshape(self.fsteps[j, :], (3, 4), order='F'),
-                                           xref[:, j+1], self.gait[j, :])
+                                           xref[:, j], self.gait[j, :])
 
         # Update model of the terminal model
         self.terminalModel.updateModel(np.reshape(
@@ -133,9 +138,11 @@ class MPC_crocoddyl:
             xref : desired state vector
             fsteps : feet predicted positions
         """
+        self.xref[:,:] = xref
+        self.xref[2,:] += self.offset_com
 
         # Update the dynamic depending on the predicted feet position
-        self.updateProblem(fsteps, xref)
+        self.updateProblem(fsteps, self.xref)
 
         self.x_init.clear()
         self.u_init.clear()
@@ -147,7 +154,7 @@ class MPC_crocoddyl:
             self.u_init.append(np.repeat(self.gait[self.index-1, :], 3)*np.array(4*[0.5, 0.5, 5.]))
 
             self.x_init = self.ddp.xs[2:]
-            self.x_init.insert(0, xref[:, 0])
+            self.x_init.insert(0, self.xref[:, 0])
             self.x_init.append(self.ddp.xs[-1])
        
         self.ddp.solve(self.x_init,  self.u_init, self.max_iteration)
@@ -206,6 +213,7 @@ class MPC_crocoddyl:
 
         # integration scheme
         model.implicit_integration = self.implicit_integration
+        model.relative_forces = self.relative_forces
 
     def updateActionModels(self):
         """Update the quadruped model with the new weights or model parameters.
