@@ -140,7 +140,7 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
 
     if params.LOGGING or params.PLOTTING:
         loggerSensors = LoggerSensors(device, qualisys=qc, logSize=params.N_SIMULATION-3)
-        loggerControl = LoggerControl(params.dt_wbc, params.N_gait, joystick=controller.joystick,
+        loggerControl = LoggerControl(params.dt_wbc, params.N_gait, params.type_MPC, joystick=controller.joystick,
                                       estimator=controller.estimator, loop=controller,
                                       gait=controller.gait, statePlanner=controller.statePlanner,
                                       footstepPlanner=controller.footstepPlanner,
