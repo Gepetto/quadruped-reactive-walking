@@ -499,8 +499,8 @@ int MPC::call_solver(int k) {
     // settings->rho = 0.1f;
     settings->sigma = (c_float)1e-6;
     // settings->max_iter = 4000;
-    settings->eps_abs = (c_float)1e-6;
-    settings->eps_rel = (c_float)1e-6;
+    settings->eps_abs = (c_float)1e-4;
+    settings->eps_rel = (c_float)1e-4;
     settings->eps_prim_inf = (c_float)1e-5;
     settings->eps_dual_inf = (c_float)1e-4;
     settings->alpha = (c_float)1.6;
