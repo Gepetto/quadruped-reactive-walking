@@ -19,14 +19,13 @@ Params::Params()
 
       q_init(12, 0.0),  // Fill with zeros, will be filled with values later
       dt_wbc(0.0),
-      N_gait(0),
       dt_mpc(0.0),
       T_gait(0.0),
       T_mpc(0.0),
       type_MPC(0),
       kf_enabled(false),
-      Kp_main(0.0),
-      Kd_main(0.0),
+      Kp_main(3, 0.0),
+      Kd_main(3, 0.0),
       Kff_main(0.0),
 
       fc_v_esti(0.0),
@@ -49,6 +48,7 @@ Params::Params()
       Fz_max(0.0),
       Fz_min(0.0),
 
+      N_gait(0),
       mass(0.0),
       I_mat(9, 0.0),  // Fill with zeros, will be filled with values later
       h_ref(0.0),
@@ -84,9 +84,6 @@ void Params::initialize(const std::string& file_path) {
   assert_yaml_parsing(robot_node, "robot", "dt_wbc");
   dt_wbc = robot_node["dt_wbc"].as<double>();
 
-  assert_yaml_parsing(robot_node, "robot", "N_gait");
-  N_gait = robot_node["N_gait"].as<int>();
-
   assert_yaml_parsing(robot_node, "robot", "envID");
   envID = robot_node["envID"].as<int>();
 
@@ -117,9 +114,6 @@ void Params::initialize(const std::string& file_path) {
   assert_yaml_parsing(robot_node, "robot", "predefined_vel");
   predefined_vel = robot_node["predefined_vel"].as<bool>();
 
-  assert_yaml_parsing(robot_node, "robot", "kf_enabled");
-  kf_enabled = robot_node["kf_enabled"].as<bool>();
-
   assert_yaml_parsing(robot_node, "robot", "enable_pyb_GUI");
   enable_pyb_GUI = robot_node["enable_pyb_GUI"].as<bool>();
 
@@ -133,10 +127,10 @@ void Params::initialize(const std::string& file_path) {
   perfect_estimator = robot_node["perfect_estimator"].as<bool>();
 
   assert_yaml_parsing(robot_node, "robot", "Kp_main");
-  Kp_main = robot_node["Kp_main"].as<double>();
+  Kp_main = robot_node["Kp_main"].as<std::vector<double> >();
 
   assert_yaml_parsing(robot_node, "robot", "Kd_main");
-  Kd_main = robot_node["Kd_main"].as<double>();
+  Kd_main = robot_node["Kd_main"].as<std::vector<double> >();
 
   assert_yaml_parsing(robot_node, "robot", "Kff_main");
   Kff_main = robot_node["Kff_main"].as<double>();

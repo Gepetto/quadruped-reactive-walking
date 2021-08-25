@@ -56,15 +56,13 @@ class Params {
   // General control parameters
   std::vector<double> q_init;  // Initial articular positions
   double dt_wbc;               // Time step of the whole body control
-  int N_gait;  // Number of rows in the gait matrix. Arbitrary value that should be set high enough  so that there is
-               // always at least one empty line at the end of the gait matrix
   double dt_mpc;    // Time step of the model predictive control
   double T_gait;    // Duration of one gait period
   double T_mpc;     // Duration of the prediction horizon
   int type_MPC;     // Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
   bool kf_enabled;  // Use complementary filter (False) or kalman filter (True) for the estimator
-  double Kp_main;   // Proportional gains for the PD+
-  double Kd_main;   // Derivative gains for the PD+
+  std::vector<double> Kp_main;   // Proportional gains for the PD+
+  std::vector<double> Kd_main;   // Derivative gains for the PD+
   double Kff_main;  // Feedforward torques multiplier for the PD+
 
   // Parameters of Estimator
@@ -94,6 +92,8 @@ class Params {
   double Fz_min;  // Minimal vertical contact force [N]
 
   // Not defined in yaml
+  int N_gait;  // Number of rows in the gait matrix. Arbitrary value that should be set high enough  so that there is
+               // always at least one empty line at the end of the gait matrix
   double mass;                                    // Mass of the robot
   std::vector<double> I_mat;                      // Inertia matrix
   double h_ref;                                   // Reference height for the base
