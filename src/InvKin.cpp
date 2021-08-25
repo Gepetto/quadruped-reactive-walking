@@ -52,9 +52,9 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
 
     afeet.row(i) = +params_->Kp_flyingfeet * pfeet_err.row(i) - params_->Kd_flyingfeet * (vf_.row(i) - vgoals.row(i)) +
                    agoals.row(i);
-    if (contacts(0, i) == 1.0) {
+    /*if (contacts(0, i) == 1.0) {
       afeet.row(i).setZero();  // Set to 0.0 to disable position/velocity control of feet in contact
-    }
+    }*/
     afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));  // Drift
   }
 
