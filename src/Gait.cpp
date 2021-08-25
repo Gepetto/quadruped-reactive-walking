@@ -40,13 +40,13 @@ void Gait::create_walk() {
   desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
   Eigen::Matrix<double, 1, 4> sequence;
-  sequence << 0.0, 1.0, 1.0, 1.0;
+  sequence << 1.0, 0.0, 1.0, 0.0;
   desiredGait_.block(0, 0, N, 4) = sequence.colwise().replicate(N);
-  sequence << 1.0, 0.0, 1.0, 1.0;
+  sequence << 1.0, 0.0, 0.0, 1.0;
   desiredGait_.block(N, 0, N, 4) = sequence.colwise().replicate(N);
-  sequence << 1.0, 1.0, 0.0, 1.0;
+  sequence << 0.0, 1.0, 0.0, 1.0;
   desiredGait_.block(2 * N, 0, N, 4) = sequence.colwise().replicate(N);
-  sequence << 1.0, 1.0, 1.0, 0.0;
+  sequence << 0.0, 1.0, 1.0, 0.0;
   desiredGait_.block(3 * N, 0, N, 4) = sequence.colwise().replicate(N);
 }
 
@@ -61,6 +61,24 @@ void Gait::create_trot() {
   desiredGait_.block(0, 0, N, 4) = sequence.colwise().replicate(N);
   sequence << 0.0, 1.0, 1.0, 0.0;
   desiredGait_.block(N, 0, N, 4) = sequence.colwise().replicate(N);
+}
+
+void Gait::create_walking_trot() {
+  // Number of timesteps in a half period of gait
+  int N = (int)std::lround(0.5 * T_gait_ / dt_);
+
+  desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
+
+  int M = 8;
+  Eigen::Matrix<double, 1, 4> sequence;
+  sequence << 1.0, 0.0, 0.0, 1.0;
+  desiredGait_.block(0, 0, N-M, 4) = sequence.colwise().replicate(N);
+  sequence << 1.0, 1.0, 1.0, 1.0;
+  desiredGait_.block(N-M, 0, M, 4) = sequence.colwise().replicate(N);
+  sequence << 0.0, 1.0, 1.0, 0.0;
+  desiredGait_.block(N, 0, N-M, 4) = sequence.colwise().replicate(N);
+  sequence << 1.0, 1.0, 1.0, 1.0;
+  desiredGait_.block(2*N-M, 0, M, 4) = sequence.colwise().replicate(N);
 }
 
 void Gait::create_pacing() {
@@ -99,6 +117,41 @@ void Gait::create_static() {
   sequence << 1.0, 1.0, 1.0, 1.0;
   desiredGait_.block(0, 0, N, 4) = sequence.colwise().replicate(N);
 }
+
+void Gait::create_transverse_gallop() {
+  // Number of timesteps in a half period of gait
+  int N = (int)std::lround(0.25 * T_gait_ / dt_);
+
+  desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
+
+  Eigen::Matrix<double, 1, 4> sequence;
+  sequence << 0.0, 0.0, 1.0, 0.0;
+  desiredGait_.block(0, 0, N, 4) = sequence.colwise().replicate(N);
+  sequence << 1.0, 0.0, 0.0, 0.0;
+  desiredGait_.block(N, 0, N, 4) = sequence.colwise().replicate(N);
+  sequence << 0.0, 0.0, 0.0, 1.0;
+  desiredGait_.block(2*N, 0, N, 4) = sequence.colwise().replicate(N);
+  sequence << 0.0, 1.0, 0.0, 0.0;
+  desiredGait_.block(3*N, 0, N, 4) = sequence.colwise().replicate(N);
+}
+
+void Gait::create_custom_gallop() {
+  // Number of timesteps in a half period of gait
+  int N = (int)std::lround(0.25 * T_gait_ / dt_);
+
+  desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
+
+  Eigen::Matrix<double, 1, 4> sequence;
+  sequence << 1.0, 0.0, 1.0, 0.0;
+  desiredGait_.block(0, 0, N, 4) = sequence.colwise().replicate(N);
+  sequence << 1.0, 0.0, 0.0, 1.0;
+  desiredGait_.block(N, 0, N, 4) = sequence.colwise().replicate(N);
+  sequence << 0.0, 1.0, 0.0, 1.0;
+  desiredGait_.block(2*N, 0, N, 4) = sequence.colwise().replicate(N);
+  sequence << 0.0, 1.0, 1.0, 0.0;
+  desiredGait_.block(3*N, 0, N, 4) = sequence.colwise().replicate(N);
+}
+
 
 void Gait::create_gait_f() {
   int i = 0;
