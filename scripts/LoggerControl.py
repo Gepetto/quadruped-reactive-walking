@@ -394,8 +394,8 @@ class LoggerControl():
                 ax0 = plt.subplot(3, 4, index12[i])
             else:
                 plt.subplot(3, 4, index12[i], sharex=ax0)
-            tau_fb = self.wbc_P[:, i] * (self.wbc_q_des[:, i] - self.esti_q_filt[:, 7+i]) + \
-                self.wbc_D[:, i] * (self.wbc_v_des[:, i] - self.esti_v_filt[:, 6+i])
+            tau_fb = self.wbc_P[:, i] * (self.wbc_q_des[:, i] - self.loop_o_q[:, 6+i]) + \
+                self.wbc_D[:, i] * (self.wbc_v_des[:, i] - self.loop_o_v[:, 6+i])
             h1, = plt.plot(t_range, self.wbc_FF[:, i] * self.wbc_tau_ff[:, i], "r", linewidth=3)
             h2, = plt.plot(t_range, tau_fb, "b", linewidth=3)
             h3, = plt.plot(t_range, self.wbc_FF[:, i] * self.wbc_tau_ff[:, i] + tau_fb, "g", linewidth=3)
@@ -449,6 +449,25 @@ class LoggerControl():
             plt.legend([h1, h2], ["Ref "+lgd1[i % 3]+" "+lgd2[int(i/3)],
                                   lgd1[i % 3]+" "+lgd2[int(i/3)]], prop={'size': 8})
         self.custom_suptitle("Actuator positions")
+
+        ####
+        # Desired & Measured actuator velocity
+        ####
+        lgd1 = ["HAA", "HFE", "Knee"]
+        lgd2 = ["FL", "FR", "HL", "HR"]
+        plt.figure()
+        for i in range(12):
+            if i == 0:
+                ax0 = plt.subplot(3, 4, index12[i])
+            else:
+                plt.subplot(3, 4, index12[i], sharex=ax0)
+            h1, = plt.plot(t_range, self.wbc_v_des[:, i], color='r', linewidth=3)
+            h2, = plt.plot(t_range, self.loop_o_v[:, 6+i], color='b', linewidth=3)
+            plt.xlabel("Time [s]")
+            plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)]+" [rad]")
+            plt.legend([h1, h2], ["Ref "+lgd1[i % 3]+" "+lgd2[int(i/3)],
+                                  lgd1[i % 3]+" "+lgd2[int(i/3)]], prop={'size': 8})
+        self.custom_suptitle("Actuator velocities")
 
         ####
         # Evolution of trajectories in position and orientation computed by the MPC
@@ -577,7 +596,7 @@ class LoggerControl():
         ####
         # Power supply profile
         ####
-        """
+        
         plt.figure()
         for i in range(3):
             if i == 0:
@@ -595,7 +614,7 @@ class LoggerControl():
                 plt.plot(t_range, loggerSensors.energy[:], linewidth=2)
                 plt.ylabel("Bus energy [J]")
                 plt.xlabel("Time [s]")
-        """
+        
 
         ####
         # Estimated computation time for each step of the control architecture
@@ -756,6 +775,9 @@ class LoggerControl():
                             mocapAngularVelocity=loggerSensors.mocapAngularVelocity,
                             mocapOrientationMat9=loggerSensors.mocapOrientationMat9,
                             mocapOrientationQuat=loggerSensors.mocapOrientationQuat,
+                            current=loggerSensors.current,
+                            voltage=loggerSensors.voltage,
+                            energy=loggerSensors.energy,
                             )
 
     def loadAll(self, loggerSensors, fileName=None):
@@ -850,6 +872,10 @@ class LoggerControl():
         loggerSensors.mocapOrientationMat9 = data["mocapOrientationMat9"]
         loggerSensors.mocapOrientationQuat = data["mocapOrientationQuat"]
         loggerSensors.logSize = loggerSensors.q_mes.shape[0]
+        loggerSensors.current = data["current"]
+        loggerSensors.voltage = data["voltage"]
+        loggerSensors.energy = data["energy"]
+        
 
     def slider_predicted_trajectory(self):
 
@@ -1042,8 +1068,8 @@ if __name__ == "__main__":
     import LoggerSensors
 
     # Create loggers
-    loggerSensors = LoggerSensors.LoggerSensors(logSize=15000-3)
-    logger = LoggerControl(0.001, 30, logSize=15000-3)
+    loggerSensors = LoggerSensors.LoggerSensors(logSize=20000-3)
+    logger = LoggerControl(0.001, 30, logSize=20000-3)
 
     # Load data from .npz file
     logger.loadAll(loggerSensors)

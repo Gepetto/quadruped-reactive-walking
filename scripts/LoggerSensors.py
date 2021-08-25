@@ -50,6 +50,9 @@ class LoggerSensors():
         self.baseLinearAcceleration[self.i] = device.imu.linear_acceleration
         self.baseAccelerometer[self.i] = device.imu.accelerometer
         self.torquesFromCurrentMeasurment[self.i] = device.joints.measured_torques
+        self.current[self.i] = device.powerboard.current
+        self.voltage[self.i] = device.powerboard.voltage
+        self.energy[self.i] = device.powerboard.energy
 
         # Logging from qualisys (motion capture)
         if qualisys is not None:
