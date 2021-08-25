@@ -24,7 +24,7 @@ class Joystick:
         self.reduced = False
         self.stop = False
 
-        self.alpha = 0.0005  # Coefficient to low pass the joystick velocity
+        self.alpha = 0.001  # Coefficient to low pass the joystick velocity
 
         # Bool to modify the update of v_ref
         # Used to launch multiple simulations
@@ -240,6 +240,38 @@ class Joystick:
                                          [0.0, 0.0, 0.0, 0.0, 0.0 ,0.],
                                          [0.0, 0.0, 0.0, 0.0, 0.0 ,0.],
                                          [0.0, 0.0, 0.0, 0., 0. ,0.]])
+            elif velID == 7:  # Zig-zag
+                self.t_switch = np.array([0, 1, 3, 4, 6, 7, 9, 10, 11])
+                self.v_switch = np.array([[0.0, 0.25,  0.5, 0.5,  0.5, 0.5, 0.5, 0.25, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.8, -0.8, -0.8, 0.8, 0.8, -0.8, 0.0, 0.0]])
+            elif velID == 8:  # Zig-zag higher speed
+                self.t_switch = np.array([0, 1, 3, 5, 7, 8, 9, 10, 11])
+                self.v_switch = np.array([[0.0, 0.4,  0.8, 0.8,  0.4, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0,  0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.8, -1.2, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0]])
+            elif velID == 9:  # Debug feet tracking
+                self.t_switch = np.array([0, 2, 3, 5])
+                self.v_switch = np.array([[0.0, 0.4, 0.4, 0.0],
+                                          [0.0, 0.4, 0.4, 0.0],
+                                          [0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0, 0.0, 0.0]])
+            elif velID == 10:  # FORWAAAAAAAAAARD
+                self.t_switch = np.array([0, 2, 4, 6, 8, 15])
+                self.v_switch = np.array([[0.0, 0.4, 0.8, 1.0, 1.0, 1.0],
+                                          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                          [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
         self.k_switch = (self.t_switch / self.dt_wbc).astype(int)
         self.handle_v_switch(k_loop)
         return 0
