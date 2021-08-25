@@ -19,13 +19,13 @@ def test_1():
 
     # Velocity of base in horizontal frame
     h_v = np.zeros((18, 1))
-    h_v[0, 0] = 0.1
-    h_v[1, 0] = 0.1
+    # h_v[0, 0] = 0.1
+    # h_v[1, 0] = 0.1
     # h_v[1, 0] = 0.1
 
     # Velocity reference of base in horizontal frame
     v_ref = np.zeros((18, 1))
-    v_ref[0, 0] = 0.1
+    # v_ref[0, 0] = 0.1
 
     # Params
     params = lqrw.Params()  # Object that holds all controller parameters
@@ -55,8 +55,9 @@ def test_1():
     mpc_wrapper_croco = MPC_Wrapper.MPC_Wrapper(params, q)
 
     # Update gait
-    gait.updateGait(0, 20, 0)
-    cgait = gait.getCurrentGait()
+    for i in range(5):
+        gait.updateGait(i*20, 20, 0)
+        cgait = gait.getCurrentGait()
 
     # Compute target footstep based on current and reference velocities
     footstepPlanner.updateFootsteps(False, 20, q[:, 0:1], h_v[0:6, 0:1].copy(), v_ref[0:6, 0])
