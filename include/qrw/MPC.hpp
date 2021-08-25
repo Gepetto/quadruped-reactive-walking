@@ -240,7 +240,7 @@ class MPC {
   Eigen::MatrixXd x_f_applied;        // Next predicted state of the robot + Desired contact forces to reach it
 
   // Matrix ML
-  const static int size_nz_ML = 5000;
+  const static int size_nz_ML = 15000;
   csc *ML;  // Compressed Sparse Column matrix
 
   // Indices that are used to udpate ML
@@ -250,17 +250,17 @@ class MPC {
   // TODO FOR S ????
 
   // Matrix NK
-  const static int size_nz_NK = 5000;
+  const static int size_nz_NK = 15000;
   double v_NK_up[size_nz_NK] = {};   // maxtrix NK (upper bound)
   double v_NK_low[size_nz_NK] = {};  // maxtrix NK (lower bound)
   double v_warmxf[size_nz_NK] = {};  // maxtrix NK (lower bound)
 
   // Matrix P
-  const static int size_nz_P = 5000;
+  const static int size_nz_P = 15000;
   csc *P;  // Compressed Sparse Column matrix
 
   // Matrix Q
-  const static int size_nz_Q = 5000;
+  const static int size_nz_Q = 15000;
   double Q[size_nz_Q] = {};  // Q is full of zeros
 
   // OSQP solver variables
