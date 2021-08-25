@@ -39,7 +39,7 @@ class MPC_crocoddyl_planner():
         self.w_z = 20
         self.w_roll = 0.9
         self.w_pitch = 1.
-        self.w_yaw = 0.5
+        self.w_yaw = 0.9
         self.w_vx = 1.5*np.sqrt(self.w_x)
         self.w_vy = 2*np.sqrt(self.w_y)
         self.w_vz = 1*np.sqrt(self.w_z)
@@ -51,10 +51,10 @@ class MPC_crocoddyl_planner():
 
         self.forceWeights = 1*np.array(4*[0.007, 0.007, 0.007])  # Weight Vector : Force Norm
         self.frictionWeights = 1.                          # Weight Vector : Friction cone cost
-        self.heuristicWeights = np.array(4*[0.03, 0.04])      # Weights on the heuristic term
-        self.stepWeights = np.full(8, 0.005)                 # Weight on the step command (distance between steps)
-        self.stopWeights = 2.*np.ones(8)                       # Weights to stop the optimisation at the end of the flying phase
-        self.shoulderContactWeight = 5.                      # Weight for shoulder-to-contact penalty
+        self.heuristicWeights = 0.*np.array(4*[0.03, 0.04])      # Weights on the heuristic term
+        self.stepWeights = 0.*np.full(8, 0.005)                 # Weight on the step command (distance between steps)
+        self.stopWeights = 0.*np.ones(8)                       # Weights to stop the optimisation at the end of the flying phase
+        self.shoulderContactWeight = 0.5*np.full(4,1.)                    # Weight for shoulder-to-contact penalty
         self.shoulder_hlim = 0.235
 
         # TODO : create a proper warm-start with the previous optimisation
@@ -85,16 +85,21 @@ class MPC_crocoddyl_planner():
 
         # Initial foot location (local frame, X,Y plan)
         self.shoulders = [0.1946, 0.14695, 0.1946, -0.14695, -0.1946,   0.14695, -0.1946,  -0.14695]
-        self.xref = np.full((12, int(params.T_gait / params.dt_mpc + 1 )), np.nan)
+        self.xref = np.full((12, int(params.T_mpc / params.dt_mpc + 1 )), np.nan)
 
         # Index to stop the feet optimisation
         self.index_lock_time = int(params.lock_time / params.dt_mpc)  # Row index in the gait matrix when the optimisation of the feet should be stopped
         self.index_stop_optimisation = []  # List of index to reset the stopWeights to 0 after optimisation
 
-        # USefull to optimise around the previous optimisation
+        # Usefull to optimise around the previous optimisation
         self.flying_foot = 4*[False] # Bool corresponding to the current flying foot (gait[0,foot_id] == 0)
         self.flying_foot_nodes = np.zeros(4) # The number of nodes in the next phase of flight
         self.flying_max_nodes = int(params.T_mpc / (2 * params.dt_mpc)) # TODO : get the maximum number of nodes from the gait_planner
+
+        # Usefull to setup the shoulder-to-contact cost (no cost for the initial stance phase)
+        self.stance_foot = 4*[False] # Bool corresponding to the current flying foot (gait[0,foot_id] == 0)
+        self.stance_foot_nodes = np.zeros(4) # The number of nodes in the next phase of flight
+        self.index_inital_stance_phase = []  # List of index to reset the stopWeights to 0 after optimisation
 
         # Initialize the lists of models
         self.initialize_models(params)
@@ -114,7 +119,7 @@ class MPC_crocoddyl_planner():
             self.update_model_augmented(model)
             self.models_augmented.append(model)
 
-        for _ in range(4 * int(params.T_gait / params.T_mpc)):
+        for _ in range(4 * int(params.T_mpc / params.T_gait)):
             model = quadruped_walkgen.ActionModelQuadrupedStep()
             self.update_model_step(model)
             self.models_step.append(model)
@@ -137,10 +142,25 @@ class MPC_crocoddyl_planner():
 
         self.updateProblem(k, self.xref, footsteps, l_stop)
         self.ddp.solve(self.x_init, self.u_init, self.max_iteration)
+        
+        # np.set_printoptions(linewidth=300, precision=3)
+        # print(self.gait[:30,:])
+        # idx = 0
+        # for model in self.action_models:
+        #     if model.__class__.__name__ == "ActionModelQuadrupedStep" :
+        #         print(model.__class__.__name__)
+        #     else:
+        #         print(model.__class__.__name__ + "   :   " + str(model.shoulderContactWeight) + "     -    " + str(self.gait[idx,:]))
+        #         idx += 1        
+        # from IPython import embed
+        # embed()
 
         # Reset to 0 the stopWeights for next optimisation
         for index_stopped in self.index_stop_optimisation:
             self.models_augmented[index_stopped].stopWeights = np.zeros(8)
+
+        for index_stance in self.index_inital_stance_phase:
+            self.models_augmented[index_stance].shoulderContactWeight = self.shoulderContactWeight
 
     def updateProblem(self, k, xref, footsteps, l_stop):
         """
@@ -158,6 +178,7 @@ class MPC_crocoddyl_planner():
         self.u_init.clear()
         self.action_models.clear()
         self.index_stop_optimisation.clear()
+        self.index_inital_stance_phase.clear()
 
         index_step = 0
         index_augmented = 0
@@ -172,6 +193,17 @@ class MPC_crocoddyl_planner():
         # Augmented model, first node, j = 0
         self.models_augmented[index_augmented].updateModel(np.reshape(footsteps[0, :], (3, 4), order='F'),
                                                             l_stop, xref[:, 0], self.gait[0, :])
+
+        shoulder_weight = self.shoulderContactWeight.copy()
+        for foot in range(4):
+            if self.stance_foot[foot] and j < self.stance_foot_nodes[foot]:
+                shoulder_weight[foot] = 0.    
+
+        if np.sum(shoulder_weight != self.shoulderContactWeight) > 0:
+            # The shoulder-to-contact weight has been modified, needs to be added to the list 
+            self.models_augmented[index_augmented].shoulderContactWeight = shoulder_weight
+            self.index_inital_stance_phase.append(index_augmented)
+
         self.action_models.append(self.models_augmented[index_augmented])
 
         index_augmented += 1
@@ -207,6 +239,16 @@ class MPC_crocoddyl_planner():
                 if activation_cost :
                     self.index_stop_optimisation.append(index_augmented)
 
+                shoulder_weight = self.shoulderContactWeight.copy()
+                for foot in range(4):
+                    if self.stance_foot[foot] and j < self.stance_foot_nodes[foot]:
+                        shoulder_weight[foot] = 0.
+                if np.sum(shoulder_weight != self.shoulderContactWeight) > 0:
+                    # The shoulder-to-contact weight has been modified, needs to be added to the list 
+                    self.models_augmented[index_augmented].shoulderContactWeight = shoulder_weight
+                    self.index_inital_stance_phase.append(index_augmented)
+                        
+
 
                 self.action_models.append(self.models_augmented[index_augmented])
 
@@ -234,6 +276,15 @@ class MPC_crocoddyl_planner():
                 
                 if activation_cost :
                     self.index_stop_optimisation.append(index_augmented)
+
+                shoulder_weight = self.shoulderContactWeight.copy()
+                for foot in range(4):
+                    if self.stance_foot[foot] and j < self.stance_foot_nodes[foot]:
+                        shoulder_weight[foot] = 0.
+                if np.sum(shoulder_weight != self.shoulderContactWeight) > 0:
+                    # The shoulder-to-contact weight has been modified, needs to be added to the list 
+                    self.models_augmented[index_augmented].shoulderContactWeight = shoulder_weight
+                    self.index_inital_stance_phase.append(index_augmented)
 
                 index_augmented += 1
                 # Warm-start
@@ -335,5 +386,16 @@ class MPC_crocoddyl_planner():
                 self.flying_foot_nodes[foot] = int(row)
             else:
                 self.flying_foot[foot] = False
+        
+        # Get the current stance feet and the number of nodes
+        for foot in range(4):
+            row = 0
+            if self.gait[0, foot] == 1:
+                self.stance_foot[foot] = True 
+                while self.gait[row, foot] == 1:
+                    row += 1
+                self.stance_foot_nodes[foot] = int(row)
+            else:
+                self.stance_foot[foot] = False
     
 
