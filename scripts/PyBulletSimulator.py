@@ -400,7 +400,7 @@ class pybullet_simulator:
 
         return 0
 
-    def apply_external_force(self, k, start, duration, F, M):
+    def apply_external_force(self, k, start, duration, F, loc):
         """Apply an external force/momentum to the robot
         4-th order polynomial: zero force and force velocity at start and end
         (bell-like force trajectory)
@@ -410,7 +410,7 @@ class pybullet_simulator:
             start (int): numero of the iteration for which the force should start to be applied
             duration (int): number of iterations the force should last
             F (3x array): components of the force in PyBullet world frame
-            M (3x array): components of the force momentum in PyBullet world frame
+            loc (3x array): position on the link where the force is applied
         """
 
         if ((k < start) or (k > (start+duration))):
@@ -427,7 +427,7 @@ class pybullet_simulator:
 
         self.applied_force[:] = alpha * F
 
-        pyb.applyExternalForce(self.robotId, -1, alpha * F, alpha*M, pyb.LINK_FRAME)
+        pyb.applyExternalForce(self.robotId, -1, alpha * F, loc, pyb.LINK_FRAME)
 
         return 0.0
 
@@ -532,6 +532,14 @@ class IMU():
         self.attitude_euler = np.zeros((3, ))
         self.attitude_quaternion = np.array([[0.0, 0.0, 0.0, 1.0]]).transpose()
 
+class Powerboard():
+    """Dummy class that simulates the Powerboard class used to communicate with the real masterboard"""
+
+    def __init__(self):
+        self.current = 0.0
+        self.voltage = 0.0
+        self.energy = 0.0
+
 class Joints():
     """Dummy class that simulates the Joints class used to communicate with the real masterboard"""
 
@@ -605,6 +613,7 @@ class PyBulletSimulator():
         self.jointTorques = np.zeros(self.nb_motors)
         self.revoluteJointIndices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
         self.is_timeout = False
+        self.powerboard = Powerboard()
         self.imu = IMU()
         self.joints = Joints(self)
         self.robot_interface = RobotInterface()
@@ -720,6 +729,7 @@ class PyBulletSimulator():
                                       controlMode=pyb.TORQUE_CONTROL, forces=self.jointTorques)
 
         # Apply arbitrary external forces to the robot base in the simulation
+        # self.pyb_sim.apply_external_force(self.cpt, 3000, 1000, np.array([0.0, +0.0, -20.0]), np.array([+0.0, +0.1, 0.0]))
         # self.pyb_sim.apply_external_force(self.cpt, 1000, 1000, np.array([0.0, +8.0, 0.0]), np.zeros((3,)))
         # self.pyb_sim.apply_external_force(self.cpt, 4250, 500, np.array([+5.0, 0.0, 0.0]), np.zeros((3,)))
         # self.pyb_sim.apply_external_force(self.cpt, 5250, 500, np.array([0.0, +5.0, 0.0]), np.zeros((3,)))
