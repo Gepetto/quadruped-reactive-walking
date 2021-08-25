@@ -71,6 +71,7 @@ def init_robot(q_init, params):
         shoulders_init[:, i] = solo.data.oMf[indexes[i]].translation
 
     # Saving data
+    params.N_gait = int(5 + params.T_mpc / params.dt_mpc)
     params.h_ref = h_init
     params.mass = solo.data.mass[0]  # Mass of the whole urdf model (also = to Ycrb[1].mass)
     params.I_mat = solo.data.Ycrb[1].inertia.ravel().tolist()  # Composite rigid body inertia in q_init position
