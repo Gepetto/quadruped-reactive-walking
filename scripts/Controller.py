@@ -327,8 +327,8 @@ class Controller:
                                     self.feet_a_cmd)
 
             # Quantities sent to the control board
-            self.result.P = self.Kp_main * np.ones(12)
-            self.result.D = self.Kd_main * np.ones(12)
+            self.result.P = np.array(self.Kp_main.tolist() * 4)
+            self.result.D = np.array(self.Kd_main.tolist() * 4)
             self.result.q_des[:] = self.wbcWrapper.qdes[:]
             self.result.v_des[:] = self.wbcWrapper.vdes[:]
             self.result.FF = self.Kff_main * np.ones(12)
@@ -336,9 +336,9 @@ class Controller:
 
             # Display robot in Gepetto corba viewer
             if self.enable_corba_viewer and (self.k % 5 == 0):
-                self.q_display[:3, 0] = self.q[:3, 0]
-                self.q_display[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(self.q[3:6, 0])).coeffs()
-                self.q_display[7:, 0] = self.q[6:, 0]
+                self.q_display[:3, 0] = np.array([0.0, 0.0, self.h_ref])
+                self.q_display[3:7, 0] = np.array([0.0, 0.0, 0.0, 1.0])
+                self.q_display[7:, 0] = self.wbcWrapper.qdes[:]
                 self.solo.display(self.q_display)
 
         t_wbc = time.time()
