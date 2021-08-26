@@ -22,7 +22,7 @@ class MPC_crocoddyl_planner():
         self.T_mpc = params.T_mpc                 # Period of the MPC    
         self.n_nodes = int(self.T_mpc/self.dt)    # Number of nodes    
         self.mass = params.mass                   # Mass of the robot
-        self.max_iteration = 10                   # Max iteration ddp solver
+        self.max_iteration = 20                   # Max iteration ddp solver
         self.gI = np.array(params.I_mat.tolist()).reshape((3, 3)) # Inertia matrix in ody frame
 
         # Friction coefficient
@@ -35,6 +35,7 @@ class MPC_crocoddyl_planner():
 
         # Weights Vector : States
         self.w_x = 0.3
+        # self.w_y = 0.3
         self.w_y = 0.3
         self.w_z = 20
         self.w_roll = 0.9
@@ -54,8 +55,9 @@ class MPC_crocoddyl_planner():
         self.heuristicWeights = 0.*np.array(4*[0.03, 0.04])      # Weights on the heuristic term
         self.stepWeights = 0.*np.full(8, 0.005)                 # Weight on the step command (distance between steps)
         self.stopWeights = 0.*np.ones(8)                       # Weights to stop the optimisation at the end of the flying phase
-        self.shoulderContactWeight = 0.5*np.full(4,1.)                    # Weight for shoulder-to-contact penalty
+        self.shoulderContactWeight = 1.*np.full(4,1.)                    # Weight for shoulder-to-contact penalty
         self.shoulder_hlim = 0.235
+        self.shoulderReferencePosition = True # Use the reference trajectory of the Com (True) or not (False) for shoulder/contact cost
 
         # TODO : create a proper warm-start with the previous optimisation
         self.warm_start = True
@@ -339,6 +341,8 @@ class MPC_crocoddyl_planner():
         model.relative_forces = True
         model.shoulderContactWeight = self.shoulderContactWeight
         model.shoulder_hlim = self.shoulder_hlim 
+        model.shoulderReferencePosition = self.shoulderReferencePosition
+        # print(model.referenceShoulderPosition)
 
         # Weights vectors
         model.stateWeights = self.stateWeights
