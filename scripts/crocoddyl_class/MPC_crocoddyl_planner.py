@@ -54,16 +54,17 @@ class MPC_crocoddyl_planner():
         self.frictionWeights = 1.                          # Weight Vector : Friction cone cost
         self.heuristicWeights = 0.*np.array(4*[0.03, 0.04])      # Weights on the heuristic term
         self.stepWeights = 0.*np.full(8, 0.005)                 # Weight on the step command (distance between steps)
-        self.stopWeights = 0.*np.ones(8)                       # Weights to stop the optimisation at the end of the flying phase
-        self.shoulderContactWeight = 1.*np.full(4,1.)                    # Weight for shoulder-to-contact penalty
+        self.stopWeights = 0.5*np.ones(8)                       # Weights to stop the optimisation at the end of the flying phase
+        self.shoulderContactWeight = 0.5*np.full(4,1.)                    # Weight for shoulder-to-contact penalty
         self.shoulder_hlim = 0.235
-        self.shoulderReferencePosition = True # Use the reference trajectory of the Com (True) or not (False) for shoulder/contact cost
+        self.shoulderReferencePosition = False # Use the reference trajectory of the Com (True) or not (False) for shoulder/contact cost
 
         # TODO : create a proper warm-start with the previous optimisation
         self.warm_start = True
 
         # Minimum normal force(N) and reference force vector bool
-        self.min_fz = 1.
+        self.min_fz = 0.
+        self.max_fz = 25.
         self.relative_forces = True 
 
         # Offset CoM
@@ -338,6 +339,7 @@ class MPC_crocoddyl_planner():
         model.gI = self.gI
         model.mu = self.mu
         model.min_fz = self.min_fz
+        model.max_fz = self.max_fz
         model.relative_forces = True
         model.shoulderContactWeight = self.shoulderContactWeight
         model.shoulder_hlim = self.shoulder_hlim 
