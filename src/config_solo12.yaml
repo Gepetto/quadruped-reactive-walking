@@ -38,8 +38,6 @@ robot:
 
     # Parameters of MPC with OSQP
     osqp_w_states: [2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]  # Weights for state tracking error
-    # osqp_w_states: [0.09, 0.09, 400, 0.81, 1.0, 0.16, 0.6749, 1.19999, 79, 0.00225, 0.0049, 0.00256]  # Weights for state tracking error
-    # osqp_w_states: [0.09, 1, 100, 5.0, 1.0, 0.16, 0.6749, 12, 79, 0.1, 0.0049, 0.00256]  # Weights for state tracking error
     osqp_w_forces: [0.00005, 0.00005, 0.00005]  # Weights for force regularisation
     osqp_Nz_lim: 35.0  # Maximum vertical force that can be applied at contact points
 
