@@ -293,6 +293,7 @@ struct WbcWrapperPythonVisitor : public bp::def_visitor<WbcWrapperPythonVisitor<
             .def("get_qdes", &WbcWrapper::get_qdes, "Get qdes_.\n")
             .def("get_vdes", &WbcWrapper::get_vdes, "Get vdes_.\n")
             .def("get_tau_ff", &WbcWrapper::get_tau_ff, "Get tau_ff_.\n")
+            .def("get_tau_ff_mpc", &WbcWrapper::get_tau_ff_mpc, "Get tau_ff_mpc_.\n")
 
             .def_readonly("qdes", &WbcWrapper::get_qdes)
             .def_readonly("vdes", &WbcWrapper::get_vdes)

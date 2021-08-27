@@ -284,14 +284,16 @@ class WbcWrapper {
   /// \param[in] pgoals Desired positions of the four feet in base frame
   /// \param[in] vgoals Desired velocities of the four feet in base frame
   /// \param[in] agoals Desired accelerations of the four feet in base frame
+  /// \param[in] q_mpc Estimated configuration vector given to the MPC
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void compute(VectorN const &q, VectorN const &dq, MatrixN const &f_cmd, MatrixN const &contacts,
-               MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals);
+  void compute(VectorN const &q, VectorN const &dq, VectorN const &f_cmd, MatrixN const &contacts,
+               MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &q_mpc);
 
   VectorN get_qdes() { return qdes_; }
   VectorN get_vdes() { return vdes_; }
   VectorN get_tau_ff() { return tau_ff_; }
+  VectorN get_tau_ff_mpc() { return tau_ff_mpc_; }
   VectorN get_ddq_cmd() { return ddq_cmd_; }
   VectorN get_f_with_delta() { return f_with_delta_; }
   VectorN get_ddq_with_delta() { return ddq_with_delta_; }
@@ -309,6 +311,15 @@ class WbcWrapper {
 
   pinocchio::Model model_;  // Pinocchio model for frame computations
   pinocchio::Data data_;    // Pinocchio datas for frame computations
+
+  pinocchio::Model model_fmpc_;  // Pinocchio model for frame computations with MPC forces
+  pinocchio::Data data_fmpc_;    // Pinocchio datas for frame computations with MPC forces
+  Matrix12 Jfmpc_;                          // Feet Jacobian (only linear part) for MPC forces
+  Eigen::Matrix<double, 6, 18> Jfmpc_tmp_;  // Temporary storage variable to only retrieve the linear part of the Jacobian
+                                            // and discard the angular part
+  Vector19 q_mpc_;                  // Configuration vector to compute the feet jacobian for mpc forces
+  Vector12 tau_ff_mpc_;             // Desired actuator torques (feedforward)
+  int foot_ids_[4] = {0, 0, 0, 0};  // Feet frame IDs
 
   Eigen::Matrix<double, 18, 18> M_;  // Mass matrix
   Eigen::Matrix<double, 12, 6> Jc_;  // Jacobian matrix

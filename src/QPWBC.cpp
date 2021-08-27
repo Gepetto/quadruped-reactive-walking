@@ -439,7 +439,11 @@ void QPWBC::update_PQ() {
 }
 
 WbcWrapper::WbcWrapper()
-    : M_(Eigen::Matrix<double, 18, 18>::Zero()),
+    : Jfmpc_(Matrix12::Zero()),
+      Jfmpc_tmp_(Eigen::Matrix<double, 6, 18>::Zero()),
+      q_mpc_(Vector19::Zero()),
+      tau_ff_mpc_(Vector12::Zero()),
+      M_(Eigen::Matrix<double, 18, 18>::Zero()),
       Jc_(Eigen::Matrix<double, 12, 6>::Zero()),
       k_since_contact_(Eigen::Matrix<double, 1, 4>::Zero()),
       qdes_(Vector12::Zero()),
@@ -474,6 +478,23 @@ void WbcWrapper::initialize(Params &params) {
   q_tmp(6, 0) = 1.0;  // Quaternion (0, 0, 0, 1)
   pinocchio::computeAllTerms(model_, data_, q_tmp, VectorN::Zero(model_.nv));
 
+  // Build model from urdf (base is not free flyer)
+  pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_fmpc_, false);
+
+  // Construct data from model
+  data_fmpc_ = pinocchio::Data(model_fmpc_);
+
+  // Update all the quantities of the model
+  VectorN qf_tmp = VectorN::Zero(model_fmpc_.nq);
+  qf_tmp(6, 0) = 1.0;  // Quaternion (0, 0, 0, 1)
+  pinocchio::computeAllTerms(model_fmpc_, data_fmpc_, qf_tmp, VectorN::Zero(model_.nv));
+
+  // Get feet frame IDs
+  foot_ids_[0] = static_cast<int>(model_fmpc_.getFrameId("FL_FOOT"));  // from long uint to int
+  foot_ids_[1] = static_cast<int>(model_fmpc_.getFrameId("FR_FOOT"));
+  foot_ids_[2] = static_cast<int>(model_fmpc_.getFrameId("HL_FOOT"));
+  foot_ids_[3] = static_cast<int>(model_fmpc_.getFrameId("HR_FOOT"));
+
   // Initialize inverse kinematic and box QP solvers
   invkin_ = new InvKin();
   invkin_->initialize(params);
@@ -494,8 +515,13 @@ void WbcWrapper::initialize(Params &params) {
   data_.M.triangularView<Eigen::StrictlyLower>() = data_.M.transpose().triangularView<Eigen::StrictlyLower>();
 }
 
-void WbcWrapper::compute(VectorN const &q, VectorN const &dq, MatrixN const &f_cmd, MatrixN const &contacts,
-                         MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals) {
+void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_cmd, MatrixN const &contacts,
+                         MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &q_mpc) {
+
+  if (f_cmd.rows() != 12) {
+    throw std::runtime_error("f_cmd should be a vector of size 12");
+  }
+
   //  Update nb of iterations since contact
   k_since_contact_ += contacts;                                // Increment feet in stance phase
   k_since_contact_ = k_since_contact_.cwiseProduct(contacts);  // Reset feet in swing phase
@@ -505,9 +531,51 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, MatrixN const &f_c
   log_feet_vel_target = vgoals;
   log_feet_acc_target = agoals;
 
+  // Update model and data of the robot
+  q_mpc_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q_mpc(3, 0), q_mpc(4, 0), 0.0)).coeffs();
+  q_mpc_.tail(12) = q_mpc.tail(12);
+  pinocchio::forwardKinematics(model_fmpc_, data_fmpc_, q_mpc_);
+  pinocchio::computeJointJacobians(model_fmpc_, data_fmpc_);
+  pinocchio::updateFramePlacements(model_fmpc_, data_fmpc_);
+
+  // Get data required by IK with Pinocchio
+  for (int i = 0; i < 4; i++) {
+    int idx = foot_ids_[i];
+    Jfmpc_tmp_.setZero();  // Fill with 0s because getFrameJacobian only acts on the coeffs it changes so the
+    // other coeffs keep their previous value instead of being set to 0
+    pinocchio::getFrameJacobian(model_fmpc_, data_fmpc_, idx, pinocchio::LOCAL_WORLD_ALIGNED, Jfmpc_tmp_);
+    Jfmpc_.block(3 * i, 0, 3, 12) = Jfmpc_tmp_.block(0, 6, 3, 12);
+  }
+
+  tau_ff_mpc_ = Jfmpc_.transpose() * -f_cmd;
+
+  // Compute the upper triangular part of the joint space inertia matrix M by using the Composite Rigid Body Algorithm
+  // Result is stored in data_.M
+  pinocchio::crba(model_fmpc_, data_fmpc_, q_mpc_);
+
+  // Make mass matrix symetric
+  data_fmpc_.M.triangularView<Eigen::StrictlyLower>() = data_fmpc_.M.transpose().triangularView<Eigen::StrictlyLower>();
+
+  /*
+  std::cout << "--- q_mpc ---" << std::endl;
+  std::cout << q_mpc_ << std::endl;
+  std::cout << "--- fcmd ---" << std::endl;
+  std::cout << f_cmd << std::endl;
+  std::cout << "--- Jfmpc ---" << std::endl;
+  std::cout << Jfmpc_ << std::endl;
+  std::cout << "--- tau_ff_mpc ---" << std::endl;
+  std::cout << tau_ff_mpc_ << std::endl;*/
+
+  // std::cout << data_fmpc_.M.block(6, 6, 12, 12) << std::endl;
+  
+
   // Compute Inverse Kinematics
   invkin_->run_InvKin(q.tail(12), dq.tail(12), contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose());
   ddq_cmd_.tail(12) = invkin_->get_ddq_cmd();
+
+  // std::cout << data_fmpc_.M.block(6, 6, 12, 12) * ddq_cmd_.tail(12) << std::endl;
+
+  tau_ff_mpc_ = Jfmpc_.transpose() * -f_cmd + data_fmpc_.M.block(6, 6, 12, 12) * ddq_cmd_.tail(12); 
 
   // TODO: Check if we can save time by switching MatrixXd to defined sized vector since they are
   // not called from python anymore
@@ -523,6 +591,22 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, MatrixN const &f_c
       Jc_.block(3 * i, 0, 3, 6).setZero();
     }
   }
+
+  int cpt = 0;
+  double ax = 0.0;
+  double ay = 0.0;
+  for (int i = 0; i < 4; i++) {
+    if (contacts(0, i) == 1.0) {
+      ax -= agoals(0, i);
+      ay -= agoals(1, i);
+      cpt++;
+    }
+  }
+  if (cpt > 0) {
+    ax *= 1 / cpt;
+    ay *= 1 / cpt;
+  }
+  ddq_cmd_.head(2) << ax, ay;
 
   // Compute the inverse dynamics, aka the joint torques according to the current state of the system,
   // the desired joint accelerations and the external forces, using the Recursive Newton Euler Algorithm.
@@ -541,7 +625,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, MatrixN const &f_c
   std::cout << k_since_contact_ << std::endl;*/
 
   // Solve the QP problem
-  box_qp_->run(data_.M, Jc_, Eigen::Map<const VectorN>(f_cmd.data(), f_cmd.size()), data_.tau.head(6),
+  box_qp_->run(data_.M, Jc_, f_cmd, data_.tau.head(6),
                k_since_contact_);
 
   // Add to reference quantities the deltas found by the QP solver

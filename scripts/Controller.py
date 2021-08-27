@@ -223,7 +223,7 @@ class Controller:
         oRb = self.estimator.getoRb()
         oRh = self.estimator.getoRh()
         oTh = self.estimator.getoTh().reshape((3, 1))
-        # self.a_ref[0:6, 0] = self.estimator.getARef()
+        self.a_ref[0:6, 0] = self.estimator.getARef()
         self.v_ref[0:6, 0] = self.estimator.getVRef()
         self.h_v[0:6, 0] = self.estimator.getHV()
         self.h_v_windowed[0:6, 0] = self.estimator.getHVWindowed()
@@ -321,10 +321,11 @@ class Controller:
 
             # Run InvKin + WBC QP
             self.wbcWrapper.compute(self.q_wbc, self.b_v,
-                                    (self.x_f_mpc[12:24, 0]).copy(), np.array([cgait[0, :]]),
+                                    (self.x_f_mpc[12:24, 0:1]).copy(), np.array([cgait[0, :]]),
                                     self.feet_p_cmd,
                                     self.feet_v_cmd,
-                                    self.feet_a_cmd)
+                                    self.feet_a_cmd,
+                                    self.q_filt_mpc[:, 0:1])
 
             # Quantities sent to the control board
             self.result.P = np.array(self.Kp_main.tolist() * 4)
