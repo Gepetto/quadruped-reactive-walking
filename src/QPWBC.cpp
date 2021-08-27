@@ -195,8 +195,8 @@ int QPWBC::call_solver() {
     // settings->rho = 0.1f;
     // settings->sigma = 1e-6f;
     // settings->max_iter = 4000;
-    settings->eps_abs = (float)1e-5;
-    settings->eps_rel = (float)1e-5;
+    // settings->eps_abs = (float)1e-5;
+    // settings->eps_rel = (float)1e-5;
     /*settings->eps_prim_inf = 1e-4f;
     settings->eps_dual_inf = 1e-4f;
     settings->alpha = 1.6f;
