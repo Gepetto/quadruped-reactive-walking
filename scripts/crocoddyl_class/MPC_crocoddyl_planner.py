@@ -22,7 +22,7 @@ class MPC_crocoddyl_planner():
         self.T_mpc = params.T_mpc                 # Period of the MPC    
         self.n_nodes = int(self.T_mpc/self.dt)    # Number of nodes    
         self.mass = params.mass                   # Mass of the robot
-        self.max_iteration = 20                   # Max iteration ddp solver
+        self.max_iteration = 10                   # Max iteration ddp solver
         self.gI = np.array(params.I_mat.tolist()).reshape((3, 3)) # Inertia matrix in ody frame
 
         # Friction coefficient
@@ -54,8 +54,8 @@ class MPC_crocoddyl_planner():
         self.frictionWeights = 1.                          # Weight Vector : Friction cone cost
         self.heuristicWeights = 0.*np.array(4*[0.03, 0.04])      # Weights on the heuristic term
         self.stepWeights = 0.*np.full(8, 0.005)                 # Weight on the step command (distance between steps)
-        self.stopWeights = 0.5*np.ones(8)                       # Weights to stop the optimisation at the end of the flying phase
-        self.shoulderContactWeight = 0.5*np.full(4,1.)                    # Weight for shoulder-to-contact penalty
+        self.stopWeights = 2.*np.ones(8)                       # Weights to stop the optimisation at the end of the flying phase
+        self.shoulderContactWeight = 20.*np.full(4,1.)                    # Weight for shoulder-to-contact penalty
         self.shoulder_hlim = 0.235
         self.shoulderReferencePosition = False # Use the reference trajectory of the Com (True) or not (False) for shoulder/contact cost
 
