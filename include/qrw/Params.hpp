@@ -96,6 +96,7 @@ class Params {
                // always at least one empty line at the end of the gait matrix
   double mass;                                    // Mass of the robot
   std::vector<double> I_mat;                      // Inertia matrix
+  std::vector<double> CoM_offset;                 // Center of Mass offset
   double h_ref;                                   // Reference height for the base
   std::vector<double> shoulders;                  // Position of shoulders in base frame
   std::vector<double> footsteps_init;             // Initial 3D position of footsteps in base frame

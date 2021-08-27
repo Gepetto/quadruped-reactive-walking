@@ -446,6 +446,7 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("perfect_estimator", &Params::perfect_estimator)
             .def_readwrite("mass", &Params::mass)
             .def_readwrite("I_mat", &Params::I_mat)
+            .def_readwrite("CoM_offset", &Params::CoM_offset)
             .def_readwrite("h_ref", &Params::h_ref)
             .def_readwrite("shoulders", &Params::shoulders)
             .def_readwrite("lock_time", &Params::lock_time)

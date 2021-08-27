@@ -50,7 +50,8 @@ Params::Params()
 
       N_gait(0),
       mass(0.0),
-      I_mat(9, 0.0),  // Fill with zeros, will be filled with values later
+      I_mat(9, 0.0),       // Fill with zeros, will be filled with values later
+      CoM_offset(3, 0.0),  // Fill with zeros, will be filled with values later
       h_ref(0.0),
       shoulders(12, 0.0),                 // Fill with zeros, will be filled with values later
       footsteps_init(12, 0.0),            // Fill with zeros, will be filled with values later
