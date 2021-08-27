@@ -19,13 +19,13 @@ def test_1():
 
     # Velocity of base in horizontal frame
     h_v = np.zeros((18, 1))
-    # h_v[0, 0] = 0.1
-    # h_v[1, 0] = 0.1
-    # h_v[1, 0] = 0.1
+    h_v[0, 0] = 0.1
+    h_v[1, 0] = 0.1
+    #h_v[1, 0] = 0.1
 
     # Velocity reference of base in horizontal frame
     v_ref = np.zeros((18, 1))
-    # v_ref[0, 0] = 0.1
+    v_ref[0, 0] = 0.1
 
     # Params
     params = lqrw.Params()  # Object that holds all controller parameters
@@ -51,7 +51,7 @@ def test_1():
 
     # MPC wrapper
     mpc_wrapper_classic = MPC_Wrapper.MPC_Wrapper(params, q)
-    params.type_MPC = 1
+    params.type_MPC = 3
     mpc_wrapper_croco = MPC_Wrapper.MPC_Wrapper(params, q)
 
     # Update gait
