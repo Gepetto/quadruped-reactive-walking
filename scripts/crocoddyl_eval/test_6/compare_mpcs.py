@@ -59,9 +59,9 @@ def compute_RMSE(array, norm):
 
 # [Linear, Non Linear, Planner, OSQP]
 MPCs = [True, True, True, True] # Boolean to choose which MPC to plot
-MPCs_names = ["Linear", "Non Linear", "Planner", "OSQP"]
-name_files = ["data_lin.npz", "data_nl.npz", "data_planner.npz", "data_osqp_2.npz"] # Names of the files
-folder_path = "crocoddyl_eval/logs/experience_19_08_21/Experiments_Walk_19_08_2021/" # Folder containing the 4 .npz files
+MPCs_names = ["No FF", "-afeet", "JT fmpc", "JT fmpc + M ddq"]
+name_files = ["data_2021_08_27_16_08_0.npz", "data_2021_08_27_15_53_0.npz", "data_2021_08_27_15_42_0.npz", "data_2021_08_27_15_44_0.npz"] # Names of the files
+folder_path = "" # Folder containing the 4 .npz files
 
 # Common data shared by 4 MPCs
 params = lqrw.Params()  # Object that holds all controller parameters
@@ -70,12 +70,19 @@ joy_v_ref = logs.get('joy_v_ref')       # Ref velocity (Nx6) given by the joysti
 planner_xref = logs.get("planner_xref") # Ref state
 N = joy_v_ref.shape[0]                  # Size of the measures
 data_ = np.zeros((N,12,4))              # Store states measured by MOCAP, 4 MPCs (pos,orientation,vel,ang vel)
+tau_ff_ = np.zeros((N,12,4))             # Store feedforward torques
 
 # Get state measured
 for i in range(4):
     if MPCs[i]:
         data_[:,:,i] = get_mocap_logs(folder_path + name_files[i])
+        tau_ff_[:, :, i] = np.load(folder_path + name_files[i]).get("wbc_tau_ff")
 
+for j in range(4):
+    for i in range(12):
+        for t in range(N):
+            if np.isnan(data_[t,i,j]):
+                data_[t,i,j] = data_[t-1,i,j]
 
 ##########
 # PLOTS 
@@ -240,5 +247,35 @@ for i in range(6):
     plt.ylabel(lgd[i])
 plt.suptitle("NORMALIZED RMSE -MEAN: sqrt(  (mes - ref - mean(mes-ref))  **2).mean() ) / measure_max")
 
+
+####
+# FF torques & FB torques & Sent torques & Meas torques
+####
+index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+lgd1 = ["HAA", "HFE", "Knee"]
+lgd2 = ["FL", "FR", "HL", "HR"]
+plt.figure()
+my_axs = []
+for i in range(12):
+    if i == 0:
+        ax = plt.subplot(3, 4, index12[i])
+        my_axs.append(ax)
+    elif i in [1, 2]:
+        ax = plt.subplot(3, 4, index12[i], sharex=my_axs[0])
+        my_axs.append(ax)
+    else:
+        plt.subplot(3, 4, index12[i], sharex=my_axs[0], sharey=my_axs[int(i % 3)])
+
+    for j in range(4):
+        if MPCs[j]:
+            plt.plot(t_range, tau_ff_[:,i,j], color[j], linewidth=3)
+
+    plt.xlabel("Time [s]")
+    plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)]+" [Nm]")
+    tmp = lgd1[i % 3]+" "+lgd2[int(i/3)]
+    plt.legend(legend, prop={'size': 8})
+    plt.ylim([-8.0, 8.0])
+
 # Display all graphs and wait
 plt.show(block=True)
+
