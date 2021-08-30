@@ -285,10 +285,12 @@ class WbcWrapper {
   /// \param[in] vgoals Desired velocities of the four feet in base frame
   /// \param[in] agoals Desired accelerations of the four feet in base frame
   /// \param[in] q_mpc Estimated configuration vector given to the MPC
+  /// \param[in] v_mpc Estimated velocity vector given to the MPC
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void compute(VectorN const &q, VectorN const &dq, VectorN const &f_cmd, MatrixN const &contacts,
-               MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &q_mpc);
+               MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &q_mpc,
+               VectorN const &v_mpc);
 
   VectorN get_qdes() { return qdes_; }
   VectorN get_vdes() { return vdes_; }
@@ -342,23 +344,5 @@ class WbcWrapper {
   int k_log_;                          // Counter for logging purpose
   int indexes_[4] = {10, 18, 26, 34};  // Indexes of feet frames in this order: [FL, FR, HL, HR]
 };
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-///
-/// \brief Compute the pseudo inverse of a matrix using the Jacobi SVD formula
-///
-////////////////////////////////////////////////////////////////////////////////////////////////
-template <typename _Matrix_Type_>
-_Matrix_Type_ pseudoInverse(const _Matrix_Type_ &a, double epsilon = std::numeric_limits<double>::epsilon()) {
-  Eigen::JacobiSVD<_Matrix_Type_> svd(a, Eigen::ComputeThinU | Eigen::ComputeThinV);
-  double tolerance =
-      epsilon * static_cast<double>(std::max(a.cols(), a.rows())) * svd.singularValues().array().abs()(0);
-  return svd.matrixV() *
-         (svd.singularValues().array().abs() > tolerance)
-             .select(svd.singularValues().array().inverse(), 0)
-             .matrix()
-             .asDiagonal() *
-         svd.matrixU().adjoint();
-}
 
 #endif  // QPWBC_H_INCLUDED

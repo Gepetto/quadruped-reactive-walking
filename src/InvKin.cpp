@@ -2,9 +2,9 @@
 
 InvKin::InvKin()
     : invJ(Matrix12::Zero()),
-      acc(Matrix112::Zero()),
-      x_err(Matrix112::Zero()),
-      dx_r(Matrix112::Zero()),
+      acc(Matrix118::Zero()),
+      x_err(Matrix118::Zero()),
+      dx_r(Matrix118::Zero()),
       pfeet_err(Matrix43::Zero()),
       vfeet_ref(Matrix43::Zero()),
       afeet(Matrix43::Zero()),
@@ -12,12 +12,28 @@ InvKin::InvKin()
       vf_(Matrix43::Zero()),
       wf_(Matrix43::Zero()),
       af_(Matrix43::Zero()),
-      Jf_(Matrix12::Zero()),
-      Jf_tmp_(Eigen::Matrix<double, 6, 12>::Zero()),
-      ddq_cmd_(Vector12::Zero()),
-      dq_cmd_(Vector12::Zero()),
-      q_cmd_(Vector12::Zero()),
-      q_step_(Vector12::Zero()) {}
+      Jf_(Eigen::Matrix<double, 12, 18>::Zero()),
+      Jf_tmp_(Eigen::Matrix<double, 6, 18>::Zero()),
+      posb_(Vector3::Zero()),
+      posb_ref_(Vector3::Zero()),
+      posb_err_(Vector3::Zero()),
+      rotb_(Matrix3::Identity()),
+      rotb_ref_(Matrix3::Identity()),
+      rotb_err_(Vector3::Zero()),
+      vb_(Vector3::Zero()),
+      vb_ref_(Vector3::Zero()),
+      wb_(Vector3::Zero()),
+      wb_ref_(Vector3::Zero()),
+      ab_(Vector6::Zero()),
+      abasis(Vector3::Zero()),
+      awbasis(Vector3::Zero()),
+      Jb_(Eigen::Matrix<double, 6, 18>::Zero()),
+      J_(Eigen::Matrix<double, 18, 18>::Zero()),
+      invJ_(Eigen::Matrix<double, 18, 18>::Zero()),
+      ddq_cmd_(Vector18::Zero()),
+      dq_cmd_(Vector18::Zero()),
+      q_cmd_(Vector19::Zero()),
+      q_step_(Vector18::Zero()) {}
 
 void InvKin::initialize(Params& params) {
   // Params store parameters
@@ -28,7 +44,7 @@ void InvKin::initialize(Params& params) {
       std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
 
   // Build model from urdf (base is not free flyer)
-  pinocchio::urdf::buildModel(filename, model_, false);
+  pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
 
   // Construct data from model
   data_ = pinocchio::Data(model_);
@@ -41,6 +57,16 @@ void InvKin::initialize(Params& params) {
   foot_ids_[1] = static_cast<int>(model_.getFrameId("FR_FOOT"));
   foot_ids_[2] = static_cast<int>(model_.getFrameId("HL_FOOT"));
   foot_ids_[3] = static_cast<int>(model_.getFrameId("HR_FOOT"));
+
+  // Get base ID
+  base_id_ = static_cast<int>(model_.getFrameId("base_link"));  // from long uint to int
+
+  // Set task gains
+  Kp_base_position << 0.0, 0.0, 0.0;
+  Kd_base_position << 0.0, 0.0, 0.0;
+  Kp_base_orientation << 0.0, 0.0, 0.0;
+  Kd_base_orientation << 0.0, 0.0, 0.0;
+
 }
 
 void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals, Matrix43 const& vgoals,
@@ -57,31 +83,71 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
     }*/
     afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));  // Drift
   }
+  J_.block(6, 0, 12, 18) = Jf_.block(0, 0, 12, 18);
+
+  // Process base position
+  posb_err_ = posb_ref_ - posb_;
+  abasis = Kp_base_position.cwiseProduct(posb_err_) - Kd_base_position.cwiseProduct(vb_ - vb_ref_);
+  abasis -= ab_.head(3) + wb_.cross(vb_);
+
+  // Process base orientation
+  rotb_err_ = -rotb_ref_ * pinocchio::log3(rotb_ref_.transpose() * rotb_);
+  awbasis = Kp_base_orientation.cwiseProduct(rotb_err_) - Kd_base_orientation.cwiseProduct(wb_ - wb_ref_);
+  awbasis -= ab_.tail(3);
+
+  J_.block(0, 0, 6, 18) = Jb_.block(0, 0, 6, 18); // Position and orientation
+
+  acc.block(0, 0, 1, 3) = abasis.transpose();
+  acc.block(0, 3, 1, 3) = awbasis.transpose();
+  for (int i = 0; i < 4; i++) {
+    acc.block(0, 6+3*i, 1, 3) = afeet.row(i);
+  }
+
+  x_err.block(0, 0, 1, 3) = posb_err_.transpose();
+  x_err.block(0, 3, 1, 3) = rotb_err_.transpose();
+  for (int i = 0; i < 4; i++) {
+    x_err.block(0, 6+3*i, 1, 3) = pfeet_err.row(i);
+  }
+
+  dx_r.block(0, 0, 1, 3) = vb_ref_.transpose();
+  dx_r.block(0, 3, 1, 3) = wb_ref_.transpose();
+  for (int i = 0; i < 4; i++) {
+    dx_r.block(0, 6+3*i, 1, 3) = vfeet_ref.row(i);
+  }
+
+  // Jacobian inversion using damped pseudo inverse
+  invJ_ = pseudoInverse(J_);
 
   // Store data and invert the Jacobian
+  /*
   for (int i = 0; i < 4; i++) {
     acc.block(0, 3 * i, 1, 3) = afeet.row(i);
     x_err.block(0, 3 * i, 1, 3) = pfeet_err.row(i);
     dx_r.block(0, 3 * i, 1, 3) = vfeet_ref.row(i);
     invJ.block(3 * i, 3 * i, 3, 3) = Jf_.block(3 * i, 3 * i, 3, 3).inverse();
   }
+  */
 
   // Once Jacobian has been inverted we can get command accelerations, velocities and positions
-  ddq_cmd_ = invJ * acc.transpose();
-  dq_cmd_ = invJ * dx_r.transpose();
-  q_step_ = invJ * x_err.transpose();  // Not a position but a step in position
+  ddq_cmd_ = invJ_ * acc.transpose();
+  dq_cmd_ = invJ_ * dx_r.transpose();
+  q_step_ = invJ_ * x_err.transpose();  // Not a position but a step in position
 
-  /*
-  std::cout << "J" << std::endl << Jf << std::endl;
-  std::cout << "invJ" << std::endl << invJ << std::endl;
+  /*std::cout << "J" << std::endl << J_ << std::endl;
+  std::cout << "invJ" << std::endl << invJ_ << std::endl;
   std::cout << "acc" << std::endl << acc << std::endl;
-  std::cout << "q_step" << std::endl << q_step << std::endl;
-  std::cout << "dq_cmd" << std::endl << dq_cmd << std::endl;
-  */
+  std::cout << "dx_r" << std::endl << dx_r << std::endl;
+  std::cout << "x_err" << std::endl << x_err << std::endl;
+  std::cout << "ddq_cmd" << std::endl << ddq_cmd_ << std::endl;
+  std::cout << "dq_cmd" << std::endl << dq_cmd_ << std::endl;
+  std::cout << "q_step" << std::endl << q_step_ << std::endl;*/
+  
 }
 
 void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals,
-                        MatrixN const& vgoals, MatrixN const& agoals) {
+                        MatrixN const& vgoals, MatrixN const& agoals, MatrixN const& x_cmd) {
+  // std::cout << "run invkin q: " << q << std::endl;
+  
   // Update model and data of the robot
   pinocchio::forwardKinematics(model_, data_, q, dq, VectorN::Zero(model_.nv));
   pinocchio::computeJointJacobians(model_, data_);
@@ -98,13 +164,45 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
     Jf_tmp_.setZero();  // Fill with 0s because getFrameJacobian only acts on the coeffs it changes so the
     // other coeffs keep their previous value instead of being set to 0
     pinocchio::getFrameJacobian(model_, data_, idx, pinocchio::LOCAL_WORLD_ALIGNED, Jf_tmp_);
-    Jf_.block(3 * i, 0, 3, 12) = Jf_tmp_.block(0, 0, 3, 12);
+    Jf_.block(3 * i, 0, 3, 18) = Jf_tmp_.block(0, 0, 3, 18);
   }
+
+  // Update position and velocity of the base
+  posb_ = data_.oMf[base_id_].translation();  // Position
+  rotb_ = data_.oMf[base_id_].rotation();  // Orientation
+  pinocchio::Motion nu = pinocchio::getFrameVelocity(model_, data_, base_id_, pinocchio::LOCAL_WORLD_ALIGNED);
+  vb_ = nu.linear();  // Linear velocity
+  wb_ = nu.angular();  // Angular velocity
+  pinocchio::Motion acc = pinocchio::getFrameAcceleration(model_, data_, base_id_, pinocchio::LOCAL_WORLD_ALIGNED);
+  ab_.head(3) = acc.linear();  // Linear acceleration
+  ab_.tail(3) = acc.angular();  // Angular acceleration
+  pinocchio::getFrameJacobian(model_, data_, base_id_, pinocchio::LOCAL_WORLD_ALIGNED, Jb_);
+
+  // Update reference position and reference velocity of the base
+  posb_ref_ = x_cmd.block(0, 0, 3, 1);  // Ref position
+  rotb_ref_ = pinocchio::rpy::rpyToMatrix(x_cmd(3, 0), x_cmd(4, 0), x_cmd(5, 0));  // Ref orientation
+  vb_ref_ = x_cmd.block(6, 0, 3, 1);  // Ref linear velocity
+  wb_ref_ = x_cmd.block(9, 0, 3, 1);  // Ref angular velocity
+
+  /*std::cout << "----" << std::endl;
+  std::cout << posf_ << std::endl;
+  std::cout << Jf_ << std::endl;
+  std::cout << posb_ << std::endl;
+  std::cout << rotb_ << std::endl;
+  std::cout << vb_ << std::endl;
+  std::cout << wb_ << std::endl;
+  std::cout << ab_ << std::endl;*/
 
   // IK output for accelerations of actuators (stored in ddq_cmd_)
   // IK output for velocities of actuators (stored in dq_cmd_)
   refreshAndCompute(contacts, pgoals, vgoals, agoals);
 
   // IK output for positions of actuators
-  q_cmd_ = q + q_step_;
+  q_cmd_ = pinocchio::integrate(model_, q, q_step_);
+
+  /*std::cout << "q: " << q << std::endl;
+  std::cout << "q_step_: " << q_step_ << std::endl;
+  std::cout << " q_cmd_: " <<  q_cmd_ << std::endl;*/
+ 
+
 }

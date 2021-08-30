@@ -233,7 +233,7 @@ struct InvKinPythonVisitor : public bp::def_visitor<InvKinPythonVisitor<InvKin>>
             .def("get_foot_id", &InvKin::get_foot_id, bp::args("i"), "Get food frame id.\n")
 
             // Run InvKin from Python
-            .def("run_InvKin", &InvKin::run_InvKin, bp::args("contacts", "pgoals", "vgoals", "agoals"),
+            .def("run_InvKin", &InvKin::run_InvKin, bp::args("contacts", "pgoals", "vgoals", "agoals", "x_cmd"),
                  "Run InvKin from Python.\n");
     }
 
@@ -309,7 +309,8 @@ struct WbcWrapperPythonVisitor : public bp::def_visitor<WbcWrapperPythonVisitor<
             .def_readonly("feet_acc_target", &WbcWrapper::get_feet_acc_target)
 
             // Run WbcWrapper from Python
-            .def("compute", &WbcWrapper::compute, bp::args("q", "dq", "f_cmd", "contacts", "pgoals", "vgoals", "agoals"), "Run WbcWrapper from Python.\n");
+            .def("compute", &WbcWrapper::compute, bp::args("q", "dq", "f_cmd", "contacts", "pgoals", "vgoals",
+                                                           "agoals", "q_mpc", "v_mpc"), "Run WbcWrapper from Python.\n");
     }
 
     static void expose()

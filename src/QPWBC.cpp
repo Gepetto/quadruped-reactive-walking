@@ -516,7 +516,7 @@ void WbcWrapper::initialize(Params &params) {
 }
 
 void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_cmd, MatrixN const &contacts,
-                         MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &q_mpc) {
+                         MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &q_mpc, VectorN const &v_mpc) {
 
   if (f_cmd.rows() != 12) {
     throw std::runtime_error("f_cmd should be a vector of size 12");
@@ -570,8 +570,17 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   
 
   // Compute Inverse Kinematics
-  invkin_->run_InvKin(q.tail(12), dq.tail(12), contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose());
-  ddq_cmd_.tail(12) = invkin_->get_ddq_cmd();
+  Vector19 q_IK = Vector19::Zero();
+  q_IK.block(3, 0, 4, 1) = q_mpc_.block(3, 0, 4, 1);
+  q_IK.tail(12) = q.tail(12);
+  Vector18 dq_IK = Vector18::Zero();
+  dq_IK.tail(12) = dq.tail(12);
+
+  /*std::cout << q.transpose() << std::endl;
+  std::cout << q_IK.transpose() << std::endl;*/
+
+  invkin_->run_InvKin(q_IK, dq_IK, contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose(), Vector12::Zero());
+  ddq_cmd_ = invkin_->get_ddq_cmd();
 
   // std::cout << data_fmpc_.M.block(6, 6, 12, 12) * ddq_cmd_.tail(12) << std::endl;
 
@@ -592,6 +601,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
     }
   }
 
+  /*
   int cpt = 0;
   double ax = 0.0;
   double ay = 0.0;
@@ -607,6 +617,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
     ay *= 1 / cpt;
   }
   ddq_cmd_.head(2) << ax, ay;
+  */
 
   // Compute the inverse dynamics, aka the joint torques according to the current state of the system,
   // the desired joint accelerations and the external forces, using the Recursive Newton Euler Algorithm.
@@ -641,13 +652,26 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   std::cout << "ddq del" << std::endl;
   std::cout << ddq_with_delta_ << std::endl;
   std::cout << "f del" << std::endl;
-  std::cout << f_with_delta_ << std::endl;*/
+  std::cout << f_with_delta_ << std::endl;
+  std::cout << "Jf" << std::endl;
+  std::cout << invkin_->get_Jf().block(0, 6, 12, 12).transpose() << std::endl;*/
 
-  tau_ff_ = data_.tau.tail(12) - invkin_->get_Jf().transpose() * f_with_delta_;
+  tau_ff_ = data_.tau.tail(12) - invkin_->get_Jf().block(0, 6, 12, 12).transpose() * f_with_delta_;
 
   // Retrieve desired positions and velocities
-  vdes_ = invkin_->get_dq_cmd();
-  qdes_ = invkin_->get_q_cmd();
+  vdes_ = invkin_->get_dq_cmd().tail(12);
+
+  // std::cout << "GET:" << invkin_->get_q_cmd() << std::endl;
+
+  qdes_ = invkin_->get_q_cmd().tail(12);
+
+  /*std::cout << vdes_.transpose() << std::endl;
+  std::cout << qdes_.transpose() << std::endl;*/
+
+  /*std::cout << "----" << std::endl;
+  std::cout << qdes_.transpose() << std::endl;
+  std::cout << vdes_.transpose() << std::endl;
+  std::cout << tau_ff_.transpose() << std::endl;*/
 
   // Increment log counter
   k_log_++;

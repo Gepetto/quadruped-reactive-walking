@@ -30,6 +30,7 @@ using Matrix12 = Eigen::Matrix<double, 12, 12>;
 using Matrix13 = Eigen::Matrix<double, 1, 3>;
 using Matrix14 = Eigen::Matrix<double, 1, 4>;
 using Matrix112 = Eigen::Matrix<double, 1, 12>;
+using Matrix118 = Eigen::Matrix<double, 1, 18>;
 using Matrix34 = Eigen::Matrix<double, 3, 4>;
 using Matrix43 = Eigen::Matrix<double, 4, 3>;
 using Matrix64 = Eigen::Matrix<double, 6, 4>;

@@ -325,7 +325,8 @@ class Controller:
                                     self.feet_p_cmd,
                                     self.feet_v_cmd,
                                     self.feet_a_cmd,
-                                    self.q_filt_mpc[:, 0:1])
+                                    self.q_filt_mpc[:, 0:1],
+                                    self.h_v_filt_mpc[:, 0:1])
 
             # Quantities sent to the control board
             self.result.P = np.array(self.Kp_main.tolist() * 4)
