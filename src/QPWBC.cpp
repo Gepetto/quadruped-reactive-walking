@@ -445,8 +445,9 @@ WbcWrapper::WbcWrapper()
       qdes_(Vector12::Zero()),
       vdes_(Vector12::Zero()),
       tau_ff_(Vector12::Zero()),
+      q_wbc_(Vector19::Zero()),
+      dq_wbc_(Vector18::Zero()),
       ddq_cmd_(Vector18::Zero()),
-      q_default_(Vector19::Zero()),
       f_with_delta_(Vector12::Zero()),
       ddq_with_delta_(Vector18::Zero()),
       posf_tmp_(Matrix43::Zero()),
@@ -481,21 +482,21 @@ void WbcWrapper::initialize(Params &params) {
   box_qp_->initialize(params);
 
   // Initialize quaternion
-  q_default_(6, 0) = 1.0;
+  q_wbc_(6, 0) = 1.0;
 
   // Initialize joint positions
   qdes_.tail(12) = Vector12(params_->q_init.data());
 
   // Compute the upper triangular part of the joint space inertia matrix M by using the Composite Rigid Body Algorithm
   // Result is stored in data_.M
-  pinocchio::crba(model_, data_, q_default_);
+  pinocchio::crba(model_, data_, q_wbc_);
 
   // Make mass matrix symetric
   data_.M.triangularView<Eigen::StrictlyLower>() = data_.M.transpose().triangularView<Eigen::StrictlyLower>();
 }
 
 void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_cmd, MatrixN const &contacts,
-                         MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &q_mpc, VectorN const &v_mpc) {
+                         MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &xgoals) {
 
   if (f_cmd.rows() != 12) {
     throw std::runtime_error("f_cmd should be a vector of size 12");
@@ -510,17 +511,16 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   log_feet_vel_target = vgoals;
   log_feet_acc_target = agoals;
 
+  // Retrieve configuration data
+  q_wbc_(2, 0) = q(2, 0);  // Height
+  q_wbc_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q(3, 0), q(4, 0), 0.0)).coeffs();  // Roll, Pitch
+  q_wbc_.tail(12) = q.tail(12);  // Encoders
+
+  // Retrieve velocity data
+  dq_wbc_ = dq;
+
   // Compute Inverse Kinematics
-  Vector19 q_IK = Vector19::Zero();
-  q_IK.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q_mpc(3, 0), q_mpc(4, 0), 0.0)).coeffs();
-  q_IK.tail(12) = q.tail(12);
-  Vector18 dq_IK = Vector18::Zero();
-  dq_IK.tail(12) = dq.tail(12);
-
-  /*std::cout << q.transpose() << std::endl;
-  std::cout << q_IK.transpose() << std::endl;*/
-
-  invkin_->run_InvKin(q_IK, dq_IK, contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose(), Vector12::Zero());
+  invkin_->run_InvKin(q_wbc_, dq_wbc_, contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose(), xgoals);
   ddq_cmd_ = invkin_->get_ddq_cmd();
 
   // TODO: Check if we can save time by switching MatrixXd to defined sized vector since they are
@@ -530,9 +530,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   posf_tmp_ = invkin_->get_posf();
   for (int i = 0; i < 4; i++) {
     if (contacts(0, i)) {
-      Jc_.block(3 * i, 0, 3, 3) = Matrix3::Identity();
-      Jc_.block(3 * i, 3, 3, 3) << 0.0, posf_tmp_(i, 2), -posf_tmp_(i, 1), -posf_tmp_(i, 2), 0.0, posf_tmp_(i, 0),
-          posf_tmp_(i, 1), -posf_tmp_(i, 0), 0.0;
+      Jc_.block(3 * i, 0, 3, 6) = invkin_->get_Jf().block(3 * i, 0, 3, 6);
     } else {
       Jc_.block(3 * i, 0, 3, 6).setZero();
     }
@@ -541,7 +539,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // Compute the inverse dynamics, aka the joint torques according to the current state of the system,
   // the desired joint accelerations and the external forces, using the Recursive Newton Euler Algorithm.
   // Result is stored in data_.tau
-  pinocchio::rnea(model_, data_, q, dq, ddq_cmd_);
+  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
 
   /*std::cout << "M" << std::endl;
   std::cout << data_.M << std::endl;
@@ -564,7 +562,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   ddq_with_delta_.tail(12) = ddq_cmd_.tail(12);
 
   // Compute joint torques from contact forces and desired accelerations
-  pinocchio::rnea(model_, data_, q, dq, ddq_with_delta_);
+  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_with_delta_);
 
   /*std::cout << "rnea delta" << std::endl;
   std::cout << data_.tau.tail(12) << std::endl;

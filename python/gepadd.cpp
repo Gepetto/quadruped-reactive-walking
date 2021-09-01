@@ -309,7 +309,7 @@ struct WbcWrapperPythonVisitor : public bp::def_visitor<WbcWrapperPythonVisitor<
 
             // Run WbcWrapper from Python
             .def("compute", &WbcWrapper::compute, bp::args("q", "dq", "f_cmd", "contacts", "pgoals", "vgoals",
-                                                           "agoals", "q_mpc", "v_mpc"), "Run WbcWrapper from Python.\n");
+                                                           "agoals", "xgoals"), "Run WbcWrapper from Python.\n");
     }
 
     static void expose()

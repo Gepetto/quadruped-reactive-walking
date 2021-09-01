@@ -62,10 +62,10 @@ void InvKin::initialize(Params& params) {
   base_id_ = static_cast<int>(model_.getFrameId("base_link"));  // from long uint to int
 
   // Set task gains
-  Kp_base_position << 0.0, 0.0, 0.0;
-  Kd_base_position << 0.0, 0.0, 0.0;
-  Kp_base_orientation << 0.0, 0.0, 0.0;
-  Kd_base_orientation << 0.0, 0.0, 0.0;
+  Kp_base_position = Vector3(params_->Kp_base_position.data());
+  Kd_base_position = Vector3(params_->Kd_base_position.data());
+  Kp_base_orientation = Vector3(params_->Kp_base_orientation.data());
+  Kd_base_orientation = Vector3(params_->Kd_base_orientation.data());
 
 }
 

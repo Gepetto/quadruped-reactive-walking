@@ -84,6 +84,10 @@ class Params {
   //  Parameters of InvKin
   double Kp_flyingfeet;  // Proportional gain for feet position tasks
   double Kd_flyingfeet;  // Derivative gain for feet position tasks
+  std::vector<double> Kp_base_position;  // Proportional gains for the base position task
+  std::vector<double> Kd_base_position;  // Derivative gains for the base position task
+  std::vector<double> Kp_base_orientation;  // Proportional gains for the base orientation task
+  std::vector<double> Kd_base_orientation;  // Derivative gains for the base orientation task
 
   // Parameters of WBC QP problem
   double Q1;      // Weights for the "delta articular accelerations" optimization variables

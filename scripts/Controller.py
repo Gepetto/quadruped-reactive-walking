@@ -112,6 +112,10 @@ class Controller:
         self.b_v = np.zeros((18, 1))
         self.o_v_filt = np.zeros((18, 1))
 
+        self.q_wbc = np.zeros((18, 1))
+        self.dq_wbc = np.zeros((18, 1))
+        self.xgoals = np.zeros((12, 1))
+
         self.statePlanner = lqrw.StatePlanner()
         self.statePlanner.initialize(params)
 
@@ -304,29 +308,32 @@ class Controller:
         # If nothing wrong happened yet in the WBC controller
         if (not self.error) and (not self.joystick.stop):
 
-            self.q_wbc = np.zeros((19, 1))
-            self.q_wbc[2, 0] = self.h_ref
-            self.q_wbc[6, 0] = 1.0  # with orientation (0.0, 0.0, 0.0)
-            self.q_wbc[7:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop
+            # Update configuration vector for wbc
+            self.q_wbc[2, 0] = self.q_filt_mpc[2, 0]  # Height
+            self.q_wbc[3, 0] = self.q_filt_mpc[3, 0]  # Roll
+            self.q_wbc[4, 0] = self.q_filt_mpc[4, 0]  # Pitch
+            self.q_wbc[6:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop
 
-            # Get velocity in base frame for Pinocchio (not current base frame but desired base frame)
-            self.b_v = np.zeros((18, 1))
-            self.b_v[:6, 0] = self.v_ref[:6, 0]  # Base at reference velocity (TODO: add hRb once v_ref is considered in base frame)
-            self.b_v[6:, 0] = self.wbcWrapper.vdes[:]  # with reference angular velocities of previous loop
+            # Update velocity vector for wbc
+            self.dq_wbc[:6, 0] = self.estimator.getVFilt()[:6]  # Velocities in base frame (not horizontal frame!)
+            self.dq_wbc[6:, 0] = self.wbcWrapper.vdes[:]  # with reference angular velocities of previous loop
 
             # Feet command position, velocity and acceleration in base frame
-            self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(oRh.transpose(), self.v_ref[3:6, 0:1], self.a_ref[0:3, 0:1])
-            self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(oRh.transpose(), self.v_ref[0:3, 0:1], self.v_ref[3:6, 0:1])
-            self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), np.array([[0.0], [0.0], [self.h_ref]]) + oTh)
+            self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
+            self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
+            self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), oTh)
+
+            # Desired position, orientation and velocities of the base
+            self.xgoals[2, 0] = self.h_ref  # Height (in horizontal frame!)
+            self.xgoals[6:, 0] = self.vref_filt_mpc[:, 0]  # Velocities (in horizontal frame!)
 
             # Run InvKin + WBC QP
-            self.wbcWrapper.compute(self.q_wbc, self.b_v,
+            self.wbcWrapper.compute(self.q_wbc, self.dq_wbc,
                                     (self.x_f_mpc[12:24, 0:1]).copy(), np.array([cgait[0, :]]),
                                     self.feet_p_cmd,
                                     self.feet_v_cmd,
                                     self.feet_a_cmd,
-                                    self.q_filt_mpc[:, 0:1],
-                                    self.h_v_filt_mpc[:, 0:1])
+                                    self.xgoals)
 
             # Quantities sent to the control board
             self.result.P = np.array(self.Kp_main.tolist() * 4)

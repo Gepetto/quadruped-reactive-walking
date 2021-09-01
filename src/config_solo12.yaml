@@ -19,11 +19,11 @@ robot:
     dt_wbc: 0.001  # Time step of the whole body control
     dt_mpc: 0.02  # Time step of the model predictive control
     T_gait: 0.48  # Duration of one gait period
-    T_mpc: 0.48  # Duration of the prediction horizon
+    T_mpc: 0.96  # Duration of the prediction horizon
     type_MPC: 0  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
     Kp_main: [3.0, 3.0, 3.0]  # Proportional gains for the PD+
     Kd_main: [0.3, 0.3, 0.3]  # Derivative gains for the PD+
-    Kff_main: 0.0  # Feedforward torques multiplier for the PD+
+    Kff_main: 1.0  # Feedforward torques multiplier for the PD+
 
     # Parameters of Estimator
     fc_v_esti: 50.0  # Cut frequency for the low pass that filters the estimated base velocity
@@ -44,6 +44,10 @@ robot:
     # Parameters of InvKin
     Kp_flyingfeet: 100.0  # Proportional gain for feet position tasks
     Kd_flyingfeet: 20.0  # Derivative gain for feet position tasks
+    Kp_base_position: [100.0, 100.0, 100.0]  # Proportional gains for the base position task
+    Kd_base_position: [20.0, 20.0, 20.0]  # Derivative gains for the base position task
+    Kp_base_orientation: [100.0, 100.0, 0.0]  # Proportional gains for the base orientation task
+    Kd_base_orientation: [20.0, 20.0, 0.0]  # Derivative gains for the base orientation task
 
     # Parameters of WBC QP problem
     Q1: 0.1  # Weights for the "delta articular accelerations" optimization variables

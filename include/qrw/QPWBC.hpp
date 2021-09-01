@@ -284,13 +284,11 @@ class WbcWrapper {
   /// \param[in] pgoals Desired positions of the four feet in base frame
   /// \param[in] vgoals Desired velocities of the four feet in base frame
   /// \param[in] agoals Desired accelerations of the four feet in base frame
-  /// \param[in] q_mpc Estimated configuration vector given to the MPC
-  /// \param[in] v_mpc Estimated velocity vector given to the MPC
+  /// \param[in] xgoals Desired position, orientation and velocities of the base
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void compute(VectorN const &q, VectorN const &dq, VectorN const &f_cmd, MatrixN const &contacts,
-               MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &q_mpc,
-               VectorN const &v_mpc);
+               MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &xgoals);
 
   VectorN get_qdes() { return qdes_; }
   VectorN get_vdes() { return vdes_; }
@@ -320,8 +318,9 @@ class WbcWrapper {
   Vector12 vdes_;                    // Desired actuator velocities
   Vector12 tau_ff_;                  // Desired actuator torques (feedforward)
 
+  Vector19 q_wbc_;           // Configuration vector for the whole body control
+  Vector18 dq_wbc_;          // Velocity vector for the whole body control
   Vector18 ddq_cmd_;         // Actuator accelerations computed by Inverse Kinematics
-  Vector19 q_default_;       // Default configuration vector to compute the mass matrix
   Vector12 f_with_delta_;    // Contact forces with deltas found by QP solver
   Vector18 ddq_with_delta_;  // Actuator accelerations with deltas found by QP solver
 
