@@ -115,6 +115,7 @@ class Controller:
         self.q_wbc = np.zeros((18, 1))
         self.dq_wbc = np.zeros((18, 1))
         self.xgoals = np.zeros((12, 1))
+        self.xgoals[2, 0] = self.h_ref
 
         self.statePlanner = lqrw.StatePlanner()
         self.statePlanner.initialize(params)
@@ -324,7 +325,11 @@ class Controller:
             self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), oTh)
 
             # Desired position, orientation and velocities of the base
-            self.xgoals[2, 0] = self.h_ref  # Height (in horizontal frame!)
+            if not self.gait.getIsStatic():
+                self.xgoals[2:5, 0] = [self.h_ref, 0.0, 0.0]  # Height (in horizontal frame!)
+            else:
+                self.xgoals[2:5, 0] += self.vref_filt_mpc[2:5, 0] * self.dt_wbc
+
             self.xgoals[6:, 0] = self.vref_filt_mpc[:, 0]  # Velocities (in horizontal frame!)
 
             # Run InvKin + WBC QP
@@ -345,9 +350,9 @@ class Controller:
 
             # Display robot in Gepetto corba viewer
             if self.enable_corba_viewer and (self.k % 5 == 0):
-                self.q_display[:3, 0] = np.array([0.0, 0.0, self.h_ref])
-                self.q_display[3:7, 0] = np.array([0.0, 0.0, 0.0, 1.0])
-                self.q_display[7:, 0] = self.wbcWrapper.qdes[:]
+                self.q_display[:3, 0] = self.q_wbc[0:3, 0]
+                self.q_display[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(self.q_wbc[3:6, 0])).coeffs()
+                self.q_display[7:, 0] = self.q_wbc[6:, 0]
                 self.solo.display(self.q_display)
 
         t_wbc = time.time()

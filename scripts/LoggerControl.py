@@ -227,21 +227,23 @@ class LoggerControl():
         # Reconstruct pos and vel of feet in base frame to compare them with the
         # ones desired by the foot trajectory generator and whole-body control
         from example_robot_data.robots_loader import Solo12Loader
-        Solo12Loader.free_flyer = False
+        Solo12Loader.free_flyer = True
         solo12 = Solo12Loader().robot
         FL_FOOT_ID = solo12.model.getFrameId('FL_FOOT')
         FR_FOOT_ID = solo12.model.getFrameId('FR_FOOT')
         HL_FOOT_ID = solo12.model.getFrameId('HL_FOOT')
         HR_FOOT_ID = solo12.model.getFrameId('HR_FOOT')
         foot_ids = np.array([FL_FOOT_ID, FR_FOOT_ID, HL_FOOT_ID, HR_FOOT_ID])
-        q = np.zeros((12, 1))
-        dq = np.zeros((12, 1))
-        pin.computeAllTerms(solo12.model, solo12.data, q, np.zeros((12, 1)))
+        q = np.zeros((19, 1))
+        dq = np.zeros((18, 1))
+        pin.computeAllTerms(solo12.model, solo12.data, q, np.zeros((18, 1)))
         feet_pos = np.zeros([self.esti_q_filt.shape[0], 3, 4])
         feet_vel = np.zeros([self.esti_q_filt.shape[0], 3, 4])
         for i in range(self.esti_q_filt.shape[0]):
-            q[:, 0] = self.loop_o_q[i, 6:]
-            dq[:, 0] = self.loop_o_v[i, 6:]
+            q[:3, 0] = self.loop_q_filt_mpc[i, :3]
+            q[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(self.loop_q_filt_mpc[i, 3:6])).coeffs() 
+            q[7:, 0] = self.loop_o_q[i, 6:]
+            dq[6:, 0] = self.loop_o_v[i, 6:]
             pin.forwardKinematics(solo12.model, solo12.data, q, dq)
             pin.updateFramePlacements(solo12.model, solo12.data)
             for j, idx in enumerate(foot_ids):

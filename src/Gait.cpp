@@ -9,7 +9,7 @@ Gait::Gait()
       T_mpc_(0.0),
       remainingTime_(0.0),
       newPhase_(false),
-      is_static_(true),
+      is_static_(false),
       switch_to_gait_(0),
       q_static_(VectorN::Zero(19)) {
   // Empty
@@ -227,8 +227,8 @@ bool Gait::changeGait(int const k, int const k_mpc, int const code) {
   if (code != 0 && switch_to_gait_ == 0) {
     switch_to_gait_ = code;
   }
-  is_static_ = false;
   if (switch_to_gait_ != 0 && std::remainder(static_cast<double>(k - k_mpc), (k_mpc * T_gait_ * 0.5) / dt_) == 0.0) {
+    is_static_ = false;
     switch (switch_to_gait_) {
       case 1:
         create_pacing();
@@ -240,6 +240,7 @@ bool Gait::changeGait(int const k, int const k_mpc, int const code) {
         create_trot();
         break;
       case 4:
+        is_static_ = true;
         create_static();
         break;
     }

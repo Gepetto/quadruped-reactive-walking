@@ -59,8 +59,9 @@ def compute_RMSE(array, norm):
 
 # [Linear, Non Linear, Planner, OSQP]
 MPCs = [True, True, True, True] # Boolean to choose which MPC to plot
-MPCs_names = ["No FF", "-afeet", "JT fmpc", "JT fmpc + M ddq"]
+MPCs_names = ["No FF", "-afeet", "JT fmpc + M ddq", "Free flyer + Tasks"]
 name_files = ["data_2021_08_27_16_08_0.npz", "data_2021_08_27_15_53_0.npz", "data_2021_08_27_15_42_0.npz", "data_2021_08_27_15_44_0.npz"] # Names of the files
+name_files = ["data_2021_09_02_16_51_0.npz", "data_2021_09_02_16_53_0.npz", "data_2021_09_02_16_55_0.npz", "data_2021_09_02_17_52_0.npz"] # Names of the files
 folder_path = "" # Folder containing the 4 .npz files
 
 # Common data shared by 4 MPCs
@@ -70,13 +71,17 @@ joy_v_ref = logs.get('joy_v_ref')       # Ref velocity (Nx6) given by the joysti
 planner_xref = logs.get("planner_xref") # Ref state
 N = joy_v_ref.shape[0]                  # Size of the measures
 data_ = np.zeros((N,12,4))              # Store states measured by MOCAP, 4 MPCs (pos,orientation,vel,ang vel)
-tau_ff_ = np.zeros((N,12,4))             # Store feedforward torques
+tau_ff_ = np.zeros((N,12,4))            # Store feedforward torques
+mpc_x_f = np.zeros((N,24,4))            # Store feedforward torques
+wbc_f_ctc = np.zeros((N,12,4))          # Store feedforward torques
 
 # Get state measured
 for i in range(4):
     if MPCs[i]:
         data_[:,:,i] = get_mocap_logs(folder_path + name_files[i])
         tau_ff_[:, :, i] = np.load(folder_path + name_files[i]).get("wbc_tau_ff")
+        mpc_x_f[:, :, i] = np.load(folder_path + name_files[i]).get("mpc_x_f")[:, :, 0]
+        wbc_f_ctc[:, :, i] = np.load(folder_path + name_files[i]).get("wbc_f_ctc")
 
 for j in range(4):
     for i in range(12):
@@ -91,7 +96,7 @@ lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitc
 index6 = [1, 3, 5, 2, 4, 6]
 t_range = np.array([k*params.dt_wbc for k in range(N)])
 
-color = ["k", "b", "r", "g--"]
+color = ["k", "b", "r", "g"]
 legend = []
 for i in range(4):
     if MPCs[i]:
@@ -123,7 +128,7 @@ for i in range(6):
    
     plt.legend(legend, prop={'size': 8})
     plt.ylabel(lgd[i])
-plt.suptitle("Measured postion and orientation - MOCAP - ")
+plt.suptitle("Measured velocities - MOCAP - ")
 
 # Compute difference measured - reference
 data_diff = np.zeros((N, 12,4))
@@ -275,6 +280,30 @@ for i in range(12):
     tmp = lgd1[i % 3]+" "+lgd2[int(i/3)]
     plt.legend(legend, prop={'size': 8})
     plt.ylim([-8.0, 8.0])
+
+####
+# Contact forces (MPC command) & WBC QP output
+####
+lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]
+lgd2 = ["FL", "FR", "HL", "HR"]
+legend_tmp = []
+for name in legend:
+    legend_tmp.append(name + " MPC")
+    legend_tmp.append(name + " WBC")
+plt.figure()
+for i in range(3):
+    if i == 0:
+        ax0 = plt.subplot(3, 1, i+1)
+    else:
+        plt.subplot(3, 1, i+1, sharex=ax0)
+    for j in range(4):
+        if MPCs[j]:
+            h1, = plt.plot(t_range, mpc_x_f[:, 12+i, j], color[j], linewidth=3, linestyle="-")
+            h2, = plt.plot(t_range, wbc_f_ctc[:, i, j], color[j], linewidth=3, linestyle="--")
+    plt.xlabel("Time [s]")
+    plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)]+" [N]")
+    plt.legend(legend_tmp, prop={'size': 8})
+
 
 # Display all graphs and wait
 plt.show(block=True)
