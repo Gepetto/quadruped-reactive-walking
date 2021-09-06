@@ -13,6 +13,7 @@ from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRob
 import libquadruped_reactive_walking as lqrw
 from example_robot_data.robots_loader import Solo12Loader
 
+
 class Result:
     """Object to store the result of the control loop
     It contains what is sent to the robot (gains, desired positions and velocities,
@@ -137,8 +138,8 @@ class Controller:
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q)
-        self.o_targetFootstep = np.zeros((3,4)) # Store result for MPC_planner
-       
+        self.o_targetFootstep = np.zeros((3, 4))  # Store result for MPC_planner
+
         # ForceMonitor to display contact forces in PyBullet with red lines
         # import ForceMonitor
         # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
@@ -235,7 +236,7 @@ class Controller:
         self.q[:, 0] = self.estimator.getQUpdated()
         self.v[:, 0] = self.estimator.getVUpdated()
         self.yaw_estim = self.estimator.getYawEstim()
-        # TODO: Understand why using Python or C++ h_v leads to a slightly different result since the 
+        # TODO: Understand why using Python or C++ h_v leads to a slightly different result since the
         # difference between them at each time step is 1e-16 at max (butterfly effect?)
 
         t_filter = time.time()
@@ -275,12 +276,12 @@ class Controller:
         # Solve MPC problem once every k_mpc iterations of the main loop
         if (self.k % self.k_mpc) == 0:
             try:
-                if self.type_MPC == 3 :
+                if self.type_MPC == 3:
                     # Compute the target foostep in local frame, to stop the optimisation around it when t_lock overpass
                     l_targetFootstep = oRh.transpose() @ (self.o_targetFootstep - oTh)
                     self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, l_targetFootstep, oRh, oTh)
-                else :
-                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3,4)))
+                else:
+                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3, 4)))
 
             except ValueError:
                 print("MPC Problem")
@@ -294,14 +295,14 @@ class Controller:
         t_mpc = time.time()
 
         # If the MPC optimizes footsteps positions then we use them
-        if self.k > 100 and self.type_MPC == 3 :
-            for foot in range(4):                  
-                if cgait[0,foot] == 0 :
+        if self.k > 100 and self.type_MPC == 3:
+            for foot in range(4):
+                if cgait[0, foot] == 0:
                     id = 0
-                    while cgait[id,foot] == 0 :
+                    while cgait[id, foot] == 0:
                         id += 1
-                    self.o_targetFootstep[:2,foot] = self.x_f_mpc[24 +  2*foot:24+2*foot+2, id+1]
-        
+                    self.o_targetFootstep[:2, foot] = self.x_f_mpc[24 + 2*foot:24+2*foot+2, id+1]
+
         # Update pos, vel and acc references for feet
         self.footTrajectoryGenerator.update(self.k, self.o_targetFootstep)
 
@@ -310,23 +311,25 @@ class Controller:
         if (not self.error) and (not self.joystick.stop):
 
             # Update configuration vector for wbc
-            self.q_wbc[2, 0] = self.q_filt_mpc[2, 0]  # Height
+            self.q_wbc[2, 0] = self.q_filt_mpc[2, 0]  # Height
             self.q_wbc[3, 0] = self.q_filt_mpc[3, 0]  # Roll
             self.q_wbc[4, 0] = self.q_filt_mpc[4, 0]  # Pitch
             self.q_wbc[6:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop
 
             # Update velocity vector for wbc
-            self.dq_wbc[:6, 0] = self.estimator.getVFilt()[:6]  # Velocities in base frame (not horizontal frame!)
+            self.dq_wbc[:6, 0] = self.estimator.getVFilt()[:6]  #  Velocities in base frame (not horizontal frame!)
             self.dq_wbc[6:, 0] = self.wbcWrapper.vdes[:]  # with reference angular velocities of previous loop
 
             # Feet command position, velocity and acceleration in base frame
-            self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
-            self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
+            self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(
+                oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
+            self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(
+                oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
             self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), oTh)
 
             # Desired position, orientation and velocities of the base
             if not self.gait.getIsStatic():
-                self.xgoals[2:5, 0] = [self.h_ref, 0.0, 0.0]  # Height (in horizontal frame!)
+                self.xgoals[2:5, 0] = [self.h_ref, 0.0, 0.0]  #  Height (in horizontal frame!)
             else:
                 self.xgoals[2:5, 0] += self.vref_filt_mpc[2:5, 0] * self.dt_wbc
 
@@ -361,7 +364,8 @@ class Controller:
         self.security_check()
 
         # Update PyBullet camera
-        self.pyb_camera(device, 0.0)  # to have yaw update in simu: utils_mpc.quaternionToRPY(self.estimator.q_filt[3:7, 0])[2, 0]
+        # to have yaw update in simu: utils_mpc.quaternionToRPY(self.estimator.q_filt[3:7, 0])[2, 0]
+        self.pyb_camera(device, 0.0)
 
         # Logs
         self.log_misc(t_start, t_filter, t_planner, t_mpc, t_wbc)
