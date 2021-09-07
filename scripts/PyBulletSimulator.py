@@ -210,6 +210,12 @@ class pybullet_simulator:
                                                        basePosition=[0.0, 0.0, -0.1],
                                                        useMaximalCoordinates=True)
 
+        # Create a red line for debug purpose
+        self.lineId_red = []
+
+        # Create a blue line for debug purpose
+        self.lineId_blue = []
+
         """cubeStartPos = [0.0, 0.45, 0.0]
         cubeStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0])
         self.cubeId = pyb.loadURDF("cube_small.urdf",

@@ -290,7 +290,7 @@ class Controller:
         self.x_f_mpc = self.mpc_wrapper.get_latest_result()
 
         # Store o_targetFootstep, used with MPC_planner
-        self.o_targetFootstep = o_targetFootstep.copy()
+        self.o_targetFootstep = o_targetFootstep.copy()  # TODO: VERIFIER CHANGEMENT DE REPERE DANS MPC?!!
 
         t_mpc = time.time()
 
@@ -358,6 +358,14 @@ class Controller:
                 self.q_display[7:, 0] = self.q_wbc[6:, 0]
                 self.solo.display(self.q_display)
 
+            """if self.k > 0:
+
+                oTh_pyb = device.dummyPos.ravel().tolist()
+                oTh_pyb[2] = 0.30
+                q_oRb_pyb = pin.Quaternion(pin.rpy.rpyToMatrix(self.k/(57.3 * 500), 0.0,
+                                           device.imu.attitude_euler[2])).coeffs().tolist()
+                pyb.resetBasePositionAndOrientation(device.pyb_sim.robotId, oTh_pyb, q_oRb_pyb)"""
+
         t_wbc = time.time()
 
         # Security check
@@ -366,6 +374,9 @@ class Controller:
         # Update PyBullet camera
         # to have yaw update in simu: utils_mpc.quaternionToRPY(self.estimator.q_filt[3:7, 0])[2, 0]
         self.pyb_camera(device, 0.0)
+
+        # Update debug display (spheres, ...)
+        self.pyb_debug(device, fsteps, cgait, xref)
 
         # Logs
         self.log_misc(t_start, t_filter, t_planner, t_mpc, t_wbc)
@@ -383,6 +394,74 @@ class Controller:
             #                                cameraTargetPosition=[1.0, 0.3, 0.25])
             pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
                                            cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])
+
+    def pyb_debug(self, device, fsteps, cgait, xref):
+
+        if self.k > 1 and self.enable_pyb_GUI:
+
+            # Display desired feet positions in WBC as green spheres
+            oTh_pyb = device.dummyPos.reshape((-1, 1))
+            oTh_pyb[2, 0] -= self.q_wbc[2, 0]
+            oRh_pyb = pin.rpy.rpyToMatrix(0.0, 0.0, device.imu.attitude_euler[2])
+            for i in range(4):
+                pos = oRh_pyb @ self.feet_p_cmd[:, i:(i+1)] + oTh_pyb
+                pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids_deb[i], pos[:, 0].tolist(), [0, 0, 0, 1])
+
+            # Display desired footstep positions as blue spheres
+            for i in range(4):
+                j = 0
+                cpt = 1
+                status = cgait[0, i]
+                while cpt < cgait.shape[0] and j < device.pyb_sim.ftps_Ids.shape[1]:
+                    while cpt < cgait.shape[0] and cgait[cpt, i] == status:
+                        cpt += 1
+                    if cpt < cgait.shape[0]:
+                        status = cgait[cpt, i]
+                        if status:
+                            pos = oRh_pyb @ fsteps[cpt, (3*i):(3*(i+1))].reshape((-1, 1)) + oTh_pyb
+                            pyb.resetBasePositionAndOrientation(
+                                device.pyb_sim.ftps_Ids[i, j], pos[:, 0].tolist(), [0, 0, 0, 1])
+                        else:
+                            pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids[i, j], [
+                                                                0.0, 0.0, -0.1], [0, 0, 0, 1])
+                        j += 1
+
+                # Hide unused spheres underground
+                for k in range(j, device.pyb_sim.ftps_Ids.shape[1]):
+                    pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids[i, k], [0.0, 0.0, -0.1], [0, 0, 0, 1])
+
+            # Display reference trajectory
+            """from IPython import embed
+            embed()"""
+
+            xref_rot = np.zeros((3, xref.shape[1]))
+            for i in range(xref.shape[1]):
+                xref_rot[:, i:(i+1)] = oRh_pyb @ xref[:3, i:(i+1)] + oTh_pyb + np.array([[0.0], [0.0], [0.1]])
+
+            if len(device.pyb_sim.lineId_red) == 0:
+                for i in range(xref.shape[1]-1):
+                    device.pyb_sim.lineId_red.append(pyb.addUserDebugLine(
+                        xref_rot[:3, i].tolist(), xref_rot[:3, i+1].tolist(), lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8))
+            else:
+                for i in range(xref.shape[1]-1):
+                    device.pyb_sim.lineId_red[i] = pyb.addUserDebugLine(xref_rot[:3, i].tolist(), xref_rot[:3, i+1].tolist(),
+                                                                        lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8,
+                                                                        replaceItemUniqueId=device.pyb_sim.lineId_red[i])
+
+            # Display predicted trajectory
+            x_f_mpc_rot = np.zeros((3, self.x_f_mpc.shape[1]))
+            for i in range(self.x_f_mpc.shape[1]):
+                x_f_mpc_rot[:, i:(i+1)] = oRh_pyb @ self.x_f_mpc[:3, i:(i+1)] + oTh_pyb + np.array([[0.0], [0.0], [0.1]])
+
+            if len(device.pyb_sim.lineId_blue) == 0:
+                for i in range(self.x_f_mpc.shape[1]-1):
+                    device.pyb_sim.lineId_blue.append(pyb.addUserDebugLine(
+                        x_f_mpc_rot[:3, i].tolist(), x_f_mpc_rot[:3, i+1].tolist(), lineColorRGB=[0.0, 0.0, 1.0], lineWidth=8))
+            else:
+                for i in range(self.x_f_mpc.shape[1]-1):
+                    device.pyb_sim.lineId_blue[i] = pyb.addUserDebugLine(x_f_mpc_rot[:3, i].tolist(), x_f_mpc_rot[:3, i+1].tolist(),
+                                                                        lineColorRGB=[0.0, 0.0, 1.0], lineWidth=8,
+                                                                        replaceItemUniqueId=device.pyb_sim.lineId_blue[i])
 
     def security_check(self):
 

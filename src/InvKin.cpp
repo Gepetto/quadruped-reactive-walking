@@ -71,6 +71,12 @@ void InvKin::initialize(Params& params) {
 
 void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals, Matrix43 const& vgoals,
                                Matrix43 const& agoals) {
+
+  /*std::cout << "pgoals:" << std::endl;
+  std::cout << pgoals.row(0) << std::endl;
+  std::cout << "posf_" << std::endl;
+  std::cout << posf_.row(0) << std::endl;*/
+
   // Process feet
   for (int i = 0; i < 4; i++) {
     pfeet_err.row(i) = pgoals.row(i) - posf_.row(i);
@@ -130,6 +136,8 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
 
   // Once Jacobian has been inverted we can get command accelerations, velocities and positions
   ddq_cmd_ = invJ_ * acc.transpose();
+
+  invJ_.block(0, 0, 18, 6).setZero();
   dq_cmd_ = invJ_ * dx_r.transpose();
   q_step_ = invJ_ * x_err.transpose();  // Not a position but a step in position
 
@@ -199,6 +207,12 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
 
   // IK output for positions of actuators
   q_cmd_ = pinocchio::integrate(model_, q, q_step_);
+
+  /*pinocchio::forwardKinematics(model_, data_, q_cmd_, dq, VectorN::Zero(model_.nv));
+  pinocchio::computeJointJacobians(model_, data_);
+  pinocchio::updateFramePlacements(model_, data_);
+  std::cout << "pos after step" << std::endl;
+  std::cout << data_.oMf[foot_ids_[0]].translation()  << std::endl;*/
 
   /*std::cout << "q: " << q << std::endl;
   std::cout << "q_step_: " << q_step_ << std::endl;
