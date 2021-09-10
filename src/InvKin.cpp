@@ -28,8 +28,8 @@ InvKin::InvKin()
       abasis(Vector3::Zero()),
       awbasis(Vector3::Zero()),
       Jb_(Eigen::Matrix<double, 6, 18>::Zero()),
-      J_(Eigen::Matrix<double, 18, 18>::Zero()),
-      invJ_(Eigen::Matrix<double, 18, 18>::Zero()),
+      J_(Eigen::Matrix<double, 24, 18>::Zero()),
+      invJ_(Eigen::Matrix<double, 18, 24>::Zero()),
       ddq_cmd_(Vector18::Zero()),
       dq_cmd_(Vector18::Zero()),
       q_cmd_(Vector19::Zero()),
@@ -77,48 +77,85 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
   std::cout << "posf_" << std::endl;
   std::cout << posf_.row(0) << std::endl;*/
 
-  // Process feet
+  // Acceleration references for the feet tracking task
   for (int i = 0; i < 4; i++) {
     pfeet_err.row(i) = pgoals.row(i) - posf_.row(i);
     vfeet_ref.row(i) = vgoals.row(i);
 
-    afeet.row(i) = +params_->Kp_flyingfeet * pfeet_err.row(i) - params_->Kd_flyingfeet * (vf_.row(i) - vgoals.row(i)) +
-                   agoals.row(i);
-    /*if (contacts(0, i) == 1.0) {
+    if (contacts(0, i) == 0.0)
+    {
+      afeet.row(i) = +params_->Kp_flyingfeet * pfeet_err.row(i) - params_->Kd_flyingfeet * (vf_.row(i) - vgoals.row(i)) +
+                     agoals.row(i);
+    }
+    else
+    {
       afeet.row(i).setZero();  // Set to 0.0 to disable position/velocity control of feet in contact
-    }*/
-    afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));  // Drift
+    }
+    afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));  // - dJ dq
   }
-  J_.block(6, 0, 12, 18) = Jf_.block(0, 0, 12, 18);
 
-  // Process base position
-  posb_err_ = posb_ref_ - posb_;
-  abasis = Kp_base_position.cwiseProduct(posb_err_) - Kd_base_position.cwiseProduct(vb_ - vb_ref_);
-  abasis -= ab_.head(3) + wb_.cross(vb_);
+  // Jacobian for the feet tracking task
+  J_.block(0, 0, 12, 18) = Jf_.block(0, 0, 12, 18);
 
-  // Process base orientation
+  // Acceleration references for the base orientation task
   rotb_err_ = -rotb_ref_ * pinocchio::log3(rotb_ref_.transpose() * rotb_);
   awbasis = Kp_base_orientation.cwiseProduct(rotb_err_) - Kd_base_orientation.cwiseProduct(wb_ - wb_ref_);
   awbasis -= ab_.tail(3);
 
-  J_.block(0, 0, 6, 18) = Jb_.block(0, 0, 6, 18); // Position and orientation
+  // Jacobian for the base orientation task
+  J_.block(12, 0, 3, 18) = Jb_.block(3, 0, 3, 18);
 
-  acc.block(0, 0, 1, 3) = abasis.transpose();
-  acc.block(0, 3, 1, 3) = awbasis.transpose();
+  // Acceleration references for the base / feet position task
+  posb_err_ = posb_ref_ - posb_;
+  abasis = Kp_base_position.cwiseProduct(posb_err_) - Kd_base_position.cwiseProduct(vb_ - vb_ref_);
+  abasis -= ab_.head(3) + wb_.cross(vb_);
+
+  // Jacobian for the base / feet position task
   for (int i = 0; i < 4; i++) {
-    acc.block(0, 6+3*i, 1, 3) = afeet.row(i);
+    if (contacts(0, i) == 1.0)  // Feet in contact
+    {
+      J_.block(15 + 3 * i, 0, 3, 18) = Jb_.block(0, 0, 3, 18) - Jf_.block(3*i, 0, 3, 18);
+    }
+    else  // Feet not in contact -> not used for this task
+    {
+      J_.block(15 + 3 * i, 0, 3, 18).setZero();
+    }
   }
 
-  x_err.block(0, 0, 1, 3) = posb_err_.transpose();
-  x_err.block(0, 3, 1, 3) = rotb_err_.transpose();
+  // Gather all acceleration references in a single vector
+  // Feet tracking task
   for (int i = 0; i < 4; i++) {
-    x_err.block(0, 6+3*i, 1, 3) = pfeet_err.row(i);
+    acc.block(0, 3*i, 1, 3) = afeet.row(i);
+  }
+  // Base orientation task
+  acc.block(0, 12, 1, 3) = awbasis.transpose();
+  // Base / feet position task
+  for (int i = 0; i < 4; i++) {
+    acc.block(0, 15+3*i, 1, 3) = abasis.transpose() - afeet.row(i);
   }
 
-  dx_r.block(0, 0, 1, 3) = vb_ref_.transpose();
-  dx_r.block(0, 3, 1, 3) = wb_ref_.transpose();
+  // Gather all task errors in a single vector
+  // Feet tracking task
   for (int i = 0; i < 4; i++) {
-    dx_r.block(0, 6+3*i, 1, 3) = vfeet_ref.row(i);
+    x_err.block(0, 3*i, 1, 3) = pfeet_err.row(i);
+  }
+  // Base orientation task
+  x_err.block(0, 12, 1, 3) = rotb_err_.transpose();
+  // Base / feet position task
+  for (int i = 0; i < 4; i++) {
+    x_err.block(0, 15+3*i, 1, 3) = posb_err_.transpose() - pfeet_err.row(i);
+  }
+
+  // Gather all task velocity references in a single vector
+  // Feet tracking task
+  for (int i = 0; i < 4; i++) {
+    dx_r.block(0, 3*i, 1, 3) = vfeet_ref.row(i);
+  }
+  // Base orientation task
+  dx_r.block(0, 12, 1, 3) = wb_ref_.transpose();
+  // Base / feet position task
+  for (int i = 0; i < 4; i++) {
+    dx_r.block(0, 15+3*i, 1, 3) = vb_ref_.transpose() - pfeet_err.row(i);
   }
 
   // Jacobian inversion using damped pseudo inverse
