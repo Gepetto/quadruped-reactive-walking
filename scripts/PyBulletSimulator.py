@@ -26,6 +26,7 @@ class pybullet_simulator:
         if enable_pyb_GUI:
             pyb.connect(pyb.GUI)
             pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
+            pyb.configureDebugVisualizer(pyb.COV_ENABLE_SHADOWS, 0)
 
         else:
             pyb.connect(pyb.DIRECT)
