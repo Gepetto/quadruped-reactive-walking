@@ -136,8 +136,6 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
 
   // Once Jacobian has been inverted we can get command accelerations, velocities and positions
   ddq_cmd_ = invJ_ * acc.transpose();
-
-  invJ_.block(0, 0, 18, 6).setZero();
   dq_cmd_ = invJ_ * dx_r.transpose();
   q_step_ = invJ_ * x_err.transpose();  // Not a position but a step in position
 
@@ -194,6 +192,7 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
 
   /*std::cout << "----" << std::endl;
   std::cout << posf_ << std::endl;
+  std::cout << pgoals << std::endl;
   std::cout << Jf_ << std::endl;
   std::cout << posb_ << std::endl;
   std::cout << rotb_ << std::endl;
