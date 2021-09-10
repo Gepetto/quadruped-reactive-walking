@@ -290,7 +290,7 @@ class Controller:
         self.x_f_mpc = self.mpc_wrapper.get_latest_result()
 
         # Store o_targetFootstep, used with MPC_planner
-        self.o_targetFootstep = o_targetFootstep.copy()  # TODO: VERIFIER CHANGEMENT DE REPERE DANS MPC?!!
+        self.o_targetFootstep = o_targetFootstep.copy()
 
         t_mpc = time.time()
 
@@ -311,7 +311,7 @@ class Controller:
         if (not self.error) and (not self.joystick.stop):
 
             # Update configuration vector for wbc
-            self.q_wbc[2, 0] = self.q_filt_mpc[2, 0]  # Height
+            self.q_wbc[2, 0] = self.h_ref  # Height
             self.q_wbc[3, 0] = self.q_filt_mpc[3, 0]  # Roll
             self.q_wbc[4, 0] = self.q_filt_mpc[4, 0]  # Pitch
             self.q_wbc[6:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop
@@ -436,7 +436,7 @@ class Controller:
 
             xref_rot = np.zeros((3, xref.shape[1]))
             for i in range(xref.shape[1]):
-                xref_rot[:, i:(i+1)] = oRh_pyb @ xref[:3, i:(i+1)] + oTh_pyb + np.array([[0.0], [0.0], [0.1]])
+                xref_rot[:, i:(i+1)] = oRh_pyb @ xref[:3, i:(i+1)] + oTh_pyb + np.array([[0.0], [0.0], [0.05]])
 
             if len(device.pyb_sim.lineId_red) == 0:
                 for i in range(xref.shape[1]-1):
@@ -451,7 +451,7 @@ class Controller:
             # Display predicted trajectory
             x_f_mpc_rot = np.zeros((3, self.x_f_mpc.shape[1]))
             for i in range(self.x_f_mpc.shape[1]):
-                x_f_mpc_rot[:, i:(i+1)] = oRh_pyb @ self.x_f_mpc[:3, i:(i+1)] + oTh_pyb + np.array([[0.0], [0.0], [0.1]])
+                x_f_mpc_rot[:, i:(i+1)] = oRh_pyb @ self.x_f_mpc[:3, i:(i+1)] + oTh_pyb + np.array([[0.0], [0.0], [0.05]])
 
             if len(device.pyb_sim.lineId_blue) == 0:
                 for i in range(self.x_f_mpc.shape[1]-1):
