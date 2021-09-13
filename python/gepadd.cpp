@@ -290,10 +290,12 @@ struct WbcWrapperPythonVisitor : public bp::def_visitor<WbcWrapperPythonVisitor<
 
             .def("initialize", &WbcWrapper::initialize, bp::args("params"), "Initialize WbcWrapper from Python.\n")
 
+            .def("get_bdes", &WbcWrapper::get_bdes, "Get bdes_.\n")
             .def("get_qdes", &WbcWrapper::get_qdes, "Get qdes_.\n")
             .def("get_vdes", &WbcWrapper::get_vdes, "Get vdes_.\n")
             .def("get_tau_ff", &WbcWrapper::get_tau_ff, "Get tau_ff_.\n")
 
+            .def_readonly("bdes", &WbcWrapper::get_bdes)
             .def_readonly("qdes", &WbcWrapper::get_qdes)
             .def_readonly("vdes", &WbcWrapper::get_vdes)
             .def_readonly("tau_ff", &WbcWrapper::get_tau_ff)

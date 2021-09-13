@@ -153,9 +153,10 @@ class InvKin {
 /// \brief Compute the pseudo inverse of a matrix using the Jacobi SVD formula
 ///
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <typename _Matrix_Type_>
-_Matrix_Type_ pseudoInverse(const _Matrix_Type_ &a, double epsilon = std::numeric_limits<double>::epsilon()) {
-  Eigen::JacobiSVD<_Matrix_Type_> svd(a, Eigen::ComputeThinU | Eigen::ComputeThinV);
+Eigen::MatrixXd pseudoInverse(const _Matrix_Type_ &a, double epsilon = std::numeric_limits<double>::epsilon()) {
+  Eigen::JacobiSVD<Eigen::MatrixXd> svd(a, Eigen::ComputeThinU | Eigen::ComputeThinV);
   double tolerance =
       epsilon * static_cast<double>(std::max(a.cols(), a.rows())) * svd.singularValues().array().abs()(0);
   return svd.matrixV() *

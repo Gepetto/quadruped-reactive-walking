@@ -2,9 +2,9 @@
 
 InvKin::InvKin()
     : invJ(Matrix12::Zero()),
-      acc(Matrix118::Zero()),
-      x_err(Matrix118::Zero()),
-      dx_r(Matrix118::Zero()),
+      acc(Eigen::Matrix<double, 1, 27>::Zero()),
+      x_err(Eigen::Matrix<double, 1, 27>::Zero()),
+      dx_r(Eigen::Matrix<double, 1, 27>::Zero()),
       pfeet_err(Matrix43::Zero()),
       vfeet_ref(Matrix43::Zero()),
       afeet(Matrix43::Zero()),
@@ -28,8 +28,8 @@ InvKin::InvKin()
       abasis(Vector3::Zero()),
       awbasis(Vector3::Zero()),
       Jb_(Eigen::Matrix<double, 6, 18>::Zero()),
-      J_(Eigen::Matrix<double, 24, 18>::Zero()),
-      invJ_(Eigen::Matrix<double, 18, 24>::Zero()),
+      J_(Eigen::Matrix<double, 27, 18>::Zero()),
+      invJ_(Eigen::Matrix<double, 18, 27>::Zero()),
       ddq_cmd_(Vector18::Zero()),
       dq_cmd_(Vector18::Zero()),
       q_cmd_(Vector19::Zero()),
@@ -73,9 +73,9 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
                                Matrix43 const& agoals) {
 
   /*std::cout << "pgoals:" << std::endl;
-  std::cout << pgoals.row(0) << std::endl;
+  std::cout << pgoals << std::endl;
   std::cout << "posf_" << std::endl;
-  std::cout << posf_.row(0) << std::endl;*/
+  std::cout << posf_ << std::endl;*/
 
   // Acceleration references for the feet tracking task
   for (int i = 0; i < 4; i++) {
@@ -125,41 +125,86 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
   // Gather all acceleration references in a single vector
   // Feet tracking task
   for (int i = 0; i < 4; i++) {
-    acc.block(0, 3*i, 1, 3) = afeet.row(i);
+    if (contacts(0, i) == 1.0)  // Feet in contact
+    {
+      acc.block(0, 3*i, 1, 3).setZero();
+    }
+    else  // Feet not in contact
+    {
+      acc.block(0, 3*i, 1, 3) = afeet.row(i);
+    }
   }
   // Base orientation task
   acc.block(0, 12, 1, 3) = awbasis.transpose();
   // Base / feet position task
   for (int i = 0; i < 4; i++) {
-    acc.block(0, 15+3*i, 1, 3) = abasis.transpose() - afeet.row(i);
+    if (contacts(0, i) == 1.0)  // Feet in contact
+    {
+      acc.block(0, 15+3*i, 1, 3) = abasis.transpose() - afeet.row(i);
+    }
+    else  // Feet not in contact
+    {
+      acc.block(0, 15+3*i, 1, 3).setZero();
+    }
   }
 
   // Gather all task errors in a single vector
   // Feet tracking task
   for (int i = 0; i < 4; i++) {
-    x_err.block(0, 3*i, 1, 3) = pfeet_err.row(i);
+    if (contacts(0, i) == 1.0)  // Feet in contact
+    {
+      x_err.block(0, 3*i, 1, 3).setZero();
+    }
+    else  // Feet not in contact
+    {
+      x_err.block(0, 3*i, 1, 3) = pfeet_err.row(i);
+    }
   }
   // Base orientation task
   x_err.block(0, 12, 1, 3) = rotb_err_.transpose();
   // Base / feet position task
   for (int i = 0; i < 4; i++) {
-    x_err.block(0, 15+3*i, 1, 3) = posb_err_.transpose() - pfeet_err.row(i);
+    if (contacts(0, i) == 1.0)  // Feet in contact
+    {
+      x_err.block(0, 15+3*i, 1, 3) = posb_err_.transpose() - pfeet_err.row(i);
+    }
+    else  // Feet not in contact
+    {
+      x_err.block(0, 15+3*i, 1, 3).setZero();
+    }
   }
 
   // Gather all task velocity references in a single vector
   // Feet tracking task
   for (int i = 0; i < 4; i++) {
-    dx_r.block(0, 3*i, 1, 3) = vfeet_ref.row(i);
+    if (contacts(0, i) == 1.0)  // Feet in contact
+    {
+      dx_r.block(0, 3*i, 1, 3).setZero();
+    }
+    else  // Feet not in contact
+    {
+      dx_r.block(0, 3*i, 1, 3) = vfeet_ref.row(i);
+    }
   }
   // Base orientation task
   dx_r.block(0, 12, 1, 3) = wb_ref_.transpose();
   // Base / feet position task
   for (int i = 0; i < 4; i++) {
-    dx_r.block(0, 15+3*i, 1, 3) = vb_ref_.transpose() - pfeet_err.row(i);
+    if (contacts(0, i) == 1.0)  // Feet in contact
+    {
+      dx_r.block(0, 15+3*i, 1, 3) = vb_ref_.transpose() - vfeet_ref.row(i);
+    }
+    else  // Feet not in contact
+    {
+      dx_r.block(0, 15+3*i, 1, 3).setZero();
+    }
   }
 
   // Jacobian inversion using damped pseudo inverse
   invJ_ = pseudoInverse(J_);
+  /*Eigen::MatrixXd test = pseudoInverse(J_);
+  std::cout << test.rows() << std::endl;
+  std::cout << test.cols() << std::endl;*/
 
   // Store data and invert the Jacobian
   /*
@@ -244,15 +289,20 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
   // IK output for positions of actuators
   q_cmd_ = pinocchio::integrate(model_, q, q_step_);
 
-  /*pinocchio::forwardKinematics(model_, data_, q_cmd_, dq, VectorN::Zero(model_.nv));
+  /*pinocchio::forwardKinematics(model_, data_, q_cmd_, dq_cmd_, ddq_cmd_);
   pinocchio::computeJointJacobians(model_, data_);
   pinocchio::updateFramePlacements(model_, data_);
   std::cout << "pos after step" << std::endl;
-  std::cout << data_.oMf[foot_ids_[0]].translation()  << std::endl;*/
+  std::cout << data_.oMf[foot_ids_[0]].translation()  << std::endl;
+  std::cout << "vel after step" << std::endl;
+  std::cout << pinocchio::getFrameVelocity(model_, data_, foot_ids_[0], pinocchio::LOCAL_WORLD_ALIGNED).linear() << std::endl;
+  std::cout << "acc after step" << std::endl;
+  std::cout << pinocchio::getFrameAcceleration(model_, data_, foot_ids_[0], pinocchio::LOCAL_WORLD_ALIGNED).linear() << std::endl;*/
 
   /*std::cout << "q: " << q << std::endl;
   std::cout << "q_step_: " << q_step_ << std::endl;
   std::cout << " q_cmd_: " <<  q_cmd_ << std::endl;*/
+
  
 
 }

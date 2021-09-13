@@ -442,6 +442,7 @@ WbcWrapper::WbcWrapper()
     : M_(Eigen::Matrix<double, 18, 18>::Zero()),
       Jc_(Eigen::Matrix<double, 12, 6>::Zero()),
       k_since_contact_(Eigen::Matrix<double, 1, 4>::Zero()),
+      bdes_(Vector7::Zero()),
       qdes_(Vector12::Zero()),
       vdes_(Vector12::Zero()),
       tau_ff_(Vector12::Zero()),
@@ -512,8 +513,8 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   log_feet_acc_target = agoals;
 
   // Retrieve configuration data
-  q_wbc_(2, 0) = q(2, 0);  // Height
-  q_wbc_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q(3, 0), q(4, 0), 0.0)).coeffs();  // Roll, Pitch
+  q_wbc_.head(3) = q.head(3);
+  q_wbc_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q(3, 0), q(4, 0), q(5, 0))).coeffs();  // Roll, Pitch
   q_wbc_.tail(12) = q.tail(12);  // Encoders
 
   // Retrieve velocity data
@@ -581,6 +582,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // std::cout << "GET:" << invkin_->get_q_cmd() << std::endl;
 
   qdes_ = invkin_->get_q_cmd().tail(12);
+  bdes_ = invkin_->get_q_cmd().head(7);
 
   /*std::cout << vdes_.transpose() << std::endl;
   std::cout << qdes_.transpose() << std::endl;*/

@@ -290,6 +290,7 @@ class WbcWrapper {
   void compute(VectorN const &q, VectorN const &dq, VectorN const &f_cmd, MatrixN const &contacts,
                MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &xgoals);
 
+  VectorN get_bdes() { return bdes_; }
   VectorN get_qdes() { return qdes_; }
   VectorN get_vdes() { return vdes_; }
   VectorN get_tau_ff() { return tau_ff_; }
@@ -314,6 +315,7 @@ class WbcWrapper {
   Eigen::Matrix<double, 18, 18> M_;  // Mass matrix
   Eigen::Matrix<double, 12, 6> Jc_;  // Jacobian matrix
   Matrix14 k_since_contact_;         // Number of time step during which feet have been in the current stance phase
+  Vector7  bdes_;                    // Desired base positions
   Vector12 qdes_;                    // Desired actuator positions
   Vector12 vdes_;                    // Desired actuator velocities
   Vector12 tau_ff_;                  // Desired actuator torques (feedforward)
