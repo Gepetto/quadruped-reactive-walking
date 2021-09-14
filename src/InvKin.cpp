@@ -125,79 +125,37 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
   // Gather all acceleration references in a single vector
   // Feet tracking task
   for (int i = 0; i < 4; i++) {
-    if (contacts(0, i) == 1.0)  // Feet in contact
-    {
-      acc.block(0, 3*i, 1, 3).setZero();
-    }
-    else  // Feet not in contact
-    {
-      acc.block(0, 3*i, 1, 3) = afeet.row(i);
-    }
+    acc.block(0, 3*i, 1, 3) = afeet.row(i);
   }
   // Base orientation task
   acc.block(0, 12, 1, 3) = awbasis.transpose();
   // Base / feet position task
   for (int i = 0; i < 4; i++) {
-    if (contacts(0, i) == 1.0)  // Feet in contact
-    {
-      acc.block(0, 15+3*i, 1, 3) = abasis.transpose() - afeet.row(i);
-    }
-    else  // Feet not in contact
-    {
-      acc.block(0, 15+3*i, 1, 3).setZero();
-    }
+    acc.block(0, 15+3*i, 1, 3) = abasis.transpose() - afeet.row(i);
   }
 
   // Gather all task errors in a single vector
   // Feet tracking task
   for (int i = 0; i < 4; i++) {
-    if (contacts(0, i) == 1.0)  // Feet in contact
-    {
-      x_err.block(0, 3*i, 1, 3).setZero();
-    }
-    else  // Feet not in contact
-    {
-      x_err.block(0, 3*i, 1, 3) = pfeet_err.row(i);
-    }
+    x_err.block(0, 3*i, 1, 3) = pfeet_err.row(i);
   }
   // Base orientation task
   x_err.block(0, 12, 1, 3) = rotb_err_.transpose();
   // Base / feet position task
   for (int i = 0; i < 4; i++) {
-    if (contacts(0, i) == 1.0)  // Feet in contact
-    {
-      x_err.block(0, 15+3*i, 1, 3) = posb_err_.transpose() - pfeet_err.row(i);
-    }
-    else  // Feet not in contact
-    {
-      x_err.block(0, 15+3*i, 1, 3).setZero();
-    }
+    x_err.block(0, 15+3*i, 1, 3) = posb_err_.transpose() - pfeet_err.row(i);
   }
 
   // Gather all task velocity references in a single vector
   // Feet tracking task
   for (int i = 0; i < 4; i++) {
-    if (contacts(0, i) == 1.0)  // Feet in contact
-    {
-      dx_r.block(0, 3*i, 1, 3).setZero();
-    }
-    else  // Feet not in contact
-    {
-      dx_r.block(0, 3*i, 1, 3) = vfeet_ref.row(i);
-    }
+    dx_r.block(0, 3*i, 1, 3) = vfeet_ref.row(i);
   }
   // Base orientation task
   dx_r.block(0, 12, 1, 3) = wb_ref_.transpose();
   // Base / feet position task
   for (int i = 0; i < 4; i++) {
-    if (contacts(0, i) == 1.0)  // Feet in contact
-    {
-      dx_r.block(0, 15+3*i, 1, 3) = vb_ref_.transpose() - vfeet_ref.row(i);
-    }
-    else  // Feet not in contact
-    {
-      dx_r.block(0, 15+3*i, 1, 3).setZero();
-    }
+    dx_r.block(0, 15+3*i, 1, 3) = vb_ref_.transpose() - vfeet_ref.row(i);
   }
 
   // Jacobian inversion using damped pseudo inverse
