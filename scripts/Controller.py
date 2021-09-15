@@ -311,12 +311,9 @@ class Controller:
         if (not self.error) and (not self.joystick.stop):
 
             # Update configuration vector for wbc
-            """self.q_wbc[2, 0] = self.h_ref  # Height
             self.q_wbc[3, 0] = self.q_filt_mpc[3, 0]  # Roll
             self.q_wbc[4, 0] = self.q_filt_mpc[4, 0]  # Pitch
-            self.q_wbc[6:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop"""
-            self.q_wbc[:, 0] = self.q_filt_mpc[:, 0].copy()
-            self.q_wbc[2, 0] = self.h_ref  # Height
+            self.q_wbc[6:, 0] = self.q_filt_mpc[6:, 0]  # Measured joint positions
 
             # Update velocity vector for wbc
             self.dq_wbc[:6, 0] = self.estimator.getVFilt()[:6]  #  Velocities in base frame (not horizontal frame!)
@@ -327,7 +324,8 @@ class Controller:
                 oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
             self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(
                 oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
-            self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(oRh.transpose(), oTh)
+            self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(
+                oRh.transpose(), oTh + np.array([[0.0], [0.0], [self.h_ref]]))
 
             # Desired position, orientation and velocities of the base
             if not self.gait.getIsStatic():
@@ -341,9 +339,9 @@ class Controller:
             # Run InvKin + WBC QP
             self.wbcWrapper.compute(self.q_wbc, self.dq_wbc,
                                     (self.x_f_mpc[12:24, 0:1]).copy(), np.array([cgait[0, :]]),
-                                    self.footTrajectoryGenerator.getFootPosition(),
-                                    self.footTrajectoryGenerator.getFootVelocity(),
-                                    self.footTrajectoryGenerator.getFootAcceleration(),
+                                    self.feet_p_cmd,
+                                    self.feet_v_cmd,
+                                    self.feet_a_cmd,
                                     self.xgoals)
 
             # Quantities sent to the control board
@@ -404,7 +402,8 @@ class Controller:
 
             # Display desired feet positions in WBC as green spheres
             oTh_pyb = device.dummyPos.reshape((-1, 1))
-            oTh_pyb[2, 0] -= self.q_wbc[2, 0]
+            print("h: ", oTh_pyb[2, 0], " ", self.h_ref)
+            # oTh_pyb[2, 0] = self.h_ref
             oRh_pyb = pin.rpy.rpyToMatrix(0.0, 0.0, device.imu.attitude_euler[2])
             for i in range(4):
                 pos = oRh_pyb @ self.feet_p_cmd[:, i:(i+1)] + oTh_pyb
@@ -421,7 +420,8 @@ class Controller:
                     if cpt < cgait.shape[0]:
                         status = cgait[cpt, i]
                         if status:
-                            pos = oRh_pyb @ fsteps[cpt, (3*i):(3*(i+1))].reshape((-1, 1)) + oTh_pyb
+                            pos = oRh_pyb @ fsteps[cpt, (3*i):(3*(i+1))].reshape(
+                                (-1, 1)) + oTh_pyb - np.array([[0.0], [0.0], [self.h_ref]])
                             pyb.resetBasePositionAndOrientation(
                                 device.pyb_sim.ftps_Ids[i, j], pos[:, 0].tolist(), [0, 0, 0, 1])
                         else:

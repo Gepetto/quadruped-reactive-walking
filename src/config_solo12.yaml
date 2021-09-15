@@ -10,7 +10,7 @@ robot:
     velID: 10  # Identifier of the reference velocity profile to choose which one will be sent to the robot
     N_SIMULATION: 60000  # Number of simulated wbc time steps
     enable_pyb_GUI: true  # Enable/disable PyBullet GUI
-    enable_corba_viewer: true  # Enable/disable Corba Viewer
+    enable_corba_viewer: false  # Enable/disable Corba Viewer
     enable_multiprocessing: true  # Enable/disable running the MPC in another process in parallel of the main loop
     perfect_estimator: false  # Enable/disable perfect estimator by using data directly from PyBullet
     
@@ -44,10 +44,10 @@ robot:
     # Parameters of InvKin
     Kp_flyingfeet: 100.0  # Proportional gain for feet position tasks
     Kd_flyingfeet: 10.0  # Derivative gain for feet position tasks
-    Kp_base_position: [100.0, 100.0, 100.0]  # Proportional gains for the base position task
-    Kd_base_position: [10.0, 10.0, 10.0]  # Derivative gains for the base position task
-    Kp_base_orientation: [100.0, 100.0, 100.0]  # Proportional gains for the base orientation task
-    Kd_base_orientation: [10.0, 10.0, 10.0]  # Derivative gains for the base orientation task
+    Kp_base_position: [1000.0, 1000.0, 1000.0]  # Proportional gains for the base position task
+    Kd_base_position: [100.0, 100.0, 100.0]  # Derivative gains for the base position task
+    Kp_base_orientation: [1000.0, 1000.0, 1000.0]  # Proportional gains for the base orientation task
+    Kd_base_orientation: [100.0, 100.0, 100.0]  # Derivative gains for the base orientation task
 
     # Parameters of WBC QP problem
     Q1: 0.1  # Weights for the "delta articular accelerations" optimization variables

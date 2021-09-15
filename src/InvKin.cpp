@@ -2,9 +2,9 @@
 
 InvKin::InvKin()
     : invJ(Matrix12::Zero()),
-      acc(Eigen::Matrix<double, 1, 27>::Zero()),
-      x_err(Eigen::Matrix<double, 1, 27>::Zero()),
-      dx_r(Eigen::Matrix<double, 1, 27>::Zero()),
+      acc(Eigen::Matrix<double, 1, 18>::Zero()),
+      x_err(Eigen::Matrix<double, 1, 18>::Zero()),
+      dx_r(Eigen::Matrix<double, 1, 18>::Zero()),
       pfeet_err(Matrix43::Zero()),
       vfeet_ref(Matrix43::Zero()),
       afeet(Matrix43::Zero()),
@@ -28,8 +28,8 @@ InvKin::InvKin()
       abasis(Vector3::Zero()),
       awbasis(Vector3::Zero()),
       Jb_(Eigen::Matrix<double, 6, 18>::Zero()),
-      J_(Eigen::Matrix<double, 27, 18>::Zero()),
-      invJ_(Eigen::Matrix<double, 18, 27>::Zero()),
+      J_(Eigen::Matrix<double, 18, 18>::Zero()),
+      invJ_(Eigen::Matrix<double, 18, 18>::Zero()),
       ddq_cmd_(Vector18::Zero()),
       dq_cmd_(Vector18::Zero()),
       q_cmd_(Vector19::Zero()),
@@ -82,87 +82,65 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
     pfeet_err.row(i) = pgoals.row(i) - posf_.row(i);
     vfeet_ref.row(i) = vgoals.row(i);
 
-    if (contacts(0, i) == 0.0)
-    {
-      afeet.row(i) = +params_->Kp_flyingfeet * pfeet_err.row(i) - params_->Kd_flyingfeet * (vf_.row(i) - vgoals.row(i)) +
-                     agoals.row(i);
-    }
-    else
-    {
-      afeet.row(i).setZero();  // Set to 0.0 to disable position/velocity control of feet in contact
-    }
+    afeet.row(i) = +params_->Kp_flyingfeet * pfeet_err.row(i) + params_->Kd_flyingfeet * (vgoals.row(i) - vf_.row(i)) +
+                     agoals.row(i); 
     afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));  // - dJ dq
   }
 
-  // Jacobian for the feet tracking task
-  J_.block(0, 0, 12, 18) = Jf_.block(0, 0, 12, 18);
+  // Jacobian for the base / feet position task
+  for (int i = 0; i < 4; i++) {
+    J_.block(3 * i, 0, 3, 18) = Jf_.block(3*i, 0, 3, 18) - Jb_.block(0, 0, 3, 18);
+  }
+
+  // Acceleration references for the base linear velocity task
+  posb_err_ = Vector3::Zero();  // No tracking in x, y, z
+  abasis = Kd_base_position.cwiseProduct(vb_ref_ - vb_);
+  abasis -= ab_.head(3) + wb_.cross(vb_);
+
+  // Jacobian for the base linear velocity task
+  J_.block(12, 0, 3, 18) = Jb_.block(0, 0, 3, 18);
 
   // Acceleration references for the base orientation task
   rotb_err_ = -rotb_ref_ * pinocchio::log3(rotb_ref_.transpose() * rotb_);
-  awbasis = Kp_base_orientation.cwiseProduct(rotb_err_) - Kd_base_orientation.cwiseProduct(wb_ - wb_ref_);
+  rotb_err_(2, 0) = 0.0;  // No tracking in yaw
+  awbasis = Kp_base_orientation.cwiseProduct(rotb_err_) + Kd_base_orientation.cwiseProduct(wb_ref_ - wb_);  // Roll, Pitch, Yaw
   awbasis -= ab_.tail(3);
 
-  // Jacobian for the base orientation task
-  J_.block(12, 0, 3, 18) = Jb_.block(3, 0, 3, 18);
-
-  // Acceleration references for the base / feet position task
-  posb_err_ = posb_ref_ - posb_;
-  abasis = Kp_base_position.cwiseProduct(posb_err_) - Kd_base_position.cwiseProduct(vb_ - vb_ref_);
-  abasis -= ab_.head(3) + wb_.cross(vb_);
-
-  // Jacobian for the base / feet position task
-  for (int i = 0; i < 4; i++) {
-    if (contacts(0, i) == 1.0)  // Feet in contact
-    {
-      J_.block(15 + 3 * i, 0, 3, 18) = Jb_.block(0, 0, 3, 18) - Jf_.block(3*i, 0, 3, 18);
-    }
-    else  // Feet not in contact -> not used for this task
-    {
-      J_.block(15 + 3 * i, 0, 3, 18).setZero();
-    }
-  }
+  // Jacobian for the base orientation task in Roll and Pitch
+  J_.block(15, 0, 3, 18) = Jb_.block(3, 0, 3, 18);
 
   // Gather all acceleration references in a single vector
-  // Feet tracking task
+  // Feet / base tracking task
   for (int i = 0; i < 4; i++) {
     acc.block(0, 3*i, 1, 3) = afeet.row(i);
   }
-  // Base orientation task
-  acc.block(0, 12, 1, 3) = awbasis.transpose();
-  // Base / feet position task
-  for (int i = 0; i < 4; i++) {
-    acc.block(0, 15+3*i, 1, 3) = abasis.transpose() - afeet.row(i);
-  }
+  // Base linear task
+  acc.block(0, 12, 1, 3) = abasis.transpose();
+  // Base angular task
+  acc.block(0, 15, 1, 3) = awbasis.transpose();
 
   // Gather all task errors in a single vector
-  // Feet tracking task
+  // Feet / base tracking task
   for (int i = 0; i < 4; i++) {
     x_err.block(0, 3*i, 1, 3) = pfeet_err.row(i);
   }
-  // Base orientation task
-  x_err.block(0, 12, 1, 3) = rotb_err_.transpose();
-  // Base / feet position task
-  for (int i = 0; i < 4; i++) {
-    x_err.block(0, 15+3*i, 1, 3) = posb_err_.transpose() - pfeet_err.row(i);
-  }
+  // Base linear task
+  x_err.block(0, 12, 1, 3) = posb_err_.transpose();
+  // Base angular task
+  x_err.block(0, 15, 1, 3) = rotb_err_.transpose();
 
   // Gather all task velocity references in a single vector
-  // Feet tracking task
+  // Feet / base tracking task
   for (int i = 0; i < 4; i++) {
-    dx_r.block(0, 3*i, 1, 3) = vfeet_ref.row(i);
+    dx_r.block(0, 3*i, 1, 3) = vfeet_ref.row(i) - vb_ref_.transpose();
   }
-  // Base orientation task
-  dx_r.block(0, 12, 1, 3) = wb_ref_.transpose();
-  // Base / feet position task
-  for (int i = 0; i < 4; i++) {
-    dx_r.block(0, 15+3*i, 1, 3) = vb_ref_.transpose() - vfeet_ref.row(i);
-  }
+  // Base linear task
+  dx_r.block(0, 12, 1, 3) = vb_ref_.transpose();
+  // Base angular task
+  dx_r.block(0, 15, 1, 3) = wb_ref_.transpose();
 
   // Jacobian inversion using damped pseudo inverse
   invJ_ = pseudoInverse(J_);
-  /*Eigen::MatrixXd test = pseudoInverse(J_);
-  std::cout << test.rows() << std::endl;
-  std::cout << test.cols() << std::endl;*/
 
   // Store data and invert the Jacobian
   /*
@@ -219,6 +197,7 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
   pinocchio::Motion nu = pinocchio::getFrameVelocity(model_, data_, base_id_, pinocchio::LOCAL_WORLD_ALIGNED);
   vb_ = nu.linear();  // Linear velocity
   wb_ = nu.angular();  // Angular velocity
+
   pinocchio::Motion acc = pinocchio::getFrameAcceleration(model_, data_, base_id_, pinocchio::LOCAL_WORLD_ALIGNED);
   ab_.head(3) = acc.linear();  // Linear acceleration
   ab_.tail(3) = acc.angular();  // Angular acceleration
