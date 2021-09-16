@@ -447,6 +447,7 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("enable_corba_viewer", &Params::enable_corba_viewer)
             .def_readwrite("enable_multiprocessing", &Params::enable_multiprocessing)
             .def_readwrite("perfect_estimator", &Params::perfect_estimator)
+            .def_readwrite("T_gait", &Params::T_gait)
             .def_readwrite("mass", &Params::mass)
             .def_readwrite("I_mat", &Params::I_mat)
             .def_readwrite("CoM_offset", &Params::CoM_offset)
