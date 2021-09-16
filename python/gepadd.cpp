@@ -194,13 +194,18 @@ struct FootTrajectoryGeneratorPythonVisitor : public bp::def_visitor<FootTraject
             .def("getFootPosition", &FootTrajectoryGenerator::getFootPosition, "Get position_ matrix.\n")
             .def("getFootVelocity", &FootTrajectoryGenerator::getFootVelocity, "Get velocity_ matrix.\n")
             .def("getFootAcceleration", &FootTrajectoryGenerator::getFootAcceleration, "Get acceleration_ matrix.\n")
+            .def("getFootJerk", &FootTrajectoryGenerator::getFootJerk, "Get jerk_ matrix.\n")
 
             .def("initialize", &FootTrajectoryGenerator::initialize, bp::args("params", "gaitIn"),
                  "Initialize FootTrajectoryGenerator from Python.\n")
 
             // Compute target location of footsteps from Python
             .def("update", &FootTrajectoryGenerator::update, bp::args("k", "targetFootstep"),
-                 "Compute target location of footsteps from Python.\n");
+                 "Compute target location of footsteps from Python.\n")
+            
+            // Get flying period of the feet
+            .def("getT0s", &FootTrajectoryGenerator::getT0s, "Get the current timings of the flying feet.\n")
+            .def("getTswing", &FootTrajectoryGenerator::getTswing, "Get the flying period of the feet.\n");
 
     }
 
@@ -452,6 +457,7 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("h_ref", &Params::h_ref)
             .def_readwrite("shoulders", &Params::shoulders)
             .def_readwrite("lock_time", &Params::lock_time)
+            .def_readwrite("vert_time", &Params::vert_time)
             .def_readwrite("footsteps_init", &Params::footsteps_init)
             .def_readwrite("footsteps_under_shoulders", &Params::footsteps_under_shoulders);
 

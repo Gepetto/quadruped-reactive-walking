@@ -72,6 +72,9 @@ class FootTrajectoryGenerator {
   MatrixN getFootPosition() { return position_; }          // Get the next foot position
   MatrixN getFootVelocity() { return velocity_; }          // Get the next foot velocity
   MatrixN getFootAcceleration() { return acceleration_; }  // Get the next foot acceleration
+  MatrixN getFootJerk() { return jerk_; }                  // Get the next foot jerk
+  Vector4 getT0s() { return t0s; }                         // Get the t0s for each foot
+  Vector4 getTswing() { return t_swing; }                  // Get the flying period for each foot
 
  private:
   Gait *gait_;        // Target lock before the touchdown
@@ -93,6 +96,7 @@ class FootTrajectoryGenerator {
   Matrix34 position_;      // Position computed in updateFootPosition
   Matrix34 velocity_;      // Velocity computed in updateFootPosition
   Matrix34 acceleration_;  // Acceleration computed in updateFootPosition
+  Matrix34 jerk_;          // Jerk computed in updateFootPosition
 
   Matrix34 position_base_;      // Position computed in updateFootPosition in base frame
   Matrix34 velocity_base_;      // Velocity computed in updateFootPosition in base frame
