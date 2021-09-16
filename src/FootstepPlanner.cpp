@@ -22,21 +22,24 @@ void FootstepPlanner::initialize(Params& params, Gait& gaitIn) {
   params_ = &params;
   dt = params.dt_mpc;
   dt_wbc = params.dt_wbc;
-  T_mpc = params.T_mpc;
   h_ref = params.h_ref;
-  n_steps = (int)std::lround(params.T_mpc / params.dt_mpc);
+  n_steps = static_cast<int>(params.gait.rows());
   footsteps_under_shoulders_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.footsteps_under_shoulders.data(),
                                                                               params.footsteps_under_shoulders.size());
+  // Offsets to make the support polygon smaller
+  double ox = 0.0;
+  double oy = 0.0;
+  footsteps_offset_ << -ox, -ox, ox, ox, -oy, +oy, +oy, -oy, 0.0, 0.0, 0.0, 0.0;
   currentFootstep_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.footsteps_init.data(),
                                                                     params.footsteps_init.size());
   gait_ = &gaitIn;
   targetFootstep_ = currentFootstep_;
   o_targetFootstep_ = currentFootstep_;
-  dt_cum = VectorN::Zero(params.N_gait);
-  yaws = VectorN::Zero(params.N_gait);
-  dx = VectorN::Zero(params.N_gait);
-  dy = VectorN::Zero(params.N_gait);
-  for (int i = 0; i < params.N_gait; i++) {
+  dt_cum = VectorN::Zero(params.gait.rows());
+  yaws = VectorN::Zero(params.gait.rows());
+  dx = VectorN::Zero(params.gait.rows());
+  dy = VectorN::Zero(params.gait.rows());
+  for (int i = 0; i < params.gait.rows(); i++) {
     footsteps_.push_back(Matrix34::Zero());
   }
   Rz(2, 2) = 1.0;
@@ -128,8 +131,8 @@ void FootstepPlanner::computeFootsteps(int k, Vector6 const& b_v, Vector6 const&
   }
 
   // Update the footstep matrix depending on the different phases of the gait (swing & stance)
-  int i = 1;
-  while (!gait.row(i).isZero()) {
+  for (int i = 1; i < gait.rows(); i++)
+  {
     // Feet that were in stance phase and are still in stance phase do not move
     for (int j = 0; j < 4; j++) {
       if (gait(i - 1, j) * gait(i, j) > 0) {
@@ -154,7 +157,6 @@ void FootstepPlanner::computeFootsteps(int k, Vector6 const& b_v, Vector6 const&
         footsteps_[i].col(j) = (Rz * nextFootstep_.col(j) + q_dxdy).transpose();
       }
     }
-    i++;
   }
 }
 
@@ -182,6 +184,7 @@ void FootstepPlanner::computeNextFootstep(int i, int j, Vector6 const& b_v, Vect
 
   // Add shoulders
   nextFootstep_.col(j) += footsteps_under_shoulders_.col(j);
+  nextFootstep_.col(j) += footsteps_offset_.col(j);
 
   // Remove Z component (working on flat ground)
   nextFootstep_.row(2) = Vector4::Zero().transpose();

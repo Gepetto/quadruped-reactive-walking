@@ -7,9 +7,9 @@ StatePlanner::StatePlanner() : dt_(0.0), h_ref_(0.0), n_steps_(0), RPY_(Vector3:
 void StatePlanner::initialize(Params& params) {
   dt_ = params.dt_mpc;
   h_ref_ = params.h_ref;
-  n_steps_ = (int)std::lround(params.T_mpc / dt_);
+  n_steps_ = static_cast<int>(params.gait.rows());
   referenceStates_ = MatrixN::Zero(12, 1 + n_steps_);
-  dt_vector_ = VectorN::LinSpaced(n_steps_, dt_, params.T_mpc);
+  dt_vector_ = VectorN::LinSpaced(n_steps_, dt_, static_cast<double>(n_steps_) * dt_);
 }
 
 void StatePlanner::computeReferenceStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, double z_average) {

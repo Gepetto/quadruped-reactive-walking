@@ -8,7 +8,7 @@ robot:
     use_flat_plane: true  # If True the ground is flat, otherwise it has bumps
     predefined_vel: false  # If we are using a predefined reference velocity (True) or a joystick (False)
     velID: 10  # Identifier of the reference velocity profile to choose which one will be sent to the robot
-    N_SIMULATION: 60000  # Number of simulated wbc time steps
+    N_SIMULATION: 30000  # Number of simulated wbc time steps
     enable_pyb_GUI: true  # Enable/disable PyBullet GUI
     enable_corba_viewer: false  # Enable/disable Corba Viewer
     enable_multiprocessing: true  # Enable/disable running the MPC in another process in parallel of the main loop
@@ -18,12 +18,15 @@ robot:
     q_init: [0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, 1.4, -0.0, -0.7, 1.4]  # Initial articular positions
     dt_wbc: 0.001  # Time step of the whole body control
     dt_mpc: 0.02  # Time step of the model predictive control
-    T_gait: 0.48  # Duration of one gait period
-    T_mpc: 0.96  # Duration of the prediction horizon
     type_MPC: 0  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
     Kp_main: [3.0, 3.0, 3.0]  # Proportional gains for the PD+
     Kd_main: [0.3, 0.3, 0.3]  # Derivative gains for the PD+
     Kff_main: 1.0  # Feedforward torques multiplier for the PD+
+
+    # Parameters of Gait
+    N_periods: 2
+    gait: [12, 1, 0, 0, 1
+           12, 0, 1, 1, 0]  # Initial gait matrix
 
     # Parameters of Estimator
     fc_v_esti: 50.0  # Cut frequency for the low pass that filters the estimated base velocity

@@ -219,7 +219,6 @@ class MPC {
   double dt;        // Time step
   double mass;      // Total mass
   double mu;        // Friction coefficient
-  double T_gait;    // Period of the gait
   int n_steps;      // Number of time steps in the prediction horizon
   int cpt_ML;       // Counter of ML coefficients
   int cpt_P;        // Counter of P coefficients

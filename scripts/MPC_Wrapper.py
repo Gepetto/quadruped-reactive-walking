@@ -55,9 +55,9 @@ class MPC_Wrapper:
         self.k_mpc = int(params.dt_mpc/params.dt_wbc)
 
         self.dt = params.dt_mpc
-        self.n_steps = np.int(params.T_mpc/params.dt_mpc)
-        self.T_gait = params.T_gait
-        self.N_gait = params.N_gait
+        self.n_steps = np.int(params.gait.shape[0])
+        self.N_gait = params.gait.shape[0]
+        self.T_gait = params.gait.shape[0] * params.dt_mpc
         self.gait_past = np.zeros(4)
         self.gait_next = np.zeros(4)
         self.mass = params.mass

@@ -150,8 +150,6 @@ class Controller:
         self.dt_mpc = params.dt_mpc
         self.k_mpc = int(params.dt_mpc / params.dt_wbc)
         self.t = t
-        self.T_gait = params.T_gait
-        self.T_mpc = params.T_mpc
         self.N_SIMULATION = params.N_SIMULATION
         self.type_MPC = params.type_MPC
         self.use_flat_plane = params.use_flat_plane
@@ -402,8 +400,8 @@ class Controller:
 
             # Display desired feet positions in WBC as green spheres
             oTh_pyb = device.dummyPos.reshape((-1, 1))
-            print("h: ", oTh_pyb[2, 0], " ", self.h_ref)
-            # oTh_pyb[2, 0] = self.h_ref
+            # print("h: ", oTh_pyb[2, 0], " ", self.h_ref)
+            oTh_pyb[2, 0] += 0.02
             oRh_pyb = pin.rpy.rpyToMatrix(0.0, 0.0, device.imu.attitude_euler[2])
             for i in range(4):
                 pos = oRh_pyb @ self.feet_p_cmd[:, i:(i+1)] + oTh_pyb
@@ -439,7 +437,7 @@ class Controller:
 
             xref_rot = np.zeros((3, xref.shape[1]))
             for i in range(xref.shape[1]):
-                xref_rot[:, i:(i+1)] = oRh_pyb @ xref[:3, i:(i+1)] + oTh_pyb + np.array([[0.0], [0.0], [0.05]])
+                xref_rot[:, i:(i+1)] = oRh_pyb @ xref[:3, i:(i+1)] + oTh_pyb + np.array([[0.0], [0.0], [0.05 - self.h_ref]])
 
             if len(device.pyb_sim.lineId_red) == 0:
                 for i in range(xref.shape[1]-1):
@@ -454,7 +452,7 @@ class Controller:
             # Display predicted trajectory
             x_f_mpc_rot = np.zeros((3, self.x_f_mpc.shape[1]))
             for i in range(self.x_f_mpc.shape[1]):
-                x_f_mpc_rot[:, i:(i+1)] = oRh_pyb @ self.x_f_mpc[:3, i:(i+1)] + oTh_pyb + np.array([[0.0], [0.0], [0.05]])
+                x_f_mpc_rot[:, i:(i+1)] = oRh_pyb @ self.x_f_mpc[:3, i:(i+1)] + oTh_pyb + np.array([[0.0], [0.0], [0.05 - self.h_ref]])
 
             if len(device.pyb_sim.lineId_blue) == 0:
                 for i in range(self.x_f_mpc.shape[1]-1):

@@ -144,8 +144,6 @@ class FootstepPlanner {
 
   double dt;      // Time step of the contact sequence (time step of the MPC)
   double dt_wbc;  // Time step of the whole body control
-  double T_gait;  // Gait period
-  double T_mpc;   // MPC period (prediction horizon)
   double h_ref;   // Reference height for the trunk
 
   // Predefined quantities
@@ -157,6 +155,7 @@ class FootstepPlanner {
 
   // Constant sized matrices
   Matrix34 footsteps_under_shoulders_;  // Positions of footsteps to be "under the shoulder"
+  Matrix34 footsteps_offset_;
   Matrix34 currentFootstep_;            // Feet matrix
   Matrix34 nextFootstep_;               // Temporary matrix to perform computations
   Matrix34 targetFootstep_;             // In horizontal frame

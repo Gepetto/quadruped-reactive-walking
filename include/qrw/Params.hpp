@@ -37,6 +37,15 @@ class Params {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void initialize(const std::string& file_path);
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Convert the gait vector of the yaml into an Eigen matrix
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void convert_gait_vec();
+
+  MatrixN get_gait() { return gait; }
+
   // See .yaml file for meaning of parameters
   // General parameters
   std::string interface;  // Name of the communication interface (check with ifconfig)
@@ -57,13 +66,15 @@ class Params {
   std::vector<double> q_init;  // Initial articular positions
   double dt_wbc;               // Time step of the whole body control
   double dt_mpc;    // Time step of the model predictive control
-  double T_gait;    // Duration of one gait period
-  double T_mpc;     // Duration of the prediction horizon
+  int N_periods;    // Number of gait periods in the MPC prediction horizon
   int type_MPC;     // Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
   bool kf_enabled;  // Use complementary filter (False) or kalman filter (True) for the estimator
   std::vector<double> Kp_main;   // Proportional gains for the PD+
   std::vector<double> Kd_main;   // Derivative gains for the PD+
   double Kff_main;  // Feedforward torques multiplier for the PD+
+
+  // Parameters of Gait
+  std::vector<int> gait_vec;  // Initial gait matrix (vector)
 
   // Parameters of Estimator
   double fc_v_esti;  // Cut frequency for the low pass that filters the estimated base velocity
@@ -96,8 +107,8 @@ class Params {
   double Fz_min;  // Minimal vertical contact force [N]
 
   // Not defined in yaml
-  int N_gait;  // Number of rows in the gait matrix. Arbitrary value that should be set high enough  so that there is
-               // always at least one empty line at the end of the gait matrix
+  Eigen::MatrixXd gait;  // Initial gait matrix (Eigen)
+  double T_gait;                                  // Period of the gait
   double mass;                                    // Mass of the robot
   std::vector<double> I_mat;                      // Inertia matrix
   std::vector<double> CoM_offset;                 // Center of Mass offset

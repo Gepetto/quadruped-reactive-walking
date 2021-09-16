@@ -87,7 +87,8 @@ void Estimator::initialize(Params& params) {
   perfect_estimator = params.perfect_estimator;
 
   // Filtering estimated linear velocity
-  N_queue_ = static_cast<int>(std::round(params.T_gait / dt_wbc));
+  int k_mpc = static_cast<int>(std::round(params.dt_mpc / params.dt_wbc));
+  N_queue_ = static_cast<int>(k_mpc * params.gait.rows() / params.N_periods);
   vx_queue_.resize(N_queue_, 0.0);  // List full of 0.0
   vy_queue_.resize(N_queue_, 0.0);  // List full of 0.0
   vz_queue_.resize(N_queue_, 0.0);  // List full of 0.0

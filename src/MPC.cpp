@@ -4,8 +4,7 @@ MPC::MPC(Params &params) {
   params_ = &params;
 
   dt = params_->dt_mpc;
-  n_steps = (int)std::round(params_->T_mpc / params_->dt_mpc);
-  T_gait = params_->T_gait;
+  n_steps = static_cast<int>(params_->gait.rows());
 
   xref = Eigen::Matrix<double, 12, Eigen::Dynamic>::Zero(12, 1 + n_steps);
   x = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12 * n_steps * 2, 1);
@@ -13,7 +12,7 @@ MPC::MPC(Params &params) {
   warmxf = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12 * n_steps * 2, 1);
   x_f_applied = Eigen::MatrixXd::Zero(24, n_steps);
 
-  gait = Eigen::Matrix<int, Eigen::Dynamic, 4>::Zero(params_->N_gait, 4);
+  gait = Eigen::Matrix<int, Eigen::Dynamic, 4>::Zero(params_->gait.rows(), 4);
 
   // Predefined variables
   mass = params_->mass;
@@ -397,10 +396,9 @@ int MPC::update_matrices(Eigen::MatrixXd fsteps) {
 }
 
 int MPC::update_ML(Eigen::MatrixXd fsteps) {
-  int j = 0;
   int k_cum = 0;
   // Iterate over all phases of the gait
-  while (!gait.row(j).isZero()) {
+  for (int j = 0; j < gait.rows(); j++) {
     for (int k = k_cum; k < (k_cum + 1); k++) {
       // Get inverse of the inertia matrix for time step k
       double c = cos(xref(5, k));
@@ -429,7 +427,6 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
     }
 
     k_cum++;
-    j++;
   }
 
   // Construct the activation/desactivation matrix based on the current gait
@@ -612,10 +609,10 @@ Matrix3 MPC::getSkew(Vector3 v) {
 }
 
 int MPC::construct_S() {
-  int i = 0;
 
   inv_gait = Eigen::Matrix<int, Eigen::Dynamic, 4>::Ones(gait.rows(), 4) - gait;
-  while (!gait.row(i).isZero()) {
+  for (int i = 0; i < gait.rows(); i++)
+  {
     // S_gait.block(k*12, 0, gait[i, 0]*12, 1) = (1 - (gait.block(i, 1, 1, 4)).transpose()).replicate<gait[i, 0], 1>()
     // not finished;
     for (int b = 0; b < 4; b++) {
@@ -623,15 +620,13 @@ int MPC::construct_S() {
         S_gait(i * 12 + 3 * b + c, 0) = inv_gait(i, b);
       }
     }
-    i++;
   }
 
   return 0;
 }
 
 int MPC::construct_gait(Eigen::MatrixXd fsteps_in) {
-  int k = 0;
-  while (!fsteps_in.row(k).isZero()) {
+  for (int k = 0; k < gait.rows(); k++) {
     for (int i = 0; i < 4; i++) {
       if (fsteps_in(k, i * 3) == 0.0) {
         gait(k, i) = 0;
@@ -639,9 +634,7 @@ int MPC::construct_gait(Eigen::MatrixXd fsteps_in) {
         gait(k, i) = 1;
       }
     }
-    k++;
   }
-  gait.row(k) << 0, 0, 0, 0;
   return 0;
 }
 

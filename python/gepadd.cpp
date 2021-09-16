@@ -114,7 +114,9 @@ struct GaitPythonVisitor : public bp::def_visitor<GaitPythonVisitor<Gait>>
     {
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
+            .def("getPastGait", &Gait::getPastGait, "Get currentGait_ matrix.\n")
             .def("getCurrentGait", &Gait::getCurrentGait, "Get currentGait_ matrix.\n")
+            .def("getDesiredGait", &Gait::getDesiredGait, "Get currentGait_ matrix.\n")
             .def("isNewPhase", &Gait::isNewPhase, "Get newPhase_ boolean.\n")
             .def("getIsStatic", &Gait::getIsStatic, "Get is_static_ boolean.\n")
 
@@ -427,13 +429,11 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("LOGGING", &Params::LOGGING)
             .def_readwrite("PLOTTING", &Params::PLOTTING)
             .def_readwrite("dt_wbc", &Params::dt_wbc)
-            .def_readwrite("N_gait", &Params::N_gait)
             .def_readwrite("envID", &Params::envID)
             .def_readwrite("velID", &Params::velID)
             .def_readwrite("q_init", &Params::q_init)
             .def_readwrite("dt_mpc", &Params::dt_mpc)
-            .def_readwrite("T_gait", &Params::T_gait)
-            .def_readwrite("T_mpc", &Params::T_mpc)
+            .def_readwrite("N_periods", &Params::N_periods)
             .def_readwrite("N_SIMULATION", &Params::N_SIMULATION)
             .def_readwrite("type_MPC", &Params::type_MPC)
             .def_readwrite("use_flat_plane", &Params::use_flat_plane)
@@ -442,6 +442,7 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("Kp_main", &Params::Kp_main)
             .def_readwrite("Kd_main", &Params::Kd_main)
             .def_readwrite("Kff_main", &Params::Kff_main)
+            .def_readonly("gait", &Params::get_gait)
             .def_readwrite("enable_pyb_GUI", &Params::enable_pyb_GUI)
             .def_readwrite("enable_corba_viewer", &Params::enable_corba_viewer)
             .def_readwrite("enable_multiprocessing", &Params::enable_multiprocessing)

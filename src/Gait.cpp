@@ -5,8 +5,6 @@ Gait::Gait()
       currentGait_(),
       desiredGait_(),
       dt_(0.0),
-      T_gait_(0.0),
-      T_mpc_(0.0),
       remainingTime_(0.0),
       newPhase_(false),
       is_static_(false),
@@ -17,25 +15,21 @@ Gait::Gait()
 
 void Gait::initialize(Params& params) {
   dt_ = params.dt_mpc;
-  T_gait_ = params.T_gait;
-  T_mpc_ = params.T_mpc;
-  n_steps_ = (int)std::lround(params.T_mpc / params.dt_mpc);
 
-  pastGait_ = MatrixN::Zero(params.N_gait, 4);
-  currentGait_ = MatrixN::Zero(params.N_gait, 4);
-  desiredGait_ = MatrixN::Zero(params.N_gait, 4);
+  pastGait_ = MatrixN::Zero(params.gait.rows(), 4);
+  currentGait_ = MatrixN::Zero(params.gait.rows(), 4);
+  desiredGait_ = MatrixN::Zero(params.gait.rows(), 4);
 
-  if ((n_steps_ > params.N_gait) || ((int)std::lround(params.T_gait / params.dt_mpc) > params.N_gait))
-    throw std::invalid_argument(
-        "Sizes of matrices are too small for considered durations. Increase N_gait in config file.");
+  // Fill desired gait matrix with yaml gait
+  desiredGait_ = params.gait;
 
-  create_trot();
-  create_gait_f();
+  // Fill currrent gait matrix
+  currentGait_ = desiredGait_;
 }
 
 void Gait::create_walk() {
   // Number of timesteps in 1/4th period of gait
-  int N = (int)std::lround(0.25 * T_gait_ / dt_);
+  long int N = currentGait_.rows() / 4;
 
   desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
@@ -52,7 +46,7 @@ void Gait::create_walk() {
 
 void Gait::create_trot() {
   // Number of timesteps in a half period of gait
-  int N = (int)std::lround(0.5 * T_gait_ / dt_);
+  long int N = currentGait_.rows() / 2;
 
   desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
@@ -65,11 +59,11 @@ void Gait::create_trot() {
 
 void Gait::create_walking_trot() {
   // Number of timesteps in a half period of gait
-  int N = (int)std::lround(0.5 * T_gait_ / dt_);
+  long int N = currentGait_.rows() / 2;
 
   desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
-  int M = 8;
+  long int M = 8;
   Eigen::Matrix<double, 1, 4> sequence;
   sequence << 1.0, 0.0, 0.0, 1.0;
   desiredGait_.block(0, 0, N-M, 4) = sequence.colwise().replicate(N);
@@ -83,7 +77,7 @@ void Gait::create_walking_trot() {
 
 void Gait::create_pacing() {
   // Number of timesteps in a half period of gait
-  int N = (int)std::lround(0.5 * T_gait_ / dt_);
+  long int N = currentGait_.rows() / 2;
 
   desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
@@ -96,7 +90,7 @@ void Gait::create_pacing() {
 
 void Gait::create_bounding() {
   // Number of timesteps in a half period of gait
-  int N = (int)std::lround(0.5 * T_gait_ / dt_);
+  long int N = currentGait_.rows() / 2;
 
   desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
@@ -108,19 +102,12 @@ void Gait::create_bounding() {
 }
 
 void Gait::create_static() {
-  // Number of timesteps in a period of gait
-  int N = (int)std::lround(T_gait_ / dt_);
-
-  desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
-
-  Eigen::Matrix<double, 1, 4> sequence;
-  sequence << 1.0, 1.0, 1.0, 1.0;
-  desiredGait_.block(0, 0, N, 4) = sequence.colwise().replicate(N);
+  desiredGait_.setOnes();
 }
 
 void Gait::create_transverse_gallop() {
   // Number of timesteps in a half period of gait
-  int N = (int)std::lround(0.25 * T_gait_ / dt_);
+  long int N = currentGait_.rows() / 4;
 
   desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
@@ -137,7 +124,7 @@ void Gait::create_transverse_gallop() {
 
 void Gait::create_custom_gallop() {
   // Number of timesteps in a half period of gait
-  int N = (int)std::lround(0.25 * T_gait_ / dt_);
+  long int N = currentGait_.rows() / 4;
 
   desiredGait_ = MatrixN::Zero(currentGait_.rows(), 4);
 
@@ -152,47 +139,19 @@ void Gait::create_custom_gallop() {
   desiredGait_.block(3*N, 0, N, 4) = sequence.colwise().replicate(N);
 }
 
-
-void Gait::create_gait_f() {
-  int i = 0;
-
-  // Fill currrent gait matrix
-  for (int j = 0; j < n_steps_; j++) {
-    currentGait_.row(j) = desiredGait_.row(i);
-    i++;
-    if (desiredGait_.row(i).isZero()) {
-      i = 0;
-    }  // Loop back if T_mpc_ longer than gait duration
-  }
-
-  // Get index of first empty line
-  int index = 1;
-  while (!desiredGait_.row(index).isZero()) {
-    index++;
-  }
-
-  // Age desired gait to take into account what has been put in the current gait matrix
-  for (int k = 0; k < i; k++) {
-    for (int m = 0; m < index - 1; m++)  // TODO: Find optimized circular shift function
-    {
-      desiredGait_.row(m).swap(desiredGait_.row(m + 1));
-    }
-  }
-}
-
 double Gait::getPhaseDuration(int i, int j, double value) {
   double t_phase = 1;
   int a = i;
 
   // Looking for the end of the swing/stance phase in currentGait_
-  while ((!currentGait_.row(i + 1).isZero()) && (currentGait_(i + 1, j) == value)) {
+  while ((i + 1 < currentGait_.rows()) && (currentGait_(i + 1, j) == value)) {
     i++;
     t_phase++;
   }
   // If we reach the end of currentGait_ we continue looking for the end of the swing/stance phase in desiredGait_
-  if (currentGait_.row(i + 1).isZero()) {
+  if (i + 1 == currentGait_.rows()) {
     int k = 0;
-    while ((!desiredGait_.row(k).isZero()) && (desiredGait_(k, j) == value)) {
+    while ((k < desiredGait_.rows()) && (desiredGait_(k, j) == value)) {
       k++;
       t_phase++;
     }
@@ -208,12 +167,14 @@ double Gait::getPhaseDuration(int i, int j, double value) {
   }
   // If we reach the end of currentGait_ we continue looking for the beginning of the swing/stance phase in pastGait_
   if (a == 0) {
-    while ((!pastGait_.row(a).isZero()) && (pastGait_(a, j) == value)) {
+    while ((a < pastGait_.rows()) && (pastGait_(a, j) == value)) {
       a++;
       t_phase++;
     }
   }
   // We suppose that we found the beginning of the swing/stance phase either in currentGait_ or pastGait_
+
+  // TODO: Handle infinite swing / stance phases
 
   return t_phase * dt_;  // Take into account time step value
 }
@@ -227,7 +188,7 @@ bool Gait::changeGait(int const k, int const k_mpc, int const code) {
   if (code != 0 && switch_to_gait_ == 0) {
     switch_to_gait_ = code;
   }
-  if (switch_to_gait_ != 0 && std::remainder(static_cast<double>(k - k_mpc), (k_mpc * T_gait_ * 0.5) / dt_) == 0.0) {
+  if (switch_to_gait_ != 0 && ((k - k_mpc) % (k_mpc * currentGait_.rows() / 2) == 0)) {
     is_static_ = false;
     switch (switch_to_gait_) {
       case 1:
@@ -252,7 +213,7 @@ bool Gait::changeGait(int const k, int const k_mpc, int const code) {
 
 void Gait::rollGait() {
   // Transfer current gait into past gait
-  for (int m = n_steps_; m > 0; m--)  // TODO: Find optimized circular shift function
+  for (long int m = pastGait_.rows() - 1; m > 0; m--)  // TODO: Find optimized circular shift function
   {
     pastGait_.row(m).swap(pastGait_.row(m - 1));
   }
@@ -266,20 +227,18 @@ void Gait::rollGait() {
   }
 
   // Age current gait
-  int index = 1;
-  while (!currentGait_.row(index).isZero()) {
+  for (int index = 1; index < currentGait_.rows(); index++)
+  {
     currentGait_.row(index - 1).swap(currentGait_.row(index));
-    index++;
   }
 
   // Insert a new line from desired gait into current gait
-  currentGait_.row(index - 1) = desiredGait_.row(0);
+  currentGait_.row(currentGait_.rows() - 1) = desiredGait_.row(0);
 
   // Age desired gait
-  index = 1;
-  while (!desiredGait_.row(index).isZero()) {
+  for (int index = 1; index < currentGait_.rows(); index++)
+  {
     desiredGait_.row(index - 1).swap(desiredGait_.row(index));
-    index++;
   }
 }
 

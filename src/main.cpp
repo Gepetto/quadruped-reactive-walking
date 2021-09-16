@@ -177,7 +177,6 @@ int main(int argc, char** argv) {
     std::cout << params.SIMULATION << std::endl;
     std::cout << params.LOGGING << std::endl;
     std::cout << params.PLOTTING << std::endl;
-    std::cout << params.N_gait << std::endl;
 
     return EXIT_SUCCESS;
   } else {

@@ -265,7 +265,7 @@ class Joystick:
                                           [0.0, 0.0, 0.0, 0.0],
                                           [0.0, 0.0, 0.0, 0.0]])
             elif velID == 10:  # FORWAAAAAAAAAARD
-                self.t_switch = np.array([0, 2, 4, 6, 8, 11, 15])
+                self.t_switch = np.array([0, 2, 4, 6, 8, 10, 15])
                 self.v_switch = np.array([[0.0, 0.4, 0.8, 1.0, 1.0, 1.0, 1.0],
                                           [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
                                           [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
