@@ -322,15 +322,17 @@ class LoggerControl():
 
             if i in [0, 1, 5]:
                 plt.plot(t_range, self.loop_o_q[:, i], "b", linewidth=3)
-                plt.plot(t_range, self.loop_o_q[:, i], "r", linewidth=3)
             else:
                 plt.plot(t_range, self.planner_xref[:, i, 0], "b", linewidth=2)
-                plt.plot(t_range, self.planner_xref[:, i, 1], "r", linewidth=3)
             if i < 3:
                 plt.plot(t_range, self.mocap_pos[:, i], "k", linewidth=3)
             else:
                 plt.plot(t_range, self.mocap_RPY[:, i-3], "k", linewidth=3)
-            plt.legend(["Robot state", "Robot reference state", "Ground truth"], prop={'size': 8})
+            if i in [0, 1, 5]:
+                plt.plot(t_range, self.loop_o_q[:, i], "r", linewidth=3)
+            else:
+                plt.plot(t_range, self.planner_xref[:, i, 1], "r", linewidth=3)
+            plt.legend(["Robot state", "Ground truth", "Robot reference state"], prop={'size': 8})
             plt.ylabel(lgd[i])
         self.custom_suptitle("Position and orientation")
 
@@ -347,16 +349,18 @@ class LoggerControl():
                 plt.subplot(3, 2, index6[i], sharex=ax0)
 
             plt.plot(t_range, self.loop_h_v[:, i], "b", linewidth=2)
-            plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
             if i < 3:
                 plt.plot(t_range, self.mocap_h_v[:, i], "k", linewidth=3)
                 plt.plot(t_range, self.loop_h_v_filt_mpc[:, i], linewidth=3, color="forestgreen")
                 plt.plot(t_range, self.loop_h_v_windowed[:, i], linewidth=3, color="rebeccapurple")
             else:
                 plt.plot(t_range, self.mocap_b_w[:, i-3], "k", linewidth=3)
-
-            plt.legend(["State", "Ref state", "Ground truth",
-                        "State (LP 15Hz)", "State (windowed)"], prop={'size': 8})
+            plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
+            if i < 3:
+                plt.legend(["State", "Ground truth",
+                        "State (LP 15Hz)", "State (windowed)", "Ref state"], prop={'size': 8})
+            else:
+                plt.legend(["State", "Ground truth", "Ref state"], prop={'size': 8})
             plt.ylabel(lgd[i])
         self.custom_suptitle("Linear and angular velocities")
 
