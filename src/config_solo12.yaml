@@ -6,12 +6,12 @@ robot:
     PLOTTING: true  # Enable/disable automatic plotting at the end of the experiment
     envID: 0  # Identifier of the environment to choose in which one the simulation will happen
     use_flat_plane: true  # If True the ground is flat, otherwise it has bumps
-    predefined_vel: false  # If we are using a predefined reference velocity (True) or a joystick (False)
+    predefined_vel: true  # If we are using a predefined reference velocity (True) or a joystick (False)
     velID: 10  # Identifier of the reference velocity profile to choose which one will be sent to the robot
     N_SIMULATION: 30000  # Number of simulated wbc time steps
-    enable_pyb_GUI: true  # Enable/disable PyBullet GUI
+    enable_pyb_GUI: true # Enable/disable PyBullet GUI
     enable_corba_viewer: false  # Enable/disable Corba Viewer
-    enable_multiprocessing: true  # Enable/disable running the MPC in another process in parallel of the main loop
+    enable_multiprocessing: false  # Enable/disable running the MPC in another process in parallel of the main loop
     perfect_estimator: false  # Enable/disable perfect estimator by using data directly from PyBullet
     
     # General control parameters
@@ -25,7 +25,7 @@ robot:
 
     # Parameters of Gait
     N_periods: 2
-    gait: [12, 1, 0, 0, 1
+    gait: [12, 1, 0, 0, 1,
            12, 0, 1, 1, 0]  # Initial gait matrix
 
     # Parameters of Estimator
@@ -51,6 +51,7 @@ robot:
     Kd_base_position: [100.0, 100.0, 100.0]  # Derivative gains for the base position task
     Kp_base_orientation: [1000.0, 1000.0, 1000.0]  # Proportional gains for the base orientation task
     Kd_base_orientation: [100.0, 100.0, 100.0]  # Derivative gains for the base orientation task
+    w_tasks: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Tasks weights: [feet/base, vx, vy, vz, roll+wroll, pitch+wpitch, wyaw]
 
     # Parameters of WBC QP problem
     Q1: 0.1  # Weights for the "delta articular accelerations" optimization variables

@@ -66,6 +66,7 @@ void InvKin::initialize(Params& params) {
   Kd_base_position = Vector3(params_->Kd_base_position.data());
   Kp_base_orientation = Vector3(params_->Kp_base_orientation.data());
   Kd_base_orientation = Vector3(params_->Kd_base_orientation.data());
+  w_tasks = Vector7(params_->w_tasks.data());
 
 }
 
@@ -139,6 +140,30 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
   // Base angular task
   dx_r.block(0, 15, 1, 3) = wb_ref_.transpose();
 
+  // Product with tasks weights for Jacobian
+  J_.block(0, 0, 12, 18) *= w_tasks(0, 0);
+  for (int i = 0; i < 6; i++) {
+    J_.row(12 + i) *= w_tasks(1 + i, 0);
+  }
+
+  // Product with tasks weights for acc references
+  acc.block(0, 0, 1, 12) *= w_tasks(0, 0);
+  for (int i = 0; i < 6; i++) {
+    acc(0, 12 + i) *= w_tasks(1 + i, 0);
+  }
+
+  // Product with tasks weights for vel references
+  dx_r.block(0, 0, 1, 12) *= w_tasks(0, 0);
+  for (int i = 0; i < 6; i++) {
+    dx_r(0, 12 + i) *= w_tasks(1 + i, 0);
+  }
+
+  // Product with tasks weights for pos references
+  x_err.block(0, 0, 1, 12) *= w_tasks(0, 0);
+  for (int i = 0; i < 6; i++) {
+    x_err(0, 12 + i) *= w_tasks(1 + i, 0);
+  }
+
   // Jacobian inversion using damped pseudo inverse
   invJ_ = pseudoInverse(J_);
 
@@ -171,7 +196,7 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
 void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals,
                         MatrixN const& vgoals, MatrixN const& agoals, MatrixN const& x_cmd) {
   // std::cout << "run invkin q: " << q << std::endl;
-  
+
   // Update model and data of the robot
   pinocchio::forwardKinematics(model_, data_, q, dq, VectorN::Zero(model_.nv));
   pinocchio::computeJointJacobians(model_, data_);

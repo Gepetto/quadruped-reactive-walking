@@ -138,6 +138,7 @@ class InvKin {
   Vector3 Kd_base_position;
   Vector3 Kp_base_orientation;
   Vector3 Kd_base_orientation;
+  Vector7 w_tasks;
 
   Vector18 ddq_cmd_;  // Actuator command accelerations
   Vector18 dq_cmd_;   // Actuator command velocities
