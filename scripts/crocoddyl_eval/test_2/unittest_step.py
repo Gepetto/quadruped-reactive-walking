@@ -17,11 +17,36 @@ model.stateWeights = 2*np.ones(12)
 model.heuristicWeights = 2*np.ones(8)
 model.stepWeights = np.ones(8)
 
+model.is_acc_activated = False
+model.acc_limit = np.array([0.09,0.])
+model.acc_weight = 1.88
+
+model.is_vel_activated = True
+model.vel_limit = np.array([0.,0.])
+model.vel_weight = 0.0015
+
+model.is_jerk_activated = True
+model.jerk_weight = 0.000001
+
+
 # Update the dynamic of the model 
 fstep = np.random.rand(12).reshape((3,4))
 xref = np.random.rand(12)
 gait = np.random.randint(2, size=4)
-model.updateModel(fstep, xref , gait)
+position = np.random.rand(12).reshape((3,4))
+velocity = np.random.rand(12).reshape((3,4))
+acceleration = np.random.rand(12).reshape((3,4))
+jerk = np.random.rand(12).reshape((3,4))
+oRh = np.zeros((3,3))
+oTh = np.zeros((3,1))
+oRh[0,0] = 0.88
+oRh[1,1] = 0.88
+oRh[0,1] = -0.2
+oRh[1,0] = 0.2
+oTh[0,0] = 0.1
+oTh[1,0] = 0.09
+Dt = 0.16
+model.updateModel(fstep, xref , gait, position, velocity, acceleration, jerk, oRh, oTh, Dt )
 
 ################################################
 ## CHECK DERIVATIVE WITH NUM_DIFF 
@@ -29,7 +54,7 @@ model.updateModel(fstep, xref , gait)
 
 a = 1
 b = -1 
-N_trial = 50
+N_trial = 1
 epsilon = 10e-6
 
 model_diff = crocoddyl.ActionModelNumDiff(model)
@@ -63,7 +88,12 @@ def run_calcDiff_numDiff(epsilon) :
     fstep = np.random.rand(12).reshape((3,4))
     xref = np.random.rand(12)
     gait = np.random.randint(2, size=4)
-    model.updateModel(fstep, xref , gait)
+    position = np.random.rand(12).reshape((3,4))
+    velocity = np.random.rand(12).reshape((3,4))
+    acceleration = np.random.rand(12).reshape((3,4))
+    jerk = np.random.rand(12).reshape((3,4))
+    Dt = 0.16
+    model.updateModel(fstep, xref , gait, position, velocity, acceleration, jerk, oRh, oTh, Dt )
     model_diff = crocoddyl.ActionModelNumDiff(model)     
    
     # Run calc & calcDiff function : numDiff     
@@ -78,6 +108,11 @@ def run_calcDiff_numDiff(epsilon) :
     Lx_err += np.sum( abs((data.Lx - data_diff.Lx )) )  
 
     Lu +=  np.sum( abs((data.Lu - data_diff.Lu )) >= epsilon  ) 
+    print("\n")
+    print("Lu :")
+    print(data.Lu)
+    print("Lu diff :")
+    print(data_diff.Lu )
     Lu_err += np.sum( abs((data.Lu - data_diff.Lu )) )  
 
     Lxu +=  np.sum( abs((data.Lxu - data_diff.Lxu )) >= epsilon  ) 

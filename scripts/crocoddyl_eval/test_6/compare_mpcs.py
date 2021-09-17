@@ -88,7 +88,6 @@ for j in range(4):
         for t in range(N):
             if np.isnan(data_[t,i,j]):
                 data_[t,i,j] = data_[t-1,i,j]
-
 ##########
 # PLOTS 
 ##########
@@ -166,7 +165,7 @@ for i in range(6):
     
     for j in range(4):
         if MPCs[j]:
-            plt.plot(t_range, data_diff[:,index_error[i],j], color[j], linewidth=3)    
+            plt.plot(t_range, abs(data_diff[:,index_error[i],j]), color[j], linewidth=3)    
 
 # Add mean on graph
 # for i in range(6):
@@ -177,7 +176,7 @@ for i in range(6):
 
     plt.legend(legend, prop={'size': 8})
     plt.ylabel(lgd[i])
-plt.suptitle("Error wrt reference state")
+plt.suptitle("Absolute Error wrt reference state")
 
 plt.figure()
 for i in range(6):
@@ -212,7 +211,7 @@ bars = []
 bars_names = ["Lin", "NL", "Plan", "OSQP"]
 for j in range(4):
     if MPCs[j]:
-        bars.append(bars_names[j])
+        bars.append(MPCs_names[j])
 
 plt.figure()
 for i in range(6):
@@ -256,30 +255,30 @@ plt.suptitle("NORMALIZED RMSE -MEAN: sqrt(  (mes - ref - mean(mes-ref))  **2).me
 ####
 # FF torques & FB torques & Sent torques & Meas torques
 ####
-index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
-lgd1 = ["HAA", "HFE", "Knee"]
-lgd2 = ["FL", "FR", "HL", "HR"]
-plt.figure()
-my_axs = []
-for i in range(12):
-    if i == 0:
-        ax = plt.subplot(3, 4, index12[i])
-        my_axs.append(ax)
-    elif i in [1, 2]:
-        ax = plt.subplot(3, 4, index12[i], sharex=my_axs[0])
-        my_axs.append(ax)
-    else:
-        plt.subplot(3, 4, index12[i], sharex=my_axs[0], sharey=my_axs[int(i % 3)])
+# index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
+# lgd1 = ["HAA", "HFE", "Knee"]
+# lgd2 = ["FL", "FR", "HL", "HR"]
+# plt.figure()
+# my_axs = []
+# for i in range(12):
+#     if i == 0:
+#         ax = plt.subplot(3, 4, index12[i])
+#         my_axs.append(ax)
+#     elif i in [1, 2]:
+#         ax = plt.subplot(3, 4, index12[i], sharex=my_axs[0])
+#         my_axs.append(ax)
+#     else:
+#         plt.subplot(3, 4, index12[i], sharex=my_axs[0], sharey=my_axs[int(i % 3)])
 
-    for j in range(4):
-        if MPCs[j]:
-            plt.plot(t_range, tau_ff_[:,i,j], color[j], linewidth=3)
+#     for j in range(4):
+#         if MPCs[j]:
+#             plt.plot(t_range, tau_ff_[:,i,j], color[j], linewidth=3)
 
-    plt.xlabel("Time [s]")
-    plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)]+" [Nm]")
-    tmp = lgd1[i % 3]+" "+lgd2[int(i/3)]
-    plt.legend(legend, prop={'size': 8})
-    plt.ylim([-8.0, 8.0])
+#     plt.xlabel("Time [s]")
+#     plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)]+" [Nm]")
+#     tmp = lgd1[i % 3]+" "+lgd2[int(i/3)]
+#     plt.legend(legend, prop={'size': 8})
+#     plt.ylim([-8.0, 8.0])
 
 ####
 # Contact forces (MPC command) & WBC QP output
