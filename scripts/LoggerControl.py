@@ -364,6 +364,8 @@ class LoggerControl():
             plt.ylabel(lgd[i])
         self.custom_suptitle("Linear and angular velocities")
 
+        print("RMSE: ", np.sqrt(((self.loop_h_v[:, 0] - self.mocap_h_v[:, 0])**2).mean()))
+
         # Analysis of the footstep locations (current and future) with a slider to move along time
         # self.slider_predicted_footholds()
 
