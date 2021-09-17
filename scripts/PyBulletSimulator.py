@@ -36,11 +36,18 @@ class pybullet_simulator:
         # Load horizontal plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
 
+        # Roll and Pitch angle of the ground
+        p_roll = 0.0 / 57.3  # Roll angle of ground
+        p_pitch = 0.0 / 57.3  # Pitch angle of ground
+
         # Either use a flat ground or a rough terrain
         if use_flat_plane:
             self.planeId = pyb.loadURDF("plane.urdf")  # Flat plane
             self.planeIdbis = pyb.loadURDF("plane.urdf")  # Flat plane
-            pyb.resetBasePositionAndOrientation(self.planeIdbis, [20.0, 0, 0], [0, 0, 0, 1])
+
+            # Tune position and orientation of plane
+            pyb.resetBasePositionAndOrientation(self.planeId, [0, 0, 0.0], pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs())
+            pyb.resetBasePositionAndOrientation(self.planeIdbis, [200.0, 0, -100.0 * np.sin(p_pitch)], pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs())
         else:
             import random
             random.seed(41)
@@ -264,13 +271,13 @@ class pybullet_simulator:
             i += 1
 
         # Set base at (0, 0, -z_min) so that the lowest foot is at z = 0
-        pyb.resetBasePositionAndOrientation(self.robotId, [0.0, 0.0, -z_min], [0, 0, 0, 1])
+        pyb.resetBasePositionAndOrientation(self.robotId, [0.0, 0.0, -z_min], pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs())
 
         # Progressively raise the base to achieve proper contact (take into account radius of the foot)
         while (pyb.getClosestPoints(self.robotId, self.planeId, distance=0.005,
                                     linkIndexA=feetLinksID[i_min]))[0][8] < -0.001:
             z_min -= 0.001
-            pyb.resetBasePositionAndOrientation(self.robotId, [0.0, 0.0, -z_min], [0, 0, 0, 1])
+            pyb.resetBasePositionAndOrientation(self.robotId, [0.0, 0.0, -z_min], pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs())
 
         # Fix the base in the world frame
         # pyb.createConstraint(self.robotId, -1, -1, -1, pyb.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [0, 0, robotStartPos[2]])
