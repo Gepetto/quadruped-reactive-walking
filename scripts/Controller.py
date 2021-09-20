@@ -333,7 +333,7 @@ class Controller:
             # Desired position, orientation and velocities of the base
             if not self.gait.getIsStatic():
                 self.xgoals[[0, 1, 5], 0] = np.zeros((3,))
-                self.xgoals[2:5, 0] = [self.h_ref, 0.0, 0.0]  #  Height (in horizontal frame!)
+                self.xgoals[2:5, 0] = [0.0, 0.0, 0.0]  #  Height (in horizontal frame!)
             else:
                 self.xgoals[2:5, 0] += self.vref_filt_mpc[2:5, 0] * self.dt_wbc
 
@@ -406,7 +406,7 @@ class Controller:
             # Display desired feet positions in WBC as green spheres
             oTh_pyb = device.dummyPos.reshape((-1, 1))
             # print("h: ", oTh_pyb[2, 0], " ", self.h_ref)
-            oTh_pyb[2, 0] += 0.02
+            oTh_pyb[2, 0] += 0.0
             oRh_pyb = pin.rpy.rpyToMatrix(0.0, 0.0, device.imu.attitude_euler[2])
             for i in range(4):
                 pos = oRh_pyb @ self.feet_p_cmd[:, i:(i+1)] + oTh_pyb
