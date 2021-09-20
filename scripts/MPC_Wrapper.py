@@ -24,10 +24,10 @@ class MPC_type(Enum):
 class DataInCtype(Structure):
     ''' Ctype data structure for the shared memory between processes.
     '''
-    params = lqrw.Params()                          # Object that holds all controller parameters
-    mpc_type = MPC_type(params.type_MPC)            # MPC type
-    n_steps = np.int(params.T_mpc/params.dt_mpc)    # Colomn size for xref (12 x n_steps)
-    N_gait = int(5 + params.T_mpc / params.dt_mpc)  # Row size for fsteps  (N_gait x 12), from utils_mpc.py
+    params = lqrw.Params()                  # Object that holds all controller parameters
+    mpc_type = MPC_type(params.type_MPC)    # MPC type
+    n_steps = np.int(params.gait.shape[0])  # Colomn size for xref (12 x n_steps)
+    N_gait = int(params.gait.shape[0])      # Row size for fsteps  (N_gait x 12), from utils_mpc.py
 
     if mpc_type == MPC_type.CROCODDYL_PLANNER:
         _fields_ = [('k',  ctypes.c_int64 ),
