@@ -91,17 +91,17 @@ class MPC_Wrapper:
         self.T_gait = params.gait.shape[0] * params.dt_mpc
         self.gait_past = np.zeros(4)
         self.gait_next = np.zeros(4)
-        self.mass = params.mass        
+        self.mass = params.mass
 
         self.mpc_type = MPC_type(params.type_MPC)
         self.multiprocessing = params.enable_multiprocessing
         if self.multiprocessing:  # Setup variables in the shared memory
             self.newData = Value('b', False)
             self.newResult = Value('b', False)
-            self.dataIn = Value(DataInCtype)            
-            if self.mpc_type == MPC_type.CROCODDYL_PLANNER:  
+            self.dataIn = Value(DataInCtype)
+            if self.mpc_type == MPC_type.CROCODDYL_PLANNER:
                 self.dataOut = Array('d', [0] * 32 * (np.int(self.n_steps)))
-            else:                
+            else:
                 self.dataOut = Array('d', [0] * 24 * (np.int(self.n_steps)))
             self.fsteps_future = np.zeros((self.N_gait, 12))
             self.running = Value('b', True)
