@@ -1,4 +1,5 @@
 '''This class will log 1d array in Nd matrix from device and qualisys object'''
+import pickle
 import numpy as np
 from datetime import datetime as datetime
 from time import time
@@ -73,9 +74,10 @@ class LoggerControl():
         self.planner_h_ref = np.zeros([logSize])  # reference height of the planner
 
         # Foot Trajectory Generator
-        self.planner_goals = np.zeros([logSize, 3, 4])  # 3D target feet positions
+        self.planner_goals = np.zeros([logSize, 3, 4])   # 3D target feet positions
         self.planner_vgoals = np.zeros([logSize, 3, 4])  # 3D target feet velocities
         self.planner_agoals = np.zeros([logSize, 3, 4])  # 3D target feet accelerations
+        self.planner_jgoals = np.zeros([logSize, 3, 4])  # 3D target feet accelerations
 
         # Model Predictive Control
         # output vector of the MPC (next state + reference contact force)
@@ -160,6 +162,7 @@ class LoggerControl():
         self.planner_goals[self.i] = footTrajectoryGenerator.getFootPosition()
         self.planner_vgoals[self.i] = footTrajectoryGenerator.getFootVelocity()
         self.planner_agoals[self.i] = footTrajectoryGenerator.getFootAcceleration()
+        self.planner_jgoals[self.i] = footTrajectoryGenerator.getFootJerk()
         self.planner_is_static[self.i] = gait.getIsStatic()
         self.planner_h_ref[self.i] = loop.h_ref
 
@@ -747,6 +750,7 @@ class LoggerControl():
                             planner_goals=self.planner_goals,
                             planner_vgoals=self.planner_vgoals,
                             planner_agoals=self.planner_agoals,
+                            planner_jgoals=self.planner_jgoals,
                             planner_is_static=self.planner_is_static,
                             planner_h_ref=self.planner_h_ref,
 
@@ -794,7 +798,7 @@ class LoggerControl():
             import glob
             fileName = np.sort(glob.glob('data_2021_*.npz'))[-1]  # Most recent file
 
-        data = np.load(fileName)
+        data = np.load(fileName, allow_pickle = True)
 
         # Load LoggerControl arrays
         self.joy_v_ref = data["joy_v_ref"]
@@ -842,6 +846,7 @@ class LoggerControl():
         self.planner_goals = data["planner_goals"]
         self.planner_vgoals = data["planner_vgoals"]
         self.planner_agoals = data["planner_agoals"]
+        self.planner_jgoals = data["planner_jgoals"]
         self.planner_is_static = data["planner_is_static"]
         self.planner_h_ref = data["planner_h_ref"]
 
@@ -1074,13 +1079,20 @@ class LoggerControl():
 if __name__ == "__main__":
 
     import LoggerSensors
+    import sys
+    import os
+    from sys import argv
+    sys.path.insert(0, os.getcwd()) # adds current directory to python path
+
+    # Data file name to load
+    file_name = "/home/thomas_cbrs/Desktop/edin/quadruped-reactive-walking/scripts/crocoddyl_eval/logs/explore_weight_acc/data_2021_09_16_15_10_3.npz"
 
     # Create loggers
     loggerSensors = LoggerSensors.LoggerSensors(logSize=20000-3)
     logger = LoggerControl(0.001, 30, logSize=20000-3)
 
     # Load data from .npz file
-    logger.loadAll(loggerSensors)
+    logger.loadAll(loggerSensors, fileName= file_name)
 
     # Call all ploting functions
     logger.plotAll(loggerSensors)

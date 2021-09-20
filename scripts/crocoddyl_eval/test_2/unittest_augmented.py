@@ -16,6 +16,9 @@ model = quadruped_walkgen.ActionModelQuadrupedAugmented()
 model.stateWeights = 2*np.ones(12)
 model.heuristicWeights = 2*np.ones(8)
 model.stepWeights = np.ones(8)
+model.shoulderContactWeight = np.array([0.5,0.1,0.9,0.])
+model.shoulderReferencePosition = False
+model.max_fz = 0.5
 
 # Update the dynamic of the model 
 fstep = np.random.rand(12).reshape((3,4))

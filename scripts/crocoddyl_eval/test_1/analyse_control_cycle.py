@@ -11,11 +11,12 @@ import libquadruped_reactive_walking as lqrw
 import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 import crocoddyl
 import utils_mpc
+np.set_printoptions(formatter={'float': lambda x: "{0:0.7f}".format(x)}, linewidth = 450)
 
 ##############
 #  Parameters
 ##############
-iteration_mpc = 2 # Control cycle
+iteration_mpc = 350  # Control cycle
 Relaunch_DDP = True # Compare a third MPC with != parameters
 linear_mpc = True
 params = lqrw.Params()  # Object that holds all controller parameters
@@ -29,7 +30,7 @@ solo = utils_mpc.init_robot(q_init, params)
 ######################
 # Recover Logged data 
 ######################
-file_name = "crocoddyl_eval/logs/chute_mpc_nl_noShoulder.npz"
+file_name = "/home/thomas_cbrs/Desktop/edin/quadruped-reactive-walking/scripts/crocoddyl_eval/logs/explore_weight_acc/data_cost.npz"
 logs = np.load(file_name)
 planner_gait = logs.get("planner_gait")
 planner_xref = logs.get("planner_xref")
@@ -42,14 +43,14 @@ k = int( iteration_mpc * (params.dt_mpc / params.dt_wbc) ) # simulation iteratio
 mpc_osqp = lqrw.MPC(params)
 mpc_osqp.run(0, planner_xref[0] , planner_fsteps[0]) # Initialization of the matrix
 # mpc_osqp.run(1, planner_xref[1] , planner_fsteps[1])
-# mpc_osqp.run(k, planner_xref[k] , planner_fsteps[k])
+mpc_osqp.run(k, planner_xref[k] , planner_fsteps[k])
 
 osqp_xs = mpc_osqp.get_latest_result()[:12,:] # States computed over the whole predicted horizon
 osqp_xs = np.vstack([planner_xref[k,:,0] , osqp_xs.transpose()]).transpose() # Add current state 
 osqp_us = mpc_osqp.get_latest_result()[12:,:] # Forces computed over the whole predicted horizon
 
 # DDP MPC 
-mpc_ddp = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=False)
+mpc_ddp = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=True)
 # Without warm-start :
 # mpc_ddp.warm_start = False
 # mpc_ddp.solve(k, planner_xref[k] , planner_fsteps[k] ) # Without warm-start
@@ -57,8 +58,14 @@ mpc_ddp = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=F
 # Using warm-start logged :
 #( Exactly the function solve from MPC_crocoddyl)
 # But cannot be used because there areis no previous value inside ddp.xs and ddp.us
-mpc_ddp.updateProblem( planner_fsteps[k], planner_xref[k]) # Update dynamics
+planner_xref_offset =  planner_xref[k].copy()
+planner_xref_offset[2,:] += mpc_ddp.offset_com
+mpc_ddp.updateProblem( planner_fsteps[k], planner_xref_offset) # Update dynamics
 
+
+print("\n\n")
+print("model 0 :")
+print(mpc_ddp.problem.runningModels[0].B)
 x_init = []
 u_init = []
 mpc_ddp.ddp.solve(x_init,  u_init, mpc_ddp.max_iteration)
@@ -70,28 +77,30 @@ while planner_gait[k,i,:].any() :
     i +=1
 
 for j in range(mpc_x_f[0,:,:].shape[1] - 1 ) : 
-    u_init.append(mpc_x_f[k_previous,12:,j+1]) # Drag through an iteration (remove first)
+    u_init.append(mpc_x_f[k_previous,12:24,j+1]) # Drag through an iteration (remove first)
 u_init.append(np.repeat(planner_gait[k,i-1,:], 3)*np.array(4*[0.5, 0.5, 5.])) # Add last node with average values, depending on the gait
 
 for j in range(mpc_x_f[0,:,:].shape[1] - 1 ) : 
     x_init.append(mpc_x_f[k_previous,:12,j+1]) # Drag through an iteration (remove first)
 x_init.append(mpc_x_f[k_previous,:12,-1]) # repeat last term 
-x_init.insert(0, planner_xref[k,:, 0]) # With ddp, first value is the initial value 
+x_init.insert(0, planner_xref_offset[:, 0]) # With ddp, first value is the initial value 
 
 # Solve problem
 mpc_ddp.ddp.solve(x_init,  u_init, mpc_ddp.max_iteration)
 
 ddp_xs = mpc_ddp.get_latest_result()[:12,:] # States computed over the whole predicted horizon 
-ddp_xs = np.vstack([planner_xref[k,:,0] , ddp_xs.transpose()]).transpose() # Add current state 
+ddp_xs = np.vstack([planner_xref_offset[:,0] , ddp_xs.transpose()]).transpose() # Add current state 
 ddp_us = mpc_ddp.get_latest_result()[12:,:] # Forces computed over the whole predicted horizon
 
 ######################################
 # Relaunch DDP to adjust the gains 
 ######################################
 
-mpc_ddp_2 = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False  , linearModel=False) # To modify the linear model if wanted, recreate a list with proper model
+mpc_ddp_2 = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False  , linearModel=True) # To modify the linear model if wanted, recreate a list with proper model
 mpc_ddp_2.implicit_integration = False
-mpc_ddp_2.shoulderWeights = 0.
+mpc_ddp_2.offset_com = 0.0
+# mpc_ddp_2.stateWeights = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 1.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3])
+# mpc_ddp_2.shoulderWeights = 1.
 # Weight Vector : State 
 # w_x = 0.2
 # w_y = 0.2
@@ -142,12 +151,15 @@ mpc_ddp_2.problem = crocoddyl.ShootingProblem(np.zeros(12),  mpc_ddp_2.ListActio
 mpc_ddp_2.ddp = crocoddyl.SolverDDP(mpc_ddp_2.problem)
 # Run ddp solver
 # Update the dynamic depending on the predicted feet position
+planner_xref_offset =  planner_xref[k]
+planner_xref_offset[2,:] += mpc_ddp_2.offset_com
+
 if Relaunch_DDP :
-    mpc_ddp_2.updateProblem( planner_fsteps[k], planner_xref[k])
+    mpc_ddp_2.updateProblem( planner_fsteps[k], planner_xref_offset)
     mpc_ddp_2.ddp.solve(x_init,  u_init, mpc_ddp_2.max_iteration, isFeasible = False)
     
     ddp_xs_relaunch = mpc_ddp_2.get_latest_result()[:12,:] # States computed over the whole predicted horizon 
-    ddp_xs_relaunch = np.vstack([planner_xref[k,:,0] , ddp_xs_relaunch.transpose()]).transpose() # Add current state 
+    ddp_xs_relaunch = np.vstack([planner_xref_offset[:,0] , ddp_xs_relaunch.transpose()]).transpose() # Add current state 
     ddp_us_relaunch = mpc_ddp_2.get_latest_result()[12:,:] # Forces computed over the whole predicted horizon
 
 #############

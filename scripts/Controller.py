@@ -277,9 +277,14 @@ class Controller:
                 if self.type_MPC == 3:
                     # Compute the target foostep in local frame, to stop the optimisation around it when t_lock overpass
                     l_targetFootstep = oRh.transpose() @ (self.o_targetFootstep - oTh)
-                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, l_targetFootstep, oRh, oTh)
-                else:
-                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3, 4)))
+                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, l_targetFootstep, oRh, oTh,
+                                                self.footTrajectoryGenerator.getFootPosition(),
+                                                self.footTrajectoryGenerator.getFootVelocity(),
+                                                self.footTrajectoryGenerator.getFootAcceleration(),
+                                                self.footTrajectoryGenerator.getFootJerk(),
+                                                self.footTrajectoryGenerator.getTswing() - self.footTrajectoryGenerator.getT0s())
+                else :
+                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3,4)))
 
             except ValueError:
                 print("MPC Problem")

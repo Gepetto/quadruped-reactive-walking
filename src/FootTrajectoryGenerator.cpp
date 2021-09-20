@@ -17,6 +17,7 @@ FootTrajectoryGenerator::FootTrajectoryGenerator()
       position_(Matrix34::Zero()),
       velocity_(Matrix34::Zero()),
       acceleration_(Matrix34::Zero()),
+      jerk_(Matrix34::Zero()),
       position_base_(Matrix34::Zero()),
       velocity_base_(Matrix34::Zero()),
       acceleration_base_(Matrix34::Zero()) {}
@@ -152,6 +153,8 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const &tar
     velocity_(1, j) = 0.0;
     acceleration_(0, j) = 0.0;
     acceleration_(1, j) = 0.0;
+    jerk_(0, j) = 0.0;
+    jerk_(1, j) = 0.0;    
   } else {
     position_(0, j) = Ax(5, j) + Ax(4, j) * ev + Ax(3, j) * std::pow(ev, 2) + Ax(2, j) * std::pow(ev, 3) +
                       Ax(1, j) * std::pow(ev, 4) + Ax(0, j) * std::pow(ev, 5);
@@ -165,11 +168,15 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const &tar
         2 * Ax(3, j) + 3 * 2 * Ax(2, j) * ev + 4 * 3 * Ax(1, j) * std::pow(ev, 2) + 5 * 4 * Ax(0, j) * std::pow(ev, 3);
     acceleration_(1, j) =
         2 * Ay(3, j) + 3 * 2 * Ay(2, j) * ev + 4 * 3 * Ay(1, j) * std::pow(ev, 2) + 5 * 4 * Ay(0, j) * std::pow(ev, 3);
+
+    jerk_(0, j) = 3 * 2 * Ax(2, j) + 4 * 3 * 2 * Ax(1, j) * ev + 5 * 4 * 3 * Ax(0, j) * std::pow(ev, 2);
+    jerk_(1, j) = 3 * 2 * Ay(2, j) + 4 * 3 * 2 * Ay(1, j) * ev + 5 * 4 * 3 * Ay(0, j) * std::pow(ev, 2);
   }
   velocity_(2, j) = 3 * Az(3, j) * std::pow(evz, 2) + 4 * Az(2, j) * std::pow(evz, 3) +
                     5 * Az(1, j) * std::pow(evz, 4) + 6 * Az(0, j) * std::pow(evz, 5);
   acceleration_(2, j) = 2 * 3 * Az(3, j) * evz + 3 * 4 * Az(2, j) * std::pow(evz, 2) +
                         4 * 5 * Az(1, j) * std::pow(evz, 3) + 5 * 6 * Az(0, j) * std::pow(evz, 4);
+  jerk_(2, j) = 2 * 3 * Az(3, j) + 3 * 4 * 2 * Az(2, j) * evz + 4 * 5 * 3 * Az(1, j) * std::pow(evz, 2) + 5 * 6 * 4 * Az(0, j) * std::pow(evz, 3);
   position_(2, j) = Az(3, j) * std::pow(evz, 3) + Az(2, j) * std::pow(evz, 4) + Az(1, j) * std::pow(evz, 5) +
                     Az(0, j) * std::pow(evz, 6);
 }
