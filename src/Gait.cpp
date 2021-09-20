@@ -25,6 +25,7 @@ void Gait::initialize(Params& params) {
 
   // Fill currrent gait matrix
   currentGait_ = desiredGait_;
+  pastGait_ = desiredGait_.colwise().reverse();
 }
 
 void Gait::create_walk() {
