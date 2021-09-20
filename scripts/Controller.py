@@ -327,7 +327,7 @@ class Controller:
 
             # Desired position, orientation and velocities of the base
             if not self.gait.getIsStatic():
-                self.xgoals[[0, 1, 5], 0] = self.q_filt_mpc[[0, 1, 5], 0]
+                self.xgoals[[0, 1, 5], 0] = np.zeros((3,))
                 self.xgoals[2:5, 0] = [self.h_ref, 0.0, 0.0]  #  Height (in horizontal frame!)
             else:
                 self.xgoals[2:5, 0] += self.vref_filt_mpc[2:5, 0] * self.dt_wbc
