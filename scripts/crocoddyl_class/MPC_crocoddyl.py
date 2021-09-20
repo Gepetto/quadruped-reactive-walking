@@ -19,9 +19,8 @@ class MPC_crocoddyl:
 
     def __init__(self, params,  mu=1, inner=True, linearModel=True):
         
-        self.dt = params.dt_mpc         # Time step of the solver        
-        self.T_mpc = params.T_mpc       # Period of the MPC    
-        self.n_nodes = int(self.T_mpc/self.dt)    # Number of nodes    
+        self.dt = params.dt_mpc         # Time step of the solver
+        self.n_nodes = int(params.gait.shape[0])    # Number of nodes    
         self.mass = params.mass         # Mass of the robot
         self.gI = np.array(params.I_mat.tolist()).reshape((3, 3)) # Inertia matrix in ody frame
 
@@ -67,9 +66,9 @@ class MPC_crocoddyl:
         self.warm_start = True      # Warm Start for the solver
 
         # Position of the feet
-        self.fsteps = np.full((params.N_gait, 12), np.nan)
-        self.gait = np.zeros((params.N_gait, 4))
-        self.xref = np.full((12, int(params.T_gait / params.dt_mpc + 1 )), np.nan)
+        self.fsteps = np.full((self.n_nodes, 12), np.nan)
+        self.gait = np.zeros((self.n_nodes, 4))
+        self.xref = np.full((12, self.n_nodes + 1), np.nan)
         self.index = 0
 
         # Offset CoM
@@ -111,9 +110,7 @@ class MPC_crocoddyl:
         self.problem.x0 = xref[:, 0]
 
         # Construction of the gait matrix representing the feet in contact with the ground
-        self.index = 0
-        while (np.any(self.fsteps[self.index, :])):
-            self.index += 1
+        self.index = self.n_nodes
         self.gait[:self.index, :] = 1.0 - (self.fsteps[:self.index, 0::3] == 0.0)
         self.gait[self.index:, :] = 0.0
 
@@ -166,8 +163,8 @@ class MPC_crocoddyl:
         Args:
         """
 
-        output = np.zeros((24, int(self.T_mpc/self.dt)))
-        for i in range(int(self.T_mpc/self.dt)):
+        output = np.zeros((24, self.n_nodes))
+        for i in range(self.n_nodes):
             output[:12, i] = np.asarray(self.ddp.xs[i+1])
             output[12:, i] = np.asarray(self.ddp.us[i])
         return output
