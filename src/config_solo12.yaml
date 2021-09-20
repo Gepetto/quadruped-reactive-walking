@@ -45,8 +45,8 @@ robot:
     osqp_Nz_lim: 35.0  # Maximum vertical force that can be applied at contact points
 
     # Parameters of InvKin
-    Kp_flyingfeet: 100.0  # Proportional gain for feet position tasks
-    Kd_flyingfeet: 10.0  # Derivative gain for feet position tasks
+    Kp_flyingfeet: 1000.0  # Proportional gain for feet position tasks
+    Kd_flyingfeet: 100.0  # Derivative gain for feet position tasks
     Kp_base_position: [1000.0, 1000.0, 1000.0]  # Proportional gains for the base position task
     Kd_base_position: [100.0, 100.0, 100.0]  # Derivative gains for the base position task
     Kp_base_orientation: [1000.0, 1000.0, 1000.0]  # Proportional gains for the base orientation task
@@ -55,6 +55,6 @@ robot:
 
     # Parameters of WBC QP problem
     Q1: 0.1  # Weights for the "delta articular accelerations" optimization variables
-    Q2: 1.0  # Weights for the "delta contact forces" optimization variables
+    Q2: 5.0  # Weights for the "delta contact forces" optimization variables
     Fz_max: 35.0  # Maximum vertical contact force [N]
     Fz_min: 0.0  # Minimal vertical contact force [N]
