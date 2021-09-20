@@ -144,7 +144,7 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const &tar
   double ev = t + dt;
   double evz = t0s[j] + dt;
 
-  if (t < 0.0 || t > d)  // Just vertical motion
+  if (t < 0.0 || t >= d)  // Just vertical motion
   {
     position_(0, j) = x0;
     position_(1, j) = y0;
