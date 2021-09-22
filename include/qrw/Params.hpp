@@ -48,6 +48,7 @@ class Params {
 
   // See .yaml file for meaning of parameters
   // General parameters
+  std::string config_file; // Name of the yaml file containing hardware information
   std::string interface;  // Name of the communication interface (check with ifconfig)
   bool SIMULATION;        // Enable/disable PyBullet simulation or running on real robot
   bool LOGGING;           //  Enable/disable logging during the experiment

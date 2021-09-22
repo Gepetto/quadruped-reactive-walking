@@ -121,7 +121,7 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         device = PyBulletSimulator()
         qc = None
     else:
-        device = oci.robot_from_yaml_file('config_solo12.yaml')
+        device = oci.robot_from_yaml_file(params.config_file)
         qc = QualisysClient(ip="140.93.16.160", body_id=0)
 
     if name_interface_clone is not None:

@@ -3,7 +3,8 @@
 using namespace yaml_control_interface;
 
 Params::Params()
-    : interface(""),
+    : config_file(""),
+      interface(""),
       SIMULATION(false),
       LOGGING(false),
       PLOTTING(false),
@@ -74,6 +75,9 @@ void Params::initialize(const std::string& file_path) {
   const YAML::Node& robot_node = param["robot"];
 
   // Retrieve robot parameters
+  assert_yaml_parsing(robot_node, "robot", "config_file");
+  config_file = robot_node["config_file"].as<std::string>();
+
   assert_yaml_parsing(robot_node, "robot", "interface");
   interface = robot_node["interface"].as<std::string>();
 
