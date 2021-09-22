@@ -447,6 +447,8 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("Kp_main", &Params::Kp_main)
             .def_readwrite("Kd_main", &Params::Kd_main)
             .def_readwrite("Kff_main", &Params::Kff_main)
+            .def_readwrite("osqp_w_states", &Params::osqp_w_states)
+            .def_readwrite("osqp_w_forces", &Params::osqp_w_forces)
             .def_readonly("gait", &Params::get_gait)
             .def_readwrite("enable_pyb_GUI", &Params::enable_pyb_GUI)
             .def_readwrite("enable_corba_viewer", &Params::enable_corba_viewer)

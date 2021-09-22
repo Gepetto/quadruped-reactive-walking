@@ -3,6 +3,7 @@
 import crocoddyl
 import numpy as np
 import quadruped_walkgen as quadruped_walkgen
+import pinocchio as pin
 np.set_printoptions(formatter={'float': lambda x: "{0:0.7f}".format(x)}, linewidth = 450)
 
 
@@ -18,9 +19,9 @@ class MPC_crocoddyl:
     """
 
     def __init__(self, params,  mu=1, inner=True, linearModel=True):
-        
+
         self.dt = params.dt_mpc         # Time step of the solver
-        self.n_nodes = int(params.gait.shape[0])    # Number of nodes    
+        self.n_nodes = int(params.gait.shape[0])    # Number of nodes
         self.mass = params.mass         # Mass of the robot
         self.gI = np.array(params.I_mat.tolist()).reshape((3, 3)) # Inertia matrix in ody frame
 
@@ -30,30 +31,32 @@ class MPC_crocoddyl:
         else:
             self.mu = mu
 
-        # self.stateWeights = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]) 
-        
-        # Weights on the state vector
-        self.w_x = 0.3
-        self.w_y = 0.3
-        self.w_z = 20
-        self.w_roll = 0.9
-        self.w_pitch = 1.
-        self.w_yaw = 0.4
-        self.w_vx = 1.5*np.sqrt(self.w_x)
-        self.w_vy = 2*np.sqrt(self.w_y)
-        self.w_vz = 2*np.sqrt(self.w_z)
-        self.w_vroll = 0.05*np.sqrt(self.w_roll)
-        self.w_vpitch = 0.07*np.sqrt(self.w_pitch)
-        self.w_vyaw = 0.08*np.sqrt(self.w_yaw)
+        # PLANNER weights
+        # self.w_x = 0.3
+        # self.w_y = 0.3
+        # self.w_z = 20
+        # self.w_roll = 0.9
+        # self.w_pitch = 1.
+        # self.w_yaw = 0.4
+        # self.w_vx = 1.5*np.sqrt(self.w_x)
+        # self.w_vy = 2*np.sqrt(self.w_y)
+        # self.w_vz = 2*np.sqrt(self.w_z)
+        # self.w_vroll = 0.05*np.sqrt(self.w_roll)
+        # self.w_vpitch = 0.07*np.sqrt(self.w_pitch)
+        # self.w_vyaw = 0.08*np.sqrt(self.w_yaw)
+        # # Weights on the state vector
+        # self.stateWeights = np.array([self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw,
+        #                              self.w_vx, self.w_vy, self.w_vz, self.w_vroll, self.w_vpitch, self.w_vyaw])
+        # self.forceWeights = 1.*np.array(4*[0.0071, 0.0071, 0.0071]) # Force weights
 
-        self.stateWeights = np.array([self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw,
-                                     self.w_vx, self.w_vy, self.w_vz, self.w_vroll, self.w_vpitch, self.w_vyaw])
-        
-        self.forceWeights = 1*np.array(4*[0.0071, 0.0071, 0.0071]) # Weight Vector : Force Norm
-        self.frictionWeights = 1.0                            # Weight Vector : Friction cone cost
+        # OSQP weights
+        self.stateWeights = np.sqrt(params.osqp_w_states)  # State weights
+        self.forceWeights = np.tile(np.sqrt(params.osqp_w_forces), 4)  # Force weights
+
+        self.frictionWeights = 1.0  # Friction cone weight
 
         self.min_fz = 0.2       # Minimum normal force (N)
-        self.max_fz = 25        # Maximum normal force (N)   
+        self.max_fz = 25        # Maximum normal force (N)
 
         self.shoulderWeights = 0.       # Weight on the shoulder term :
         self.shoulder_hlim = 0.235       # shoulder maximum height
@@ -62,7 +65,7 @@ class MPC_crocoddyl:
         self.implicit_integration = False
         self.relative_forces = True
 
-        self.max_iteration = 10     # Max iteration ddp solver        
+        self.max_iteration = 10     # Max iteration ddp solver
         self.warm_start = True      # Warm Start for the solver
 
         # Position of the feet
@@ -153,7 +156,7 @@ class MPC_crocoddyl:
             self.x_init = self.ddp.xs[2:]
             self.x_init.insert(0, self.xref[:, 0])
             self.x_init.append(self.ddp.xs[-1])
-       
+
         self.ddp.solve(self.x_init,  self.u_init, self.max_iteration)
 
         return 0
@@ -166,6 +169,7 @@ class MPC_crocoddyl:
         output = np.zeros((24, self.n_nodes))
         for i in range(self.n_nodes):
             output[:12, i] = np.asarray(self.ddp.xs[i+1])
+            output[2,i] -= self.offset_com
             output[12:, i] = np.asarray(self.ddp.us[i])
         return output
 
