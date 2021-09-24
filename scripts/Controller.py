@@ -292,6 +292,14 @@ class Controller:
         # Retrieve reference contact forces in horizontal frame
         self.x_f_mpc = self.mpc_wrapper.get_latest_result()
 
+        """if self.k >= 8220 and (self.k % self.k_mpc == 0):
+            print(self.k)
+            print(self.x_f_mpc[:, 0])
+            from matplotlib import pyplot as plt
+            plt.figure()
+            plt.plot(self.x_f_mpc[6, :])
+            plt.show(block=True)"""
+
         # Store o_targetFootstep, used with MPC_planner
         self.o_targetFootstep = o_targetFootstep.copy()
 
@@ -316,7 +324,7 @@ class Controller:
             # Update configuration vector for wbc
             self.q_wbc[3, 0] = self.q_filt_mpc[3, 0]  # Roll
             self.q_wbc[4, 0] = self.q_filt_mpc[4, 0]  # Pitch
-            self.q_wbc[6:, 0] = self.q_filt_mpc[6:, 0]  # Measured joint positions
+            self.q_wbc[6:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop
 
             # Update velocity vector for wbc
             self.dq_wbc[:6, 0] = self.estimator.getVFilt()[:6]  #  Velocities in base frame (not horizontal frame!)
@@ -369,6 +377,19 @@ class Controller:
                 q_oRb_pyb = pin.Quaternion(pin.rpy.rpyToMatrix(self.k/(57.3 * 500), 0.0,
                                            device.imu.attitude_euler[2])).coeffs().tolist()
                 pyb.resetBasePositionAndOrientation(device.pyb_sim.robotId, oTh_pyb, q_oRb_pyb)"""
+
+        if self.k >= 8220 and (self.k % self.k_mpc == 0):
+            print(self.k)
+            print("x_f_mpc: ", self.x_f_mpc[:, 0])
+            print("ddq delta: ", self.wbcWrapper.ddq_with_delta)
+            print("f delta: ", self.wbcWrapper.f_with_delta)
+            from matplotlib import pyplot as plt
+            plt.figure()
+            plt.plot(self.x_f_mpc[6, :])
+            plt.show(block=True)
+
+        if self.k == 1:
+            quit()
 
         t_wbc = time.time()
 
