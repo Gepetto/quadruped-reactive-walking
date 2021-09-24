@@ -29,13 +29,17 @@ void QPWBC::initialize(Params &params) {
   Q2 = params.Q2 * Eigen::Matrix<double, 12, 12>::Identity();
 
   // Set the lower and upper limits of the box
-  std::fill_n(v_NK_up, size_nz_NK, params_->Fz_max);
-  std::fill_n(v_NK_low, size_nz_NK, params_->Fz_min);
+  Fz_max = params_->Fz_max;
+  Fz_min = params_->Fz_min;
+  std::fill_n(v_NK_up, size_nz_NK, +std::numeric_limits<double>::infinity());
+  std::fill_n(v_NK_low, size_nz_NK, -std::numeric_limits<double>::infinity());
 }
 
-int QPWBC::create_matrices() {
+int QPWBC::create_matrices(const Eigen::Matrix<double, 12, 6> &Jc, const Eigen::Matrix<double, 12, 1> &f_cmd,
+                           const Eigen::Matrix<double, 6, 1> &RNEA) {
   // Create the constraint matrices
   create_ML();
+  create_NK(Jc.transpose(), f_cmd, RNEA);
 
   // Create the weight matrices
   create_weight_matrices();
@@ -67,9 +71,23 @@ int QPWBC::create_ML() {
   std::fill_n(v_ML, size_nz_ML, 0.0);
 
   // ML is the identity matrix of size 12
+  // Friction cone constraints
   for (int i = 0; i < 20; i++) {
     for (int j = 0; j < 12; j++) {
-      add_to_ML(i, j, G(i, j), r_ML, c_ML, v_ML);
+      if (G(i, j) != 0.0) {add_to_ML(i, 6 + j, G(i, j), r_ML, c_ML, v_ML);}
+    }
+  }
+  // Dynamics equation constraints
+  // Filling with mass matrix (all coeffs to 1.0 to initialize that part as dense)
+  for (int i = 0; i < 6; i++) {
+    for (int j = 0; j < 6; j++) {
+      add_to_ML(20 + i, j, 1.0, r_ML, c_ML, v_ML);  // 1.0 replaces M(i, j)
+    }
+  }
+  // Filling with - contact Jacobian transposed (all coeffs to 1.0 to initialize that part as dense)
+  for (int i = 0; i < 6; i++) {
+    for (int j = 0; j < 12; j++) {
+      add_to_ML(20 + i, 6 + j, 1.0, r_ML, c_ML, v_ML);  // 1.0 replaces -JcT(i, j)
     }
   }
 
@@ -80,7 +98,7 @@ int QPWBC::create_ML() {
   int nst = cpt_ML;                          // number of non zero elements
   int ncc = st_to_cc_size(nst, r_ML, c_ML);  // number of CC values
   // int m = 20;   // number of rows
-  int n = 12;  // number of columns
+  int n = 18;  // number of columns
 
   // std::cout << "Number of CC values: " << ncc << std::endl;
 
@@ -101,8 +119,8 @@ int QPWBC::create_ML() {
 
   // Assign values to the csc object
   ML = (csc *)c_malloc(sizeof(csc));
-  ML->m = 20;
-  ML->n = 12;
+  ML->m = (20 + 6);
+  ML->n = 18;
   ML->nz = -1;
   ML->nzmax = ncc;
   ML->x = acc;
@@ -113,6 +131,37 @@ int QPWBC::create_ML() {
   delete[] r_ML;
   delete[] c_ML;
   delete[] v_ML;
+
+  return 0;
+}
+
+int QPWBC::create_NK(const Eigen::Matrix<double, 6, 12> &JcT, const Eigen::Matrix<double, 12, 1> &f_cmd,
+                     const Eigen::Matrix<double, 6, 1> &RNEA) {
+
+  // Fill upper bound of the friction cone contraints
+  for (int i = 0; i < 4; i++) {
+    v_NK_up[5 * i + 0] = std::numeric_limits<double>::infinity();
+    v_NK_up[5 * i + 1] = std::numeric_limits<double>::infinity();
+    v_NK_up[5 * i + 2] = std::numeric_limits<double>::infinity();
+    v_NK_up[5 * i + 3] = std::numeric_limits<double>::infinity();
+    v_NK_up[5 * i + 4] = Fz_max - f_cmd(3 * i + 2, 0);
+  }
+
+  // Fill lower bound of the friction cone contraints
+  for (int i = 0; i < 4; i++) {
+    v_NK_low[5 * i + 0] = f_cmd(3 * i + 0, 0) - mu * f_cmd(3 * i + 2, 0);
+    v_NK_low[5 * i + 1] = - f_cmd(3 * i + 0, 0) - mu * f_cmd(3 * i + 2, 0);
+    v_NK_low[5 * i + 2] = f_cmd(3 * i + 1, 0) - mu * f_cmd(3 * i + 2, 0);
+    v_NK_low[5 * i + 3] = - f_cmd(3 * i + 1, 0) - mu * f_cmd(3 * i + 2, 0);
+    v_NK_low[5 * i + 4] = Fz_min - f_cmd(3 * i + 2, 0);
+  }
+
+  // Fill the remaining 6 lines for the dynamics
+  Eigen::Matrix<double, 6, 1> dyn_cons = JcT * f_cmd - RNEA;
+  for (int i = 0; i < 6; i++) {
+    v_NK_up[20 + i] = dyn_cons(i, 0);
+    v_NK_low[20 + i] = dyn_cons(i, 0);
+  }
 
   return 0;
 }
@@ -128,10 +177,11 @@ int QPWBC::create_weight_matrices() {
 
   // Fill P with 1.0 so that the sparse creation process considers that all coeffs
   // can have a non zero value
+  for (int i = 0; i < 6; i++) {
+      add_to_P(i, i, Q1(i, i), r_P, c_P, v_P);
+  }
   for (int i = 0; i < 12; i++) {
-    for (int j = i; j < 12; j++) {
-      add_to_P(i, j, 1.0, r_P, c_P, v_P);
-    }
+      add_to_P(6 + i, 6+i, Q2(i, i), r_P, c_P, v_P);
   }
 
   // Creation of CSC matrix
@@ -141,7 +191,7 @@ int QPWBC::create_weight_matrices() {
   int nst = cpt_P;                         // number of non zero elements
   int ncc = st_to_cc_size(nst, r_P, c_P);  // number of CC values
   // int m = 12;                // number of rows
-  int n = 12;  // number of columns
+  int n = 18;  // number of columns
 
   // std::cout << "Number of CC values: " << ncc << std::endl;
 
@@ -155,8 +205,8 @@ int QPWBC::create_weight_matrices() {
 
   // Assign values to the csc object
   P = (csc *)c_malloc(sizeof(csc));
-  P->m = 12;
-  P->n = 12;
+  P->m = 18;
+  P->n = 18;
   P->nz = -1;
   P->nzmax = ncc;
   P->x = acc;
@@ -174,13 +224,57 @@ int QPWBC::create_weight_matrices() {
   return 0;
 }
 
+int QPWBC::update_matrices(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Matrix<double, 12, 6> &Jc,
+                           const Eigen::Matrix<double, 12, 1> &f_cmd, const Eigen::Matrix<double, 6, 1> &RNEA) {
+  // Updating M and L matrices
+  update_ML(M, Jc.transpose());
+
+  // Updating N and K matrices
+  create_NK(Jc.transpose(), f_cmd, RNEA);  // We can use the create function to update NK
+
+  // Weight matrices do not need to be update
+
+  /*char t_char[1] = {'P'};
+  my_print_csc_matrix(P, t_char);
+
+  t_char[0] = 'M';
+  my_print_csc_matrix(ML, t_char);*/
+
+  return 0;
+}
+
+int QPWBC::update_ML(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Matrix<double, 6, 12> &JcT) {
+
+  // Update the part of ML that contains the dynamics constraint
+  // Coefficients are stored in column order and we want to update the block (20, 0, 6, 18)
+  // [0  fric
+  //  M -JcT] with fric having [2 2 5 2 2 5 2 2 5 2 2 5] non zeros coefficient for each one of its 12 columns
+  
+  // Update M, no need to be careful because there is only zeros coefficients above M
+  for (int j = 0; j < 6; j++) {
+    for (int i = 0; i < 6; i++) {
+      ML->x[6 * j + i] = M(i, j);
+    }
+  }
+
+  // Update -JcT, need to be careful because there are non zeros coefficients before
+  // M represents 36 non zero coefficients + [2 2 5 2 2 5 2 2 5 2 2 5] non zeros for friction cone
+  for (int j = 0; j < 12; j++) {
+    for (int i = 0; i < 6; i++) {
+      ML->x[36 + fric_nz[j] + 6 * j + i] = -JcT(i, j);
+    }
+  }
+
+  return 0;
+}
+
 int QPWBC::call_solver() {
   // Setup the solver (first iteration) then just update it
   if (not initialized)  // Setup the solver with the matrices
   {
     data = (OSQPData *)c_malloc(sizeof(OSQPData));
-    data->n = 12;        // number of variables
-    data->m = 20;        // number of constraints
+    data->n = 18;        // number of variables
+    data->m = 26;        // number of constraints
     data->P = P;         // the upper triangular part of the quadratic cost matrix P in csc format (size n x n)
     data->A = ML;        // linear constraints matrix A in csc format (size m x n)
     data->q = Q;         // dense array for linear part of cost function (size n)
@@ -214,14 +308,20 @@ int QPWBC::call_solver() {
   } else  // Code to update the QP problem without creating it again
   {
     // Update P matrix of the OSQP solver
-    osqp_update_P(workspce, &P->x[0], OSQP_NULL, 0);
+    // osqp_update_P(workspce, &P->x[0], OSQP_NULL, 0);
 
     // Update Q matrix of the OSQP solver
-    osqp_update_lin_cost(workspce, &Q[0]);
+    // osqp_update_lin_cost(workspce, &Q[0]);
+
+    // Update constraint matrix
+    osqp_update_A(workspce, &ML->x[0], OSQP_NULL, 0);
+
+    // Update lower and upper bounds
+    osqp_update_bounds(workspce, &v_NK_low[0], &v_NK_up[0]);
 
     // Update upper bound of the OSQP solver
-    osqp_update_upper_bound(workspce, &v_NK_up[0]);
-    osqp_update_lower_bound(workspce, &v_NK_low[0]);
+    // osqp_update_upper_bound(workspce, &v_NK_up[0]);
+    // osqp_update_lower_bound(workspce, &v_NK_low[0]);
   }
 
   // Run the solver to solve the QP problem
@@ -232,17 +332,28 @@ int QPWBC::call_solver() {
   return 0;
 }
 
-int QPWBC::retrieve_result(const Eigen::MatrixXd &f_cmd) {
+int QPWBC::retrieve_result(const Eigen::Matrix<double, 6, 1> &ddq_cmd, const Eigen::Matrix<double, 12, 1> &f_cmd) {
   // Retrieve the solution of the QP problem
+  for (int k = 0; k < 6; k++) {
+    ddq_res(k, 0) = (workspce->solution->x)[k];
+  }
   for (int k = 0; k < 12; k++) {
-    f_res(k, 0) = (workspce->solution->x)[k];
+    f_res(k, 0) = (workspce->solution->x)[6 + k];
   }
 
   // Computing delta ddq with delta f
-  ddq_res = A * f_res + gamma;
+  // ddq_res = A * f_res + gamma;
 
   // Adding reference contact forces to delta f
   f_res += f_cmd;
+
+  // Adding reference acceleration to delta ddq
+  ddq_res += ddq_cmd;
+
+  std::cout << "f_cmd: " << std::endl << f_cmd.transpose() << std::endl;
+  std::cout << "f_res: " << std::endl << f_res.transpose() << std::endl;
+  std::cout << "ddq_cmd: " << std::endl << ddq_cmd.transpose() << std::endl;
+  std::cout << "ddq_res: " << std::endl << ddq_res.transpose() << std::endl;
 
   return 0;
 }
@@ -258,20 +369,25 @@ Eigen::MatrixXd QPWBC::get_H() {
   return Hxd;
 }
 
-int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd,
-               const Eigen::MatrixXd &RNEA, const Eigen::MatrixXd &k_contact) {
+int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &ddq_cmd,
+               const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA, const Eigen::MatrixXd &k_contact) {
+  
+
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + 2 x^T.Q with constraints M.X == N and L.X <= K
   if (not initialized) {
-    create_matrices();
+    create_matrices(Jc, f_cmd, RNEA);
     // std::cout << G << std::endl;
   }
 
   // Compute the different matrices involved in the box QP
-  compute_matrices(M, Jc, f_cmd, RNEA);
+  // compute_matrices(M, Jc, f_cmd, RNEA);
+
+  // Update M, L, N and K matrices (M.X == N and L.X <= K)
+  update_matrices(M, Jc, f_cmd, RNEA);
 
   // Update P and Q matrices of the cost function xT P x + 2 xT g
-  update_PQ();
+  //update_PQ();
 
   Eigen::Matrix<double, 20, 1> Gf = G * f_cmd;
 
@@ -281,11 +397,12 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
   }
 
   // Limit max force when contact is activated
-  /*const double k_max = 15.0;
+  /* const double k_max = 60.0;
   for (int i = 0; i < 4; i++) {
     if (k_contact(0, i) < k_max) {
-      v_NK_up[5*i+4] -= Nz_max * (1.0 - k_contact(0, i) / k_max);
-    }*/
+      v_NK_up[5*i+4] -= params_->Fz_max * (1.0 - k_contact(0, i) / k_max);
+    }
+  }*/
   /*else if (k_contact(0, i) == (k_max+10))
   {
     //char t_char[1] = {'M'};
@@ -303,7 +420,7 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
   call_solver();
 
   // Extract relevant information from the output of the QP solver
-  retrieve_result(f_cmd);
+  retrieve_result(ddq_cmd, f_cmd);
 
   /*Eigen::MatrixXd df = Eigen::MatrixXd::Zero(12, 1);
   df(0, 0) = 0.01;
@@ -553,8 +670,10 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   std::cout << "k_since" << std::endl;
   std::cout << k_since_contact_ << std::endl;*/
 
+  std::cout << "dqq_cmd_bis " << std::endl << ddq_cmd_.transpose() << std::endl; 
+
   // Solve the QP problem
-  box_qp_->run(data_.M, Jc_, f_cmd, data_.tau.head(6),
+  box_qp_->run(data_.M, Jc_, ddq_cmd_, f_cmd, data_.tau.head(6),
                k_since_contact_);
 
   // Add to reference quantities the deltas found by the QP solver
@@ -583,6 +702,13 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
 
   qdes_ = invkin_->get_q_cmd().tail(12);
   bdes_ = invkin_->get_q_cmd().head(7);
+
+
+  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_with_delta_);
+  Vector6 tau_left = data_.tau.head(6);
+  Vector6 tau_right = Jc_.transpose() * f_with_delta_;
+  std::cout << "tau_left: " << std::endl << tau_left.transpose() << std::endl;
+  std::cout << "tau_right: " << std::endl << tau_right.transpose() << std::endl;
 
   /*std::cout << vdes_.transpose() << std::endl;
   std::cout << qdes_.transpose() << std::endl;*/

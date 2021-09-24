@@ -86,6 +86,9 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
     afeet.row(i) = +params_->Kp_flyingfeet * pfeet_err.row(i) + params_->Kd_flyingfeet * (vgoals.row(i) - vf_.row(i)) +
                      agoals.row(i); 
     afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));  // - dJ dq
+
+    // Substract base acceleration
+    // afeet.row(i) -= (params_->Kd_flyingfeet * (vb_ref_ - vb_) - (ab_.head(3) + wb_.cross(vb_))).transpose();
   }
 
   // Jacobian for the base / feet position task
@@ -119,6 +122,9 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
   acc.block(0, 12, 1, 3) = abasis.transpose();
   // Base angular task
   acc.block(0, 15, 1, 3) = awbasis.transpose();
+  std::cout << std::fixed;
+  std::cout << std::setprecision(2);
+  std::cout << "acc: " << std::endl << acc << std::endl;
 
   // Gather all task errors in a single vector
   // Feet / base tracking task
@@ -179,6 +185,10 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
 
   // Once Jacobian has been inverted we can get command accelerations, velocities and positions
   ddq_cmd_ = invJ_ * acc.transpose();
+
+  // std::cout << "invJ_: " << invJ_ << std::endl; 
+  std::cout << "ddq_cmd_: " << std::endl << ddq_cmd_.transpose() << std::endl;
+
   dq_cmd_ = invJ_ * dx_r.transpose();
   q_step_ = invJ_ * x_err.transpose();  // Not a position but a step in position
 

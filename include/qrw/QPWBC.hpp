@@ -65,8 +65,8 @@ class QPWBC {
   ///        update of constraint matrices, update of the solver, running the solver, retrieving result)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd,
-          const Eigen::MatrixXd &RNEA, const Eigen::MatrixXd &k_contact);
+  int run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &ddq_cmd,
+          const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA, const Eigen::MatrixXd &k_contact);
 
   // Getters
   Eigen::MatrixXd get_f_res();    // Return the f_res matrix
@@ -139,7 +139,8 @@ class QPWBC {
   ///        Create the weight matrices P and Q (cost 1/2 x^T * P * X + X^T * Q)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int create_matrices();
+  int create_matrices(const Eigen::Matrix<double, 12, 6> &Jc, const Eigen::Matrix<double, 12, 1> &f_cmd,
+                      const Eigen::Matrix<double, 6, 1> &RNEA);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -151,11 +152,25 @@ class QPWBC {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
+  /// \brief Create the N and K matrices involved in the constraint equations
+  ///        the solution has to respect: M.X = N and L.X <= K
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  int create_NK(const Eigen::Matrix<double, 6, 12> &JcT, const Eigen::Matrix<double, 12, 1> &f_cmd,
+                const Eigen::Matrix<double, 6, 1> &RNEA);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
   /// \brief Create the weight matrices P and Q in the cost function
   ///        1/2 x^T.P.x + x^T.q of the QP problem
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   int create_weight_matrices();
+
+  int update_matrices(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Matrix<double, 12, 6> &Jc,
+                      const Eigen::Matrix<double, 12, 1> &f_cmd, const Eigen::Matrix<double, 6, 1> &RNEA);
+
+  int update_ML(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Matrix<double, 6, 12> &JcT);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -192,7 +207,7 @@ class QPWBC {
   /// \param[in] f_cmd Reference contact forces received from the MPC
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int retrieve_result(const Eigen::MatrixXd &f_cmd);
+  int retrieve_result(const Eigen::Matrix<double, 6, 1> &ddq_cmd, const Eigen::Matrix<double, 12, 1> &f_cmd);
 
   Params *params_;  // Object that stores parameters
 
@@ -209,6 +224,18 @@ class QPWBC {
   // Friction coefficient
   const double mu = 0.9;
 
+  // Minimum and maximum normal contact force
+  double Fz_max = 0.0;
+  double Fz_min = 0.0;
+
+  // Cumulative non zero coefficients per column in friction cone constraint block
+  // In each column: 2, 2, 5, 2, 2, 5, 2, 2, 5, 2, 2, 5
+  int fric_nz [12] = { 2,  4,  9, 11, 13, 18, 20, 22, 27, 29, 31, 36};
+
+  // Generalized mass matrix and contact Jacobian (transposed)
+  // Eigen::Matrix<double, 6, 6> M = Eigen::Matrix<double, 6, 6>::Zero();
+  // Eigen::Matrix<double, 6, 12> JcT = Eigen::Matrix<double, 6, 12>::Zero();
+
   // Generatrix of the linearized friction cone
   Eigen::Matrix<double, 20, 12> G = Eigen::Matrix<double, 20, 12>::Zero();
 
@@ -224,24 +251,24 @@ class QPWBC {
   // Results
   // Eigen::Matrix<double, 12, 1> lambdas = Eigen::Matrix<double, 12, 1>::Zero();
   Eigen::MatrixXd f_res = Eigen::MatrixXd::Zero(12, 1);
-  Eigen::MatrixXd ddq_res = Eigen::MatrixXd::Zero(12, 1);
+  Eigen::MatrixXd ddq_res = Eigen::MatrixXd::Zero(6, 1);
 
   // Matrix ML
-  const static int size_nz_ML = 20 * 12;  // 4 * (4 * 2 + 1);
+  const static int size_nz_ML = (20 + 6) * 18;
   csc *ML;                                // Compressed Sparse Column matrix
 
   // Matrix NK
-  const static int size_nz_NK = 20;
+  const static int size_nz_NK = (20 + 6);
   double v_NK_up[size_nz_NK] = {};   // matrix NK (upper bound)
   double v_NK_low[size_nz_NK] = {};  // matrix NK (lower bound)
   double v_warmxf[size_nz_NK] = {};  // matrix NK (lower bound)
 
   // Matrix P
-  const static int size_nz_P = 6 * 13;  // 6*13; // 12*13/2;
+  const static int size_nz_P = 18;
   csc *P;                               // Compressed Sparse Column matrix
 
   // Matrix Q
-  const static int size_nz_Q = 12;
+  const static int size_nz_Q = 18;
   double Q[size_nz_Q] = {};  // Q is full of zeros
 
   // OSQP solver variables
