@@ -19,6 +19,7 @@
 #include "pinocchio/algorithm/jacobian.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/algorithm/joint-configuration.hpp"
+#include "pinocchio/algorithm/rnea.hpp"
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <cmath>
@@ -106,12 +107,14 @@ class InvKin {
   Matrix43 afeet;      // Feet acceleration references to get command accelerations for actuators
 
   int foot_ids_[4] = {0, 0, 0, 0};  // Feet frame IDs
+  int foot_joints_ids_[4] = {3, 6, 9, 12};  // Feet joints IDs
   int base_id_ = 0; // Base ID
 
   Matrix43 posf_;                        // Current feet positions
   Matrix43 vf_;                          // Current feet linear velocities
   Matrix43 wf_;                          // Current feet angular velocities
   Matrix43 af_;                          // Current feet linear accelerations
+  Matrix43 dJdq_;                        // Acceleration "drift"
   Eigen::Matrix<double, 12, 18> Jf_;     // Current feet Jacobian (only linear part)
   Eigen::Matrix<double, 6, 18> Jf_tmp_;  // Temporary storage variable to only retrieve the linear part of the Jacobian
                                          // and discard the angular part
@@ -147,6 +150,9 @@ class InvKin {
 
   pinocchio::Model model_;  // Pinocchio model for frame computations and inverse kinematics
   pinocchio::Data data_;    // Pinocchio datas for frame computations and inverse kinematics
+
+  pinocchio::Model model_dJdq_;  // Pinocchio model for frame computations and inverse kinematics
+  pinocchio::Data data_dJdq_;    // Pinocchio datas for frame computations and inverse kinematics
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
