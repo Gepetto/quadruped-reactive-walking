@@ -651,6 +651,16 @@ class LoggerControl():
         self.custom_suptitle("MPC solving time")
 
         ####
+        # Step in system time at each loop
+        ####
+        plt.figure()
+        plt.plot(np.diff(self.tstamps))
+        plt.legend(["System time step"])
+        plt.xlabel("Loop []")
+        plt.ylabel("Time [s]")
+        self.custom_suptitle("System time step between 2 sucessive loops")
+
+        ####
         # Comparison of raw and filtered quantities (15 Hz and windowed)
         ####
         """
