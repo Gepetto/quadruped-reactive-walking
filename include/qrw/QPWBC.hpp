@@ -324,12 +324,19 @@ class WbcWrapper {
   VectorN get_ddq_cmd() { return ddq_cmd_; }
   VectorN get_f_with_delta() { return f_with_delta_; }
   VectorN get_ddq_with_delta() { return ddq_with_delta_; }
+  VectorN get_nle() { return nle_; }
   MatrixN get_feet_pos() { return invkin_->get_posf().transpose(); }
   MatrixN get_feet_err() { return log_feet_pos_target - invkin_->get_posf().transpose(); }
   MatrixN get_feet_vel() { return invkin_->get_vf().transpose(); }
   MatrixN get_feet_pos_target() { return log_feet_pos_target; }
   MatrixN get_feet_vel_target() { return log_feet_vel_target; }
   MatrixN get_feet_acc_target() { return log_feet_acc_target; }
+
+  VectorN get_Mddq() { return Mddq;};
+  VectorN get_NLE() { return NLE;};
+  VectorN get_JcTf() { return JcTf;};
+  VectorN get_Mddq_out() { return Mddq_out;};
+  VectorN get_JcTf_out() { return JcTf_out;};
 
  private:
   Params *params_;  // Object that stores parameters
@@ -353,11 +360,20 @@ class WbcWrapper {
   Vector12 f_with_delta_;    // Contact forces with deltas found by QP solver
   Vector18 ddq_with_delta_;  // Actuator accelerations with deltas found by QP solver
 
+  Vector6 nle_;  // Non linear effects
+
   Matrix43 posf_tmp_;  // Temporary matrix to store posf_ from invkin_
 
   Matrix34 log_feet_pos_target;  // Store the target feet positions
   Matrix34 log_feet_vel_target;  // Store the target feet velocities
   Matrix34 log_feet_acc_target;  // Store the target feet accelerations
+
+  // Log
+  Vector6 Mddq;
+  Vector6 NLE;
+  Vector6 JcTf;
+  Vector6 Mddq_out;
+  Vector6 JcTf_out;
 
   int k_log_;                          // Counter for logging purpose
   int indexes_[4] = {10, 18, 26, 34};  // Indexes of feet frames in this order: [FL, FR, HL, HR]

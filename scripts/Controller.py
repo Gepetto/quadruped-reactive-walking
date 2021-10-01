@@ -191,6 +191,8 @@ class Controller:
         self.filter_mpc_vref = lqrw.Filter()
         self.filter_mpc_vref.initialize(params)
 
+        self.nle = np.zeros((6, 1))
+
         # Interface with the PD+ on the control board
         self.result = Result()
 
@@ -252,7 +254,7 @@ class Controller:
         o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
                                                                 int(self.k_mpc - self.k % self.k_mpc),
                                                                 self.q[:, 0],
-                                                                self.h_v_filt_mpc[0:6, 0:1].copy(),
+                                                                self.h_v_windowed[0:6, 0:1].copy(),
                                                                 self.v_ref[0:6, 0:1])
 
         # Run state planner (outputs the reference trajectory of the base)
@@ -284,11 +286,15 @@ class Controller:
                                                 self.footTrajectoryGenerator.getFootJerk(),
                                                 self.footTrajectoryGenerator.getTswing() - self.footTrajectoryGenerator.getT0s())
                 else :
-                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3,4)))
+                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3,4)), nle=self.nle)
 
             except ValueError:
                 print("MPC Problem")
 
+        """if (self.k % self.k_mpc) == 0:
+            from IPython import embed
+            embed()"""
+        
         # Retrieve reference contact forces in horizontal frame
         self.x_f_mpc = self.mpc_wrapper.get_latest_result()
 
@@ -347,6 +353,8 @@ class Controller:
 
             self.xgoals[6:, 0] = self.vref_filt_mpc[:, 0]  # Velocities (in horizontal frame!)
 
+            print(" ###### ")
+
             # Run InvKin + WBC QP
             self.wbcWrapper.compute(self.q_wbc, self.dq_wbc,
                                     (self.x_f_mpc[12:24, 0:1]).copy(), np.array([cgait[0, :]]),
@@ -363,6 +371,8 @@ class Controller:
             self.result.FF = self.Kff_main * np.ones(12)
             self.result.tau_ff[:] = self.wbcWrapper.tau_ff
 
+            self.nle[:3, 0] = self.wbcWrapper.nle[:3]
+
             # Display robot in Gepetto corba viewer
             if self.enable_corba_viewer and (self.k % 5 == 0):
                 self.q_display[:3, 0] = self.q_wbc[0:3, 0]
@@ -378,7 +388,7 @@ class Controller:
                                            device.imu.attitude_euler[2])).coeffs().tolist()
                 pyb.resetBasePositionAndOrientation(device.pyb_sim.robotId, oTh_pyb, q_oRb_pyb)"""
 
-        if self.k >= 8220 and (self.k % self.k_mpc == 0):
+        """if self.k >= 8220 and (self.k % self.k_mpc == 0):
             print(self.k)
             print("x_f_mpc: ", self.x_f_mpc[:, 0])
             print("ddq delta: ", self.wbcWrapper.ddq_with_delta)
@@ -386,10 +396,10 @@ class Controller:
             from matplotlib import pyplot as plt
             plt.figure()
             plt.plot(self.x_f_mpc[6, :])
-            plt.show(block=True)
+            plt.show(block=True)"""
 
-        if self.k == 1:
-            quit()
+        """if self.k == 1:
+            quit()"""
 
         t_wbc = time.time()
 

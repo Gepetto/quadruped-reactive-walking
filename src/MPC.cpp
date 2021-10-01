@@ -377,7 +377,7 @@ int MPC::create_weight_matrices() {
   return 0;
 }
 
-int MPC::update_matrices(Eigen::MatrixXd fsteps) {
+int MPC::update_matrices(Eigen::MatrixXd fsteps, const Eigen::Matrix<double, 6, 1> &nle) {
   /* M need to be updated between each iteration:
    - lever_arms changes since the robot moves
    - I_inv changes if the reference velocity vector is modified
@@ -387,7 +387,7 @@ int MPC::update_matrices(Eigen::MatrixXd fsteps) {
   /* N need to be updated between each iteration:
    - X0 changes since the robot moves
    - Xk* changes since X0 is not the same */
-  update_NK();
+  update_NK(nle);
 
   // L matrix is constant
   // K matrix is constant
@@ -441,16 +441,26 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
   return 0;
 }
 
-int MPC::update_NK() {
+int MPC::update_NK(const Eigen::Matrix<double, 6, 1> &nle) {
   // Matrix g is already created and not changed
+
+  //std::cout << "NLE MPC: " << std::endl << nle.transpose() << std::endl;
 
   // Reset NK
   NK_up = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12 * n_steps * 2 + 20 * n_steps, 1);
+
+  //std::cout << "g: " << std::endl << -g.tail(6).transpose() << std::endl;
+  //std::cout << "gbis: " << std::endl << dt * nle.tail(6).transpose() / mass << std::endl;
 
   // Fill N matrix with g matrices
   for (int k = 0; k < n_steps; k++) {
     NK_up(12 * k + 8, 0) = -g(8, 0);  // only 8-th coeff is non zero
   }
+  /*for (int k = 0; k < n_steps; k++) {
+    NK_up(12 * k + 6, 0) = dt * nle(0) / mass;
+    NK_up(12 * k + 7, 0) = dt * nle(1) / mass;
+    NK_up(12 * k + 8, 0) = dt * nle(2) / mass;
+  }*/
 
   // Including - A*X0 in the first row of N
   NK_up.block(0, 0, 12, 1) += A * (-x0);
@@ -577,7 +587,7 @@ Return the next predicted state of the base
 */
 double *MPC::get_x_next() { return x_next; }
 
-int MPC::run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in) {
+int MPC::run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in, const Eigen::MatrixXd &nle) {
   // Recontruct the gait based on the computed footsteps
   construct_gait(fsteps_in);
 
@@ -590,7 +600,7 @@ int MPC::run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd
   if (num_iter == 0) {
     create_matrices();
   } else {
-    update_matrices(fsteps_in);
+    update_matrices(fsteps_in, nle);
   }
 
   // Create an initial guess and call the solver to solve the QP problem

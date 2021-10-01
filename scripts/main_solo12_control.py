@@ -1,5 +1,6 @@
 # coding: utf8
 
+import os
 import threading
 from Controller import Controller
 import numpy as np
@@ -173,6 +174,12 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
     t_start_whole = 0.0
     T_whole = time.time()
     dT_whole = 0.0
+
+    log_Mddq = np.zeros((params.N_SIMULATION, 6))
+    log_NLE = np.zeros((params.N_SIMULATION, 6))
+    log_JcTf = np.zeros((params.N_SIMULATION, 6))
+    log_Mddq_out = np.zeros((params.N_SIMULATION, 6))
+    log_JcTf_out = np.zeros((params.N_SIMULATION, 6))
     while ((not device.is_timeout) and (t < t_max) and (not controller.error)):
 
         t_start_whole = time.time()
@@ -198,6 +205,12 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         device.joints.set_desired_positions(controller.result.q_des)
         device.joints.set_desired_velocities(controller.result.v_des)
         device.joints.set_torques(controller.result.FF * controller.result.tau_ff.ravel())
+
+        log_Mddq[k_log_whole] = controller.wbcWrapper.Mddq
+        log_NLE[k_log_whole] = controller.wbcWrapper.NLE
+        log_JcTf[k_log_whole] = controller.wbcWrapper.JcTf
+        log_Mddq_out[k_log_whole] = controller.wbcWrapper.Mddq_out
+        log_JcTf_out[k_log_whole] = controller.wbcWrapper.JcTf_out
 
         # Call logger
         if params.LOGGING or params.PLOTTING:
@@ -303,6 +316,21 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         print("Masterboard timeout detected.")
         print("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.")
 
+    from matplotlib import pyplot as plt
+    N = loggerControl.tstamps.shape[0]
+    t_range = np.array([k*loggerControl.dt for k in range(N)])
+    plt.figure()
+    plt.plot(t_range, log_Mddq[:-3, 0], "r")
+    plt.plot(t_range, log_NLE[:-3, 0], "b")
+    plt.plot(t_range, log_Mddq[:-3, 0] + log_NLE[:-3, 0], "violet", linestyle="--")
+    plt.plot(t_range, log_JcTf[:-3, 0], "g")
+    plt.plot(t_range, log_Mddq_out[:-3, 0], "darkred")
+    plt.plot(t_range, log_Mddq_out[:-3, 0] + log_NLE[:-3, 0], "darkorchid", linestyle="--")
+    plt.plot(t_range, log_JcTf_out[:-3, 0], "mediumblue")
+    plt.plot(t_range, loggerControl.planner_gait[:, 0, 0], "k", linewidth=3)
+    plt.legend(["Mddq", "NLE", "Mddq+NLE", "JcT f", "Mddq out", "Mddq out + NLE", "JcT f out", "Contact"])
+    plt.show(block=True)
+
     # Plot recorded data
     if params.PLOTTING:
         loggerControl.plotAll(loggerSensors)
@@ -341,6 +369,7 @@ def main():
                         help='Name of the clone interface that will reproduce the movement of the first one \
                               (use ifconfig in a terminal), for instance "enp1s0"')
 
+    os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
     f, v = control_loop(parser.parse_args().clone)  # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print(f, v)
     quit()

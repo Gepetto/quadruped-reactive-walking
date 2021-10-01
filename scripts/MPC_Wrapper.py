@@ -130,7 +130,8 @@ class MPC_Wrapper:
         self.last_available_result[:24, 0] = np.hstack((x_init, np.array([0.0, 0.0, 8.0] * 4)))
 
     def solve(self, k, xref, fsteps, gait, l_fsteps_target, oRh = np.eye(3), oTh = np.zeros((3,1)), 
-                    position = np.zeros((3,4)), velocity = np.zeros((3,4)) , acceleration = np.zeros((3,4)), jerk = np.zeros((3,4)) , dt_flying = np.zeros(4)):
+                    position = np.zeros((3,4)), velocity = np.zeros((3,4)) , acceleration = np.zeros((3,4)), jerk = np.zeros((3,4)) ,
+                    dt_flying = np.zeros(4), nle = np.zeros((6, 1))):
         """Call either the asynchronous MPC or the synchronous MPC depending on the value of multiprocessing during
         the creation of the wrapper
 
@@ -147,7 +148,7 @@ class MPC_Wrapper:
         if self.multiprocessing:  # Run in parallel process
             self.run_MPC_asynchronous(k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying)
         else:  # Run in the same process than main loop
-            self.run_MPC_synchronous(k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying)
+            self.run_MPC_synchronous(k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying, nle)
 
         if not np.allclose(gait[0, :], self.gait_past):  # If gait status has changed
             if np.allclose(gait[0, :], self.gait_next):  # If we're still doing what was planned the last time MPC was solved
@@ -188,7 +189,7 @@ class MPC_Wrapper:
             self.not_first_iter = True
             return self.last_available_result
 
-    def run_MPC_synchronous(self, k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying):
+    def run_MPC_synchronous(self, k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying, nle):
         """Run the MPC (synchronous version) to get the desired contact forces for the feet currently in stance phase
 
         Args:
@@ -203,7 +204,7 @@ class MPC_Wrapper:
 
         if self.mpc_type == MPC_type.OSQP:
             # OSQP MPC
-            self.mpc.run(np.int(k), xref.copy(), fsteps.copy())
+            self.mpc.run(np.int(k), xref.copy(), fsteps.copy(), nle.copy())
         elif self.mpc_type == MPC_type.CROCODDYL_PLANNER: # Add goal position to stop the optimisation
             # Crocoddyl MPC
             self.mpc.solve(k, xref.copy(), fsteps.copy(), l_fsteps_target, position, velocity, acceleration, jerk, oRh, oTh,  dt_flying)
