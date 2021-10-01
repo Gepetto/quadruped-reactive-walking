@@ -46,7 +46,7 @@ Params::Params()
       Kd_base_position(3, 0.0),   // Fill with zeros, will be filled with values later
       Kp_base_orientation(3, 0.0),   // Fill with zeros, will be filled with values later
       Kd_base_orientation(3, 0.0),   // Fill with zeros, will be filled with values later
-      w_tasks(7, 0.0),   // Fill with zeros, will be filled with values later
+      w_tasks(8, 0.0),   // Fill with zeros, will be filled with values later
 
       Q1(0.0),
       Q2(0.0),

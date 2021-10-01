@@ -100,7 +100,7 @@ class Params {
   std::vector<double> Kd_base_position;  // Derivative gains for the base position task
   std::vector<double> Kp_base_orientation;  // Proportional gains for the base orientation task
   std::vector<double> Kd_base_orientation;  // Derivative gains for the base orientation task
-  std::vector<double> w_tasks;  // Tasks weights: [feet/base, vx, vy, vz, roll+wroll, pitch+wpitch, wyaw]
+  std::vector<double> w_tasks;  // Tasks weights: [feet/base, vx, vy, vz, roll+wroll, pitch+wpitch, wyaw, contacts]
 
   // Parameters of WBC QP problem
   double Q1;      // Weights for the "delta articular accelerations" optimization variables
