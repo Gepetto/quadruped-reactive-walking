@@ -240,6 +240,24 @@ int QPWBC::update_matrices(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Ma
   t_char[0] = 'M';
   my_print_csc_matrix(ML, t_char);*/
 
+  std::cout << "Q" << std::endl;
+  for (int j = 0; j < 18; j++) {
+    std::cout << Q[j] << " ";
+  }
+  std::cout << std::endl;
+
+  std::cout << "vlow" << std::endl;
+  for (int j = 0; j < 26; j++) {
+    std::cout << v_NK_low[j] << " ";
+  }
+  std::cout << std::endl;
+
+  std::cout << "vup" << std::endl;
+  for (int j = 0; j < 26; j++) {
+    std::cout << v_NK_up[j] << " ";
+  }
+  std::cout << std::endl;
+
   return 0;
 }
 
@@ -448,6 +466,8 @@ void QPWBC::my_print_csc_matrix(csc *M, const char *name) {
   c_int j, i, row_start, row_stop;
   c_int k = 0;
 
+  Eigen::Matrix<double, 26, 18> Ma = Eigen::Matrix<double, 26, 18>::Zero();
+
   // Print name
   printf("%s :\n", name);
 
@@ -463,9 +483,13 @@ void QPWBC::my_print_csc_matrix(csc *M, const char *name) {
         int b = (int)j;
         double c = M->x[k++];
         printf("\t%3u [%3u,%3u] = %.3g\n", k - 1, a, b, c);
+        Ma(a, b) = c;
       }
     }
   }
+  std::cout << std::fixed;
+  std::cout << std::setprecision(2);
+  std::cout << Ma << std::endl;
 }
 
 void QPWBC::save_csc_matrix(csc *M, std::string filename) {
@@ -674,11 +698,19 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // Compute the inverse dynamics, aka the joint torques according to the current state of the system,
   // the desired joint accelerations and the external forces, using the Recursive Newton Euler Algorithm.
   // Result is stored in data_.tau
+  Vector18 ddq_test = Vector18::Zero();
+  ddq_test.head(6) = ddq_cmd_.head(6);
+  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_test);
+  Vector6 RNEA_without_joints = data_.tau.head(6);
+  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
+  Vector6 RNEA_NLE = data_.tau.head(6);
+  RNEA_NLE(2, 0) -= 24.8;
+
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
 
-  /*std::cout << "M" << std::endl;
+  std::cout << "M inertia" << std::endl;
   std::cout << data_.M << std::endl;
-  std::cout << "Jc" << std::endl;
+  /*std::cout << "Jc" << std::endl;
   std::cout << Jc_ << std::endl;
   std::cout << "f_cmd" << std::endl;
   std::cout << f_cmd << std::endl;
@@ -687,46 +719,56 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   std::cout << "k_since" << std::endl;
   std::cout << k_since_contact_ << std::endl;*/
 
-  std::cout << "agoals " << std::endl << agoals << std::endl; 
+  std::cout << "Force compensation " << std::endl;
+  Vector12 f_compensation = pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);
+  /*for (int i = 0; i < 4; i++) {
+    f_compensation(3*i+2, 0) = 0.0;
+  }*/
+  std::cout << f_compensation << std::endl;
+
+  //std::cout << "agoals " << std::endl << agoals << std::endl; 
   std::cout << "ddq_cmd_bis " << std::endl << ddq_cmd_.transpose() << std::endl; 
 
   // Solve the QP problem
-  box_qp_->run(data_.M, Jc_, ddq_cmd_, f_cmd, data_.tau.head(6),
+  box_qp_->run(data_.M, Jc_, ddq_cmd_, f_cmd + f_compensation, data_.tau.head(6),
                k_since_contact_);
 
   // Add to reference quantities the deltas found by the QP solver
-  f_with_delta_ = f_cmd + box_qp_->get_f_res();
+  f_with_delta_ = f_cmd + f_compensation + box_qp_->get_f_res();
   ddq_with_delta_.head(6) = ddq_cmd_.head(6) + box_qp_->get_ddq_res();
   ddq_with_delta_.tail(12) = ddq_cmd_.tail(12);
 
   Vector6 left = data_.M.block(0, 0, 6, 6) * box_qp_->get_ddq_res() - Jc_.transpose() * box_qp_->get_f_res();
-  Vector6 right = - data_.tau.head(6) + Jc_.transpose() * f_cmd;
+  Vector6 right = - data_.tau.head(6) + Jc_.transpose() * (f_cmd + f_compensation);
   std::cout << "RNEA: " << std::endl << data_.tau.head(6).transpose() << std::endl;
   Vector6 tmp_RNEA = data_.tau.head(6);
   //std::cout << "left: " << std::endl << left.transpose() << std::endl;
   //std::cout << "right: " << std::endl << right.transpose() << std::endl;
   //std::cout << "M: " << std::endl << data_.M.block(0, 0, 6, 6) << std::endl;
   
-  std::cout << "JcT: " << std::endl << Jc_.transpose() << std::endl;
-
-  std::cout << "M: " << std::endl << data_.M.block(0, 0, 3, 18) << std::endl;
+  //std::cout << "JcT: " << std::endl << Jc_.transpose() << std::endl;
+  //std::cout << "M: " << std::endl << data_.M.block(0, 0, 3, 18) << std::endl;
 
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
+  Vector6 tmp_NLE = data_.tau.head(6);
   std::cout << "NLE: " << std::endl << data_.tau.head(6).transpose() << std::endl;
-  std::cout << "DDQ: " << std::endl << (tmp_RNEA - data_.tau.head(6)).transpose() << std::endl;
-
-  std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * f_cmd).transpose() << std::endl;
+  std::cout << "M DDQ: " << std::endl << (tmp_RNEA - data_.tau.head(6)).transpose() << std::endl;
+  std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * (f_cmd + f_compensation)).transpose() << std::endl;
 
   // std::cout << "Gravity ?: " << std::endl <<  (data_.M * ddq_cmd_ - data_.tau.head(6)).transpose() << std::endl;
 
   Mddq = tmp_RNEA - data_.tau.head(6);
   NLE = data_.tau.head(6);
-  JcTf = Jc_.transpose() * f_cmd;
+  JcTf = Jc_.transpose() * (f_cmd + f_compensation);
 
   nle_ = data_.tau.head(6);
 
   // Compute joint torques from contact forces and desired accelerations
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_with_delta_);
+
+  std::cout << "NLE Delta: " << std::endl << tmp_NLE.transpose() << std::endl;
+  std::cout << "M DDQ Delta: " << std::endl << (data_.tau.head(6) - tmp_NLE).transpose() << std::endl;
+  std::cout << "JcT f_cmd Delta: " << std::endl << (Jc_.transpose() * f_with_delta_).transpose() << std::endl;
 
   /*std::cout << "rnea delta" << std::endl;
   std::cout << data_.tau.tail(12) << std::endl;
@@ -740,7 +782,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // std::cout << " -- " << std::endl << invkin_->get_Jf().block(0, 6, 12, 12) << std::endl << " -- " << std::endl << Jc_u_ << std::endl;
 
   tau_ff_ = data_.tau.tail(12) - Jc_u_.transpose() * f_with_delta_;
-  //tau_ff_ = - Jc_u_.transpose() * f_cmd;
+  // tau_ff_ = - Jc_u_.transpose() * (f_cmd + f_compensation);
 
   // Retrieve desired positions and velocities
   vdes_ = invkin_->get_dq_cmd().tail(12);
@@ -766,6 +808,12 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   std::cout << qdes_.transpose() << std::endl;
   std::cout << vdes_.transpose() << std::endl;
   std::cout << tau_ff_.transpose() << std::endl;*/
+
+  // Compute joint torques from contact forces and desired accelerations
+  /*Vector18 ddq_test = Vector18::Zero();
+  ddq_test.head(6) = ddq_with_delta_.head(6);
+  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_test);
+  std::cout << "M DDQ Delta Bis: " << std::endl << (data_.tau.head(6) - tmp_NLE).transpose() << std::endl;*/
 
   // Increment log counter
   k_log_++;

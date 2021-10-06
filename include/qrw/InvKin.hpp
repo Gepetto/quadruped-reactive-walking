@@ -132,6 +132,7 @@ class InvKin {
   Vector6 ab_;
   Vector3 abasis;
   Vector3 awbasis;
+  Matrix43 afeet_contacts_;
   Eigen::Matrix<double, 6, 18> Jb_;
 
   Eigen::Matrix<double, 30, 18> J_;

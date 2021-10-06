@@ -75,6 +75,7 @@ Estimator::Estimator()
       a_ref_(VectorN::Zero(6)),
       h_v_(VectorN::Zero(6)),
       oRh_(Matrix3::Identity()),
+      hRb_(Matrix3::Identity()),
       oTh_(Vector3::Zero()),
       yaw_estim_(0.0),
       N_queue_(0),
@@ -441,12 +442,12 @@ void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait) {
     v_up_.tail(12) = v_filt_dyn_.tail(12);
 
     // Velocities are the one estimated by the estimator
-    Matrix3 hRb = pinocchio::rpy::rpyToMatrix(IMU_RPY_[0], IMU_RPY_[1], 0.0);
+    hRb_ = pinocchio::rpy::rpyToMatrix(IMU_RPY_[0], IMU_RPY_[1], 0.0);
 
-    h_v_.head(3) = hRb * v_filt_.block(0, 0, 3, 1);
-    h_v_.tail(3) = hRb * v_filt_.block(3, 0, 3, 1);
-    h_v_windowed_.head(3) = hRb * v_filt_bis_.block(0, 0, 3, 1);
-    h_v_windowed_.tail(3) = hRb * v_filt_bis_.block(3, 0, 3, 1);
+    h_v_.head(3) = hRb_ * v_filt_.block(0, 0, 3, 1);
+    h_v_.tail(3) = hRb_ * v_filt_.block(3, 0, 3, 1);
+    h_v_windowed_.head(3) = hRb_ * v_filt_bis_.block(0, 0, 3, 1);
+    h_v_windowed_.tail(3) = hRb_ * v_filt_bis_.block(3, 0, 3, 1);
   } else {
     // TODO: Adapt static mode to new version of the code
   }

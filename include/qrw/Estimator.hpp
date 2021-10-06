@@ -217,6 +217,7 @@ class Estimator {
   VectorN getHVWindowed() { return h_v_windowed_; }
   Matrix3 getoRb() { return oRb_; }
   Matrix3 getoRh() { return oRh_; }
+  Matrix3 gethRb() { return hRb_; }
   Vector3 getoTh() { return oTh_; }
   double getYawEstim() { return yaw_estim_; }
 
@@ -274,6 +275,7 @@ class Estimator {
   VectorN a_ref_;     // Reference acceleration vector
   VectorN h_v_;       // Velocity vector in horizontal frame
   Matrix3 oRh_;       // Rotation between horizontal and world frame
+  Matrix3 hRb_;       // Rotation between base and horizontal frame
   Vector3 oTh_;       // Translation between horizontal and world frame
   double yaw_estim_;  // Yaw angle in perfect world
 

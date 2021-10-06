@@ -378,6 +378,7 @@ struct EstimatorPythonVisitor : public bp::def_visitor<EstimatorPythonVisitor<Es
             .def("getHVWindowed", &Estimator::getHVWindowed, "")
             .def("getoRb", &Estimator::getoRb, "")
             .def("getoRh", &Estimator::getoRh, "")
+            .def("gethRb", &Estimator::gethRb, "")
             .def("getoTh", &Estimator::getoTh, "")
             .def("getYawEstim", &Estimator::getYawEstim, "")
 
@@ -459,6 +460,7 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("enable_corba_viewer", &Params::enable_corba_viewer)
             .def_readwrite("enable_multiprocessing", &Params::enable_multiprocessing)
             .def_readwrite("perfect_estimator", &Params::perfect_estimator)
+            .def_readwrite("w_tasks", &Params::w_tasks)
             .def_readwrite("T_gait", &Params::T_gait)
             .def_readwrite("mass", &Params::mass)
             .def_readwrite("I_mat", &Params::I_mat)

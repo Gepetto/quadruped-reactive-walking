@@ -155,6 +155,9 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
     if params.SIMULATION:
         device.Init(calibrateEncoders=True, q_init=q_init, envID=params.envID,
                     use_flat_plane=params.use_flat_plane, enable_pyb_GUI=params.enable_pyb_GUI, dt=params.dt_wbc)
+        # ForceMonitor to display contact forces in PyBullet with red lines
+        import ForceMonitor
+        myForceMonitor = ForceMonitor.ForceMonitor(device.pyb_sim.robotId, device.pyb_sim.planeId)
     else:
         # Initialize the communication and the session.
         device.initialize(q_init[:])
@@ -222,6 +225,9 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
 
 
         t_end_whole = time.time()
+
+        myForceMonitor.display_contact_forces()
+
         # Send command to the robot
         for i in range(1):
             device.send_command_and_wait_end_of_cycle(params.dt_wbc)
@@ -369,7 +375,7 @@ def main():
                         help='Name of the clone interface that will reproduce the movement of the first one \
                               (use ifconfig in a terminal), for instance "enp1s0"')
 
-    os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
+    # os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
     f, v = control_loop(parser.parse_args().clone)  # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print(f, v)
     quit()

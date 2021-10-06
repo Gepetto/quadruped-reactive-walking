@@ -10,7 +10,7 @@ robot:
     predefined_vel: true  # If we are using a predefined reference velocity (True) or a joystick (False)
     velID: 10  # Identifier of the reference velocity profile to choose which one will be sent to the robot
     N_SIMULATION: 9000  # Number of simulated wbc time steps
-    enable_pyb_GUI: false # Enable/disable PyBullet GUI
+    enable_pyb_GUI: false  # Enable/disable PyBullet GUI
     enable_corba_viewer: true  # Enable/disable Corba Viewer
     enable_multiprocessing: false  # Enable/disable running the MPC in another process in parallel of the main loop
     perfect_estimator: false  # Enable/disable perfect estimator by using data directly from PyBullet
@@ -45,17 +45,17 @@ robot:
     # Parameters of MPC with OSQP
     # [0.0, 0.0, 20.0, 0.25, 0.25, 10.0, 0.05, 0.05, 0.2, 0.0, 0.0, 0.3]
     # [2.0, 2.0, 5.0, 0.25, 0.25, 1.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]
-    osqp_w_states: [2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]  # Weights for state tracking error
+    osqp_w_states: [2.0, 2.0, 10.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]  # Weights for state tracking error
     osqp_w_forces: [0.00005, 0.00005, 0.00005]  # Weights for force regularisation
     osqp_Nz_lim: 35.0  # Maximum vertical force that can be applied at contact points
 
     # Parameters of InvKin
-    Kp_flyingfeet: 100.0  # Proportional gain for feet position tasks
-    Kd_flyingfeet: 10.0  # Derivative gain for feet position tasks
-    Kp_base_position: [100.0, 100.0, 100.0]  # Proportional gains for the base position task
-    Kd_base_position: [10.0, 10.0, 10.0]  # Derivative gains for the base position task
-    Kp_base_orientation: [100.0, 100.0, 100.0]  # Proportional gains for the base orientation task
-    Kd_base_orientation: [10.0, 10.0, 10.0]  # Derivative gains for the base orientation task
+    Kp_flyingfeet: 50.0  # Proportional gain for feet position tasks
+    Kd_flyingfeet: 14.0  # Derivative gain for feet position tasks
+    Kp_base_position: [50.0, 50.0, 50.0]  # Proportional gains for the base position task
+    Kd_base_position: [14.0, 14.0, 14.0]  # Derivative gains for the base position task
+    Kp_base_orientation: [0.1, 0.1, 0.1]  # Proportional gains for the base orientation task
+    Kd_base_orientation: [0.6, 0.6, 0.6]  # Derivative gains for the base orientation task
     w_tasks: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Tasks weights: [feet/base, vx, vy, vz, roll+wroll, pitch+wpitch, wyaw, contacts]
 
     # Parameters of WBC QP problem

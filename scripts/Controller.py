@@ -140,10 +140,6 @@ class Controller:
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q)
         self.o_targetFootstep = np.zeros((3, 4))  # Store result for MPC_planner
 
-        # ForceMonitor to display contact forces in PyBullet with red lines
-        # import ForceMonitor
-        # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
-
         self.envID = params.envID
         self.velID = params.velID
         self.dt_wbc = params.dt_wbc
@@ -228,6 +224,7 @@ class Controller:
         self.estimator.updateState(self.joystick.v_ref, self.gait)
         oRb = self.estimator.getoRb()
         oRh = self.estimator.getoRh()
+        hRb = self.estimator.gethRb()
         oTh = self.estimator.getoTh().reshape((3, 1))
         self.a_ref[0:6, 0] = self.estimator.getARef()
         self.v_ref[0:6, 0] = self.estimator.getVRef()
@@ -338,11 +335,11 @@ class Controller:
 
             # Feet command position, velocity and acceleration in base frame
             self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(
-                oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
+                hRb @ oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
             self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(
-                oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
+                hRb @ oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
             self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(
-                oRh.transpose(), oTh + np.array([[0.0], [0.0], [self.h_ref]]))
+                hRb @ oRh.transpose(), oTh + np.array([[0.0], [0.0], [self.h_ref]]))
 
             # Desired position, orientation and velocities of the base
             if not self.gait.getIsStatic():
@@ -388,7 +385,7 @@ class Controller:
                                            device.imu.attitude_euler[2])).coeffs().tolist()
                 pyb.resetBasePositionAndOrientation(device.pyb_sim.robotId, oTh_pyb, q_oRb_pyb)"""
 
-        """if self.k >= 8220 and (self.k % self.k_mpc == 0):
+        if self.k >= 8220 and (self.k % self.k_mpc == 0):
             print(self.k)
             print("x_f_mpc: ", self.x_f_mpc[:, 0])
             print("ddq delta: ", self.wbcWrapper.ddq_with_delta)
@@ -396,7 +393,9 @@ class Controller:
             from matplotlib import pyplot as plt
             plt.figure()
             plt.plot(self.x_f_mpc[6, :])
-            plt.show(block=True)"""
+            plt.show(block=True)
+
+        print("f delta: ", self.wbcWrapper.f_with_delta)
 
         """if self.k == 1:
             quit()"""
