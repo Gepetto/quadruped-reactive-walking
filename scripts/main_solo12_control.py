@@ -226,7 +226,7 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
 
         t_end_whole = time.time()
 
-        myForceMonitor.display_contact_forces()
+        # myForceMonitor.display_contact_forces()
 
         # Send command to the robot
         for i in range(1):
@@ -322,7 +322,7 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         print("Masterboard timeout detected.")
         print("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.")
 
-    from matplotlib import pyplot as plt
+    """from matplotlib import pyplot as plt
     N = loggerControl.tstamps.shape[0]
     t_range = np.array([k*loggerControl.dt for k in range(N)])
     plt.figure()
@@ -335,7 +335,7 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
     plt.plot(t_range, log_JcTf_out[:-3, 0], "mediumblue")
     plt.plot(t_range, loggerControl.planner_gait[:, 0, 0], "k", linewidth=3)
     plt.legend(["Mddq", "NLE", "Mddq+NLE", "JcT f", "Mddq out", "Mddq out + NLE", "JcT f out", "Contact"])
-    plt.show(block=True)
+    plt.show(block=True)"""
 
     # Plot recorded data
     if params.PLOTTING:
@@ -375,7 +375,7 @@ def main():
                         help='Name of the clone interface that will reproduce the movement of the first one \
                               (use ifconfig in a terminal), for instance "enp1s0"')
 
-    # os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
+    os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
     f, v = control_loop(parser.parse_args().clone)  # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print(f, v)
     quit()

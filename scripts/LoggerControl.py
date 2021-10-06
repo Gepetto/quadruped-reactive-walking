@@ -365,6 +365,8 @@ class LoggerControl():
             else:
                 plt.legend(["State", "Ground truth", "Ref state"], prop={'size': 8})
             plt.ylabel(lgd[i])
+            if i == 0:
+                plt.ylim([-0.05, 1.25])
         self.custom_suptitle("Linear and angular velocities")
 
         print("RMSE: ", np.sqrt(((self.joy_v_ref[:-1000, 0] - self.mocap_h_v[:-1000, 0])**2).mean()))

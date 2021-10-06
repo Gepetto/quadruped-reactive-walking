@@ -238,7 +238,7 @@ int QPWBC::update_matrices(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Ma
   my_print_csc_matrix(P, t_char);
 
   t_char[0] = 'M';
-  my_print_csc_matrix(ML, t_char);*/
+  my_print_csc_matrix(ML, t_char);
 
   std::cout << "Q" << std::endl;
   for (int j = 0; j < 18; j++) {
@@ -256,7 +256,7 @@ int QPWBC::update_matrices(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Ma
   for (int j = 0; j < 26; j++) {
     std::cout << v_NK_up[j] << " ";
   }
-  std::cout << std::endl;
+  std::cout << std::endl;*/
 
   return 0;
 }
@@ -368,10 +368,10 @@ int QPWBC::retrieve_result(const Eigen::Matrix<double, 6, 1> &ddq_cmd, const Eig
   // Adding reference acceleration to delta ddq
   // ddq_res += ddq_cmd;
 
-  std::cout << "f_cmd: " << std::endl << f_cmd.transpose() << std::endl;
+  /*std::cout << "f_cmd: " << std::endl << f_cmd.transpose() << std::endl;
   std::cout << "f_res: " << std::endl << f_res.transpose() << std::endl;
   std::cout << "ddq_cmd: " << std::endl << ddq_cmd.transpose() << std::endl;
-  std::cout << "ddq_res: " << std::endl << ddq_res.transpose() << std::endl;
+  std::cout << "ddq_res: " << std::endl << ddq_res.transpose() << std::endl;*/
 
   return 0;
 }
@@ -708,8 +708,8 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
 
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
 
-  std::cout << "M inertia" << std::endl;
-  std::cout << data_.M << std::endl;
+  /*std::cout << "M inertia" << std::endl;
+  std::cout << data_.M << std::endl;*/
   /*std::cout << "Jc" << std::endl;
   std::cout << Jc_ << std::endl;
   std::cout << "f_cmd" << std::endl;
@@ -719,15 +719,15 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   std::cout << "k_since" << std::endl;
   std::cout << k_since_contact_ << std::endl;*/
 
-  std::cout << "Force compensation " << std::endl;
+  //std::cout << "Force compensation " << std::endl;
   Vector12 f_compensation = pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);
   /*for (int i = 0; i < 4; i++) {
     f_compensation(3*i+2, 0) = 0.0;
   }*/
-  std::cout << f_compensation << std::endl;
+  //std::cout << f_compensation << std::endl;
 
   //std::cout << "agoals " << std::endl << agoals << std::endl; 
-  std::cout << "ddq_cmd_bis " << std::endl << ddq_cmd_.transpose() << std::endl; 
+  //std::cout << "ddq_cmd_bis " << std::endl << ddq_cmd_.transpose() << std::endl; 
 
   // Solve the QP problem
   box_qp_->run(data_.M, Jc_, ddq_cmd_, f_cmd + f_compensation, data_.tau.head(6),
@@ -740,7 +740,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
 
   Vector6 left = data_.M.block(0, 0, 6, 6) * box_qp_->get_ddq_res() - Jc_.transpose() * box_qp_->get_f_res();
   Vector6 right = - data_.tau.head(6) + Jc_.transpose() * (f_cmd + f_compensation);
-  std::cout << "RNEA: " << std::endl << data_.tau.head(6).transpose() << std::endl;
+  //std::cout << "RNEA: " << std::endl << data_.tau.head(6).transpose() << std::endl;
   Vector6 tmp_RNEA = data_.tau.head(6);
   //std::cout << "left: " << std::endl << left.transpose() << std::endl;
   //std::cout << "right: " << std::endl << right.transpose() << std::endl;
@@ -751,9 +751,9 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
 
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
   Vector6 tmp_NLE = data_.tau.head(6);
-  std::cout << "NLE: " << std::endl << data_.tau.head(6).transpose() << std::endl;
+  /*std::cout << "NLE: " << std::endl << data_.tau.head(6).transpose() << std::endl;
   std::cout << "M DDQ: " << std::endl << (tmp_RNEA - data_.tau.head(6)).transpose() << std::endl;
-  std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * (f_cmd + f_compensation)).transpose() << std::endl;
+  std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * (f_cmd + f_compensation)).transpose() << std::endl;*/
 
   // std::cout << "Gravity ?: " << std::endl <<  (data_.M * ddq_cmd_ - data_.tau.head(6)).transpose() << std::endl;
 
@@ -766,9 +766,9 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // Compute joint torques from contact forces and desired accelerations
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_with_delta_);
 
-  std::cout << "NLE Delta: " << std::endl << tmp_NLE.transpose() << std::endl;
+  /*std::cout << "NLE Delta: " << std::endl << tmp_NLE.transpose() << std::endl;
   std::cout << "M DDQ Delta: " << std::endl << (data_.tau.head(6) - tmp_NLE).transpose() << std::endl;
-  std::cout << "JcT f_cmd Delta: " << std::endl << (Jc_.transpose() * f_with_delta_).transpose() << std::endl;
+  std::cout << "JcT f_cmd Delta: " << std::endl << (Jc_.transpose() * f_with_delta_).transpose() << std::endl;*/
 
   /*std::cout << "rnea delta" << std::endl;
   std::cout << data_.tau.tail(12) << std::endl;

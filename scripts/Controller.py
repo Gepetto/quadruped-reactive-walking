@@ -283,7 +283,7 @@ class Controller:
                                                 self.footTrajectoryGenerator.getFootJerk(),
                                                 self.footTrajectoryGenerator.getTswing() - self.footTrajectoryGenerator.getT0s())
                 else :
-                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3,4)), nle=self.nle)
+                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3,4)))
 
             except ValueError:
                 print("MPC Problem")
@@ -350,7 +350,7 @@ class Controller:
 
             self.xgoals[6:, 0] = self.vref_filt_mpc[:, 0]  # Velocities (in horizontal frame!)
 
-            print(" ###### ")
+            #print(" ###### ")
 
             # Run InvKin + WBC QP
             self.wbcWrapper.compute(self.q_wbc, self.dq_wbc,
@@ -385,7 +385,7 @@ class Controller:
                                            device.imu.attitude_euler[2])).coeffs().tolist()
                 pyb.resetBasePositionAndOrientation(device.pyb_sim.robotId, oTh_pyb, q_oRb_pyb)"""
 
-        if self.k >= 8220 and (self.k % self.k_mpc == 0):
+        """if self.k >= 8220 and (self.k % self.k_mpc == 0):
             print(self.k)
             print("x_f_mpc: ", self.x_f_mpc[:, 0])
             print("ddq delta: ", self.wbcWrapper.ddq_with_delta)
@@ -395,7 +395,7 @@ class Controller:
             plt.plot(self.x_f_mpc[6, :])
             plt.show(block=True)
 
-        print("f delta: ", self.wbcWrapper.f_with_delta)
+        print("f delta: ", self.wbcWrapper.f_with_delta)"""
 
         """if self.k == 1:
             quit()"""
@@ -410,7 +410,7 @@ class Controller:
         self.pyb_camera(device, 0.0)
 
         # Update debug display (spheres, ...)
-        self.pyb_debug(device, fsteps, cgait, xref)
+        # self.pyb_debug(device, fsteps, cgait, xref)
 
         # Logs
         self.log_misc(t_start, t_filter, t_planner, t_mpc, t_wbc)

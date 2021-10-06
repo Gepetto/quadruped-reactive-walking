@@ -40,8 +40,8 @@ class Joystick:
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 0.5
-        self.VyScale = 0.8
+        self.VxScale = 0.6
+        self.VyScale = 1.0
         self.vYawScale = 1.2
 
         self.Vx_ref = 0.3
@@ -89,11 +89,14 @@ class Joystick:
         # Create the gamepad client
         if k_loop == 0:
             self.gp = gC.GamepadClient()
+            self.gp.leftJoystickX.value = 0.00390625
+            self.gp.leftJoystickY.value = 0.00390625
+            self.gp.rightJoystickX.value = 0.00390625
 
         # Get the velocity command based on the position of joysticks
-        self.vX = self.gp.leftJoystickX.value * self.VxScale
-        self.vY = self.gp.leftJoystickY.value * self.VyScale
-        self.vYaw = self.gp.rightJoystickX.value * self.vYawScale
+        self.vX = (self.gp.leftJoystickX.value / 0.00778 * 2. - 1.) * self.VxScale
+        self.vY = (self.gp.leftJoystickY.value / 0.00778 * 2. - 1.) * self.VyScale
+        self.vYaw = (self.gp.rightJoystickX.value / 0.00778 * 2. - 1.) * self.vYawScale
 
         if self.gp.L1Button.value:  # If L1 is pressed the orientation of the base is controlled
             self.v_gp = np.array(
@@ -265,7 +268,7 @@ class Joystick:
                                           [0.0, 0.0, 0.0, 0.0],
                                           [0.0, 0.0, 0.0, 0.0]])
             elif velID == 10:  # FORWAAAAAAAAAARD
-                self.t_switch = np.array([0, 2, 4, 6, 8, 10, 15])
+                self.t_switch = np.array([0, 2, 4, 6, 8, 10, 15]) * 2
                 self.v_switch = np.array([[0.0, 0.4, 0.8, 1.0, 1.0, 1.0, 1.0],
                                           [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
                                           [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],

@@ -50,7 +50,7 @@ class MPC {
   /// \param[in] fsteps_in Footsteps location over the prediction horizon stored in a Nx12 matrix
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in, const Eigen::MatrixXd &nle);
+  int run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in);
 
   // Getters
   Eigen::MatrixXd get_latest_result();  // Return the latest desired contact forces that have been computed
@@ -157,7 +157,7 @@ class MPC {
   /// \param[in] fsteps Footsteps location over the prediction horizon stored in a Nx12 matrix
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int update_matrices(Eigen::MatrixXd fsteps, const Eigen::Matrix<double, 6, 1> &nle);
+  int update_matrices(Eigen::MatrixXd fsteps);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -173,7 +173,7 @@ class MPC {
   /// \brief Update the N and K matrices involved in the MPC constraint equations M.X = N and L.X <= K
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int update_NK(const Eigen::Matrix<double, 6, 1> &nle);
+  int update_NK();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///

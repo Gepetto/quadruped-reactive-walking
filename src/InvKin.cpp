@@ -79,13 +79,14 @@ void InvKin::initialize(Params& params) {
 void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals, Matrix43 const& vgoals,
                                Matrix43 const& agoals) {
 
-  std::cout << std::fixed;
+  /*std::cout << std::fixed;
   std::cout << std::setprecision(2);
 
   std::cout << "pgoals:" << std::endl;
   std::cout << pgoals << std::endl;
   std::cout << "posf_" << std::endl;
-  std::cout << posf_ << std::endl;
+  std::cout << posf_ << std::endl;*/
+
   /*std::cout << "vf_" << std::endl;
   std::cout << vf_ << std::endl;*/
 
@@ -103,20 +104,20 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
                    + params_->Kd_flyingfeet * (vfeet_ref.row(i) - vf_.row(i))
                    + agoals.row(i);
 
-    std::cout << "1: " << afeet.row(i) << std::endl;
+    //std::cout << "1: " << afeet.row(i) << std::endl;
     afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));
-    std::cout << "2: " << afeet.row(i) << std::endl;
+    //std::cout << "2: " << afeet.row(i) << std::endl;
   
     // Subtract base acceleration
     afeet.row(i) -= (params_->Kd_flyingfeet * (vb_ref_ - vb_) - (ab_.head(3) + wb_.cross(vb_))).transpose();
-    std::cout << "3: " << afeet.row(i) << std::endl;
+    //std::cout << "3: " << afeet.row(i) << std::endl;
     /*std::cout << vb_ref_.transpose() << std::endl;
     std::cout << vb_.transpose() << std::endl;
     std::cout << wb_.transpose() << std::endl;
     std::cout << ab_.head(3).transpose() << std::endl;
     std::cout << (vb_ref_ - vb_).transpose() << std::endl;
     std::cout << (wb_.cross(vb_)).transpose() << std::endl;*/
-    std::cout << "---" << std::endl;
+    //std::cout << "---" << std::endl;
     
   }
   
@@ -295,9 +296,9 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
 
   /*std::cout << "J" << std::endl << J_ << std::endl;
   std::cout << "invJ" << std::endl << invJ_ << std::endl;*/
-  std::cout << "acc" << std::endl << acc << std::endl;
+  /*std::cout << "acc" << std::endl << acc << std::endl;
   std::cout << "dx_r" << std::endl << dx_r << std::endl;
-  std::cout << "x_err" << std::endl << x_err << std::endl;
+  std::cout << "x_err" << std::endl << x_err << std::endl;*/
   /*std::cout << "ddq_cmd" << std::endl << ddq_cmd_ << std::endl;
   std::cout << "dq_cmd" << std::endl << dq_cmd_ << std::endl;
   std::cout << "q_step" << std::endl << q_step_ << std::endl;*/

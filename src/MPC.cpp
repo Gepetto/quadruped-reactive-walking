@@ -377,7 +377,7 @@ int MPC::create_weight_matrices() {
   return 0;
 }
 
-int MPC::update_matrices(Eigen::MatrixXd fsteps, const Eigen::Matrix<double, 6, 1> &nle) {
+int MPC::update_matrices(Eigen::MatrixXd fsteps) {
   /* M need to be updated between each iteration:
    - lever_arms changes since the robot moves
    - I_inv changes if the reference velocity vector is modified
@@ -387,7 +387,7 @@ int MPC::update_matrices(Eigen::MatrixXd fsteps, const Eigen::Matrix<double, 6, 
   /* N need to be updated between each iteration:
    - X0 changes since the robot moves
    - Xk* changes since X0 is not the same */
-  update_NK(nle);
+  update_NK();
 
   // L matrix is constant
   // K matrix is constant
@@ -441,7 +441,7 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
   return 0;
 }
 
-int MPC::update_NK(const Eigen::Matrix<double, 6, 1> &nle) {
+int MPC::update_NK() {
   // Matrix g is already created and not changed
 
   //std::cout << "NLE MPC: " << std::endl << nle.transpose() << std::endl;
@@ -587,7 +587,7 @@ Return the next predicted state of the base
 */
 double *MPC::get_x_next() { return x_next; }
 
-int MPC::run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in, const Eigen::MatrixXd &nle) {
+int MPC::run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in) {
   // Recontruct the gait based on the computed footsteps
   construct_gait(fsteps_in);
 
@@ -600,7 +600,7 @@ int MPC::run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd
   if (num_iter == 0) {
     create_matrices();
   } else {
-    update_matrices(fsteps_in, nle);
+    update_matrices(fsteps_in);
   }
 
   // Create an initial guess and call the solver to solve the QP problem
