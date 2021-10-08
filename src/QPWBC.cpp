@@ -675,7 +675,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // TODO: Check if we can save time by switching MatrixXd to defined sized vector since they are
   // not called from python anymore
 
-  // Retrieve feet jacobian
+  // Retrieve feet jacobian  // TODO: Retrieve it in one go to avoid having Jc_ and Jc_u_
   for (int i = 0; i < 4; i++) {
     if (contacts(0, i)) {
       Jc_.block(3 * i, 0, 3, 6) = invkin_->get_Jf().block(3 * i, 0, 3, 6);
