@@ -702,7 +702,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   Vector6 RNEA_without_joints = data_.tau.head(6);
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
   Vector6 RNEA_NLE = data_.tau.head(6);
-  RNEA_NLE(2, 0) -= 24.8;
+  RNEA_NLE(2, 0) -= 9.81 * data_.mass[0];
 
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
 
