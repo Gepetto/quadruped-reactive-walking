@@ -328,6 +328,9 @@ class WbcWrapper {
   MatrixN get_feet_pos() { return invkin_->get_posf().transpose(); }
   MatrixN get_feet_err() { return log_feet_pos_target - invkin_->get_posf().transpose(); }
   MatrixN get_feet_vel() { return invkin_->get_vf().transpose(); }
+  VectorN get_tasks_acc() { return invkin_->get_tasks_acc(); }
+  VectorN get_tasks_vel() { return invkin_->get_tasks_vel(); }
+  VectorN get_tasks_err() { return invkin_->get_tasks_err(); }
   MatrixN get_feet_pos_target() { return log_feet_pos_target; }
   MatrixN get_feet_vel_target() { return log_feet_vel_target; }
   MatrixN get_feet_acc_target() { return log_feet_acc_target; }
@@ -361,8 +364,6 @@ class WbcWrapper {
   Vector18 ddq_with_delta_;  // Actuator accelerations with deltas found by QP solver
 
   Vector6 nle_;  // Non linear effects
-
-  Matrix43 posf_tmp_;  // Temporary matrix to store posf_ from invkin_
 
   Matrix34 log_feet_pos_target;  // Store the target feet positions
   Matrix34 log_feet_vel_target;  // Store the target feet velocities

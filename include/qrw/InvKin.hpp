@@ -91,6 +91,9 @@ class InvKin {
   int get_foot_id(int i) { return foot_ids_[i]; }
   Matrix43 get_posf() { return posf_; }
   Matrix43 get_vf() { return vf_; }
+  VectorN get_tasks_acc() { return acc; }
+  VectorN get_tasks_vel() { return dx_r; }
+  VectorN get_tasks_err() { return x_err; }
 
  private:
   Params* params_;  // Params object to store parameters

@@ -1,4 +1,5 @@
 '''This class will log 1d array in Nd matrix from device and qualisys object'''
+from multiprocessing import set_forkserver_preload
 import pickle
 import numpy as np
 from datetime import datetime as datetime
@@ -26,9 +27,15 @@ class LoggerControl():
         # Estimator
         self.esti_feet_status = np.zeros([logSize, 4])  # input feet status (contact or not)
         self.esti_feet_goals = np.zeros([logSize, 3, 4])  # input feet goals (desired on the ground)
-        self.esti_q_filt = np.zeros([logSize, 19])  # output position
-        self.esti_v_filt = np.zeros([logSize, 18])  # output velocity
-        self.esti_v_secu = np.zeros([logSize, 12])  # filtered output velocity for security check
+        self.esti_q_filt = np.zeros([logSize, 19])  # estimated state of the robot (complementary filter)
+        self.esti_q_up = np.zeros([logSize, 18])  # state of the robot in the ideal world
+        self.esti_v_filt = np.zeros([logSize, 18])  # estimated velocity of the robot (b frame)
+        self.esti_v_filt_bis = np.zeros([logSize, 18])  # estimated velocity of the robot (b frame, windowed)
+        self.esti_v_up = np.zeros([logSize, 18])  # estimated velocity of the robot in the ideal world (h frame)
+        self.esti_v_ref = np.zeros([logSize, 6])  # joystick reference velocity (h frame)
+        self.esti_v_secu = np.zeros([logSize, 12])  # filtered actuators velocity for security checks
+        self.esti_a_ref = np.zeros([logSize, 6])  # joystick reference acceleration (finite difference of v_ref)
+        # h_v, h_v_windowed, yaw_estim, oRb, oRh, hRb, oTh can be reconstructed based on what is logged
 
         self.esti_FK_lin_vel = np.zeros([logSize, 3])  # estimated velocity of the base with FK
         self.esti_FK_xyz = np.zeros([logSize, 3])  # estimated position of the base with FK
@@ -46,31 +53,31 @@ class LoggerControl():
         self.esti_LP_filt_x = np.zeros([logSize, 3])  # filtered output of the position complementary filter
 
         # Loop
-        self.loop_o_q = np.zeros([logSize, 18])  # position in ideal world frame (esti_q_filt + dt * loop_o_v)
-        self.loop_o_v = np.zeros([logSize, 18])  # estimated velocity in world frame
+        self.loop_o_q = np.zeros([logSize, 18])  # state of the robot in the ideal world
+        self.loop_o_v = np.zeros([logSize, 18])  # estimated velocity of the robot in the ideal world (h frame)
         self.loop_h_v = np.zeros([logSize, 18])  # estimated velocity in horizontal frame
-        self.loop_h_v_windowed = np.zeros([logSize, 6])  # estimated velocity in horizontal frame
+        self.loop_h_v_windowed = np.zeros([logSize, 6])  # estimated velocity in horizontal frame (windowed)
         self.loop_t_filter = np.zeros([logSize])  # time taken by the estimator
         self.loop_t_planner = np.zeros([logSize])  # time taken by the planning
         self.loop_t_mpc = np.zeros([logSize])  # time taken by the mcp
         self.loop_t_wbc = np.zeros([logSize])  # time taken by the whole body control
         self.loop_t_loop = np.zeros([logSize])  # time taken by the whole loop (without interface)
         self.loop_t_loop_if = np.zeros([logSize])  # time taken by the whole loop (with interface)
-        self.loop_q_filt_mpc = np.zeros([logSize, 6])  # position in world frame filtered by 1st order low pass
-        self.loop_h_v_filt_mpc = np.zeros([logSize, 6])  # vel in base frame filtered by 1st order low pass
-        self.loop_vref_filt_mpc = np.zeros([logSize, 6])  # ref vel in base frame filtered by 1st order low pass
+        self.loop_q_filt_mpc = np.zeros([logSize, 6])  # state in ideal world filtered by 1st order low pass
+        self.loop_h_v_filt_mpc = np.zeros([logSize, 6])  # vel in h frame filtered by 1st order low pass
+        self.loop_vref_filt_mpc = np.zeros([logSize, 6])  # ref vel in h frame filtered by 1st order low pass
 
         # Gait
         self.planner_gait = np.zeros([logSize, N0_gait, 4])  # Gait sequence
         self.planner_is_static = np.zeros([logSize])  # if the planner is in static mode or not
 
         # State planner
-        if statePlanner is not None:
-            self.planner_xref = np.zeros([logSize, 12, 1+statePlanner.getNSteps()])  # Reference trajectory
+        self.planner_xref = np.zeros([logSize, 12, 1+statePlanner.getNSteps()])  # Reference trajectory
 
         # Footstep planner
-        if gait is not None:
-            self.planner_fsteps = np.zeros([logSize, gait.getCurrentGait().shape[0], 12])  # Reference footsteps position
+        self.planner_fsteps = np.zeros([logSize, gait.getCurrentGait().shape[0], 12])  # Reference footsteps position
+        self.planner_target_fsteps = np.zeros([logSize, 3, 4])  # For each foot, next target on the ground
+        # o_target_foosteps can be reconstructed using yaw_ideal and x y ideal (top of q_up)
         self.planner_h_ref = np.zeros([logSize])  # reference height of the planner
 
         # Foot Trajectory Generator
@@ -78,14 +85,15 @@ class LoggerControl():
         self.planner_vgoals = np.zeros([logSize, 3, 4])  # 3D target feet velocities
         self.planner_agoals = np.zeros([logSize, 3, 4])  # 3D target feet accelerations
         self.planner_jgoals = np.zeros([logSize, 3, 4])  # 3D target feet accelerations
+        # References given to the wbc can be retrieved applying a rotation hRb @ oRh.transpose()
+        # and a translation oTh + np.array([[0.0], [0.0], [self.h_ref]]) to the position
 
         # Model Predictive Control
         # output vector of the MPC (next state + reference contact force)
-        if statePlanner is not None:
-            if loop.type_MPC == 3:
-                self.mpc_x_f = np.zeros([logSize, 32, statePlanner.getNSteps()])
-            else:
-                self.mpc_x_f = np.zeros([logSize, 24, statePlanner.getNSteps()])
+        if loop.type_MPC == 3:
+            self.mpc_x_f = np.zeros([logSize, 32, statePlanner.getNSteps()])
+        else:
+            self.mpc_x_f = np.zeros([logSize, 24, statePlanner.getNSteps()])
         self.mpc_solving_duration = np.zeros([logSize])
 
         # Whole body control
@@ -104,6 +112,9 @@ class LoggerControl():
         self.wbc_feet_vel = np.zeros([logSize, 3, 4])  # current feet velocities according to WBC
         self.wbc_feet_vel_target = np.zeros([logSize, 3, 4])  # current feet velocities targets for WBC
         self.wbc_feet_acc_target = np.zeros([logSize, 3, 4])  # current feet accelerations targets for WBC
+        self.wbc_tasks_acc = np.zeros([logSize, 30])  # acceleration of tasks in InvKin
+        self.wbc_tasks_vel = np.zeros([logSize, 30])  # velocities of tasks in InvKin
+        self.wbc_tasks_err = np.zeros([logSize, 30])  # position error of tasks in InvKin
 
         # Timestamps
         self.tstamps = np.zeros(logSize)
@@ -122,8 +133,13 @@ class LoggerControl():
         self.esti_feet_status[self.i] = estimator.getFeetStatus()
         self.esti_feet_goals[self.i] = estimator.getFeetGoals()
         self.esti_q_filt[self.i] = estimator.getQFilt()
+        self.esti_q_up[self.i] = self.estimator.getQUpdated()
         self.esti_v_filt[self.i] = estimator.getVFilt()
+        self.esti_v_filt_bis[self.i] = estimator.getVFiltBis()
+        self.esti_v_up[self.i] = self.estimator.getVUpdated()
+        self.esti_v_ref[self.i] = self.estimator.getVRef()
         self.esti_v_secu[self.i] = estimator.getVSecu()
+        self.esti_a_ref[self.i] = self.estimator.getARef()
 
         self.esti_FK_lin_vel[self.i] = estimator.getFKLinVel()
         self.esti_FK_xyz[self.i] = estimator.getFKXYZ()
@@ -158,6 +174,7 @@ class LoggerControl():
         # Logging from the planner
         self.planner_xref[self.i] = statePlanner.getReferenceStates()
         self.planner_fsteps[self.i] = footstepPlanner.getFootsteps()
+        self.planner_target_fsteps[self.i] = footstepPlanner.getTargetFootsteps()
         self.planner_gait[self.i] = gait.getCurrentGait()
         self.planner_goals[self.i] = footTrajectoryGenerator.getFootPosition()
         self.planner_vgoals[self.i] = footTrajectoryGenerator.getFootVelocity()
@@ -186,6 +203,9 @@ class LoggerControl():
         self.wbc_feet_vel[self.i] = wbc.feet_vel
         self.wbc_feet_vel_target[self.i] = wbc.feet_vel_target
         self.wbc_feet_acc_target[self.i] = wbc.feet_acc_target
+        self.wbc_tasks_acc[self.i] = wbc.getTasksAcc()
+        self.wbc_tasks_vel[self.i] = wbc.getTasksVel()
+        self.wbc_tasks_err[self.i] = wbc.getTasksErr()
 
         # Logging timestamp
         self.tstamps[self.i] = time()
@@ -724,8 +744,13 @@ class LoggerControl():
                             esti_feet_status=self.esti_feet_status,
                             esti_feet_goals=self.esti_feet_goals,
                             esti_q_filt=self.esti_q_filt,
+                            esti_q_up=self.esti_q_up,
                             esti_v_filt=self.esti_v_filt,
+                            esti_v_filt_bis=self.esti_v_filt_bis,
+                            esti_v_up=self.esti_v_up,
+                            esti_v_ref=self.esti_v_ref,
                             esti_v_secu=self.esti_v_secu,
+                            esti_a_ref=self.esti_a_ref,
 
                             esti_FK_lin_vel=self.esti_FK_lin_vel,
                             esti_FK_xyz=self.esti_FK_xyz,
@@ -758,6 +783,7 @@ class LoggerControl():
 
                             planner_xref=self.planner_xref,
                             planner_fsteps=self.planner_fsteps,
+                            planner_target_fsteps=self.planner_target_fsteps,
                             planner_gait=self.planner_gait,
                             planner_goals=self.planner_goals,
                             planner_vgoals=self.planner_vgoals,
@@ -784,12 +810,16 @@ class LoggerControl():
                             wbc_feet_vel=self.wbc_feet_vel,
                             wbc_feet_vel_target=self.wbc_feet_vel_target,
                             wbc_feet_acc_target=self.wbc_feet_acc_target,
+                            wbc_tasks_acc=self.wbc_tasks_acc,
+                            wbc_tasks_vel=self.wbc_tasks_vel,
+                            wbc_tasks_err=self.wbc_tasks_err,
 
                             tstamps=self.tstamps,
 
                             q_mes=loggerSensors.q_mes,
                             v_mes=loggerSensors.v_mes,
                             baseOrientation=loggerSensors.baseOrientation,
+                            baseOrientationQuat=loggerSensors.baseOrientationQuat,
                             baseAngularVelocity=loggerSensors.baseAngularVelocity,
                             baseLinearAcceleration=loggerSensors.baseLinearAcceleration,
                             baseAccelerometer=loggerSensors.baseAccelerometer,
@@ -820,8 +850,13 @@ class LoggerControl():
         self.esti_feet_status = data["esti_feet_status"]
         self.esti_feet_goals = data["esti_feet_goals"]
         self.esti_q_filt = data["esti_q_filt"]
+        self.esti_q_up = data["esti_q_up"]
         self.esti_v_filt = data["esti_v_filt"]
+        self.esti_v_filt_bis = data["esti_v_filt_bis"]
+        self.esti_v_up = data["esti_v_up"]
+        self.esti_v_ref = data["esti_v_ref"]
         self.esti_v_secu = data["esti_v_secu"]
+        self.esti_a_ref = data["esti_a_ref"]
 
         self.esti_FK_lin_vel = data["esti_FK_lin_vel"]
         self.esti_FK_xyz = data["esti_FK_xyz"]
@@ -854,6 +889,7 @@ class LoggerControl():
 
         self.planner_xref = data["planner_xref"]
         self.planner_fsteps = data["planner_fsteps"]
+        self.planner_target_fsteps = data["planner_target_fsteps"]
         self.planner_gait = data["planner_gait"]
         self.planner_goals = data["planner_goals"]
         self.planner_vgoals = data["planner_vgoals"]
@@ -880,6 +916,9 @@ class LoggerControl():
         self.wbc_feet_vel = data["wbc_feet_vel"]
         self.wbc_feet_vel_target = data["wbc_feet_vel_target"]
         self.wbc_feet_acc_target = data["wbc_feet_acc_target"]
+        self.wbc_tasks_acc = data["wbc_tasks_acc"]
+        self.wbc_tasks_vel = data["wbc_tasks_vel"]
+        self.wbc_tasks_err = data["wbc_tasks_err"]
 
         self.tstamps = data["tstamps"]
 
@@ -887,6 +926,7 @@ class LoggerControl():
         loggerSensors.q_mes = data["q_mes"]
         loggerSensors.v_mes = data["v_mes"]
         loggerSensors.baseOrientation = data["baseOrientation"]
+        loggerSensors.baseOrientationQuat = data["baseOrientationQuat"]
         loggerSensors.baseAngularVelocity = data["baseAngularVelocity"]
         loggerSensors.baseLinearAcceleration = data["baseLinearAcceleration"]
         loggerSensors.baseAccelerometer = data["baseAccelerometer"]
@@ -1097,7 +1137,7 @@ if __name__ == "__main__":
     sys.path.insert(0, os.getcwd()) # adds current directory to python path
 
     # Data file name to load
-    file_name = "/home/thomas_cbrs/Desktop/edin/quadruped-reactive-walking/scripts/crocoddyl_eval/logs/explore_weight_acc/data_2021_09_16_15_10_3.npz"
+    file_name = "/home/odri/data_2021_10_07_17_40.npz"
 
     # Create loggers
     loggerSensors = LoggerSensors.LoggerSensors(logSize=20000-3)

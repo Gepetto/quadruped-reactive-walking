@@ -18,6 +18,7 @@ class LoggerSensors():
         self.v_mes = np.zeros([logSize, nb_motors])
         self.torquesFromCurrentMeasurment = np.zeros([logSize, nb_motors])
         self.baseOrientation = np.zeros([logSize, 3])
+        self.baseOrientationQuat = np.zeros([logSize, 4])
         self.baseAngularVelocity = np.zeros([logSize, 3])
         self.baseLinearAcceleration = np.zeros([logSize, 3])
         self.baseAccelerometer = np.zeros([logSize, 3])
@@ -46,6 +47,7 @@ class LoggerSensors():
         self.q_mes[self.i] = device.joints.positions
         self.v_mes[self.i] = device.joints.velocities
         self.baseOrientation[self.i] = device.imu.attitude_euler
+        self.baseOrientationQuat[self.i] = device.imu.attitude_quaternion
         self.baseAngularVelocity[self.i] = device.imu.gyroscope
         self.baseLinearAcceleration[self.i] = device.imu.linear_acceleration
         self.baseAccelerometer[self.i] = device.imu.accelerometer
@@ -80,10 +82,14 @@ class LoggerSensors():
                             q_mes=self.q_mes,
                             v_mes=self.v_mes,
                             baseOrientation=self.baseOrientation,
+                            baseOrientationQuat=self.baseOrientationQuat,
                             baseAngularVelocity=self.baseAngularVelocity,
                             baseLinearAcceleration=self.baseLinearAcceleration,
                             baseAccelerometer=self.baseAccelerometer,
                             torquesFromCurrentMeasurment=self.torquesFromCurrentMeasurment,
+                            current=self.current,
+                            voltage=self.voltage,
+                            energy=self.energy,
                             mocapPosition=self.mocapPosition,
                             mocapVelocity=self.mocapVelocity,
                             mocapAngularVelocity=self.mocapAngularVelocity,

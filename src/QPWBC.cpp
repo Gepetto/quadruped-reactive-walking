@@ -593,7 +593,6 @@ WbcWrapper::WbcWrapper()
       f_with_delta_(Vector12::Zero()),
       ddq_with_delta_(Vector18::Zero()),
       nle_(Vector6::Zero()),
-      posf_tmp_(Matrix43::Zero()),
       log_feet_pos_target(Matrix34::Zero()),
       log_feet_vel_target(Matrix34::Zero()),
       log_feet_acc_target(Matrix34::Zero()),
@@ -677,7 +676,6 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // not called from python anymore
 
   // Retrieve feet jacobian
-  posf_tmp_ = invkin_->get_posf();
   for (int i = 0; i < 4; i++) {
     if (contacts(0, i)) {
       Jc_.block(3 * i, 0, 3, 6) = invkin_->get_Jf().block(3 * i, 0, 3, 6);
