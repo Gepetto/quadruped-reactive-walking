@@ -60,6 +60,7 @@ set(${PROJECT_NAME}_HEADERS
   include/qrw/Estimator.hpp
   include/qrw/Joystick.hpp
   include/qrw/Filter.hpp
+  include/qrw/Controller.hpp
   include/other/st_to_cc.hpp
   )
 
@@ -77,6 +78,7 @@ set(${PROJECT_NAME}_SOURCES
   src/Estimator.cpp
   src/Joystick.cpp
   src/Filter.cpp
+  src/Controller.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
@@ -91,6 +93,10 @@ add_project_dependency(pinocchio REQUIRED)
 
 # Link pinocchio library
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} PUBLIC pinocchio::pinocchio)
+
+# Link odri_control_interface library
+find_package(odri_control_interface REQUIRED)
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} PUBLIC odri_control_interface::odri_control_interface)
 
 # Find parametric curves library and headers
 # add_project_dependency(curves REQUIRED)
@@ -127,7 +133,8 @@ target_compile_options(${PROJECT_NAME} PUBLIC -DNDEBUG -O3)
 target_compile_definitions(${PROJECT_NAME} PUBLIC CONFIG_SOLO12_YAML="${PROJECT_SOURCE_DIR}/src/config_solo12.yaml")
 
 # Main Executable
-add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/main.cpp)
+# add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/control_solo12.cpp)
 target_link_libraries(${PROJECT_NAMESPACE}-${PROJECT_NAME} ${PROJECT_NAME})
 
 # Python Bindings
