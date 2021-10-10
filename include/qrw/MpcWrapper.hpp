@@ -47,14 +47,17 @@ class MpcWrapper {
   /// \param[in] robot Pointer to the robot interface
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void solve(int k, MatrixN const& xref, MatrixN const& fsteps, MatrixN const& gait, Matrix34 const& l_fsteps_target);
+  void solve(int k, MatrixN const& xref, MatrixN const& fsteps, MatrixN const& gait);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
   /// \brief Return the latest available result of the MPC
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  Vector12 get_latest_result();
+  Eigen::Matrix<double, 24, 2> get_latest_result();
+
+  void run_MPC_asynchronous(int k, MatrixN const& xref, MatrixN const& fsteps);
+  void create_MPC_asynchronous();
 
  private:
   
@@ -62,6 +65,9 @@ class MpcWrapper {
   MPC mpc_;
 
   int test = 0;
+  Eigen::Matrix<double, 24, 2> last_available_result;
+  Matrix14 gait_past;
+  Matrix14 gait_next;
 
 };
 

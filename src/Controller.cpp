@@ -45,7 +45,8 @@ void Controller::initialize(Params& params) {
 }
 
 void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
-  std::cout << "Pass" << std::endl;
+  
+  std::cout << "Computing Controller" << std::endl;
 
   // Update the reference velocity coming from the gamepad
   joystick.update_v_ref(k, params_->velID);
@@ -63,19 +64,6 @@ void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
 
   // Update state vectors of the robot (q and v) + transformation matrices between world and horizontal frames
   estimator.updateState(joystick.getVRef(), gait);
-
-  // Retrieve data from estimator
-  /*oRh = self.estimator.getoRh()
-  hRb = self.estimator.gethRb()
-  oTh = self.estimator.getoTh().reshape((3, 1))
-  self.a_ref[0:6, 0] = self.estimator.getARef()
-  self.v_ref[0:6, 0] = self.estimator.getVRef()
-  self.h_v[0:6, 0] = self.estimator.getHV()
-  self.h_v_windowed[0:6, 0] = self.estimator.getHVWindowed()
-  self.q[:, 0] = self.estimator.getQUpdated()
-  self.v[:, 0] = self.estimator.getVUpdated()
-  self.yaw_estim = self.estimator.getYawEstim()
-  */
 
   // Update gait
   gait.updateGait(k, k_mpc, joystick.getJoystickCode());
@@ -100,7 +88,7 @@ void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
   if (k % k_mpc == 0)
   {
     mpcWrapper.solve(k, statePlanner.getReferenceStates(), footstepPlanner.getFootsteps(),
-                      gait.getCurrentGait(), Matrix34::Zero());
+                     gait.getCurrentGait());
   }
 
   // Update pos, vel and acc references for feet
