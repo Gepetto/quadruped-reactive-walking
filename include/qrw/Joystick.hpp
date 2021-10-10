@@ -15,6 +15,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include "qrw/Types.h"
+#include "qrw/Params.hpp"
 
 class Joystick {
  public:
@@ -24,6 +25,15 @@ class Joystick {
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   Joystick();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Initialize with given data
+  ///
+  /// \param[in] params Object that stores parameters
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void initialize(Params& params);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -45,6 +55,7 @@ class Joystick {
   VectorN handle_v_switch(double k, VectorN const& k_switch, MatrixN const& v_switch);
 
   void update_v_ref(int k, int velID);
+  void update_v_ref_gamepad();
 
   Vector6 getVRef() { return v_ref_; }
   int getJoystickCode() { return joystick_code_; }
@@ -54,8 +65,19 @@ class Joystick {
   Vector6 A3_;     // Third order coefficient of the polynomial that generates the velocity profile
   Vector6 A2_;     // Second order coefficient of the polynomial that generates the velocity profile
   Vector6 v_ref_;  // Reference velocity resulting of the polynomial interpolation
+  Vector6 v_gp_;
   int joystick_code_ = 0;
   bool stop_ = false;
+  bool predefined = false;
+
+  // How much the gamepad velocity is filtered to avoid sharp changes
+  double alpha = 0.001;
+
+  // Maximum velocity values
+  double vXScale = 0.6;  // Lateral
+  double vYScale = 1.0;  // Forward
+  double vYawScale = 1.2;  // Rotation
+
 };
 
 #endif  // JOYSTICK_H_INCLUDED
