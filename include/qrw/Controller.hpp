@@ -17,8 +17,17 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include "qrw/Params.hpp"
 #include "qrw/Types.h"
+#include "qrw/Params.hpp"
+#include "qrw/Joystick.hpp"
+#include "qrw/Estimator.hpp"
+#include "qrw/Gait.hpp"
+#include "qrw/FootstepPlanner.hpp"
+#include "qrw/StatePlanner.hpp"
+#include "qrw/MpcWrapper.hpp"
+#include "qrw/FootTrajectoryGenerator.hpp"
+#include "qrw/QPWBC.hpp"
+#include "qrw/Filter.hpp"
 
 class Controller {
  public:
@@ -54,21 +63,56 @@ class Controller {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void compute(std::shared_ptr<odri_control_interface::Robot> robot);
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Perform a security check before sending commands to the robot
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void security_check();
+
   // Commands to be sent to the robot
   Vector12 P;
   Vector12 D;
   Vector12 q_des;
   Vector12 v_des;
   Vector12 tau_ff;
-  double FF;
+  Vector12 FF;
 
   // Control info
   Params* params_;  // Params object to store parameters
   bool error;
+  int error_flag;
+  Vector12 error_value;
   
  private:
   
-  double test = 0;
+  int k;
+  int k_mpc;
+
+  // Classes of the different control blocks
+  Joystick joystick = Joystick();
+  Estimator estimator = Estimator();
+  Gait gait = Gait();
+  FootstepPlanner footstepPlanner = FootstepPlanner();
+  StatePlanner statePlanner = StatePlanner();
+  MpcWrapper mpcWrapper = MpcWrapper();
+  FootTrajectoryGenerator footTrajectoryGenerator = FootTrajectoryGenerator();
+  WbcWrapper wbcWrapper = WbcWrapper();
+
+  // Filters
+  Filter filter_mpc_q = Filter();
+  Filter filter_mpc_v = Filter();
+  Filter filter_mpc_vref = Filter();
+  Vector18 q_filt_mpc;
+  Vector6 h_v_filt_mpc;
+  Vector6 vref_filt_mpc;
+
+  // Various
+  Matrix34 o_targetFootstep;
+  Vector18 q_wbc;
+  Vector18 dq_wbc;
+  Vector12 xgoals;
+
 };
 
 #endif  // CONTROLLER_H_INCLUDED

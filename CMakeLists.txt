@@ -61,6 +61,7 @@ set(${PROJECT_NAME}_HEADERS
   include/qrw/Joystick.hpp
   include/qrw/Filter.hpp
   include/qrw/Controller.hpp
+  include/qrw/MpcWrapper.hpp
   include/other/st_to_cc.hpp
   )
 
@@ -79,6 +80,7 @@ set(${PROJECT_NAME}_SOURCES
   src/Joystick.cpp
   src/Filter.cpp
   src/Controller.cpp
+  src/MpcWrapper.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})

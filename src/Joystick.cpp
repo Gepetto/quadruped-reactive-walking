@@ -16,3 +16,8 @@ VectorN Joystick::handle_v_switch(double k, VectorN const& k_switch, MatrixN con
   }
   return v_ref_;
 }
+
+void Joystick::update_v_ref(int k, int velID)
+{
+  // TODO
+}

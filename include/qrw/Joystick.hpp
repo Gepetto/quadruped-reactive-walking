@@ -44,10 +44,18 @@ class Joystick {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   VectorN handle_v_switch(double k, VectorN const& k_switch, MatrixN const& v_switch);
 
+  void update_v_ref(int k, int velID);
+
+  Vector6 getVRef() { return v_ref_; }
+  int getJoystickCode() { return joystick_code_; }
+  bool getStop() { return stop_; }
+
  private:
   Vector6 A3_;     // Third order coefficient of the polynomial that generates the velocity profile
   Vector6 A2_;     // Second order coefficient of the polynomial that generates the velocity profile
   Vector6 v_ref_;  // Reference velocity resulting of the polynomial interpolation
+  int joystick_code_ = 0;
+  bool stop_ = false;
 };
 
 #endif  // JOYSTICK_H_INCLUDED
