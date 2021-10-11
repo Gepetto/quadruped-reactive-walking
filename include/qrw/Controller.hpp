@@ -10,6 +10,7 @@
 #define CONTROLLER_H_INCLUDED
 
 #include <odri_control_interface/robot.hpp>
+#include "qrw/FakeRobot.hpp"
 #include "pinocchio/math/rpy.hpp"
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -61,7 +62,8 @@ class Controller {
   /// \param[in] robot Pointer to the robot interface
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void compute(std::shared_ptr<odri_control_interface::Robot> robot);
+  // void compute(std::shared_ptr<odri_control_interface::Robot> robot);
+  void compute(FakeRobot *robot);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///

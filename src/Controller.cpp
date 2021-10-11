@@ -44,8 +44,8 @@ void Controller::initialize(Params& params) {
   FF = params.Kff_main * Vector12::Ones();
 }
 
-void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
-  
+// void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
+void Controller::compute(FakeRobot *robot) {
   std::cout << "Computing Controller" << std::endl;
 
   // Update the reference velocity coming from the gamepad

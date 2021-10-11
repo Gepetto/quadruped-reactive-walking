@@ -13,32 +13,6 @@
 #include <Eigen/Dense>
 #include "qrw/Types.h"
 
-class FakeRobot {
- public:
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ///
-  /// \brief Constructor
-  ///
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  FakeRobot();
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ///
-  /// \brief Destructor
-  ///
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ~FakeRobot() {}  // Empty destructor
-
-  // Fake functions
-  void Initialize(Vector12 const& des_pos) {}
-  void ParseSensorData() {}
-  void SendCommandAndWaitEndOfCycle(double dt) {}
-
-  FakeJoints* joints = new FakeJoints();
-  FakeImu* imu = new FakeImu();
-
-};
-
 class FakeJoints {
  public:
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,7 +20,7 @@ class FakeJoints {
   /// \brief Constructor
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  FakeJoints();
+  FakeJoints() {}
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -56,9 +30,9 @@ class FakeJoints {
   ~FakeJoints() {}  // Empty destructor
 
   // Fake functions
-  void PrintVector() {}
+  void PrintVector(Vector12 const& data) {}
   void SetZeroCommands() {}
-  Vector12 GetPositions() { return Vector12::Zero(); }
+  Vector12 GetPositions() { Vector12 des_pos; des_pos << 0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, +1.4, -0.0, -0.7, +1.4; return des_pos; }
   Vector12 GetVelocities() { return Vector12::Zero(); }
   void SetPositionGains(Vector12 const& data) {}
   void SetVelocityGains(Vector12 const& data) {}
@@ -75,7 +49,7 @@ class FakeImu {
   /// \brief Constructor
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  FakeImu();
+  FakeImu() {}
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -88,6 +62,33 @@ class FakeImu {
   Vector12 GetLinearAcceleration() { return Vector12::Zero(); }
   Vector12 GetGyroscope() { return Vector12::Zero(); }
   Vector12 GetAttitudeEuler() { return Vector12::Zero(); }
+
+};
+
+class FakeRobot {
+ public:
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Constructor
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  FakeRobot() {joints = new FakeJoints(); imu = new FakeImu();}
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Destructor
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ~FakeRobot() {}  // Empty destructor
+
+  // Fake functions
+  void Initialize(Vector12 const& des_pos) {}
+  void ParseSensorData() {}
+  void SendCommandAndWaitEndOfCycle(double dt) {}
+  bool IsTimeout() { return false; }
+
+  FakeJoints* joints = nullptr;
+  FakeImu* imu = nullptr;
 
 };
 

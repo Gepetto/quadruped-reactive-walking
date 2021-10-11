@@ -12,7 +12,8 @@ using namespace odri_control_interface;
 #include <iostream>
 #include <stdexcept>
 
-int put_on_the_floor(std::shared_ptr<FakeRobot> robot, Vector12 const& q_init)
+//int put_on_the_floor(std::shared_ptr<Robot> robot, Vector12 const& q_init)
+int put_on_the_floor(FakeRobot *robot, Vector12 const& q_init)
 {
     /*Make the robot go to the default initial position and wait for the user
     to press the Enter key to start the main control loop
@@ -57,7 +58,7 @@ int main()
 
     // Define the robot from a yaml file.
     // std::shared_ptr<Robot> robot = RobotFromYamlFile(CONFIG_SOLO12_YAML);
-    std::shared_ptr<FakeRobot> robot = std::make_shared<FakeRobot>();
+    FakeRobot* robot = new FakeRobot();
 
     // Store initial position data.
     Vector12 des_pos;
