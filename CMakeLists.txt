@@ -62,6 +62,7 @@ set(${PROJECT_NAME}_HEADERS
   include/qrw/Filter.hpp
   include/qrw/Controller.hpp
   include/qrw/MpcWrapper.hpp
+  include/qrw/FakeRobot.hpp
   include/other/st_to_cc.hpp
   )
 

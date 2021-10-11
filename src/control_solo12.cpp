@@ -5,13 +5,14 @@
 #include "qrw/Types.h"
 #include "qrw/Params.hpp"
 #include "qrw/Controller.hpp"
+#include "qrw/FakeRobot.hpp"
 
 using namespace odri_control_interface;
 
 #include <iostream>
 #include <stdexcept>
 
-int put_on_the_floor(std::shared_ptr<Robot> robot, Vector12 const& q_init)
+int put_on_the_floor(std::shared_ptr<FakeRobot> robot, Vector12 const& q_init)
 {
     /*Make the robot go to the default initial position and wait for the user
     to press the Enter key to start the main control loop
@@ -55,7 +56,8 @@ int main()
     Params params = Params();
 
     // Define the robot from a yaml file.
-    std::shared_ptr<Robot> robot = RobotFromYamlFile(CONFIG_SOLO12_YAML);
+    // std::shared_ptr<Robot> robot = RobotFromYamlFile(CONFIG_SOLO12_YAML);
+    std::shared_ptr<FakeRobot> robot = std::make_shared<FakeRobot>();
 
     // Store initial position data.
     Vector12 des_pos;
