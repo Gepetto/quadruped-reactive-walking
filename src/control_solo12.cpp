@@ -66,7 +66,7 @@ int main()
         +1.4;
 
     // Initialization of variables
-    Controller controller = Controller(); // Main controller
+    Controller controller; // Main controller
     controller.initialize(params);
     int k_loop = 0;
 
@@ -118,6 +118,8 @@ int main()
             robot->joints->PrintVector(robot->joints->GetPositions());
             std::cout << std::endl;
         }
+
+        break;
     }
 
     // DAMPING TO GET ON THE GROUND PROGRESSIVELY *********************

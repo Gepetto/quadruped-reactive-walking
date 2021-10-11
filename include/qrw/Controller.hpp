@@ -10,6 +10,7 @@
 #define CONTROLLER_H_INCLUDED
 
 #include <odri_control_interface/robot.hpp>
+#include <boost/interprocess/managed_shared_memory.hpp>
 #include "qrw/FakeRobot.hpp"
 #include "pinocchio/math/rpy.hpp"
 #include <Eigen/Core>
@@ -67,6 +68,13 @@ class Controller {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
+  /// \brief Initialization of some robot parameters (mass, inertia, ...) based on urdf
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void init_robot();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
   /// \brief Perform a security check before sending commands to the robot
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,14 +100,14 @@ class Controller {
   int k_mpc;
 
   // Classes of the different control blocks
-  Joystick joystick = Joystick();
-  Estimator estimator = Estimator();
-  Gait gait = Gait();
-  FootstepPlanner footstepPlanner = FootstepPlanner();
-  StatePlanner statePlanner = StatePlanner();
-  MpcWrapper mpcWrapper = MpcWrapper();
-  FootTrajectoryGenerator footTrajectoryGenerator = FootTrajectoryGenerator();
-  WbcWrapper wbcWrapper = WbcWrapper();
+  Joystick joystick;
+  Estimator estimator;
+  Gait gait;
+  FootstepPlanner footstepPlanner;
+  StatePlanner statePlanner;
+  MpcWrapper mpcWrapper;
+  FootTrajectoryGenerator footTrajectoryGenerator;
+  WbcWrapper wbcWrapper;
 
   // Filters
   Filter filter_mpc_q = Filter();

@@ -18,11 +18,25 @@ Controller::Controller()
       o_targetFootstep(Matrix34::Zero()),
       q_wbc(Vector18::Zero()),
       dq_wbc(Vector18::Zero()),
-      xgoals(Vector12::Zero()) {}
+      xgoals(Vector12::Zero()) 
+{
+  namespace bi = boost::interprocess;
+  bi::shared_memory_object::remove("MySharedMemory");
+
+  /*//Remove shared memory on construction and destruction
+  struct shm_remove
+  {
+    shm_remove() { bi::shared_memory_object::remove("MySharedMemory"); }
+    ~shm_remove(){ bi::shared_memory_object::remove("MySharedMemory"); }
+  } remover;*/
+}
 
 void Controller::initialize(Params& params) {
   // Params store parameters
   params_ = &params;
+
+  // Init robot parameters
+  init_robot();
 
   // Initialization of the control blocks
   statePlanner.initialize(params);
@@ -110,21 +124,35 @@ void Controller::compute(FakeRobot *robot) {
       // Desired position, orientation and velocities of the base
       xgoals.tail(6) = vref_filt_mpc;  // Velocities (in horizontal frame!)
 
+      std::cout << q_wbc.transpose() << std::endl;
+      std::cout << dq_wbc.transpose() << std::endl;
+      std::cout << gait.getCurrentGait().row(0)  << std::endl;
+      std::cout << footTrajectoryGenerator.getFootAccelerationBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
+                                                             Vector3::Zero(), Vector3::Zero()) << std::endl;
+      std::cout << footTrajectoryGenerator.getFootVelocityBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
+                                                         Vector3::Zero(), Vector3::Zero()) << std::endl;
+      std::cout << footTrajectoryGenerator.getFootPositionBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
+                                                         estimator.getoTh() + Vector3(0.0, 0.0, params_->h_ref)) << std::endl;
+      std::cout << mpcWrapper.get_latest_result().block(12, 0, 12, 1) << std::endl;
       // Run InvKin + WBC QP
       wbcWrapper.compute(
         q_wbc, dq_wbc, mpcWrapper.get_latest_result().block(12, 0, 12, 1), gait.getCurrentGait().row(0),
-        footTrajectoryGenerator.getFootAccelerationBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
-                                                             Vector3::Zero(), Vector3::Zero()),
-        footTrajectoryGenerator.getFootVelocityBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
-                                                         Vector3::Zero(), Vector3::Zero()),
         footTrajectoryGenerator.getFootPositionBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
                                                          estimator.getoTh() + Vector3(0.0, 0.0, params_->h_ref)),
+        footTrajectoryGenerator.getFootVelocityBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
+                                                         Vector3::Zero(), Vector3::Zero()),
+        footTrajectoryGenerator.getFootAccelerationBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
+                                                             Vector3::Zero(), Vector3::Zero()),
         xgoals);
 
       // Quantities sent to the control board
       q_des = wbcWrapper.get_qdes();
       v_des = wbcWrapper.get_vdes();
       tau_ff = wbcWrapper.get_tau_ff();
+
+      std::cout << q_des.transpose() << std::endl;
+      std::cout << v_des.transpose() << std::endl;
+      std::cout << tau_ff.transpose() << std::endl;
   }
 
   // Security check
@@ -132,6 +160,46 @@ void Controller::compute(FakeRobot *robot) {
 
   // Increment loop counter
   k++;
+}
+
+void Controller::init_robot()
+{
+  params_->h_ref = 0.24424732769632862;  // Reference height
+  params_->mass = 2.50000279;  // Mass
+
+  // Inertia matrix
+  Matrix3 inertia;
+  inertia << 0.0306887, 0.0000362, -0.0027777,
+             0.0000362, 0.0671197, 0.0001548,
+             -0.0027777, 0.0001548, 0.0824497;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      params_->I_mat[3 * i + j] = inertia(i ,j);
+    }
+  }
+
+  // Offset between center of base and CoM
+  params_->CoM_offset[0] = -0.01592402684141779;
+  params_->CoM_offset[1] = 0.00038689042705331917;
+  params_->CoM_offset[2] = -0.025397381147224347;
+
+  Matrix34 shoulders_init;
+  shoulders_init << 0.1946000, 0.1946000, -0.1946000, -0.1946000,
+                    0.0875000, -0.0875000, 0.0875000, -0.0875000,
+                    0.0000000, 0.0000000, 0.0000000, 0.0000000;
+  Matrix34 fsteps_init;
+  fsteps_init << 0.1798454, 0.1789296, -0.2093716, -0.2093546,
+                 0.1469500, -0.1469500, 0.1469500, -0.1469500,
+                 0.0000000, 0.0000000, 0.0000000, 0.0000000;
+
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 3; j++) {
+      params_->shoulders[3 * i + j] = shoulders_init(j, i);
+      params_->footsteps_init[3 * i + j] = fsteps_init(j, i);
+      params_->footsteps_under_shoulders[3 * i + j] = fsteps_init(j, i);  // Use initial feet pos as reference
+    }
+  }
+  
 }
 
 void Controller::security_check()

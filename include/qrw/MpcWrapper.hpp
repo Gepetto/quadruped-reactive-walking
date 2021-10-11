@@ -9,11 +9,19 @@
 #ifndef MPCWRAPPER_H_INCLUDED
 #define MPCWRAPPER_H_INCLUDED
 
+#include <string>
+#include <boost/interprocess/managed_shared_memory.hpp>
+// #include <boost/interprocess/shared_memory_object.hpp>
+// #include <boost/interprocess/mapped_region.hpp>
 #include "pinocchio/math/rpy.hpp"
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <chrono>
+#include <thread>
 #include "qrw/Types.h"
 #include "qrw/MPC.hpp"
+
+namespace bi = boost::interprocess;
 
 class MpcWrapper {
  public:
@@ -58,11 +66,20 @@ class MpcWrapper {
 
   void run_MPC_asynchronous(int k, MatrixN const& xref, MatrixN const& fsteps);
   void create_MPC_asynchronous();
+  //static int check_memory();
 
  private:
   
   Params* params_;
   MPC mpc_;
+
+  // shared_memory_object shm (boost::interprocess::create_only, "MySharedMemory", boost::interprocess::read_write);
+  // mapped_region region;
+
+  bi::managed_shared_memory segment;
+  int* shared_k;
+  MatrixN* shared_xref;
+  MatrixN* shared_fsteps;
 
   int test = 0;
   Eigen::Matrix<double, 24, 2> last_available_result;
