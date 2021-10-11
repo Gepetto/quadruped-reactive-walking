@@ -21,13 +21,13 @@ Controller::Controller()
       xgoals(Vector12::Zero()) 
 {
   namespace bi = boost::interprocess;
-  bi::shared_memory_object::remove("MySharedMemory");
+  bi::shared_memory_object::remove("SharedMemory");
 
   /*//Remove shared memory on construction and destruction
   struct shm_remove
   {
-    shm_remove() { bi::shared_memory_object::remove("MySharedMemory"); }
-    ~shm_remove(){ bi::shared_memory_object::remove("MySharedMemory"); }
+    shm_remove() { bi::shared_memory_object::remove("SharedMemory"); }
+    ~shm_remove(){ bi::shared_memory_object::remove("SharedMemory"); }
   } remover;*/
 }
 

@@ -66,14 +66,14 @@ class MpcWrapper {
 
   void run_MPC_asynchronous(int k, MatrixN const& xref, MatrixN const& fsteps);
   void create_MPC_asynchronous();
-  //static int check_memory();
+  // int check_memory();
 
  private:
   
   Params* params_;
   MPC mpc_;
 
-  // shared_memory_object shm (boost::interprocess::create_only, "MySharedMemory", boost::interprocess::read_write);
+  // shared_memory_object shm (boost::interprocess::create_only, "SharedMemory", boost::interprocess::read_write);
   // mapped_region region;
 
   bi::managed_shared_memory segment;
