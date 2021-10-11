@@ -68,6 +68,7 @@ int main()
     // Initialization of variables
     Controller controller; // Main controller
     controller.initialize(params);
+    std::thread checking_thread(check_memory); // spawn new thread that calls check_memory()
     int k_loop = 0;
 
     // Initialize the communication, session, joints, wait for motors to be ready
@@ -121,6 +122,11 @@ int main()
 
         break;
     }
+
+    // Close parallel thread
+    stop_thread();
+    checking_thread.join();
+    std::cout << "Parallel thread closed" << std::endl ;
 
     // DAMPING TO GET ON THE GROUND PROGRESSIVELY *********************
     double t = 0.0;

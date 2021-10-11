@@ -1,57 +1,53 @@
 #include "qrw/MpcWrapper.hpp"
 
-// bi::managed_shared_memory MpcWrapper::segment = bi::managed_shared_memory(bi::open_or_create, "SharedMemory", 5000);
+// Shared global variables
+bool shared_running = true;
+int shared_k;
+MatrixN shared_xref;
+MatrixN shared_fsteps;
+
+// Mutexes to protect the global variables
+std::mutex mutexIn;  // From main loop to MPC
+std::mutex mutexOut;  // From MPC to main loop
+
+void stop_thread()
+{
+  shared_running = false;
+}
+
+void write_in(int k, MatrixN const& xref, MatrixN const& fsteps)
+{
+  std::cout << "Writing memory" << std::endl;
+  const std::lock_guard<std::mutex> lockIn(mutexIn);
+  shared_k = k;
+  shared_xref = xref;
+  shared_fsteps = fsteps;
+}
+
+void read_in()
+{
+  std::cout << "Reading memory" << std::endl;
+  const std::lock_guard<std::mutex> lockIn(mutexIn);
+  std::cout << "Shared k" << std::endl << shared_k << std::endl;
+  // std::cout << "Shared xref" << std::endl << shared_xref << std::endl;
+  // std::cout << "Shared fsteps" << std::endl << shared_fsteps << std::endl;
+}
+
+void check_memory()
+{
+  std::cout << "Checking memory" << std::endl;
+  while (shared_running)
+  {
+    read_in();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  }
+}
 
 MpcWrapper::MpcWrapper()
   : test(0),
     last_available_result(Eigen::Matrix<double, 24, 2>::Zero()),
     gait_past(Matrix14::Zero()),
-    gait_next(Matrix14::Zero()),
-    segment(bi::open_or_create, "SharedMemory", 1000) {}
-
-int check_memory()
-{
-  /*
-  //Open already created shared memory object.
-  shared_memory_object shm_parallel(open_only, "SharedMemory", read_only);
-  //Map the whole shared memory in this process
-  mapped_region region_parallel(shm_parallel, read_only);
-
-  //Check that memory was initialized to 1
-  while (true)
-  {
-    char *mem = static_cast<char*>(region_parallel.get_address());
-    for(std::size_t i = 0; i < region_parallel.get_size(); ++i)
-    {
-      if(*mem++ != 1) {printf("ERROR DETECTED"); return 1;}   //Error checking memory
-    }
-    printf("NO ERROR DETECTED\n");
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-  }
-  return 0;
-  */
-  printf("PASS\n");
-
-  bi::managed_shared_memory segment_parallel(bi::open_only, "SharedMemory");
-  std::pair<int*, std::size_t> test0 = segment_parallel.find<int>("shared_k");
-  //std::pair<MatrixN*, std::size_t> test1 = segment_parallel.find<MatrixN>("shared_xref");
-  //std::pair<MatrixN*, std::size_t> test2 = segment_parallel.find<MatrixN>("shared_fsteps");
-  //while (true)
-  //{
-  //  std::this_thread::sleep_for(std::chrono::milliseconds(500));
-  //  std::cout << "shared_k: " << std::endl << *(test0.first) << std::endl;
-    //std::cout << "shared_xref: " << std::endl << *(test1.first) << std::endl;
-    //std::cout << "shared_fsteps: " << std::endl << *(test2.first) << std::endl;
-    /*int* test0 = segment.find_or_construct<int>("shared_k");
-    MatrixN* test1 = segment.find_or_construct<MatrixN>("shared_xref");
-    MatrixN* test2 = segment.find_or_construct<MatrixN>("shared_fsteps");
-
-    std::cout << "shared_k: " << std::endl << test0 << std::endl;
-    std::cout << "shared_xref: " << std::endl << test1 << std::endl;
-    std::cout << "shared_fsteps: " << std::endl << test2 << std::endl;*/
-  //}
-  return 0;
-}
+    gait_next(Matrix14::Zero()) {}
 
 void MpcWrapper::initialize(Params& params) {
   
@@ -62,36 +58,10 @@ void MpcWrapper::initialize(Params& params) {
   last_available_result(2, 0) = params.h_ref;
   last_available_result.col(0).tail(12) = (Vector3(0.0, 0.0, 8.0)).replicate<4, 1>();
 
-  // Initialization of the shared memory
-  shared_k = segment.construct<int>("shared_k") (42);
-  /*shared_xref = segment.construct<MatrixN>("shared_xref") (12, params.gait.rows() + 1);
-  shared_fsteps = segment.construct<MatrixN>("shared_fsteps") (params.gait.rows(), 12);*/
-
-  // Initialization of shared memory
-  // Remove shared memory on construction and destruction
-  /*struct shm_remove
-  {
-      shm_remove() { shared_memory_object::remove("SharedMemory"); }
-      ~shm_remove(){ shared_memory_object::remove("SharedMemory"); }
-  } remover;*/
-
-  // Create a shared memory object.
-  /*bi::shared_memory_object shm (bi::create_only, "SharedMemory", bi::read_write);
-
-  // Set size
-  shm.truncate(500);
-
-  // Map the whole shared memory in this process
-  bi::mapped_region region (shm, bi::read_write);
-
-  // Write all the memory to 1
-  std::memset(region.get_address(), 1, region.get_size());*/
-
-  std::thread checking_thread(check_memory); // spawn new thread that calls check_memory()
-  // checking_thread.join();
-
-  //std::pair<int*, std::size_t> test0 = segment.find<int>("shared_k");
-  // std::cout << "shared_k: " << std::endl << *(test0.first) << std::endl;
+  // Initialize the shared memory
+  shared_k = 42;
+  shared_xref = MatrixN::Zero(12, params.gait.rows() + 1);
+  shared_fsteps = MatrixN::Zero(params.gait.rows(), 12);
 
 }
 
@@ -105,8 +75,20 @@ void MpcWrapper::solve(int k, MatrixN const& xref, MatrixN const& fsteps,
   std::cout << sizeof(MatrixN::Zero(12, params_->gait.rows() + 1)) << std::endl;
   std::cout << sizeof(MatrixN::Zero(params_->gait.rows(), 12)) << std::endl;
   std::cout << params_->gait << std::endl;*/
+
+  write_in(k, xref, fsteps);
+
   // std::thread checking_thread(check_memory); // spawn new thread that calls check_memory()
-  // checking_thread.join();
+  
+  double t = 0;
+  while (t < 15.0)
+  {
+    std::cout << "Waiting" << std::endl;
+    write_in(k, xref, fsteps);
+    k++;
+    t += 0.5;
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  }
 
   // Run in parallel process
   run_MPC_asynchronous(k, xref, fsteps);
@@ -188,3 +170,4 @@ Eigen::Matrix<double, 24, 2> MpcWrapper::get_latest_result()
   // if (there is new result) {last_available_result = retrieve data mpc i.e. dataOut.block(0, 0, 24, 2) }
   return last_available_result;
 }
+
