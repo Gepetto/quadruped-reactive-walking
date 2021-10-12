@@ -60,7 +60,7 @@ void Controller::initialize(Params& params) {
 
 // void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
 void Controller::compute(FakeRobot *robot) {
-  std::cout << "Computing Controller" << std::endl;
+  // std::cout << "Computing Controller" << std::endl;
 
   // Update the reference velocity coming from the gamepad
   joystick.update_v_ref(k, params_->velID);
@@ -124,7 +124,7 @@ void Controller::compute(FakeRobot *robot) {
       // Desired position, orientation and velocities of the base
       xgoals.tail(6) = vref_filt_mpc;  // Velocities (in horizontal frame!)
 
-      std::cout << q_wbc.transpose() << std::endl;
+      /*std::cout << q_wbc.transpose() << std::endl;
       std::cout << dq_wbc.transpose() << std::endl;
       std::cout << gait.getCurrentGait().row(0)  << std::endl;
       std::cout << footTrajectoryGenerator.getFootAccelerationBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
@@ -133,7 +133,21 @@ void Controller::compute(FakeRobot *robot) {
                                                          Vector3::Zero(), Vector3::Zero()) << std::endl;
       std::cout << footTrajectoryGenerator.getFootPositionBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
                                                          estimator.getoTh() + Vector3(0.0, 0.0, params_->h_ref)) << std::endl;
-      std::cout << mpcWrapper.get_latest_result().block(12, 0, 12, 1) << std::endl;
+      std::cout << mpcWrapper.get_latest_result().block(12, 0, 12, 1) << std::endl;*/
+
+      //Vector12 f_mpc = mpcWrapper.get_latest_result().block(12, 0, 12, 1);
+      //std::cout << "PASS" << std::endl << mpcWrapper.get_latest_result().block(12, 0, 12, 1) << std::endl;
+      /*if (k == 0)
+      {
+        double t = 0;
+        while (t < 1.0)
+        {
+          std::cout << "Boop" << std::endl;
+          t += 0.5;
+          std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+      }*/
+
       // Run InvKin + WBC QP
       wbcWrapper.compute(
         q_wbc, dq_wbc, mpcWrapper.get_latest_result().block(12, 0, 12, 1), gait.getCurrentGait().row(0),
@@ -150,9 +164,9 @@ void Controller::compute(FakeRobot *robot) {
       v_des = wbcWrapper.get_vdes();
       tau_ff = wbcWrapper.get_tau_ff();
 
-      std::cout << q_des.transpose() << std::endl;
+      /*std::cout << q_des.transpose() << std::endl;
       std::cout << v_des.transpose() << std::endl;
-      std::cout << tau_ff.transpose() << std::endl;
+      std::cout << tau_ff.transpose() << std::endl;*/
   }
 
   // Security check

@@ -24,9 +24,13 @@
 
 // Functions acting on shared memory
 void stop_thread();
-void write_in(int k, MatrixN const& xref, MatrixN const& fsteps);
-void read_in();
-void check_memory();
+bool check_stop_thread();
+void write_in(int & k, MatrixN & xref, MatrixN & fsteps);
+bool read_in(int & k, MatrixN & xref, MatrixN & fsteps);
+void write_out(MatrixN & result);
+bool check_new_result();
+MatrixN read_out();
+void parallel_loop();
 
 
 class MpcWrapper {
@@ -61,7 +65,7 @@ class MpcWrapper {
   /// \param[in] robot Pointer to the robot interface
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void solve(int k, MatrixN const& xref, MatrixN const& fsteps, MatrixN const& gait);
+  void solve(int k, MatrixN xref, MatrixN fsteps, MatrixN gait);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -69,12 +73,6 @@ class MpcWrapper {
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   Eigen::Matrix<double, 24, 2> get_latest_result();
-
-  void run_MPC_asynchronous(int k, MatrixN const& xref, MatrixN const& fsteps);
-  void create_MPC_asynchronous();
-  
-  //void write_in(int k, MatrixN const& xref, MatrixN const& fsteps);
-  //void read_in();
 
  private:
   

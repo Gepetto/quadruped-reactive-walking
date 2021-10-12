@@ -33,6 +33,9 @@ void QPWBC::initialize(Params &params) {
   Fz_min = params_->Fz_min;
   std::fill_n(v_NK_up, size_nz_NK, +std::numeric_limits<double>::infinity());
   std::fill_n(v_NK_low, size_nz_NK, -std::numeric_limits<double>::infinity());
+
+  // Create the matrices of the QP problem
+  create_matrices(Eigen::Matrix<double, 12, 6>::Ones(), Vector12::Ones(), Vector6::Ones());
 }
 
 int QPWBC::create_matrices(const Eigen::Matrix<double, 12, 6> &Jc, const Eigen::Matrix<double, 12, 1> &f_cmd,
@@ -393,10 +396,12 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
 
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + 2 x^T.Q with constraints M.X == N and L.X <= K
+  /*
   if (not initialized) {
     create_matrices(Jc, f_cmd, RNEA);
     // std::cout << G << std::endl;
   }
+  */
 
   // Compute the different matrices involved in the box QP
   // compute_matrices(M, Jc, f_cmd, RNEA);

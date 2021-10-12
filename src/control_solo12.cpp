@@ -11,6 +11,7 @@ using namespace odri_control_interface;
 
 #include <iostream>
 #include <stdexcept>
+#include <chrono>
 
 //int put_on_the_floor(std::shared_ptr<Robot> robot, Vector12 const& q_init)
 int put_on_the_floor(FakeRobot *robot, Vector12 const& q_init)
@@ -67,8 +68,8 @@ int main()
 
     // Initialization of variables
     Controller controller; // Main controller
-    controller.initialize(params);
-    std::thread checking_thread(check_memory); // spawn new thread that calls check_memory()
+    controller.initialize(params);  // Update urdf dependent parameters (mass, inertia, ...)
+    std::thread parallel_thread(parallel_loop); // spawn new thread that calls check_memory()
     int k_loop = 0;
 
     // Initialize the communication, session, joints, wait for motors to be ready
@@ -77,9 +78,12 @@ int main()
     robot->joints->SetZeroCommands();
     robot->ParseSensorData();
 
+    std::chrono::time_point<std::chrono::steady_clock> t_log [params.N_SIMULATION-2];
     // Main loop
     while ((!robot->IsTimeout()) && (k_loop < params.N_SIMULATION-2) && (!controller.error))
     {
+        t_log[k_loop] = std::chrono::steady_clock::now();
+
         // Parse sensor data from the robot
         robot->ParseSensorData();
 
@@ -120,13 +124,22 @@ int main()
             std::cout << std::endl;
         }
 
-        break;
     }
 
     // Close parallel thread
     stop_thread();
-    checking_thread.join();
+    parallel_thread.join();
     std::cout << "Parallel thread closed" << std::endl ;
+
+    int duration_log [params.N_SIMULATION-2];
+    for (int i = 0; i < params.N_SIMULATION-3; i++)
+    {
+        duration_log[i] = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1] - t_log[i]).count());
+    }
+    for (int i = 0; i < params.N_SIMULATION-3; i++)
+    {
+        std::cout << std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1] - t_log[i]).count() << ", ";
+    }
 
     // DAMPING TO GET ON THE GROUND PROGRESSIVELY *********************
     double t = 0.0;

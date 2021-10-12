@@ -9,7 +9,7 @@ robot:
     use_flat_plane: true  # If True the ground is flat, otherwise it has bumps
     predefined_vel: true  # If we are using a predefined reference velocity (True) or a joystick (False)
     velID: 10  # Identifier of the reference velocity profile to choose which one will be sent to the robot
-    N_SIMULATION: 9000  # Number of simulated wbc time steps
+    N_SIMULATION: 1000  # Number of simulated wbc time steps
     enable_pyb_GUI: false  # Enable/disable PyBullet GUI
     enable_corba_viewer: true  # Enable/disable Corba Viewer
     enable_multiprocessing: false  # Enable/disable running the MPC in another process in parallel of the main loop
