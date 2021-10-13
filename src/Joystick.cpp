@@ -63,9 +63,9 @@ void Joystick::update_v_ref_gamepad()
     }
     else if (event.type == JS_EVENT_AXIS)
     {
-      if     (event.number == 0) gamepad.v_y   = + event.value / 32767.0;
-      else if(event.number == 1) gamepad.v_x   = - event.value / 32767.0;
-      else if(event.number == 3) gamepad.w_yaw = + event.value / 32767.0;
+      if     (event.number == 0) gamepad.v_x   = - event.value / 32767.0;
+      else if(event.number == 1) gamepad.v_y   = - event.value / 32767.0;
+      else if(event.number == 3) gamepad.w_yaw = - event.value / 32767.0;
     }
   }
   // printf("Start:%d  Stop:%d  Vx:%f \tVy:%f \tWyaw:%f\n",gamepad.start,gamepad.select,gamepad.v_x,gamepad.v_y,gamepad.w_yaw);

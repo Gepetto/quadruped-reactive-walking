@@ -62,7 +62,7 @@ Params::Params()
       footsteps_init(12, 0.0),            // Fill with zeros, will be filled with values later
       footsteps_under_shoulders(12, 0.0)  // Fill with zeros, will be filled with values later
 {
-  initialize(CONFIG_SOLO12_YAML);
+  initialize(WALK_PARAMETERS_YAML);
 }
 
 void Params::initialize(const std::string& file_path) {

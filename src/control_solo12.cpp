@@ -57,9 +57,7 @@ int main()
     //FakeRobot* robot = new FakeRobot();
 
     // Store initial position data.
-    Vector12 des_pos;
-    des_pos << 0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, +1.4, -0.0, -0.7,
-        +1.4;
+    Vector12 q_init = Vector12(params.q_init.data());
 
     // Initialization of variables
     Controller controller; // Main controller
@@ -69,12 +67,12 @@ int main()
 
     // Initialize the communication, session, joints, wait for motors to be ready
     // and run the joint calibration.
-    robot->Initialize(des_pos);
+    robot->Initialize(q_init);
     robot->joints->SetZeroCommands();
     robot->ParseSensorData();
 
     // Wait for Enter input before starting the control loop
-    put_on_the_floor(robot, des_pos, params, controller);
+    put_on_the_floor(robot, q_init, params, controller);
 
     std::chrono::time_point<std::chrono::steady_clock> t_log [params.N_SIMULATION-2];
     // Main loop
@@ -103,11 +101,11 @@ int main()
         }
 
         // Send commands to the robot
-        robot->joints->SetPositionGains(Vector12::Zero());
-        robot->joints->SetVelocityGains(Vector12::Zero());
-        robot->joints->SetDesiredPositions(Vector12::Zero());
-        robot->joints->SetDesiredVelocities(Vector12::Zero());
-        robot->joints->SetTorques(Vector12::Zero());
+        robot->joints->SetPositionGains(controller.P);
+        robot->joints->SetVelocityGains(controller.D);
+        robot->joints->SetDesiredPositions(controller.q_des);
+        robot->joints->SetDesiredVelocities(controller.v_des);
+        robot->joints->SetTorques((controller.FF).cwiseProduct(controller.tau_ff));
 
         // Checks if the robot is in error state (that is, if any component
         // returns an error). If there is an error, the commands to send
@@ -162,7 +160,7 @@ int main()
     parallel_thread.join();
     std::cout << "Parallel thread closed" << std::endl;
 
-    int duration_log [params.N_SIMULATION-2];
+    /*int duration_log [params.N_SIMULATION-2];
     for (int i = 0; i < params.N_SIMULATION-3; i++)
     {
         duration_log[i] = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1] - t_log[i]).count());
@@ -171,7 +169,7 @@ int main()
     {
         std::cout << std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1] - t_log[i]).count() << ", ";
     }
-    std::cout << std::endl;
+    std::cout << std::endl;*/
 
     return 0;
 }

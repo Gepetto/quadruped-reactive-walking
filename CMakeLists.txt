@@ -101,6 +101,9 @@ TARGET_LINK_LIBRARIES(${PROJECT_NAME} PUBLIC pinocchio::pinocchio)
 find_package(odri_control_interface REQUIRED)
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} PUBLIC odri_control_interface::odri_control_interface)
 
+# Link master board library
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} PUBLIC master_board_sdk::master_board_sdk)
+
 # Find parametric curves library and headers
 # add_project_dependency(curves REQUIRED)
 
@@ -133,7 +136,8 @@ endif()
 
 target_compile_options(${PROJECT_NAME} PUBLIC -DNDEBUG -O3)
 
-target_compile_definitions(${PROJECT_NAME} PUBLIC CONFIG_SOLO12_YAML="${PROJECT_SOURCE_DIR}/src/config_solo12.yaml")
+target_compile_definitions(${PROJECT_NAME} PUBLIC CONFIG_SOLO12_YAML="${PROJECT_SOURCE_DIR}/scripts/config_solo12.yaml")
+target_compile_definitions(${PROJECT_NAME} PUBLIC WALK_PARAMETERS_YAML="${PROJECT_SOURCE_DIR}/src/walk_parameters.yaml")
 
 # Main Executable
 # add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/main.cpp)
