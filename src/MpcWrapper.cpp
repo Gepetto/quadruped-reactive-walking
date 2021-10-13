@@ -177,7 +177,7 @@ void MpcWrapper::solve(int k, MatrixN xref, MatrixN fsteps, MatrixN gait) {
       double F = 9.81 * params_->mass / gait.row(0).sum();
       for (int i = 0; i < 4; i++) 
       {
-        last_available_result.block(12 + 3 * i, 0, 3, 0) << 0.0, 0.0, F;
+        last_available_result.block(12 + 3 * i, 0, 3, 1) << 0.0, 0.0, F;
       }
     }
     last_available_result.col(1).tail(12).setZero();

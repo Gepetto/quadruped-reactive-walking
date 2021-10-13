@@ -74,6 +74,7 @@ class Joystick {
   Vector6 getVRef() { return v_ref_; }
   int getJoystickCode() { return joystick_code_; }
   bool getStop() { return stop_; }
+  bool getStart() { return start_; }
 
  private:
   Vector6 A3_;     // Third order coefficient of the polynomial that generates the velocity profile
@@ -82,6 +83,7 @@ class Joystick {
   Vector6 v_gp_;
   int joystick_code_ = 0;
   bool stop_ = false;
+  bool start_ = false;
   bool predefined = false;
 
   // How much the gamepad velocity is filtered to avoid sharp changes

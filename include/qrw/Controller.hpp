@@ -63,8 +63,8 @@ class Controller {
   /// \param[in] robot Pointer to the robot interface
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  // void compute(std::shared_ptr<odri_control_interface::Robot> robot);
-  void compute(FakeRobot *robot);
+  void compute(std::shared_ptr<odri_control_interface::Robot> robot);
+  // void compute(FakeRobot *robot);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -79,6 +79,9 @@ class Controller {
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void security_check();
+
+  bool getStart() { return joystick.getStart(); }
+  void update_gamepad() { joystick.update_v_ref_gamepad();}
 
   // Commands to be sent to the robot
   Vector12 P;

@@ -20,8 +20,8 @@ Controller::Controller()
       dq_wbc(Vector18::Zero()),
       xgoals(Vector12::Zero()) 
 {
-  namespace bi = boost::interprocess;
-  bi::shared_memory_object::remove("SharedMemory");
+  /*namespace bi = boost::interprocess;
+  bi::shared_memory_object::remove("SharedMemory");*/
 
   /*//Remove shared memory on construction and destruction
   struct shm_remove
@@ -59,8 +59,8 @@ void Controller::initialize(Params& params) {
   FF = params.Kff_main * Vector12::Ones();
 }
 
-// void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
-void Controller::compute(FakeRobot *robot) {
+void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
+  // void Controller::compute(FakeRobot *robot) {
   // std::cout << "Computing Controller" << std::endl;
 
   // Update the reference velocity coming from the gamepad
@@ -165,9 +165,16 @@ void Controller::compute(FakeRobot *robot) {
       v_des = wbcWrapper.get_vdes();
       tau_ff = wbcWrapper.get_tau_ff();
 
-      /*std::cout << q_des.transpose() << std::endl;
+      /*if (k == 0) {
+        std::cout << std::fixed;
+        std::cout << std::setprecision(5);
+      }
+      std::cout << "--- " << k << std::endl;
+      std::cout << mpcWrapper.get_latest_result().block(12, 0, 12, 1).transpose() << std::endl;
+      std::cout << q_des.transpose() << std::endl;
       std::cout << v_des.transpose() << std::endl;
-      std::cout << tau_ff.transpose() << std::endl;*/
+      std::cout << tau_ff.transpose() << std::endl;
+      std::cout << xgoals.transpose() << std::endl;*/
   }
 
   // Security check

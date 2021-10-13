@@ -13,8 +13,8 @@ using namespace odri_control_interface;
 #include <stdexcept>
 #include <chrono>
 
-//int put_on_the_floor(std::shared_ptr<Robot> robot, Vector12 const& q_init)
-int put_on_the_floor(FakeRobot *robot, Vector12 const& q_init)
+// int put_on_the_floor(FakeRobot *robot, Vector12 const& q_init, Params & params, Controller & controller)
+int put_on_the_floor(std::shared_ptr<Robot> robot, Vector12 const& q_init, Params & params, Controller & controller)
 {
     /*Make the robot go to the default initial position and wait for the user
     to press the Enter key to start the main control loop
@@ -35,17 +35,12 @@ int put_on_the_floor(FakeRobot *robot, Vector12 const& q_init)
     robot->joints->SetDesiredVelocities(Vector12::Zero());
     robot->joints->SetTorques(Vector12::Zero());
 
-    /* CONVERT TO C++
-    i = threading.Thread(target=get_input)
-    i.start()
-    print("Put the robot on the floor and press Enter")
-
-    while i.is_alive():
-        device.parse_sensor_data()
-        device.send_command_and_wait_end_of_cycle(params.dt_wbc)
-    */
-    // USE robot->ParseSensorData();
-    // USE robot->SendCommandAndWaitEndOfCycle(params.dt_wbc);
+    while (!controller.getStart())
+    {
+        controller.update_gamepad();
+        robot->ParseSensorData();
+        robot->SendCommandAndWaitEndOfCycle(params.dt_wbc);
+    }
 
     return 0;
 }
@@ -58,8 +53,8 @@ int main()
     Params params = Params();
 
     // Define the robot from a yaml file.
-    // std::shared_ptr<Robot> robot = RobotFromYamlFile(CONFIG_SOLO12_YAML);
-    FakeRobot* robot = new FakeRobot();
+    std::shared_ptr<Robot> robot = RobotFromYamlFile(CONFIG_SOLO12_YAML);
+    //FakeRobot* robot = new FakeRobot();
 
     // Store initial position data.
     Vector12 des_pos;
@@ -77,6 +72,9 @@ int main()
     robot->Initialize(des_pos);
     robot->joints->SetZeroCommands();
     robot->ParseSensorData();
+
+    // Wait for Enter input before starting the control loop
+    put_on_the_floor(robot, des_pos, params, controller);
 
     std::chrono::time_point<std::chrono::steady_clock> t_log [params.N_SIMULATION-2];
     // Main loop

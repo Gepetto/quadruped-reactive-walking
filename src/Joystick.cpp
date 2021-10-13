@@ -85,4 +85,5 @@ void Joystick::update_v_ref_gamepad()
 
   // Switch to safety controller if the select key is pressed
   if (gamepad.select == 1) { stop_ = true; }
+  if (gamepad.start == 1) { start_ = true; }
 }

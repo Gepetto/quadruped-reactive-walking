@@ -59,9 +59,9 @@ class FakeImu {
   ~FakeImu() {}  // Empty destructor
 
   // Fake functions
-  Vector12 GetLinearAcceleration() { return 0.01 * Vector12::Random(); }
-  Vector12 GetGyroscope() { return 0.01 * Vector12::Random(); }
-  Vector12 GetAttitudeEuler() { return 0.01 * Vector12::Random(); }
+  Vector12 GetLinearAcceleration() { return 0.0 * Vector12::Random(); }
+  Vector12 GetGyroscope() { return 0.0 * Vector12::Random(); }
+  Vector12 GetAttitudeEuler() { return 0.0 * Vector12::Random(); }
 
 };
 
