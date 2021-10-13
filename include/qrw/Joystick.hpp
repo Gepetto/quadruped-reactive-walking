@@ -9,6 +9,10 @@
 #ifndef JOYSTICK_H_INCLUDED
 #define JOYSTICK_H_INCLUDED
 
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <linux/joystick.h>
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -16,6 +20,15 @@
 #include <Eigen/Dense>
 #include "qrw/Types.h"
 #include "qrw/Params.hpp"
+
+struct gamepad_struct
+{
+	double v_x = 0.0;
+	double v_y = 0.0;
+	double w_yaw = 0.0;
+	int start = 0;
+	int select = 0;
+};
 
 class Joystick {
  public:
@@ -40,7 +53,7 @@ class Joystick {
   /// \brief Destructor.
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  ~Joystick() {}
+  ~Joystick() { if (js != -1) {close(js);} }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -55,6 +68,7 @@ class Joystick {
   VectorN handle_v_switch(double k, VectorN const& k_switch, MatrixN const& v_switch);
 
   void update_v_ref(int k, int velID);
+  int read_event(int fd, struct js_event *event);
   void update_v_ref_gamepad();
 
   Vector6 getVRef() { return v_ref_; }
@@ -77,6 +91,12 @@ class Joystick {
   double vXScale = 0.6;  // Lateral
   double vYScale = 1.0;  // Forward
   double vYawScale = 1.2;  // Rotation
+
+  // Gamepad client variables
+  struct gamepad_struct gamepad;
+  const char *device;
+  int js;
+  struct js_event event;
 
 };
 

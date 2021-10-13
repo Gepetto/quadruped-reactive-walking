@@ -39,6 +39,7 @@ void Controller::initialize(Params& params) {
   init_robot();
 
   // Initialization of the control blocks
+  joystick.initialize(params);
   statePlanner.initialize(params);
   gait.initialize(params);
   footstepPlanner.initialize(params, gait);
@@ -218,7 +219,7 @@ void Controller::init_robot()
 
 void Controller::security_check()
 {
-  if (error_flag == 0 && !error && !joystick.getStop())
+  if (error_flag == 0 && !error)
   {
     error_flag = estimator.security_check(tau_ff);
     if (error_flag != 0)
@@ -238,8 +239,14 @@ void Controller::security_check()
     }
   }
 
+  if(joystick.getStop())
+  {
+    error = true;
+    error_flag = -1;
+  }
+
   // If something wrong happened in the controller we stick to a security controller
-  if (error || joystick.getStop())
+  if (error)
   {
     // Quantities sent to the control board
     P = Vector12::Zero();

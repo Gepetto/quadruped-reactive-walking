@@ -6,6 +6,13 @@ Joystick::Joystick() : A3_(Vector6::Zero()), A2_(Vector6::Zero()),
 void Joystick::initialize(Params &params)
 {
   predefined = params.predefined_vel;
+
+  // Gamepad initialisation
+  device = "/dev/input/js0";
+  js = open(device, O_RDONLY | O_NONBLOCK);
+  if (js == -1) {
+    perror("Could not open joystick");
+  }
 }
 
 VectorN Joystick::handle_v_switch(double k, VectorN const& k_switch, MatrixN const& v_switch) {
@@ -34,15 +41,39 @@ void Joystick::update_v_ref(int k, int velID)
   update_v_ref_gamepad();
 }
 
+int Joystick::read_event(int fd, struct js_event *event)
+{
+    ssize_t bytes;
+    bytes = read(fd, event, sizeof(*event));
+    if (bytes == sizeof(*event))
+        return 0;
+    /* Error, could not read full event. */
+    return -1;
+}
+
 void Joystick::update_v_ref_gamepad()
 {
-  // Create the gamepad client
-  // TODO
+  // Read information from gamepad client
+  if (read_event(js, &event) == 0)
+  {
+    if (event.type == JS_EVENT_BUTTON)
+    {
+      if    (event.number == 9) gamepad.start = event.value;
+      else if(event.number == 8) gamepad.select = event.value;
+    }
+    else if (event.type == JS_EVENT_AXIS)
+    {
+      if     (event.number == 0) gamepad.v_y   = + event.value / 32767.0;
+      else if(event.number == 1) gamepad.v_x   = - event.value / 32767.0;
+      else if(event.number == 3) gamepad.w_yaw = + event.value / 32767.0;
+    }
+  }
+  // printf("Start:%d  Stop:%d  Vx:%f \tVy:%f \tWyaw:%f\n",gamepad.start,gamepad.select,gamepad.v_x,gamepad.v_y,gamepad.w_yaw);
 
   // Retrieve data from gamepad
-  double vX = 0.0 * vXScale;
-  double vY = 0.0 * vYScale;
-  double vYaw = 0.0 * vYawScale;
+  double vX = gamepad.v_x * vXScale;
+  double vY = gamepad.v_y * vYScale;
+  double vYaw = gamepad.w_yaw * vYawScale;
   v_gp_ << vY, vX, 0.0, 0.0, 0.0, vYaw;
 
   // Low pass filter to slow down the changes of velocity when moving the joysticks
@@ -52,6 +83,6 @@ void Joystick::update_v_ref_gamepad()
   }
   v_ref_ = alpha * v_gp_ + (1 - alpha) * v_ref_;
 
-  // Switch to safety controller if the Back key is pressed
-  // if (gp.backButton.value) { stop = true; }  // TODO
+  // Switch to safety controller if the select key is pressed
+  if (gamepad.select == 1) { stop_ = true; }
 }

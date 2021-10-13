@@ -69,7 +69,7 @@ int main()
     // Initialization of variables
     Controller controller; // Main controller
     controller.initialize(params);  // Update urdf dependent parameters (mass, inertia, ...)
-    std::thread parallel_thread(parallel_loop); // spawn new thread that calls check_memory()
+    std::thread parallel_thread(parallel_loop); // spawn new thread that runs MPC in parallel
     int k_loop = 0;
 
     // Initialize the communication, session, joints, wait for motors to be ready
@@ -123,22 +123,6 @@ int main()
             robot->joints->PrintVector(robot->joints->GetPositions());
             std::cout << std::endl;
         }
-
-    }
-
-    // Close parallel thread
-    stop_thread();
-    parallel_thread.join();
-    std::cout << "Parallel thread closed" << std::endl ;
-
-    int duration_log [params.N_SIMULATION-2];
-    for (int i = 0; i < params.N_SIMULATION-3; i++)
-    {
-        duration_log[i] = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1] - t_log[i]).count());
-    }
-    for (int i = 0; i < params.N_SIMULATION-3; i++)
-    {
-        std::cout << std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1] - t_log[i]).count() << ", ";
     }
 
     // DAMPING TO GET ON THE GROUND PROGRESSIVELY *********************
@@ -174,6 +158,22 @@ int main()
         printf("Masterboard timeout detected.");
         printf("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.");
     }
+
+    // Close parallel thread
+    stop_thread();
+    parallel_thread.join();
+    std::cout << "Parallel thread closed" << std::endl;
+
+    int duration_log [params.N_SIMULATION-2];
+    for (int i = 0; i < params.N_SIMULATION-3; i++)
+    {
+        duration_log[i] = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1] - t_log[i]).count());
+    }
+    for (int i = 0; i < params.N_SIMULATION-3; i++)
+    {
+        std::cout << std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1] - t_log[i]).count() << ", ";
+    }
+    std::cout << std::endl;
 
     return 0;
 }
