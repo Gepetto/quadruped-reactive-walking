@@ -84,7 +84,7 @@ class FootTrajectoryGenerator {
   double lockTime_;   // Target lock before the touchdown
   double vertTime_;   // Duration during which feet move only along Z when taking off and landing
 
-  std::vector<int> feet;  // Column indexes of feet currently in swing phase
+  Eigen::Matrix<int, 1, 4> feet;  // Column indexes of feet currently in swing phase
   Vector4 t0s;            // Elapsed time since the start of the swing phase movement
   Vector4 t_swing;        // Swing phase duration for each foot
 
