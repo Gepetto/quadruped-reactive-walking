@@ -1,0 +1,13 @@
+[Unit]
+Description=Start the Gepetto Quadruped Reactive Walking service from a joystick
+StartLimitIntervalSec=2
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+WorkingDirectory=/home/pi/src/quadruped-reactive-walking/scripts/joystick-launcher
+ExecStart=/home/pi/src/quadruped-reactive-walking/scripts/joystick-launcher/joystick-launcher.py
+
+[Install]
+WantedBy=multi-user.target
