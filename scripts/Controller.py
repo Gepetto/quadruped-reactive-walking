@@ -108,6 +108,7 @@ class Controller:
         self.enable_hybrid_control = True
 
         self.h_ref = params.h_ref
+        self.h_ref_mem = params.h_ref
         self.q = np.zeros((18, 1))  # Orientation part is in roll pitch yaw
         self.q[0:6, 0] = np.array([0.0, 0.0, self.h_ref, 0.0, 0.0, 0.0])
         self.q[6:, 0] = q_init
@@ -350,14 +351,21 @@ class Controller:
         # If nothing wrong happened yet in the WBC controller
         if (not self.error) and (not self.joystick.getStop()):
 
+            if self.gait.getIsStatic():
+                hRb = np.eye(3)
+
             # Desired position, orientation and velocities of the base
             self.xgoals[:6, 0] = np.zeros((6,))
             if self.joystick.getL1() and self.gait.getIsStatic():
                 self.p_ref[:, 0] = self.joystick.getPRef()
+                # self.p_ref[3, 0] = np.clip((self.k - 2000) / 2000, 0.0, 1.0)
                 self.xgoals[[3, 4], 0] = self.p_ref[[3, 4], 0]
                 self.h_ref = self.p_ref[2, 0]
+                hRb = pin.rpy.rpyToMatrix(0.0, 0.0, self.p_ref[3, 0] * 0.35)
                 # print(self.joystick.getPRef())
                 # print(self.p_ref[2])
+            else:
+                self.h_ref = self.h_ref_mem
 
             # Update configuration vector for wbc
             self.q_wbc[3, 0] = self.q_filt_mpc[3, 0]  # Roll
@@ -369,9 +377,6 @@ class Controller:
             self.dq_wbc[6:, 0] = self.wbcWrapper.vdes[:]  # with reference angular velocities of previous loop
 
             # Feet command position, velocity and acceleration in base frame
-            if self.gait.getIsStatic():
-                hRb = np.eye(3)
-
             self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(
                 hRb @ oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
             self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(
@@ -465,7 +470,7 @@ class Controller:
         self.pyb_camera(device, 0.0)
 
         # Update debug display (spheres, ...)
-        # self.pyb_debug(device, fsteps, cgait, xref)
+        self.pyb_debug(device, fsteps, cgait, xref)
 
         # Logs
         self.log_misc(t_start, t_filter, t_planner, t_mpc, t_wbc)

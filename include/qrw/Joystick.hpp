@@ -117,7 +117,7 @@ class Joystick {
   // Maximum velocity values
   double vXScale = 0.3;  // Lateral
   double vYScale = 0.6;  // Forward
-  double vYawScale = 0.6;  // Rotation
+  double vYawScale = 1.0;  // Rotation
 
   // Maximum position values
   double pRollScale = 0.32;  // Lateral
@@ -129,7 +129,8 @@ class Joystick {
   bool switch_static = false;
   bool lock_gp = true;
   double lock_duration_ = 1.0;
-  std::chrono::time_point<std::chrono::system_clock> lock_time_;
+  std::chrono::time_point<std::chrono::system_clock> lock_time_static_;
+  std::chrono::time_point<std::chrono::system_clock> lock_time_L1_;
 
   // Gamepad client variables
   struct gamepad_struct gamepad;

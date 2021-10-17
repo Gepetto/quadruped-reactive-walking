@@ -375,7 +375,7 @@ def main():
                         help='Name of the clone interface that will reproduce the movement of the first one \
                               (use ifconfig in a terminal), for instance "enp1s0"')
 
-    os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
+    # os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
     f, v = control_loop(parser.parse_args().clone)  # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print(f, v)
     quit()
