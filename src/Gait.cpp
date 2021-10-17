@@ -192,16 +192,16 @@ bool Gait::changeGait(int const k, int const k_mpc, int const code) {
   if (switch_to_gait_ != 0 && ((k - k_mpc) % (k_mpc * currentGait_.rows() / 2) == 0)) {
     is_static_ = false;
     switch (switch_to_gait_) {
-      case 1:
+      /*case 1:
         create_pacing();
         break;
       case 2:
         create_bounding();
-        break;
+        break;*/
       case 3:
         create_trot();
         break;
-      case 4:
+      case 1:
         is_static_ = true;
         create_static();
         break;

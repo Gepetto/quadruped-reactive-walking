@@ -100,7 +100,9 @@ class Controller:
         self.solo = utils_mpc.init_robot(q_init, params)
 
         # Create Joystick object
-        self.joystick = Joystick.Joystick(params)
+        # self.joystick = Joystick.Joystick(params)
+        self.joystick = lqrw.Joystick()
+        self.joystick.initialize(params)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True
@@ -189,6 +191,9 @@ class Controller:
 
         self.nle = np.zeros((6, 1))
 
+        self.p_ref = np.zeros((6, 1))
+        self.treshold_static = False
+
         # Interface with the PD+ on the control board
         self.result = Result()
 
@@ -207,7 +212,7 @@ class Controller:
         t_start = time.time()
 
         # Update the reference velocity coming from the gamepad
-        self.joystick.update_v_ref(self.k, self.velID)
+        self.joystick.update_v_ref(self.k, self.velID, self.gait.getIsStatic(), self.h_v_windowed[0:6, 0:1])
 
         # Process state estimator
         self.estimator.run_filter(self.gait.getCurrentGait(),
@@ -221,7 +226,7 @@ class Controller:
                                   np.zeros((3, 1)))  # device.b_baseVel.reshape((-1, 1)))
 
         # Update state vectors of the robot (q and v) + transformation matrices between world and horizontal frames
-        self.estimator.updateState(self.joystick.v_ref, self.gait)
+        self.estimator.updateState(self.joystick.getVRef(), self.gait)
         oRb = self.estimator.getoRb()
         oRh = self.estimator.getoRh()
         hRb = self.estimator.gethRb()
@@ -238,8 +243,27 @@ class Controller:
 
         t_filter = time.time()
 
+        """if (self.k % self.k_mpc) == 0 and self.k > 1000:
+            print(self.v_ref[[0, 1, 5], 0])
+            if not self.treshold_static and np.all(self.v_gp[[0, 1, 5], 0] < 0.01):
+                print("SWITCH TO STATIC")
+                self.treshold_static = True
+            elif self.treshold_static and np.any(self.v_gp[[0, 1, 5], 0] > 0.03):
+                print("SWITCH TO TROT")
+                self.treshold_static = False
+
+            if (self.gait.getIsStatic() and not self.treshold_static):
+                print("CODE 3")
+                self.joystick.joystick_code = 3
+            elif (not self.gait.getIsStatic() and self.treshold_static):
+                print("CODE 1")
+                self.joystick.joystick_code = 1"""
+
+        """if self.k == 0:
+            self.joystick.joystick_code = 4"""
+
         # Update gait
-        self.gait.updateGait(self.k, self.k_mpc, self.joystick.joystick_code)
+        self.gait.updateGait(self.k, self.k_mpc, self.joystick.getJoystickCode())
 
         # Quantities go through a 1st order low pass filter with fc = 15 Hz (avoid >25Hz foldback)
         self.q_filt_mpc[:6, 0] = self.filter_mpc_q.filter(self.q[:6, 0:1], True)
@@ -248,6 +272,8 @@ class Controller:
         self.vref_filt_mpc[:, 0] = self.filter_mpc_vref.filter(self.v_ref[:6, 0:1], False)
 
         # Compute target footstep based on current and reference velocities
+        """if self.gait.getIsStatic():
+            self.h_v_windowed[0:6, 0:1] *= 0.0"""
         o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
                                                                 int(self.k_mpc - self.k % self.k_mpc),
                                                                 self.q[:, 0],
@@ -322,7 +348,16 @@ class Controller:
 
         # Whole Body Control
         # If nothing wrong happened yet in the WBC controller
-        if (not self.error) and (not self.joystick.stop):
+        if (not self.error) and (not self.joystick.getStop()):
+
+            # Desired position, orientation and velocities of the base
+            self.xgoals[:6, 0] = np.zeros((6,))
+            if self.joystick.getL1() and self.gait.getIsStatic():
+                self.p_ref[:, 0] = self.joystick.getPRef()
+                self.xgoals[[3, 4], 0] = self.p_ref[[3, 4], 0]
+                self.h_ref = self.p_ref[2, 0]
+                # print(self.joystick.getPRef())
+                # print(self.p_ref[2])
 
             # Update configuration vector for wbc
             self.q_wbc[3, 0] = self.q_filt_mpc[3, 0]  # Roll
@@ -334,6 +369,9 @@ class Controller:
             self.dq_wbc[6:, 0] = self.wbcWrapper.vdes[:]  # with reference angular velocities of previous loop
 
             # Feet command position, velocity and acceleration in base frame
+            if self.gait.getIsStatic():
+                hRb = np.eye(3)
+
             self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(
                 hRb @ oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
             self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(
@@ -342,11 +380,15 @@ class Controller:
                 hRb @ oRh.transpose(), oTh + np.array([[0.0], [0.0], [self.h_ref]]))
 
             # Desired position, orientation and velocities of the base
+            """self.xgoals[[0, 1, 2, 5], 0] = np.zeros((4,))
             if not self.gait.getIsStatic():
-                self.xgoals[[0, 1, 5], 0] = np.zeros((3,))
-                self.xgoals[2:5, 0] = [0.0, 0.0, 0.0]  #  Height (in horizontal frame!)
+                self.xgoals[3:5, 0] = [0.0, 0.0]  #  Height (in horizontal frame!)
             else:
-                self.xgoals[2:5, 0] += self.vref_filt_mpc[2:5, 0] * self.dt_wbc
+                self.xgoals[3:5, 0] += self.vref_filt_mpc[3:5, 0] * self.dt_wbc
+                self.h_ref += self.vref_filt_mpc[2, 0] * self.dt_wbc
+                self.h_ref = np.clip(self.h_ref, 0.19, 0.26)
+                self.xgoals[3:5, 0] = np.clip(self.xgoals[3:5, 0], [-0.25, -0.17], [0.25, 0.17])"""
+            
 
             self.xgoals[6:, 0] = self.vref_filt_mpc[:, 0]  # Velocities (in horizontal frame!)
 
@@ -399,6 +441,19 @@ class Controller:
 
         """if self.k == 1:
             quit()"""
+        
+        """np.set_printoptions(precision=3, linewidth=300)
+        print("---- ", self.k)
+        print(self.x_f_mpc[12:24, 0])
+        print(self.result.q_des[:])
+        print(self.result.v_des[:])
+        print(self.result.tau_ff[:])
+        print(self.xgoals.ravel())"""
+
+        """np.set_printoptions(precision=3, linewidth=300)
+        print("#####")
+        print(cgait)
+        print(self.result.tau_ff[:])"""
 
         t_wbc = time.time()
 
@@ -501,7 +556,7 @@ class Controller:
 
     def security_check(self):
 
-        if (self.error_flag == 0) and (not self.error) and (not self.joystick.stop):
+        if (self.error_flag == 0) and (not self.error) and (not self.joystick.getStop()):
             self.error_flag = self.estimator.security_check(self.wbcWrapper.tau_ff)
             if (self.error_flag != 0):
                 self.error = True
@@ -513,7 +568,7 @@ class Controller:
                     self.error_value = self.wbcWrapper.tau_ff
 
         # If something wrong happened in the controller we stick to a security controller
-        if self.error or self.joystick.stop:
+        if self.error or self.joystick.getStop():
 
             # Quantities sent to the control board
             self.result.P = np.zeros(12)

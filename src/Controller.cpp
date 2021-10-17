@@ -36,7 +36,7 @@ void Controller::initialize(Params& params) {
   params_ = &params;
 
   // Init robot parameters
-  init_robot();
+  init_robot(params);
 
   // Initialization of the control blocks
   joystick.initialize(params);
@@ -59,12 +59,12 @@ void Controller::initialize(Params& params) {
   FF = params.Kff_main * Vector12::Ones();
 }
 
-void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
-  // void Controller::compute(FakeRobot *robot) {
+//void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
+void Controller::compute(FakeRobot *robot) {
   // std::cout << "Computing Controller" << std::endl;
 
   // Update the reference velocity coming from the gamepad
-  joystick.update_v_ref(k, params_->velID);
+  joystick.update_v_ref(k, params_->velID, gait.getIsStatic(), estimator.getHVWindowed().head(6));
 
   // Process state estimator
   estimator.run_filter(gait.getCurrentGait(),
@@ -184,16 +184,68 @@ void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
   k++;
 }
 
-void Controller::init_robot()
+void Controller::init_robot(Params & params)
 {
-  params_->h_ref = 0.24424732769632862;  // Reference height
-  params_->mass = 2.50000279;  // Mass
+  // Path to the robot URDF (TODO: Automatic path)
+  const std::string filename =
+      std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
+
+  // Robot model
+  pinocchio::Model model_;
+
+  // Build model from urdf (base is not free flyer)
+  pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
+
+  // Construct data from model
+  pinocchio::Data data_ = pinocchio::Data(model_);
+
+  // Update all the quantities of the model
+  VectorN q_tmp = VectorN::Zero(model_.nq);
+  q_tmp(6, 0) = 1.0;  // Quaternion (0, 0, 0, 1)
+  q_tmp.tail(12) = Vector12(params.q_init.data());
+
+  // Initialisation of model quantities
+  pinocchio::computeAllTerms(model_, data_, q_tmp, VectorN::Zero(model_.nv));
+  pinocchio::centerOfMass(model_, data_, q_tmp, VectorN::Zero(model_.nv));
+  pinocchio::updateFramePlacements(model_, data_);
+  pinocchio::crba(model_, data_, q_tmp);
+
+  // Initialisation of the position of footsteps
+  Matrix34 fsteps_init = Matrix34::Zero();
+  int indexes [4] = {static_cast<int>(model_.getFrameId("FL_FOOT")), static_cast<int>(model_.getFrameId("FR_FOOT")),
+                     static_cast<int>(model_.getFrameId("HL_FOOT")), static_cast<int>(model_.getFrameId("HR_FOOT"))};
+  for (int i = 0; i < 4; i++) {
+    fsteps_init.col(i) = data_.oMf[indexes[i]].translation();
+  }
+
+  // Get default height
+  double h_init = 0.0;
+  double h_tmp = 0.0;
+  for (int i = 0; i < 4; i++) {
+    h_tmp = (data_.oMf[1].translation() - data_.oMf[indexes[i]].translation())(2, 0);
+    if (h_tmp > h_init) { h_init = h_tmp; }
+  }
+
+  // Assumption that all feet are initially in contact on a flat ground
+  fsteps_init.row(2).setZero();
+
+  // Initialisation of the position of shoulders
+  Matrix34 shoulders_init = Matrix34::Zero();
+  int indexes_sh [4] = {4, 12, 20, 28}; //  Shoulder indexes
+  for (int i = 0; i < 4; i++) {
+    shoulders_init.col(i) = data_.oMf[indexes_sh[i]].translation();
+  }
+
+  // Saving data
+  params_->h_ref = h_init;  // Reference height
+  params_->mass = data_.mass[0];  // Mass
 
   // Inertia matrix
+  Vector6 Idata = data_.Ycrb[1].inertia().data();
   Matrix3 inertia;
-  inertia << 0.0306887, 0.0000362, -0.0027777,
-             0.0000362, 0.0671197, 0.0001548,
-             -0.0027777, 0.0001548, 0.0824497;
+  inertia << Idata(0, 0), Idata(1, 0), Idata(3, 0),
+             Idata(1, 0), Idata(2, 0), Idata(4, 0),
+             Idata(3, 0), Idata(4, 0), Idata(5, 0);
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       params_->I_mat[3 * i + j] = inertia(i ,j);
@@ -201,18 +253,10 @@ void Controller::init_robot()
   }
 
   // Offset between center of base and CoM
-  params_->CoM_offset[0] = -0.01592402684141779;
-  params_->CoM_offset[1] = 0.00038689042705331917;
-  params_->CoM_offset[2] = -0.025397381147224347;
-
-  Matrix34 shoulders_init;
-  shoulders_init << 0.1946000, 0.1946000, -0.1946000, -0.1946000,
-                    0.0875000, -0.0875000, 0.0875000, -0.0875000,
-                    0.0000000, 0.0000000, 0.0000000, 0.0000000;
-  Matrix34 fsteps_init;
-  fsteps_init << 0.1798454, 0.1789296, -0.2093716, -0.2093546,
-                 0.1469500, -0.1469500, 0.1469500, -0.1469500,
-                 0.0000000, 0.0000000, 0.0000000, 0.0000000;
+  Vector3 CoM = data_.com[0].head(3) - q_tmp.head(3);
+  params_->CoM_offset[0] = CoM(0, 0);
+  params_->CoM_offset[1] = CoM(1, 0);
+  params_->CoM_offset[2] = CoM(2, 0);
 
   for (int i = 0; i < 4; i++) {
     for (int j = 0; j < 3; j++) {
@@ -222,6 +266,23 @@ void Controller::init_robot()
     }
   }
   
+  /*std::cout << "DEBUG:" << std::endl;
+  std::cout << params_->h_ref << std::endl;
+  std::cout << params_->mass << std::endl;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      std::cout << params_->I_mat[3 * i + j] << " ";
+    }
+  }
+  std::cout << std::endl;
+  std::cout << params_->CoM_offset[0] << std::endl;
+  std::cout << params_->CoM_offset[1] << std::endl;
+  std::cout << params_->CoM_offset[2] << std::endl;
+
+  std::cout << fsteps_init << std::endl;
+  std::cout << shoulders_init << std::endl;
+  std::cout << "-----" << std::endl;*/
+
 }
 
 void Controller::security_check()

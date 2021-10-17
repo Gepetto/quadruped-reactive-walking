@@ -621,6 +621,7 @@ void WbcWrapper::initialize(Params &params) {
   VectorN q_tmp = VectorN::Zero(model_.nq);
   q_tmp(6, 0) = 1.0;  // Quaternion (0, 0, 0, 1)
   pinocchio::computeAllTerms(model_, data_, q_tmp, VectorN::Zero(model_.nv));
+  // TODO ADD INIT POSITION FOR ACTUATORS
 
   // Initialize inverse kinematic and box QP solvers
   invkin_ = new InvKin();
@@ -723,7 +724,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   std::cout << k_since_contact_ << std::endl;*/
 
   //std::cout << "Force compensation " << std::endl;
-  Vector12 f_compensation = pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);
+  Vector12 f_compensation = Vector12::Zero(); //  pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);
   /*for (int i = 0; i < 4; i++) {
     f_compensation(3*i+2, 0) = 0.0;
   }*/

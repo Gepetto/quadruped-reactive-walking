@@ -24,7 +24,7 @@ class Joystick:
         self.reduced = False
         self.stop = False
 
-        self.alpha = 0.001  # Coefficient to low pass the joystick velocity
+        self.alpha = 0.003  # Coefficient to low pass the joystick velocity
 
         # Bool to modify the update of v_ref
         # Used to launch multiple simulations
@@ -40,11 +40,13 @@ class Joystick:
         self.vX = 0.
         self.vY = 0.
         self.vYaw = 0.
-        self.VxScale = 0.6
-        self.VyScale = 1.0
-        self.vYawScale = 1.2
-
-        self.Vx_ref = 0.3
+        self.vZ = 0.
+        self.VxScale = 0.3
+        self.VyScale = 0.6
+        self.vYawScale = 0.6
+        self.vZScale = 0.3
+    
+        self.Vx_ref = 0.0
         self.Vy_ref = 0.0
         self.Vw_ref = 0.0
 
@@ -57,7 +59,7 @@ class Joystick:
 
         self.joyCpp = lqrw.Joystick()
 
-    def update_v_ref(self, k_loop, velID):
+    def update_v_ref(self, k_loop, velID, is_static=False):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame by
         listening to a gamepad handled by an independent thread
 
@@ -74,11 +76,11 @@ class Joystick:
             else:
                 self.update_v_ref_predefined(k_loop, velID)
         else:
-            self.update_v_ref_gamepad(k_loop)
+            self.update_v_ref_gamepad(k_loop, is_static)
 
         return 0
 
-    def update_v_ref_gamepad(self, k_loop):
+    def update_v_ref_gamepad(self, k_loop, is_static):
         """Update the reference velocity of the robot along X, Y and Yaw in local frame by
         listening to a gamepad handled by an independent thread
 
@@ -89,18 +91,23 @@ class Joystick:
         # Create the gamepad client
         if k_loop == 0:
             self.gp = gC.GamepadClient()
-            self.gp.leftJoystickX.value = 0.00390625
+        """self.gp.leftJoystickX.value = 0.00390625
             self.gp.leftJoystickY.value = 0.00390625
             self.gp.rightJoystickX.value = 0.00390625
 
         # Get the velocity command based on the position of joysticks
         self.vX = (self.gp.leftJoystickX.value / 0.00778 * 2. - 1.) * self.VxScale
         self.vY = (self.gp.leftJoystickY.value / 0.00778 * 2. - 1.) * self.VyScale
-        self.vYaw = (self.gp.rightJoystickX.value / 0.00778 * 2. - 1.) * self.vYawScale
+        self.vYaw = (self.gp.rightJoystickX.value / 0.00778 * 2. - 1.) * self.vYawScale"""
+        self.vX = self.gp.leftJoystickX.value * self.VxScale
+        self.vY = self.gp.leftJoystickY.value * self.VyScale
+        self.vYaw = self.gp.rightJoystickX.value * self.vYawScale
+        self.vZ = self.gp.rightJoystickY.value * self.vZScale
 
-        if self.gp.L1Button.value:  # If L1 is pressed the orientation of the base is controlled
+        if is_static and self.gp.L1Button.value:  # If static the orientation of the base is controlled
             self.v_gp = np.array(
-                [[0.0, 0.0, - self.vYaw * 0.25, - self.vX * 5, - self.vY * 2, 0.0]]).T
+                [[0.0, 0.0, - self.vZ * 0.5, - self.vX * 5, - self.vY * 2, - self.vYaw]]).T
+            # print(self.v_gp.ravel())
         else:  # Otherwise the Vx, Vy, Vyaw is controlled
             self.v_gp = np.array(
                 [[- self.vY, - self.vX, 0.0, 0.0, 0.0, - self.vYaw]]).T
@@ -147,18 +154,19 @@ class Joystick:
     def computeCode(self):
         # Check joystick buttons to trigger a change of gait type
         self.joystick_code = 0
-        if self.northButton:
+        if self.southButton:
             self.joystick_code = 1
-            self.northButton = False
+            self.southButton = False
         elif self.eastButton:
             self.joystick_code = 2
             self.eastButton = False
-        elif self.southButton:
-            self.joystick_code = 3
-            self.southButton = False
         elif self.westButton:
-            self.joystick_code = 4
+            self.joystick_code = 3
             self.westButton = False
+        elif self.northButton:
+            self.joystick_code = 4
+            self.northButton = False
+        
 
     def handle_v_switch(self, k):
         """Handle the change of reference velocity according to the chosen predefined velocity profile

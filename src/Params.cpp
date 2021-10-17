@@ -28,6 +28,9 @@ Params::Params()
       Kd_main(3, 0.0),
       Kff_main(0.0),
 
+      gp_alpha_vel(0.0),
+      gp_alpha_pos(0.0),
+
       fc_v_esti(0.0),
 
       k_feedback(0.0),
@@ -144,6 +147,12 @@ void Params::initialize(const std::string& file_path) {
   assert_yaml_parsing(robot_node, "robot", "gait");
   gait_vec = robot_node["gait"].as<std::vector<int> >();
   convert_gait_vec();
+
+  assert_yaml_parsing(robot_node, "robot", "gp_alpha_vel");
+  gp_alpha_vel = robot_node["gp_alpha_vel"].as<double>();
+
+  assert_yaml_parsing(robot_node, "robot", "gp_alpha_pos");
+  gp_alpha_pos = robot_node["gp_alpha_pos"].as<double>();
 
   assert_yaml_parsing(robot_node, "robot", "fc_v_esti");
   fc_v_esti = robot_node["fc_v_esti"].as<double>();

@@ -2,7 +2,7 @@ robot:
     # General parameters
     config_file: config_solo12.yaml  #  Name of the yaml file containing hardware information
     interface: enp2s0  # Name of the communication interface (check with ifconfig)
-    SIMULATION: false  # Enable/disable PyBullet simulation or running on real robot
+    SIMULATION: true  # Enable/disable PyBullet simulation or running on real robot
     LOGGING: false  # Enable/disable logging during the experiment
     PLOTTING: false  # Enable/disable automatic plotting at the end of the experiment
     envID: 0  # Identifier of the environment to choose in which one the simulation will happen
@@ -17,8 +17,8 @@ robot:
     
     # General control parameters
     # [0.0, 0.865, -1.583, 0.0, 0.865, -1.583, 0.0, 0.865, -1.583, 0.0, 0.865, -1.583] # h_com = 0.2
-    q_init: [0.0, 0.764, -1.407, 0.0, 0.76407, -1.4, 0.0, 0.76407, -1.407, 0.0, 0.764, -1.407]  # h_com = 0.218
-    # q_init: [0.0, 0.7, -1.4, 0.0, 0.7, -1.4, 0.0, -0.7, 1.4, 0.0, -0.7, 1.4]  # Initial articular positions
+    # q_init: [0.0, 0.764, -1.407, 0.0, 0.76407, -1.4, 0.0, 0.76407, -1.407, 0.0, 0.764, -1.407]  # h_com = 0.218
+    q_init: [0.0, 0.7, -1.4, 0.0, 0.7, -1.4, 0.0, -0.7, 1.4, 0.0, -0.7, 1.4]  # Initial articular positions
     dt_wbc: 0.002  # Time step of the whole body control
     dt_mpc: 0.02  # Time step of the model predictive control
     type_MPC: 0  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
@@ -27,9 +27,13 @@ robot:
     Kff_main: 1.0  # Feedforward torques multiplier for the PD+
 
     # Parameters of Gait
-    N_periods: 2
+    N_periods: 1
     gait: [12, 1, 0, 0, 1,
            12, 0, 1, 1, 0]  # Initial gait matrix
+
+    # Parameters of Joystick
+    gp_alpha_vel: 0.003  # Coefficient of the low pass filter applied to gamepad velocity
+    gp_alpha_pos: 0.004  # Coefficient of the low pass filter applied to gamepad position
 
     # Parameters of Estimator
     fc_v_esti: 50.0  # Cut frequency for the low pass that filters the estimated base velocity

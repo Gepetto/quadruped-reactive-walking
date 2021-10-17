@@ -77,6 +77,10 @@ class Params {
   // Parameters of Gait
   std::vector<int> gait_vec;  // Initial gait matrix (vector)
 
+  // Parameters of Joystick
+  double gp_alpha_vel;  // Coefficient of the low pass filter applied to gamepad velocity
+  double gp_alpha_pos;  // Coefficient of the low pass filter applied to gamepad position
+
   // Parameters of Estimator
   double fc_v_esti;  // Cut frequency for the low pass that filters the estimated base velocity
 

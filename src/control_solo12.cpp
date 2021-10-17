@@ -13,8 +13,8 @@ using namespace odri_control_interface;
 #include <stdexcept>
 #include <chrono>
 
-// int put_on_the_floor(FakeRobot *robot, Vector12 const& q_init, Params & params, Controller & controller)
-int put_on_the_floor(std::shared_ptr<Robot> robot, Vector12 const& q_init, Params & params, Controller & controller)
+//int put_on_the_floor(std::shared_ptr<Robot> robot, Vector12 const& q_init, Params & params, Controller & controller)
+int put_on_the_floor(FakeRobot *robot, Vector12 const& q_init, Params & params, Controller & controller)
 {
     /*Make the robot go to the default initial position and wait for the user
     to press the Enter key to start the main control loop
@@ -42,6 +42,18 @@ int put_on_the_floor(std::shared_ptr<Robot> robot, Vector12 const& q_init, Param
         robot->SendCommandAndWaitEndOfCycle(params.dt_wbc);
     }
 
+    // Slow increase till 1/4th of mass is supported by each foot
+    double duration_increase = 2.0; // in seconds
+    double steps = std::round(duration_increase / params.dt_wbc);
+    Vector12 tau_ff;
+    tau_ff << -0.25, 0.022, 0.5, 0.25, 0.022, 0.5, -0.28, 0.025, 0.575, 0.28, 0.025, 0.575;
+    for (double i = 0; i < steps; i++)
+    {
+        robot->joints->SetTorques(tau_ff * i / steps);
+        robot->ParseSensorData();
+        robot->SendCommandAndWaitEndOfCycle(params.dt_wbc);
+    }
+
     return 0;
 }
 
@@ -53,8 +65,8 @@ int main()
     Params params = Params();
 
     // Define the robot from a yaml file.
-    std::shared_ptr<Robot> robot = RobotFromYamlFile(CONFIG_SOLO12_YAML);
-    //FakeRobot* robot = new FakeRobot();
+    //std::shared_ptr<Robot> robot = RobotFromYamlFile(CONFIG_SOLO12_YAML);
+    FakeRobot* robot = new FakeRobot();
 
     // Store initial position data.
     Vector12 q_init = Vector12(params.q_init.data());
