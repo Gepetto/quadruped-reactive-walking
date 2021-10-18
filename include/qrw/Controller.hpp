@@ -101,6 +101,7 @@ class Controller {
   
   int k;
   int k_mpc;
+  double h_ref_;
 
   // Classes of the different control blocks
   Joystick joystick;
@@ -125,6 +126,8 @@ class Controller {
   Vector18 q_wbc;
   Vector18 dq_wbc;
   Vector12 xgoals;
+  Matrix3 hRb;
+  Vector6 p_ref_;
 
 };
 

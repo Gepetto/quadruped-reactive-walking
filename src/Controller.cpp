@@ -18,7 +18,9 @@ Controller::Controller()
       o_targetFootstep(Matrix34::Zero()),
       q_wbc(Vector18::Zero()),
       dq_wbc(Vector18::Zero()),
-      xgoals(Vector12::Zero()) 
+      xgoals(Vector12::Zero()),
+      hRb(Matrix3::Identity()),
+      p_ref_(Vector6::Zero())
 {
   /*namespace bi = boost::interprocess;
   bi::shared_memory_object::remove("SharedMemory");*/
@@ -54,6 +56,7 @@ void Controller::initialize(Params& params) {
 
   // Other variables
   k_mpc = static_cast<int>(params.dt_mpc / params.dt_wbc);
+  h_ref_ = params.h_ref;
   P = (Vector3(params.Kp_main.data())).replicate<4, 1>();
   D = (Vector3(params.Kd_main.data())).replicate<4, 1>();
   FF = params.Kff_main * Vector12::Ones();
@@ -113,68 +116,104 @@ void Controller::compute(FakeRobot *robot) {
   // If nothing wrong happened yet in the WBC controller
   if (!error && !joystick.getStop())
   {
-      // Update configuration vector for wbc
-      q_wbc(3, 0) = q_filt_mpc(3, 0);  // Roll
-      q_wbc(4, 0) = q_filt_mpc(4, 0);  // Pitch
-      q_wbc.tail(12) = wbcWrapper.get_qdes();  // with reference angular positions of previous loop
+    /*
+    if self.gait.getIsStatic():
+                hRb = np.eye(3)
 
-      // Update velocity vector for wbc
-      dq_wbc.head(6) = estimator.getVFilt().head(6);  //  Velocities in base frame (not horizontal frame!)
-      dq_wbc.tail(12) = wbcWrapper.get_vdes();  // with reference angular velocities of previous loop
+            # Desired position, orientation and velocities of the base
+            self.xgoals[:6, 0] = np.zeros((6,))
+            if self.joystick.getL1() and self.gait.getIsStatic():
+                self.p_ref[:, 0] = self.joystick.getPRef()
+                # self.p_ref[3, 0] = np.clip((self.k - 2000) / 2000, 0.0, 1.0)
+                self.xgoals[[3, 4], 0] = self.p_ref[[3, 4], 0]
+                self.h_ref = self.p_ref[2, 0]
+                hRb = pin.rpy.rpyToMatrix(0.0, 0.0, self.p_ref[5, 0])
+                # print(self.joystick.getPRef())
+                # print(self.p_ref[2])
+            else:
+                self.h_ref = self.h_ref_mem
+      */
 
-      // Desired position, orientation and velocities of the base
-      xgoals.tail(6) = vref_filt_mpc;  // Velocities (in horizontal frame!)
+    if (gait.getIsStatic()) {hRb.setIdentity();}
+    else { hRb = estimator.gethRb();}
 
-      /*std::cout << q_wbc.transpose() << std::endl;
-      std::cout << dq_wbc.transpose() << std::endl;
-      std::cout << gait.getCurrentGait().row(0)  << std::endl;
-      std::cout << footTrajectoryGenerator.getFootAccelerationBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
-                                                             Vector3::Zero(), Vector3::Zero()) << std::endl;
-      std::cout << footTrajectoryGenerator.getFootVelocityBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
-                                                         Vector3::Zero(), Vector3::Zero()) << std::endl;
-      std::cout << footTrajectoryGenerator.getFootPositionBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
-                                                         estimator.getoTh() + Vector3(0.0, 0.0, params_->h_ref)) << std::endl;
-      std::cout << mpcWrapper.get_latest_result().block(12, 0, 12, 1) << std::endl;*/
+    xgoals.head(6).setZero();
+    if (joystick.getL1() && gait.getIsStatic())
+    {
+      p_ref_ = joystick.getPRef();
+      h_ref_ = p_ref_(2, 0);
+      xgoals(3, 0) = p_ref_(3, 0);
+      xgoals(4, 0) = p_ref_(4, 0);
+      hRb = pinocchio::rpy::rpyToMatrix(0.0, 0.0, p_ref_(5, 0));
+    }
+    else
+    {
+      h_ref_ = params_->h_ref;
+    }
 
-      //Vector12 f_mpc = mpcWrapper.get_latest_result().block(12, 0, 12, 1);
-      //std::cout << "PASS" << std::endl << mpcWrapper.get_latest_result().block(12, 0, 12, 1) << std::endl;
-      /*if (k == 0)
+
+    // Update configuration vector for wbc
+    q_wbc(3, 0) = q_filt_mpc(3, 0);  // Roll
+    q_wbc(4, 0) = q_filt_mpc(4, 0);  // Pitch
+    q_wbc.tail(12) = wbcWrapper.get_qdes();  // with reference angular positions of previous loop
+
+    // Update velocity vector for wbc
+    dq_wbc.head(6) = estimator.getVFilt().head(6);  //  Velocities in base frame (not horizontal frame!)
+    dq_wbc.tail(12) = wbcWrapper.get_vdes();  // with reference angular velocities of previous loop
+
+    // Desired position, orientation and velocities of the base
+    xgoals.tail(6) = vref_filt_mpc;  // Velocities (in horizontal frame!)
+
+    /*std::cout << q_wbc.transpose() << std::endl;
+    std::cout << dq_wbc.transpose() << std::endl;
+    std::cout << gait.getCurrentGait().row(0)  << std::endl;
+    std::cout << footTrajectoryGenerator.getFootAccelerationBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
+                                                            Vector3::Zero(), Vector3::Zero()) << std::endl;
+    std::cout << footTrajectoryGenerator.getFootVelocityBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
+                                                        Vector3::Zero(), Vector3::Zero()) << std::endl;
+    std::cout << footTrajectoryGenerator.getFootPositionBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
+                                                        estimator.getoTh() + Vector3(0.0, 0.0, params_->h_ref)) << std::endl;
+    std::cout << mpcWrapper.get_latest_result().block(12, 0, 12, 1) << std::endl;*/
+
+    //Vector12 f_mpc = mpcWrapper.get_latest_result().block(12, 0, 12, 1);
+    //std::cout << "PASS" << std::endl << mpcWrapper.get_latest_result().block(12, 0, 12, 1) << std::endl;
+    /*if (k == 0)
+    {
+      double t = 0;
+      while (t < 1.0)
       {
-        double t = 0;
-        while (t < 1.0)
-        {
-          std::cout << "Boop" << std::endl;
-          t += 0.5;
-          std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        }
-      }*/
-
-      // Run InvKin + WBC QP
-      wbcWrapper.compute(
-        q_wbc, dq_wbc, mpcWrapper.get_latest_result().block(12, 0, 12, 1), gait.getCurrentGait().row(0),
-        footTrajectoryGenerator.getFootPositionBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
-                                                         estimator.getoTh() + Vector3(0.0, 0.0, params_->h_ref)),
-        footTrajectoryGenerator.getFootVelocityBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
-                                                         Vector3::Zero(), Vector3::Zero()),
-        footTrajectoryGenerator.getFootAccelerationBaseFrame(estimator.gethRb() * estimator.getoRh().transpose(),
-                                                             Vector3::Zero(), Vector3::Zero()),
-        xgoals);
-
-      // Quantities sent to the control board
-      q_des = wbcWrapper.get_qdes();
-      v_des = wbcWrapper.get_vdes();
-      tau_ff = wbcWrapper.get_tau_ff();
-
-      /*if (k == 0) {
-        std::cout << std::fixed;
-        std::cout << std::setprecision(5);
+        std::cout << "Boop" << std::endl;
+        t += 0.5;
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
       }
-      std::cout << "--- " << k << std::endl;
-      std::cout << mpcWrapper.get_latest_result().block(12, 0, 12, 1).transpose() << std::endl;
-      std::cout << q_des.transpose() << std::endl;
-      std::cout << v_des.transpose() << std::endl;
-      std::cout << tau_ff.transpose() << std::endl;
-      std::cout << xgoals.transpose() << std::endl;*/
+    }*/
+
+    // Run InvKin + WBC QP
+    wbcWrapper.compute(
+      q_wbc, dq_wbc, mpcWrapper.get_latest_result().block(12, 0, 12, 1), gait.getCurrentGait().row(0),
+      footTrajectoryGenerator.getFootPositionBaseFrame(hRb * estimator.getoRh().transpose(),
+                                                        estimator.getoTh() + Vector3(0.0, 0.0, h_ref_)),
+      footTrajectoryGenerator.getFootVelocityBaseFrame(hRb * estimator.getoRh().transpose(),
+                                                        Vector3::Zero(), Vector3::Zero()),
+      footTrajectoryGenerator.getFootAccelerationBaseFrame(hRb * estimator.getoRh().transpose(),
+                                                            Vector3::Zero(), Vector3::Zero()),
+      xgoals);
+
+    // Quantities sent to the control board
+    q_des = wbcWrapper.get_qdes();
+    v_des = wbcWrapper.get_vdes();
+    tau_ff = wbcWrapper.get_tau_ff();
+
+    /*if (k == 0) {
+      std::cout << std::fixed;
+      std::cout << std::setprecision(5);
+    }
+    std::cout << "--- " << k << std::endl;
+    std::cout << mpcWrapper.get_latest_result().block(12, 0, 12, 1).transpose() << std::endl;
+    std::cout << q_des.transpose() << std::endl;
+    std::cout << v_des.transpose() << std::endl;
+    std::cout << tau_ff.transpose() << std::endl;
+    std::cout << xgoals.transpose() << std::endl;*/
   }
 
   // Security check
