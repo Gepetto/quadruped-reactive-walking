@@ -211,7 +211,6 @@ void Joystick::update_v_ref_gamepad(int k, bool gait_is_static, Vector6 h_v)
 
   // Heavily filtered joystick velocity to be used as a trigger for the switch trot/static
   v_ref_heavy_filter_ = gp_alpha_vel_heavy_filter * v_gp_ + (1 - gp_alpha_vel_heavy_filter) * v_ref_heavy_filter_;
-  std::cout << v_ref_heavy_filter_.transpose() << std::endl;
 
   // Low pass filter to slow down the changes of position when moving the joysticks
   p_ref_ = gp_alpha_pos * p_gp_ + (1 - gp_alpha_pos) * p_ref_;
