@@ -361,7 +361,7 @@ class Controller:
                 # self.p_ref[3, 0] = np.clip((self.k - 2000) / 2000, 0.0, 1.0)
                 self.xgoals[[3, 4], 0] = self.p_ref[[3, 4], 0]
                 self.h_ref = self.p_ref[2, 0]
-                hRb = pin.rpy.rpyToMatrix(0.0, 0.0, self.p_ref[3, 0] * 0.35)
+                hRb = pin.rpy.rpyToMatrix(0.0, 0.0, self.p_ref[5, 0])
                 # print(self.joystick.getPRef())
                 # print(self.p_ref[2])
             else:

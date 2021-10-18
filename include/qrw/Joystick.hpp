@@ -116,14 +116,14 @@ class Joystick {
 
   // Maximum velocity values
   double vXScale = 0.3;  // Lateral
-  double vYScale = 0.6;  // Forward
+  double vYScale = 0.5;  // Forward
   double vYawScale = 1.0;  // Rotation
 
   // Maximum position values
-  double pRollScale = 0.32;  // Lateral
-  double pPitchScale = 0.28;  // Forward
+  double pRollScale = -0.32;  // Lateral
+  double pPitchScale = -0.28;  // Forward
   double pHeightScale = 0.025;  // Forward
-  double pYawScale = 0.25;  // Rotation
+  double pYawScale = -0.35;  // Rotation
 
   // Variable to handle the automatic static/trot switching
   bool switch_static = false;
