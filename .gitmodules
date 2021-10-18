@@ -1,3 +1,6 @@
 [submodule "cmake"]
 	path = cmake
 	url = https://github.com/jrl-umi3218/jrl-cmakemodules.git
+[submodule "paho.mqtt.c"]
+	path = paho.mqtt.c
+	url = https://github.com/eclipse/paho.mqtt.c.git

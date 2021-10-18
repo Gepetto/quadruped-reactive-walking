@@ -139,10 +139,17 @@ target_compile_options(${PROJECT_NAME} PUBLIC -DNDEBUG -O3)
 target_compile_definitions(${PROJECT_NAME} PUBLIC CONFIG_SOLO12_YAML="${PROJECT_SOURCE_DIR}/scripts/config_solo12.yaml")
 target_compile_definitions(${PROJECT_NAME} PUBLIC WALK_PARAMETERS_YAML="${PROJECT_SOURCE_DIR}/src/walk_parameters.yaml")
 
+
+# MQTT Interface
+add_subdirectory (paho.mqtt.c)
+add_library(mqtt-interface SHARED include/qrw/mqtt-interface.hpp src/mqtt-interface.cpp)
+target_link_libraries(mqtt-interface PRIVATE paho-mqtt3c paho-mqtt3a)
+target_include_directories(mqtt-interface PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>)
+
 # Main Executable
 # add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/main.cpp)
 add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/control_solo12.cpp)
-target_link_libraries(${PROJECT_NAMESPACE}-${PROJECT_NAME} ${PROJECT_NAME})
+target_link_libraries(${PROJECT_NAMESPACE}-${PROJECT_NAME} ${PROJECT_NAME} mqtt-interface)
 
 # Python Bindings
 if(BUILD_PYTHON_INTERFACE)

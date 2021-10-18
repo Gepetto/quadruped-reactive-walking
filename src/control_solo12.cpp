@@ -6,6 +6,7 @@
 #include "qrw/Params.hpp"
 #include "qrw/Controller.hpp"
 #include "qrw/FakeRobot.hpp"
+#include "qrw/mqtt-interface.hpp"
 
 using namespace odri_control_interface;
 
@@ -83,13 +84,26 @@ int main()
     robot->joints->SetZeroCommands();
     robot->ParseSensorData();
 
+    // Initialize MQTT
+    MqttInterface mqtt_interface;
+    std::thread mqtt_thread(&MqttInterface::start, &mqtt_interface);
+    std::string mqtt_ready = "ready";
+    std::string mqtt_running = "running";
+    std::string mqtt_stopping = "stopping";
+    std::string mqtt_done = "done";
+    std::string mqtt_placeholder = "TODO";
+    mqtt_interface.setStatus(mqtt_ready);
+    mqtt_interface.set(robot->powerboard->GetCurrent(), robot->powerboard->GetVoltage(), 
+		    robot->powerboard->GetEnergy(), mqtt_placeholder);
     // Wait for Enter input before starting the control loop
     put_on_the_floor(robot, q_init, params, controller);
 
+    mqtt_interface.setStatus(mqtt_running);
     std::chrono::time_point<std::chrono::steady_clock> t_log [params.N_SIMULATION-2];
     // Main loop
     while ((!robot->IsTimeout()) && (k_loop < params.N_SIMULATION-2) && (!controller.error))
     {
+	if (mqtt_interface.getStop()) break;
         t_log[k_loop] = std::chrono::steady_clock::now();
 
         // Parse sensor data from the robot
@@ -127,6 +141,8 @@ int main()
         k_loop++;
         if (k_loop % 1000 == 0)
         {
+	    mqtt_interface.set(robot->powerboard->GetCurrent(), robot->powerboard->GetVoltage(), 
+			    robot->powerboard->GetEnergy(), mqtt_placeholder);
             std::cout << "Joints: ";
             robot->joints->PrintVector(robot->joints->GetPositions());
             std::cout << std::endl;
@@ -134,6 +150,7 @@ int main()
     }
 
     // DAMPING TO GET ON THE GROUND PROGRESSIVELY *********************
+    mqtt_interface.setStatus(mqtt_stopping);
     double t = 0.0;
     double t_max = 2.5;
     while ((!robot->IsTimeout()) && (t < t_max))
@@ -157,6 +174,8 @@ int main()
     }
     // FINAL SHUTDOWN *************************************************
 
+    mqtt_interface.setStatus(mqtt_done);
+
     // Whatever happened we send 0 torques to the motors.
     robot->joints->SetZeroCommands();
     robot->SendCommandAndWaitEndOfCycle(params.dt_wbc);
@@ -172,6 +191,8 @@ int main()
     parallel_thread.join();
     std::cout << "Parallel thread closed" << std::endl;
 
+    mqtt_interface.stop();
+    mqtt_thread.join();
     /*int duration_log [params.N_SIMULATION-2];
     for (int i = 0; i < params.N_SIMULATION-3; i++)
     {
