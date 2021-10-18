@@ -2,7 +2,8 @@
 
 Joystick::Joystick() : A3_(Vector6::Zero()), A2_(Vector6::Zero()),
                        v_ref_(Vector6::Zero()), v_gp_(Vector6::Zero()),
-                       p_ref_(Vector6::Zero()), p_gp_(Vector6::Zero()) {}
+                       p_ref_(Vector6::Zero()), p_gp_(Vector6::Zero()),
+                       v_ref_heavy_filter_(Vector6::Zero()) {}
 
 void Joystick::initialize(Params &params)
 {
@@ -164,11 +165,11 @@ void Joystick::update_v_ref_gamepad(int k, bool gait_is_static, Vector6 h_v)
   if (!getL1() && (k % k_mpc == 0) && (k > static_cast<int>(std::round(1.0 / params_->dt_wbc))))
   {
     // Check joysticks value to trigger the switch between static and trot
-    double v_low = 0.01;
-    double v_up = 0.03;
+    double v_low = 0.04;
+    double v_up = 0.08;
     if (!switch_static && std::abs(v_gp_(0, 0)) < v_low && std::abs(v_gp_(1, 0)) < v_low
-                       && std::abs(v_gp_(5, 0)) < v_low && std::abs(h_v(0, 0)) < v_low 
-                       && std::abs(h_v(1, 0)) < v_low && std::abs(h_v(5, 0)) < v_low)
+                       && std::abs(v_gp_(5, 0)) < v_low && std::abs(v_ref_heavy_filter_(0, 0)) < v_low 
+                       && std::abs(v_ref_heavy_filter_(1, 0)) < v_low && std::abs(v_ref_heavy_filter_(5, 0)) < v_low)
     {
       switch_static = true;
       lock_gp = true;
@@ -207,6 +208,10 @@ void Joystick::update_v_ref_gamepad(int k, bool gait_is_static, Vector6 h_v)
   // Low pass filter to slow down the changes of velocity when moving the joysticks
   v_ref_ = gp_alpha_vel * v_gp_ + (1 - gp_alpha_vel) * v_ref_;
   if (getL1() && gait_is_static) { v_ref_.setZero(); }
+
+  // Heavily filtered joystick velocity to be used as a trigger for the switch trot/static
+  v_ref_heavy_filter_ = gp_alpha_vel_heavy_filter * v_gp_ + (1 - gp_alpha_vel_heavy_filter) * v_ref_heavy_filter_;
+  std::cout << v_ref_heavy_filter_.transpose() << std::endl;
 
   // Low pass filter to slow down the changes of position when moving the joysticks
   p_ref_ = gp_alpha_pos * p_gp_ + (1 - gp_alpha_pos) * p_ref_;

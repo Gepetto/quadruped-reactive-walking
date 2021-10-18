@@ -100,6 +100,7 @@ class Joystick {
   Vector6 p_gp_;
   Vector6 v_ref_;  // Reference velocity resulting of the polynomial interpolation
   Vector6 v_gp_;
+  Vector6 v_ref_heavy_filter_;
 
   int joystick_code_ = 0;
   bool stop_ = false;
@@ -113,6 +114,7 @@ class Joystick {
   // How much the gamepad velocity and position is filtered to avoid sharp changes
   double gp_alpha_vel = 0.0;
   double gp_alpha_pos = 0.0;
+  double gp_alpha_vel_heavy_filter = 0.001;
 
   // Maximum velocity values
   double vXScale = 0.3;  // Lateral
@@ -121,8 +123,8 @@ class Joystick {
 
   // Maximum position values
   double pRollScale = -0.32;  // Lateral
-  double pPitchScale = -0.28;  // Forward
-  double pHeightScale = 0.025;  // Forward
+  double pPitchScale = -0.32;  // Forward
+  double pHeightScale = 0.0;  // Forward
   double pYawScale = -0.35;  // Rotation
 
   // Variable to handle the automatic static/trot switching
