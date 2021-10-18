@@ -1,7 +1,7 @@
 robot:
     # General parameters
     config_file: config_solo12.yaml  #  Name of the yaml file containing hardware information
-    interface: enp2s0  # Name of the communication interface (check with ifconfig)
+    interface: eth0  # Name of the communication interface (check with ifconfig)
     SIMULATION: true  # Enable/disable PyBullet simulation or running on real robot
     LOGGING: false  # Enable/disable logging during the experiment
     PLOTTING: false  # Enable/disable automatic plotting at the end of the experiment
