@@ -167,7 +167,7 @@ class Gait {
   MatrixN currentGait_;  // Current and future gait
   MatrixN desiredGait_;  // Future desired gait
 
-  double dt_;      // Time step of the contact sequence (time step of the MPC)
+  double dt_;  // Time step of the contact sequence (time step of the MPC)
 
   double remainingTime_;  // Remaining time till the end of the current stance/swing phase
 

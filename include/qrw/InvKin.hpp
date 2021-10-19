@@ -99,9 +99,8 @@ class InvKin {
   Params* params_;  // Params object to store parameters
 
   // Matrices initialisation
-
   Matrix12 invJ;                       // Inverse of the feet Jacobian
-  Eigen::Matrix<double, 1, 30> acc;    // Reshaped feet acceleration references to get command accelerations for actuators
+  Eigen::Matrix<double, 1, 30> acc;    // Reshaped feet acceleration references to get command acc for actuators
   Eigen::Matrix<double, 1, 30> x_err;  // Reshaped feet position errors to get command position step for actuators
   Eigen::Matrix<double, 1, 30> dx_r;   // Reshaped feet velocity references to get command velocities for actuators
 
@@ -109,9 +108,9 @@ class InvKin {
   Matrix43 vfeet_ref;  // Feet velocity references to get command velocities for actuators
   Matrix43 afeet;      // Feet acceleration references to get command accelerations for actuators
 
-  int foot_ids_[4] = {0, 0, 0, 0};  // Feet frame IDs
+  int foot_ids_[4] = {0, 0, 0, 0};          // Feet frame IDs
   int foot_joints_ids_[4] = {3, 6, 9, 12};  // Feet joints IDs
-  int base_id_ = 0; // Base ID
+  int base_id_ = 0;                         // Base ID
 
   Matrix43 posf_;                        // Current feet positions
   Matrix43 vf_;                          // Current feet linear velocities
@@ -122,30 +121,30 @@ class InvKin {
   Eigen::Matrix<double, 6, 18> Jf_tmp_;  // Temporary storage variable to only retrieve the linear part of the Jacobian
                                          // and discard the angular part
 
-  Vector3 posb_;
-  Vector3 posb_ref_;
-  Vector3 posb_err_;
-  Matrix3 rotb_;
-  Matrix3 rotb_ref_;
-  Vector3 rotb_err_;
-  Vector3 vb_;
-  Vector3 vb_ref_;
-  Vector3 wb_;
-  Vector3 wb_ref_;
-  Vector6 ab_;
-  Vector3 abasis;
-  Vector3 awbasis;
-  Matrix43 afeet_contacts_;
-  Eigen::Matrix<double, 6, 18> Jb_;
+  Vector3 posb_;                     // Position of the base
+  Vector3 posb_ref_;                 // Reference position of the base
+  Vector3 posb_err_;                 // Error in base position
+  Matrix3 rotb_;                     // Orientation of the base
+  Matrix3 rotb_ref_;                 // Reference orientation of the base
+  Vector3 rotb_err_;                 // Error in base orientation
+  Vector3 vb_;                       // Linear velocity of the base
+  Vector3 vb_ref_;                   // Reference linear velocity of the base
+  Vector3 wb_;                       // Angular velocity of the base
+  Vector3 wb_ref_;                   // Reference angular velocity of the base
+  Vector6 ab_;                       // Acceleration of the base
+  Vector3 abasis;                    // Acceleration references for the base linear velocity task
+  Vector3 awbasis;                   // Acceleration references for the base angular velocity task
+  Matrix43 afeet_contacts_;          // Acceleration references for the feet contact task
+  Eigen::Matrix<double, 6, 18> Jb_;  // Jacobian of the base (linear/angular)
 
-  Eigen::Matrix<double, 30, 18> J_;
-  Eigen::Matrix<double, 18, 30> invJ_;
+  Eigen::Matrix<double, 30, 18> J_;     // Task Jacobian
+  Eigen::Matrix<double, 18, 30> invJ_;  // Inverse of Task Jacobian
 
-  Vector3 Kp_base_position;
-  Vector3 Kd_base_position;
-  Vector3 Kp_base_orientation;
-  Vector3 Kd_base_orientation;
-  Vector8 w_tasks;
+  Vector3 Kp_base_position;     // Proportional gains for base position task
+  Vector3 Kd_base_position;     // Derivative gains for base position task
+  Vector3 Kp_base_orientation;  // Proportional gains for base orientation task
+  Vector3 Kd_base_orientation;  // Derivative gains for base orientation task
+  Vector8 w_tasks;              // Weight vector for tasks weighting
 
   Vector18 ddq_cmd_;  // Actuator command accelerations
   Vector18 dq_cmd_;   // Actuator command velocities
@@ -164,9 +163,8 @@ class InvKin {
 /// \brief Compute the pseudo inverse of a matrix using the Jacobi SVD formula
 ///
 ////////////////////////////////////////////////////////////////////////////////////////////////
-
 template <typename _Matrix_Type_>
-Eigen::MatrixXd pseudoInverse(const _Matrix_Type_ &a, double epsilon = std::numeric_limits<double>::epsilon()) {
+Eigen::MatrixXd pseudoInverse(const _Matrix_Type_& a, double epsilon = std::numeric_limits<double>::epsilon()) {
   Eigen::JacobiSVD<Eigen::MatrixXd> svd(a, Eigen::ComputeThinU | Eigen::ComputeThinV);
   double tolerance =
       epsilon * static_cast<double>(std::max(a.cols(), a.rows())) * svd.singularValues().array().abs()(0);

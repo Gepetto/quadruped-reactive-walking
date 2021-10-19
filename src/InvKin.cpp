@@ -73,12 +73,10 @@ void InvKin::initialize(Params& params) {
   Kp_base_orientation = Vector3(params_->Kp_base_orientation.data());
   Kd_base_orientation = Vector3(params_->Kd_base_orientation.data());
   w_tasks = Vector8(params_->w_tasks.data());
-
 }
 
 void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals, Matrix43 const& vgoals,
                                Matrix43 const& agoals) {
-
   /*std::cout << std::fixed;
   std::cout << std::setprecision(2);
 
@@ -93,37 +91,34 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
   /////
   // Compute tasks accelerations and Jacobians
   /////
-  
 
   // Accelerations references for the base / feet position task
   for (int i = 0; i < 4; i++) {
     // Feet acceleration
     pfeet_err.row(i) = pgoals.row(i) - posf_.row(i);
     vfeet_ref.row(i) = vgoals.row(i);
-    afeet.row(i) = + params_->Kp_flyingfeet * pfeet_err.row(i)
-                   + params_->Kd_flyingfeet * (vfeet_ref.row(i) - vf_.row(i))
-                   + agoals.row(i);
+    afeet.row(i) = +params_->Kp_flyingfeet * pfeet_err.row(i) +
+                   params_->Kd_flyingfeet * (vfeet_ref.row(i) - vf_.row(i)) + agoals.row(i);
 
-    //std::cout << "1: " << afeet.row(i) << std::endl;
+    // std::cout << "1: " << afeet.row(i) << std::endl;
     afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));
-    //std::cout << "2: " << afeet.row(i) << std::endl;
-  
+    // std::cout << "2: " << afeet.row(i) << std::endl;
+
     // Subtract base acceleration
     afeet.row(i) -= (params_->Kd_flyingfeet * (vb_ref_ - vb_) - (ab_.head(3) + wb_.cross(vb_))).transpose();
-    //std::cout << "3: " << afeet.row(i) << std::endl;
+    // std::cout << "3: " << afeet.row(i) << std::endl;
     /*std::cout << vb_ref_.transpose() << std::endl;
     std::cout << vb_.transpose() << std::endl;
     std::cout << wb_.transpose() << std::endl;
     std::cout << ab_.head(3).transpose() << std::endl;
     std::cout << (vb_ref_ - vb_).transpose() << std::endl;
     std::cout << (wb_.cross(vb_)).transpose() << std::endl;*/
-    //std::cout << "---" << std::endl;
-    
+    // std::cout << "---" << std::endl;
   }
-  
+
   // Jacobian for the base / feet position task
   for (int i = 0; i < 4; i++) {
-    J_.block(6 + 3 * i, 0, 3, 18) = Jf_.block(3*i, 0, 3, 18) - Jb_.block(0, 0, 3, 18);
+    J_.block(6 + 3 * i, 0, 3, 18) = Jf_.block(3 * i, 0, 3, 18) - Jb_.block(0, 0, 3, 18);
   }
 
   // Acceleration references for the base linear velocity task
@@ -137,7 +132,8 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
   // Acceleration references for the base orientation task
   rotb_err_ = -rotb_ref_ * pinocchio::log3(rotb_ref_.transpose() * rotb_);
   rotb_err_(2, 0) = 0.0;  // No tracking in yaw
-  awbasis = Kp_base_orientation.cwiseProduct(rotb_err_) + Kd_base_orientation.cwiseProduct(wb_ref_ - wb_);  // Roll, Pitch, Yaw
+  awbasis = Kp_base_orientation.cwiseProduct(rotb_err_) +
+            Kd_base_orientation.cwiseProduct(wb_ref_ - wb_);  // Roll, Pitch, Yaw
   awbasis -= ab_.tail(3);
 
   // Jacobian for the base orientation task
@@ -159,12 +155,10 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
   }*/
   for (int i = 0; i < 4; i++) {
     if (contacts(0, i) == 1.0) {
-      afeet_contacts_.row(i) = + params_->Kp_flyingfeet * pfeet_err.row(i)
-                               + params_->Kd_flyingfeet * (vfeet_ref.row(i) - vf_.row(i))
-                               + agoals.row(i);
+      afeet_contacts_.row(i) = +params_->Kp_flyingfeet * pfeet_err.row(i) +
+                               params_->Kd_flyingfeet * (vfeet_ref.row(i) - vf_.row(i)) + agoals.row(i);
       afeet_contacts_.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));
-    }
-    else {
+    } else {
       afeet_contacts_.row(i).setZero();
     }
   }
@@ -172,9 +166,8 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
   // Jacobian for the non-moving contact task
   for (int i = 0; i < 4; i++) {
     if (contacts(0, i) == 1.0) {  // Store Jacobian of feet in contact
-      J_.block(18 + 3 * i, 0, 3, 18) = Jf_.block(3*i, 0, 3, 18);
-    }
-    else {
+      J_.block(18 + 3 * i, 0, 3, 18) = Jf_.block(3 * i, 0, 3, 18);
+    } else {
       J_.block(18 + 3 * i, 0, 3, 18).setZero();
     }
   }
@@ -183,7 +176,7 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
     if (contacts(0, i) == 1.0) {  // Store Jacobian of feet in contact
       J_.block(18 + 3 * cpt, 0, 3, 18) = Jf_.block(3*i, 0, 3, 18);
       cpt++;
-    } 
+    }
   }
   for (int i = cpt; i < 4; i++) {  // Set to 0s the lines that are not used
     J_.block(18 + 3 * i, 0, 3, 18).setZero();
@@ -287,10 +280,10 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
   dq_cmd_ = invJ_ * dx_r.transpose();
   q_step_ = invJ_ * x_err.transpose();  // Not a position but a step in position
 
-  //std::cout << "pfeet_err" << std::endl << pfeet_err << std::endl;
+  // std::cout << "pfeet_err" << std::endl << pfeet_err << std::endl;
 
   /*std::cout << "acc: " << std::endl << acc << std::endl;
-  std::cout << "J_   : " << std::endl << J_ << std::endl; 
+  std::cout << "J_   : " << std::endl << J_ << std::endl;
   std::cout << "invJ_: " << std::endl << invJ_ << std::endl;
   std::cout << "ddq_cmd_: " << std::endl << ddq_cmd_.transpose() << std::endl;*/
 
@@ -312,7 +305,6 @@ void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals,
     invJ.block(3 * i, 3 * i, 3, 3) = Jf_.block(3 * i, 3 * i, 3, 3).inverse();
   }
   */
-  
 }
 
 void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals,
@@ -341,9 +333,9 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
 
   // Update position and velocity of the base
   posb_ = data_.oMf[base_id_].translation();  // Position
-  rotb_ = data_.oMf[base_id_].rotation();  // Orientation
+  rotb_ = data_.oMf[base_id_].rotation();     // Orientation
   pinocchio::Motion nu = pinocchio::getFrameVelocity(model_, data_, base_id_, pinocchio::LOCAL_WORLD_ALIGNED);
-  vb_ = nu.linear();  // Linear velocity
+  vb_ = nu.linear();   // Linear velocity
   wb_ = nu.angular();  // Angular velocity
   /*std::cout << "NU" << std::endl;
   std::cout << q.transpose() << std::endl;
@@ -352,17 +344,17 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
   std::cout << nu.angular().transpose() << std::endl;*/
 
   pinocchio::Motion acc = pinocchio::getFrameAcceleration(model_, data_, base_id_, pinocchio::LOCAL_WORLD_ALIGNED);
-  ab_.head(3) = acc.linear();  // Linear acceleration
+  ab_.head(3) = acc.linear();   // Linear acceleration
   ab_.tail(3) = acc.angular();  // Angular acceleration
   pinocchio::getFrameJacobian(model_, data_, base_id_, pinocchio::LOCAL_WORLD_ALIGNED, Jb_);
 
   // std::cout << "Jb_: " << std::endl << Jb_ << std::endl;
 
   // Update reference position and reference velocity of the base
-  posb_ref_ = x_cmd.block(0, 0, 3, 1);  // Ref position
+  posb_ref_ = x_cmd.block(0, 0, 3, 1);                                             // Ref position
   rotb_ref_ = pinocchio::rpy::rpyToMatrix(x_cmd(3, 0), x_cmd(4, 0), x_cmd(5, 0));  // Ref orientation
-  vb_ref_ = x_cmd.block(6, 0, 3, 1);  // Ref linear velocity
-  wb_ref_ = x_cmd.block(9, 0, 3, 1);  // Ref angular velocity
+  vb_ref_ = x_cmd.block(6, 0, 3, 1);                                               // Ref linear velocity
+  wb_ref_ = x_cmd.block(9, 0, 3, 1);                                               // Ref angular velocity
 
   /*std::cout << "----" << std::endl;
   std::cout << posf_ << std::endl;
@@ -377,31 +369,33 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
   /*
   Eigen::Matrix<double, 6, 18> dJf = Eigen::Matrix<double, 6, 18>::Zero();
   std::cout << "analysis: " << std::endl;
-  std::cout << pinocchio::getJointJacobianTimeVariation(model_, data_, foot_ids_[0], pinocchio::LOCAL_WORLD_ALIGNED, dJf) << std::endl;
-  std::cout << "---" << std::endl;
-  std::cout << dq.transpose() << std::endl;
-  std::cout << "---" << std::endl;
-  std::cout << dJf * dq << std::endl;
-  std::cout << "---" << std::endl;*/
+  std::cout << pinocchio::getJointJacobianTimeVariation(model_, data_, foot_ids_[0], pinocchio::LOCAL_WORLD_ALIGNED,
+  dJf) << std::endl; std::cout << "---" << std::endl; std::cout << dq.transpose() << std::endl; std::cout << "---" <<
+  std::endl; std::cout << dJf * dq << std::endl; std::cout << "---" << std::endl;*/
 
   // Eigen::Matrix<double, 6, 18> dJf = Eigen::Matrix<double, 6, 18>::Zero();
+  /*
   for (int i = 0; i < 4; i++) {
     Jf_tmp_.setZero();
     pinocchio::getFrameJacobianTimeVariation(model_, data_, foot_ids_[i], pinocchio::LOCAL_WORLD_ALIGNED, Jf_tmp_);
     dJdq_.row(i) = (Jf_tmp_.block(0, 0, 3, 18) * dq).transpose();
   }
+  */
   /*std::cout << "Other: " << dJdq_.row(0) << std::endl;
   std::cout << "Other: " << dJdq_.row(1) << std::endl;
   std::cout << "Other: " << dJdq_.row(2) << std::endl;
   std::cout << "Other: " << dJdq_.row(3) << std::endl;*/
 
+  /*
   Jf_tmp_.setZero();
   pinocchio::getFrameJacobianTimeVariation(model_, data_, base_id_, pinocchio::LOCAL_WORLD_ALIGNED, Jf_tmp_);
-  //std::cout << "Base dJdq: " << (Jf_tmp_ * dq).transpose() << std::endl;
+  */
+  // std::cout << "Base dJdq: " << (Jf_tmp_ * dq).transpose() << std::endl;
 
+  /*
   pinocchio::forwardKinematics(model_dJdq_, data_dJdq_, q, dq, VectorN::Zero(model_.nv));
   pinocchio::updateFramePlacements(model_dJdq_, data_dJdq_);
-  pinocchio::rnea(model_dJdq_, data_dJdq_, q, dq, VectorN::Zero(model_dJdq_.nv)); 
+  pinocchio::rnea(model_dJdq_, data_dJdq_, q, dq, VectorN::Zero(model_dJdq_.nv));
   for (int i = 0; i < 4; i++) {
     pinocchio::Motion a = data_dJdq_.a[foot_joints_ids_[i]];
     pinocchio::Motion v = data_dJdq_.v[foot_joints_ids_[i]];
@@ -412,10 +406,11 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
     // f_v = kMf.actInv(v)
     Vector3 f_a3 = kMf.actInv(a).linear() + (kMf.actInv(v).angular()).cross(kMf.actInv(v).linear());
     Vector3 w_a3 = wMf.rotation() * f_a3;
-    //std::cout << "f_a3: " << f_a3.transpose() << std::endl;
-    //std::cout << "w_a3: " << w_a3.transpose() << std::endl;
+    // std::cout << "f_a3: " << f_a3.transpose() << std::endl;
+    // std::cout << "w_a3: " << w_a3.transpose() << std::endl;
     dJdq_.row(i) = w_a3.transpose();
   }
+  */
 
   // IK output for accelerations of actuators (stored in ddq_cmd_)
   // IK output for velocities of actuators (stored in dq_cmd_)
@@ -430,9 +425,9 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
   std::cout << "pos after step" << std::endl;
   std::cout << data_.oMf[foot_ids_[0]].translation()  << std::endl;
   std::cout << "vel after step" << std::endl;
-  std::cout << pinocchio::getFrameVelocity(model_, data_, foot_ids_[0], pinocchio::LOCAL_WORLD_ALIGNED).linear() << std::endl;
-  std::cout << "acc after step" << std::endl;
-  std::cout << pinocchio::getFrameAcceleration(model_, data_, foot_ids_[0], pinocchio::LOCAL_WORLD_ALIGNED).linear() << std::endl;*/
+  std::cout << pinocchio::getFrameVelocity(model_, data_, foot_ids_[0], pinocchio::LOCAL_WORLD_ALIGNED).linear() <<
+  std::endl; std::cout << "acc after step" << std::endl; std::cout << pinocchio::getFrameAcceleration(model_, data_,
+  foot_ids_[0], pinocchio::LOCAL_WORLD_ALIGNED).linear() << std::endl;*/
 
   /*std::cout << "q: " << q << std::endl;
   std::cout << "q_step_: " << q_step_ << std::endl;
@@ -449,8 +444,7 @@ void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& cont
   std::cout << "Feet accelerations after IK:" << std::endl;
   for (int i = 0; i < 4; i++) {
     int idx = foot_ids_[i];
-    pinocchio::Motion acc = pinocchio::getFrameClassicalAcceleration(model_, data_, idx, pinocchio::LOCAL_WORLD_ALIGNED);
-    std::cout << acc.linear() << std::endl;
+    pinocchio::Motion acc = pinocchio::getFrameClassicalAcceleration(model_, data_, idx,
+  pinocchio::LOCAL_WORLD_ALIGNED); std::cout << acc.linear() << std::endl;
   }*/
-
 }

@@ -67,13 +67,13 @@ void Gait::create_walking_trot() {
   long int M = 8;
   Eigen::Matrix<double, 1, 4> sequence;
   sequence << 1.0, 0.0, 0.0, 1.0;
-  desiredGait_.block(0, 0, N-M, 4) = sequence.colwise().replicate(N);
+  desiredGait_.block(0, 0, N - M, 4) = sequence.colwise().replicate(N);
   sequence << 1.0, 1.0, 1.0, 1.0;
-  desiredGait_.block(N-M, 0, M, 4) = sequence.colwise().replicate(N);
+  desiredGait_.block(N - M, 0, M, 4) = sequence.colwise().replicate(N);
   sequence << 0.0, 1.0, 1.0, 0.0;
-  desiredGait_.block(N, 0, N-M, 4) = sequence.colwise().replicate(N);
+  desiredGait_.block(N, 0, N - M, 4) = sequence.colwise().replicate(N);
   sequence << 1.0, 1.0, 1.0, 1.0;
-  desiredGait_.block(2*N-M, 0, M, 4) = sequence.colwise().replicate(N);
+  desiredGait_.block(2 * N - M, 0, M, 4) = sequence.colwise().replicate(N);
 }
 
 void Gait::create_pacing() {
@@ -102,9 +102,7 @@ void Gait::create_bounding() {
   desiredGait_.block(N, 0, N, 4) = sequence.colwise().replicate(N);
 }
 
-void Gait::create_static() {
-  desiredGait_.setOnes();
-}
+void Gait::create_static() { desiredGait_.setOnes(); }
 
 void Gait::create_transverse_gallop() {
   // Number of timesteps in a half period of gait
@@ -118,9 +116,9 @@ void Gait::create_transverse_gallop() {
   sequence << 1.0, 0.0, 0.0, 0.0;
   desiredGait_.block(N, 0, N, 4) = sequence.colwise().replicate(N);
   sequence << 0.0, 0.0, 0.0, 1.0;
-  desiredGait_.block(2*N, 0, N, 4) = sequence.colwise().replicate(N);
+  desiredGait_.block(2 * N, 0, N, 4) = sequence.colwise().replicate(N);
   sequence << 0.0, 1.0, 0.0, 0.0;
-  desiredGait_.block(3*N, 0, N, 4) = sequence.colwise().replicate(N);
+  desiredGait_.block(3 * N, 0, N, 4) = sequence.colwise().replicate(N);
 }
 
 void Gait::create_custom_gallop() {
@@ -135,9 +133,9 @@ void Gait::create_custom_gallop() {
   sequence << 1.0, 0.0, 0.0, 1.0;
   desiredGait_.block(N, 0, N, 4) = sequence.colwise().replicate(N);
   sequence << 0.0, 1.0, 0.0, 1.0;
-  desiredGait_.block(2*N, 0, N, 4) = sequence.colwise().replicate(N);
+  desiredGait_.block(2 * N, 0, N, 4) = sequence.colwise().replicate(N);
   sequence << 0.0, 1.0, 1.0, 0.0;
-  desiredGait_.block(3*N, 0, N, 4) = sequence.colwise().replicate(N);
+  desiredGait_.block(3 * N, 0, N, 4) = sequence.colwise().replicate(N);
 }
 
 double Gait::getPhaseDuration(int i, int j, double value) {
@@ -228,8 +226,7 @@ void Gait::rollGait() {
   }
 
   // Age current gait
-  for (int index = 1; index < currentGait_.rows(); index++)
-  {
+  for (int index = 1; index < currentGait_.rows(); index++) {
     currentGait_.row(index - 1).swap(currentGait_.row(index));
   }
 
@@ -237,8 +234,7 @@ void Gait::rollGait() {
   currentGait_.row(currentGait_.rows() - 1) = desiredGait_.row(0);
 
   // Age desired gait
-  for (int index = 1; index < currentGait_.rows(); index++)
-  {
+  for (int index = 1; index < currentGait_.rows(); index++) {
     desiredGait_.row(index - 1).swap(desiredGait_.row(index));
   }
 }
