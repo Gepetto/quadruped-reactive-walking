@@ -279,9 +279,10 @@ class Estimator {
   Vector3 oTh_;       // Translation between horizontal and world frame
   double yaw_estim_;  // Yaw angle in perfect world
 
-  int N_queue_;
-  VectorN v_filt_bis_;
-  VectorN h_v_windowed_;
-  std::deque<double> vx_queue_, vy_queue_, vz_queue_, wR_queue_, wP_queue_, wY_queue_;
+  // Filter the base velocity with an averaging window to remove oscillations at multiples of gait frequency
+  int N_queue_;           // Number of samples in the averaging window
+  VectorN v_filt_bis_;    // Base velocity (in base frame) filtered by averaging window
+  VectorN h_v_windowed_;  // Base velocity (in horizontal frame) filtered by averaging window
+  std::deque<double> vx_queue_, vy_queue_, vz_queue_, wR_queue_, wP_queue_, wY_queue_;  // Queues that hold samples
 };
 #endif  // ESTIMATOR_H_INCLUDED
