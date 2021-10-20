@@ -34,6 +34,8 @@ class Params {
   ///
   /// \brief Initializer
   ///
+  /// \param[in] file_path File path to the yaml file
+  ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void initialize(const std::string& file_path);
 
@@ -48,31 +50,31 @@ class Params {
 
   // See .yaml file for meaning of parameters
   // General parameters
-  std::string config_file; // Name of the yaml file containing hardware information
-  std::string interface;  // Name of the communication interface (check with ifconfig)
-  bool SIMULATION;        // Enable/disable PyBullet simulation or running on real robot
-  bool LOGGING;           //  Enable/disable logging during the experiment
-  bool PLOTTING;          // Enable/disable automatic plotting at the end of the experiment
-  int envID;              // Identifier of the environment to choose in which one the simulation will happen
-  bool use_flat_plane;    // If True the ground is flat, otherwise it has bumps
-  bool predefined_vel;    // If we are using a predefined reference velocity (True) or a joystick (False)
-  int velID;              // Identifier of the reference velocity profile to choose which one will be sent to the robot
-  int N_SIMULATION;       // Number of simulated wbc time steps
-  bool enable_pyb_GUI;    // Enable/disable PyBullet GUI
+  std::string config_file;      // Name of the yaml file containing hardware information
+  std::string interface;        // Name of the communication interface (check with ifconfig)
+  bool SIMULATION;              // Enable/disable PyBullet simulation or running on real robot
+  bool LOGGING;                 // Enable/disable logging during the experiment
+  bool PLOTTING;                // Enable/disable automatic plotting at the end of the experiment
+  int envID;                    // Identifier of the environment to choose in which one the simulation will happen
+  bool use_flat_plane;          // If True the ground is flat, otherwise it has bumps
+  bool predefined_vel;          // If we are using a predefined reference velocity (True) or a joystick (False)
+  int velID;                    // Identifier of the reference velocity profile for interpolation
+  int N_SIMULATION;             // Number of simulated wbc time steps
+  bool enable_pyb_GUI;          // Enable/disable PyBullet GUI
   bool enable_corba_viewer;     // Enable/disable Corba Viewer
   bool enable_multiprocessing;  // Enable/disable running the MPC in another process in parallel of the main loop
   bool perfect_estimator;       // Enable/disable perfect estimator by using data directly from PyBullet
 
   // General control parameters
-  std::vector<double> q_init;  // Initial articular positions
-  double dt_wbc;               // Time step of the whole body control
-  double dt_mpc;    // Time step of the model predictive control
-  int N_periods;    // Number of gait periods in the MPC prediction horizon
-  int type_MPC;     // Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
-  bool kf_enabled;  // Use complementary filter (False) or kalman filter (True) for the estimator
-  std::vector<double> Kp_main;   // Proportional gains for the PD+
-  std::vector<double> Kd_main;   // Derivative gains for the PD+
-  double Kff_main;  // Feedforward torques multiplier for the PD+
+  std::vector<double> q_init;   // Initial articular positions
+  double dt_wbc;                // Time step of the whole body control
+  double dt_mpc;                // Time step of the model predictive control
+  int N_periods;                // Number of gait periods in the MPC prediction horizon
+  int type_MPC;                 // Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
+  bool kf_enabled;              // Use complementary filter (False) or kalman filter (True) for the estimator
+  std::vector<double> Kp_main;  // Proportional gains for the PD+
+  std::vector<double> Kd_main;  // Derivative gains for the PD+
+  double Kff_main;              // Feedforward torques multiplier for the PD+
 
   // Parameters of Gait
   std::vector<int> gait_vec;  // Initial gait matrix (vector)
@@ -98,10 +100,10 @@ class Params {
   double osqp_Nz_lim;                 // Maximum vertical force that can be applied at contact points
 
   //  Parameters of InvKin
-  double Kp_flyingfeet;  // Proportional gain for feet position tasks
-  double Kd_flyingfeet;  // Derivative gain for feet position tasks
-  std::vector<double> Kp_base_position;  // Proportional gains for the base position task
-  std::vector<double> Kd_base_position;  // Derivative gains for the base position task
+  double Kp_flyingfeet;                     // Proportional gain for feet position tasks
+  double Kd_flyingfeet;                     // Derivative gain for feet position tasks
+  std::vector<double> Kp_base_position;     // Proportional gains for the base position task
+  std::vector<double> Kd_base_position;     // Derivative gains for the base position task
   std::vector<double> Kp_base_orientation;  // Proportional gains for the base orientation task
   std::vector<double> Kd_base_orientation;  // Derivative gains for the base orientation task
   std::vector<double> w_tasks;  // Tasks weights: [feet/base, vx, vy, vz, roll+wroll, pitch+wpitch, wyaw, contacts]
@@ -113,7 +115,7 @@ class Params {
   double Fz_min;  // Minimal vertical contact force [N]
 
   // Not defined in yaml
-  Eigen::MatrixXd gait;  // Initial gait matrix (Eigen)
+  Eigen::MatrixXd gait;                           // Initial gait matrix (Eigen)
   double T_gait;                                  // Period of the gait
   double mass;                                    // Mass of the robot
   std::vector<double> I_mat;                      // Inertia matrix
@@ -127,6 +129,10 @@ class Params {
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ///
 /// \brief Check if a parameter exists in a given yaml file (bofore we try retrieving its value)
+///
+/// \param[in] yaml_node Name of the yaml file
+/// \param[in] parent_node_name Name of the parent node
+/// \param[in] child_node_name Name of the child node
 ///
 ////////////////////////////////////////////////////////////////////////////////////////////////
 namespace yaml_control_interface {
@@ -143,6 +149,8 @@ namespace yaml_control_interface {
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ///
 /// \brief Check if a file exists (before we try loading it)
+///
+/// \param[in] filename File path to check
 ///
 ////////////////////////////////////////////////////////////////////////////////////////////////
 #define assert_file_exists(filename)                                                                        \

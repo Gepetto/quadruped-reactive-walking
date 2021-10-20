@@ -64,6 +64,13 @@ class QPWBC {
   /// \brief Run one iteration of the whole WBC QP problem by calling all the necessary functions (data retrieval,
   ///        update of constraint matrices, update of the solver, running the solver, retrieving result)
   ///
+  /// \param[in] M Generalized mass matrix
+  /// \param[in] Jc Contact Jacobian
+  /// \param[in] ddq_cmd Command base accelerations
+  /// \param[in] f_cmd Desired contact forces of the MPC
+  /// \param[in] RNEA M(q) ddq + NLE(q, dq) computed by rnea(q_wbc_, dq_wbc_, ddq_cmd_)
+  /// \param[in] k_contact Number of time step during which feet have been in the current stance phase
+  ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   int run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &ddq_cmd,
           const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA, const Eigen::MatrixXd &k_contact);
@@ -230,7 +237,7 @@ class QPWBC {
 
   // Cumulative non zero coefficients per column in friction cone constraint block
   // In each column: 2, 2, 5, 2, 2, 5, 2, 2, 5, 2, 2, 5
-  int fric_nz [12] = { 2,  4,  9, 11, 13, 18, 20, 22, 27, 29, 31, 36};
+  int fric_nz[12] = {2, 4, 9, 11, 13, 18, 20, 22, 27, 29, 31, 36};
 
   // Generalized mass matrix and contact Jacobian (transposed)
   // Eigen::Matrix<double, 6, 6> M = Eigen::Matrix<double, 6, 6>::Zero();
@@ -255,7 +262,7 @@ class QPWBC {
 
   // Matrix ML
   const static int size_nz_ML = (20 + 6) * 18;
-  csc *ML;                                // Compressed Sparse Column matrix
+  csc *ML;  // Compressed Sparse Column matrix
 
   // Matrix NK
   const static int size_nz_NK = (20 + 6);
@@ -265,7 +272,7 @@ class QPWBC {
 
   // Matrix P
   const static int size_nz_P = 18;
-  csc *P;                               // Compressed Sparse Column matrix
+  csc *P;  // Compressed Sparse Column matrix
 
   // Matrix Q
   const static int size_nz_Q = 18;
@@ -335,11 +342,11 @@ class WbcWrapper {
   MatrixN get_feet_vel_target() { return log_feet_vel_target; }
   MatrixN get_feet_acc_target() { return log_feet_acc_target; }
 
-  VectorN get_Mddq() { return Mddq;};
-  VectorN get_NLE() { return NLE;};
-  VectorN get_JcTf() { return JcTf;};
-  VectorN get_Mddq_out() { return Mddq_out;};
-  VectorN get_JcTf_out() { return JcTf_out;};
+  VectorN get_Mddq() { return Mddq; };
+  VectorN get_NLE() { return NLE; };
+  VectorN get_JcTf() { return JcTf; };
+  VectorN get_Mddq_out() { return Mddq_out; };
+  VectorN get_JcTf_out() { return JcTf_out; };
 
  private:
   Params *params_;  // Object that stores parameters
@@ -352,7 +359,7 @@ class WbcWrapper {
   Eigen::Matrix<double, 18, 18> M_;  // Mass matrix
   Eigen::Matrix<double, 12, 6> Jc_;  // Jacobian matrix
   Matrix14 k_since_contact_;         // Number of time step during which feet have been in the current stance phase
-  Vector7  bdes_;                    // Desired base positions
+  Vector7 bdes_;                     // Desired base positions
   Vector12 qdes_;                    // Desired actuator positions
   Vector12 vdes_;                    // Desired actuator velocities
   Vector12 tau_ff_;                  // Desired actuator torques (feedforward)
@@ -370,11 +377,11 @@ class WbcWrapper {
   Matrix34 log_feet_acc_target;  // Store the target feet accelerations
 
   // Log
-  Vector6 Mddq;
-  Vector6 NLE;
-  Vector6 JcTf;
-  Vector6 Mddq_out;
-  Vector6 JcTf_out;
+  Vector6 Mddq;      // Generalized mass matrix * acceleration vector
+  Vector6 NLE;       // Non linear effects
+  Vector6 JcTf;      // Contact Jacobian * contact forces vector
+  Vector6 Mddq_out;  // Generalized mass matrix * acceleration vector (after QP problem)
+  Vector6 JcTf_out;  // Contact Jacobian * contact forces vector (after QP problem)
 
   int k_log_;                          // Counter for logging purpose
   int indexes_[4] = {10, 18, 26, 34};  // Indexes of feet frames in this order: [FL, FR, HL, HR]

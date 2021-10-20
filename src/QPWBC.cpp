@@ -77,7 +77,9 @@ int QPWBC::create_ML() {
   // Friction cone constraints
   for (int i = 0; i < 20; i++) {
     for (int j = 0; j < 12; j++) {
-      if (G(i, j) != 0.0) {add_to_ML(i, 6 + j, G(i, j), r_ML, c_ML, v_ML);}
+      if (G(i, j) != 0.0) {
+        add_to_ML(i, 6 + j, G(i, j), r_ML, c_ML, v_ML);
+      }
     }
   }
   // Dynamics equation constraints
@@ -140,7 +142,6 @@ int QPWBC::create_ML() {
 
 int QPWBC::create_NK(const Eigen::Matrix<double, 6, 12> &JcT, const Eigen::Matrix<double, 12, 1> &f_cmd,
                      const Eigen::Matrix<double, 6, 1> &RNEA) {
-
   // Fill upper bound of the friction cone contraints
   for (int i = 0; i < 4; i++) {
     v_NK_up[5 * i + 0] = std::numeric_limits<double>::infinity();
@@ -153,9 +154,9 @@ int QPWBC::create_NK(const Eigen::Matrix<double, 6, 12> &JcT, const Eigen::Matri
   // Fill lower bound of the friction cone contraints
   for (int i = 0; i < 4; i++) {
     v_NK_low[5 * i + 0] = f_cmd(3 * i + 0, 0) - mu * f_cmd(3 * i + 2, 0);
-    v_NK_low[5 * i + 1] = - f_cmd(3 * i + 0, 0) - mu * f_cmd(3 * i + 2, 0);
+    v_NK_low[5 * i + 1] = -f_cmd(3 * i + 0, 0) - mu * f_cmd(3 * i + 2, 0);
     v_NK_low[5 * i + 2] = f_cmd(3 * i + 1, 0) - mu * f_cmd(3 * i + 2, 0);
-    v_NK_low[5 * i + 3] = - f_cmd(3 * i + 1, 0) - mu * f_cmd(3 * i + 2, 0);
+    v_NK_low[5 * i + 3] = -f_cmd(3 * i + 1, 0) - mu * f_cmd(3 * i + 2, 0);
     v_NK_low[5 * i + 4] = Fz_min - f_cmd(3 * i + 2, 0);
   }
 
@@ -181,10 +182,10 @@ int QPWBC::create_weight_matrices() {
   // Fill P with 1.0 so that the sparse creation process considers that all coeffs
   // can have a non zero value
   for (int i = 0; i < 6; i++) {
-      add_to_P(i, i, Q1(i, i), r_P, c_P, v_P);
+    add_to_P(i, i, Q1(i, i), r_P, c_P, v_P);
   }
   for (int i = 0; i < 12; i++) {
-      add_to_P(6 + i, 6+i, Q2(i, i), r_P, c_P, v_P);
+    add_to_P(6 + i, 6 + i, Q2(i, i), r_P, c_P, v_P);
   }
 
   // Creation of CSC matrix
@@ -265,12 +266,11 @@ int QPWBC::update_matrices(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Ma
 }
 
 int QPWBC::update_ML(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Matrix<double, 6, 12> &JcT) {
-
   // Update the part of ML that contains the dynamics constraint
   // Coefficients are stored in column order and we want to update the block (20, 0, 6, 18)
   // [0  fric
   //  M -JcT] with fric having [2 2 5 2 2 5 2 2 5 2 2 5] non zeros coefficient for each one of its 12 columns
-  
+
   // Update M, no need to be careful because there is only zeros coefficients above M
   for (int j = 0; j < 6; j++) {
     for (int i = 0; i < 6; i++) {
@@ -392,8 +392,6 @@ Eigen::MatrixXd QPWBC::get_H() {
 
 int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &ddq_cmd,
                const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA, const Eigen::MatrixXd &k_contact) {
-  
-
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + 2 x^T.Q with constraints M.X == N and L.X <= K
   /*
@@ -410,7 +408,7 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
   update_matrices(M, Jc, f_cmd, RNEA);
 
   // Update P and Q matrices of the cost function xT P x + 2 xT g
-  //update_PQ();
+  // update_PQ();
 
   Eigen::Matrix<double, 20, 1> Gf = G * f_cmd;
 
@@ -645,7 +643,6 @@ void WbcWrapper::initialize(Params &params) {
 
 void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_cmd, MatrixN const &contacts,
                          MatrixN const &pgoals, MatrixN const &vgoals, MatrixN const &agoals, VectorN const &xgoals) {
-
   if (f_cmd.rows() != 12) {
     throw std::runtime_error("f_cmd should be a vector of size 12");
   }
@@ -661,8 +658,9 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
 
   // Retrieve configuration data
   q_wbc_.head(3) = q.head(3);
-  q_wbc_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q(3, 0), q(4, 0), q(5, 0))).coeffs();  // Roll, Pitch
-  q_wbc_.tail(12) = q.tail(12);  // Encoders
+  q_wbc_.block(3, 0, 4, 1) =
+      pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q(3, 0), q(4, 0), q(5, 0))).coeffs();  // Roll, Pitch
+  q_wbc_.tail(12) = q.tail(12);                                                                     // Encoders
 
   // Retrieve velocity data
   dq_wbc_ = dq;
@@ -728,19 +726,18 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   std::cout << "k_since" << std::endl;
   std::cout << k_since_contact_ << std::endl;*/
 
-  //std::cout << "Force compensation " << std::endl;
-  
+  // std::cout << "Force compensation " << std::endl;
+
   /*for (int i = 0; i < 4; i++) {
     f_compensation(3*i+2, 0) = 0.0;
   }*/
-  //std::cout << f_compensation << std::endl;
+  // std::cout << f_compensation << std::endl;
 
-  //std::cout << "agoals " << std::endl << agoals << std::endl; 
-  //std::cout << "ddq_cmd_bis " << std::endl << ddq_cmd_.transpose() << std::endl; 
+  // std::cout << "agoals " << std::endl << agoals << std::endl;
+  // std::cout << "ddq_cmd_bis " << std::endl << ddq_cmd_.transpose() << std::endl;
 
   // Solve the QP problem
-  box_qp_->run(data_.M, Jc_, ddq_cmd_, f_cmd + f_compensation, data_.tau.head(6),
-               k_since_contact_);
+  box_qp_->run(data_.M, Jc_, ddq_cmd_, f_cmd + f_compensation, data_.tau.head(6), k_since_contact_);
 
   // Add to reference quantities the deltas found by the QP solver
   f_with_delta_ = f_cmd + f_compensation + box_qp_->get_f_res();
@@ -790,7 +787,8 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   std::cout << "Jf" << std::endl;
   std::cout << invkin_->get_Jf().block(0, 6, 12, 12).transpose() << std::endl;*/
 
-  // std::cout << " -- " << std::endl << invkin_->get_Jf().block(0, 6, 12, 12) << std::endl << " -- " << std::endl << Jc_u_ << std::endl;
+  // std::cout << " -- " << std::endl << invkin_->get_Jf().block(0, 6, 12, 12) << std::endl << " -- " << std::endl <<
+  // Jc_u_ << std::endl;
 
   tau_ff_ = data_.tau.tail(12) - Jc_u_.transpose() * f_with_delta_;
   // tau_ff_ = - Jc_u_.transpose() * (f_cmd + f_compensation);

@@ -45,11 +45,11 @@ Params::Params()
 
       Kp_flyingfeet(0.0),
       Kd_flyingfeet(0.0),
-      Kp_base_position(3, 0.0),   // Fill with zeros, will be filled with values later
-      Kd_base_position(3, 0.0),   // Fill with zeros, will be filled with values later
-      Kp_base_orientation(3, 0.0),   // Fill with zeros, will be filled with values later
-      Kd_base_orientation(3, 0.0),   // Fill with zeros, will be filled with values later
-      w_tasks(8, 0.0),   // Fill with zeros, will be filled with values later
+      Kp_base_position(3, 0.0),     // Fill with zeros, will be filled with values later
+      Kd_base_position(3, 0.0),     // Fill with zeros, will be filled with values later
+      Kp_base_orientation(3, 0.0),  // Fill with zeros, will be filled with values later
+      Kd_base_orientation(3, 0.0),  // Fill with zeros, will be filled with values later
+      w_tasks(8, 0.0),              // Fill with zeros, will be filled with values later
 
       Q1(0.0),
       Q2(0.0),
@@ -195,7 +195,7 @@ void Params::initialize(const std::string& file_path) {
 
   assert_yaml_parsing(robot_node, "robot", "Kd_base_orientation");
   Kd_base_orientation = robot_node["Kd_base_orientation"].as<std::vector<double> >();
-  
+
   assert_yaml_parsing(robot_node, "robot", "w_tasks");
   w_tasks = robot_node["w_tasks"].as<std::vector<double> >();
 
@@ -213,7 +213,6 @@ void Params::initialize(const std::string& file_path) {
 }
 
 void Params::convert_gait_vec() {
-
   if (gait_vec.size() % 5 != 0) {
     throw std::runtime_error(
         "gait matrix in yaml is not in the correct format. It should have five "
@@ -238,8 +237,7 @@ void Params::convert_gait_vec() {
   int k = 0;
   for (uint i = 0; i < gait_vec.size() / 5; i++) {
     for (int j = 0; j < gait_vec[5 * i]; j++) {
-      gait.row(k) << gait_vec[5 * i + 1], gait_vec[5 * i + 2],
-                     gait_vec[5 * i + 3], gait_vec[5 * i + 4];
+      gait.row(k) << gait_vec[5 * i + 1], gait_vec[5 * i + 2], gait_vec[5 * i + 3], gait_vec[5 * i + 4];
       k++;
     }
   }
@@ -248,5 +246,4 @@ void Params::convert_gait_vec() {
   for (int i = 1; i < N_periods; i++) {
     gait.block(i * N_gait, 0, N_gait, 4) = gait.block(0, 0, N_gait, 4);
   }
-
 }
