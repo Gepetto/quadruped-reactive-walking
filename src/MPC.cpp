@@ -444,13 +444,8 @@ int MPC::update_ML(Eigen::MatrixXd fsteps) {
 int MPC::update_NK() {
   // Matrix g is already created and not changed
 
-  //std::cout << "NLE MPC: " << std::endl << nle.transpose() << std::endl;
-
   // Reset NK
   NK_up = Eigen::Matrix<double, Eigen::Dynamic, 1>::Zero(12 * n_steps * 2 + 20 * n_steps, 1);
-
-  //std::cout << "g: " << std::endl << -g.tail(6).transpose() << std::endl;
-  //std::cout << "gbis: " << std::endl << dt * nle.tail(6).transpose() / mass << std::endl;
 
   // Fill N matrix with g matrices
   for (int k = 0; k < n_steps; k++) {
@@ -619,10 +614,8 @@ Matrix3 MPC::getSkew(Vector3 v) {
 }
 
 int MPC::construct_S() {
-
   inv_gait = Eigen::Matrix<int, Eigen::Dynamic, 4>::Ones(gait.rows(), 4) - gait;
-  for (int i = 0; i < gait.rows(); i++)
-  {
+  for (int i = 0; i < gait.rows(); i++) {
     // S_gait.block(k*12, 0, gait[i, 0]*12, 1) = (1 - (gait.block(i, 1, 1, 4)).transpose()).replicate<gait[i, 0], 1>()
     // not finished;
     for (int b = 0; b < 4; b++) {

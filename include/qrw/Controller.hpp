@@ -92,7 +92,7 @@ class Controller {
   /// \brief Update the status of the joystick (buttons, pads)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void update_gamepad() { joystick.update_v_ref_gamepad(0, false, Vector6::Zero()); }
+  void update_gamepad() { joystick.update_v_ref_gamepad(0, false); }
 
   // Commands to be sent to the robot
   Vector12 P;       // Proportional gains
