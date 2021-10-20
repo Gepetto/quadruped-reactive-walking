@@ -213,7 +213,7 @@ class Controller:
         t_start = time.time()
 
         # Update the reference velocity coming from the gamepad
-        self.joystick.update_v_ref(self.k, self.velID, self.gait.getIsStatic(), self.h_v_windowed[0:6, 0:1])
+        self.joystick.update_v_ref(self.k, self.velID, self.gait.getIsStatic())
 
         # Process state estimator
         self.estimator.run_filter(self.gait.getCurrentGait(),

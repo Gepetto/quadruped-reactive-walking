@@ -127,19 +127,19 @@ class LoggerControl():
                 return
 
         # Logging from joystick
-        self.joy_v_ref[self.i] = joystick.v_ref[:, 0]
+        self.joy_v_ref[self.i] = joystick.getVRef()
 
         # Logging from estimator
         self.esti_feet_status[self.i] = estimator.getFeetStatus()
         self.esti_feet_goals[self.i] = estimator.getFeetGoals()
         self.esti_q_filt[self.i] = estimator.getQFilt()
-        self.esti_q_up[self.i] = self.estimator.getQUpdated()
+        self.esti_q_up[self.i] = estimator.getQUpdated()
         self.esti_v_filt[self.i] = estimator.getVFilt()
-        self.esti_v_filt_bis[self.i] = estimator.getVFiltBis()
-        self.esti_v_up[self.i] = self.estimator.getVUpdated()
-        self.esti_v_ref[self.i] = self.estimator.getVRef()
+        self.esti_v_filt_bis[self.i, :6] = estimator.getVFiltBis()
+        self.esti_v_up[self.i] = estimator.getVUpdated()
+        self.esti_v_ref[self.i] = estimator.getVRef()
         self.esti_v_secu[self.i] = estimator.getVSecu()
-        self.esti_a_ref[self.i] = self.estimator.getARef()
+        self.esti_a_ref[self.i] = estimator.getARef()
 
         self.esti_FK_lin_vel[self.i] = estimator.getFKLinVel()
         self.esti_FK_xyz[self.i] = estimator.getFKXYZ()
@@ -203,9 +203,9 @@ class LoggerControl():
         self.wbc_feet_vel[self.i] = wbc.feet_vel
         self.wbc_feet_vel_target[self.i] = wbc.feet_vel_target
         self.wbc_feet_acc_target[self.i] = wbc.feet_acc_target
-        self.wbc_tasks_acc[self.i] = wbc.getTasksAcc()
-        self.wbc_tasks_vel[self.i] = wbc.getTasksVel()
-        self.wbc_tasks_err[self.i] = wbc.getTasksErr()
+        self.wbc_tasks_acc[self.i] = wbc.get_tasks_acc()
+        self.wbc_tasks_vel[self.i] = wbc.get_tasks_vel()
+        self.wbc_tasks_err[self.i] = wbc.get_tasks_err()
 
         # Logging timestamp
         self.tstamps[self.i] = time()

@@ -47,12 +47,12 @@ VectorN Joystick::handle_v_switch_py(double k, VectorN const& k_switch_py, Matri
 
 void Joystick::handle_v_switch(int k) {
   int i = 1;
-  while ((i < k_switch.rows()) && k_switch[i] <= k) {
+  while ((i < k_switch.cols()) && k_switch(0, i) <= k) {
     i++;
   }
-  if (i != k_switch.rows()) {
-    double ev = k - k_switch[i - 1];
-    double t1 = k_switch[i] - k_switch[i - 1];
+  if (i != k_switch.cols()) {
+    double ev = k - k_switch(0, i - 1);
+    double t1 = k_switch(0, i) - k_switch(0, i - 1);
     A3_ = 2 * (v_switch.col(i - 1) - v_switch.col(i)) / pow(t1, 3);
     A2_ = (-3.0 / 2.0) * t1 * A3_;
     v_ref_ = v_switch.col(i - 1) + A2_ * pow(ev, 2) + A3_ * pow(ev, 3);
@@ -261,7 +261,7 @@ void Joystick::update_v_ref_predefined(int k, int velID) {
         t_switch = MatrixN::Zero(1, 7);
         t_switch << 0, 2, 4, 6, 8, 10, 15;
         v_switch = MatrixN::Zero(6, 7);
-        v_switch.row(0) << 0, 2, 4, 6, 8, 10, 15;
+        v_switch.row(0) << 0.0, 0.4, 0.8, 1.0, 1.0, 1.0, 1.0;
         break;
       default:
         throw std::runtime_error("Unknown velocity ID for the polynomial interpolation.");
