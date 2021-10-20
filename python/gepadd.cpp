@@ -90,7 +90,7 @@ struct StatePlannerPythonVisitor : public bp::def_visitor<StatePlannerPythonVisi
                  "Initialize StatePlanner from Python.\n")
 
             // Run StatePlanner from Python
-            .def("computeReferenceStates", &StatePlanner::computeReferenceStates, bp::args("q", "v", "b_vref", "z_average"),
+            .def("computeReferenceStates", &StatePlanner::computeReferenceStates, bp::args("q", "v", "b_vref"),
                  "Run StatePlanner from Python.\n");
     }
 

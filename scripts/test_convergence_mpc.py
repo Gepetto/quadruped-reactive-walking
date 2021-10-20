@@ -72,7 +72,7 @@ def test_1():
 
 
     # Run state planner (outputs the reference trajectory of the base)
-    statePlanner.computeReferenceStates(q[0:6, 0:1].copy(), h_v[0:6, 0:1].copy(), v_ref[0:6, 0:1].copy(), 0.0)
+    statePlanner.computeReferenceStates(q[0:6, 0:1].copy(), h_v[0:6, 0:1].copy(), v_ref[0:6, 0:1].copy())
     xref = statePlanner.getReferenceStates()
 
     # Create fsteps matrix
@@ -257,9 +257,9 @@ def test_2():
     footstepPlanner_2.updateFootsteps(False, 20, q[:, 0:1], h_v_2[0:6, 0:1].copy(), v_ref_2[0:6, 0])
 
     # Run state planner (outputs the reference trajectory of the base)
-    statePlanner_1.computeReferenceStates(q[0:7, 0:1].copy(), h_v_1[0:6, 0:1].copy(), v_ref_1[0:6, 0:1].copy(), 0.0)
+    statePlanner_1.computeReferenceStates(q[0:7, 0:1].copy(), h_v_1[0:6, 0:1].copy(), v_ref_1[0:6, 0:1].copy())
     xref_1 = statePlanner_1.getReferenceStates()
-    statePlanner_2.computeReferenceStates(q[0:7, 0:1].copy(), h_v_2[0:6, 0:1].copy(), v_ref_2[0:6, 0:1].copy(), 0.0)
+    statePlanner_2.computeReferenceStates(q[0:7, 0:1].copy(), h_v_2[0:6, 0:1].copy(), v_ref_2[0:6, 0:1].copy())
     xref_2 = statePlanner_2.getReferenceStates()
 
     fsteps_1 = footstepPlanner_1.getFootsteps()
@@ -458,9 +458,9 @@ def test_3(typeMPC=True):
     mpc_wrapper_2 = MPC_Wrapper.MPC_Wrapper(params, q)
 
     # Run state planner (outputs the reference trajectory of the base)
-    statePlanner_1.computeReferenceStates(q[0:7, 0:1].copy(), h_v_1[0:6, 0:1].copy(), v_ref_1[0:6, 0:1].copy(), 0.0)
+    statePlanner_1.computeReferenceStates(q[0:7, 0:1].copy(), h_v_1[0:6, 0:1].copy(), v_ref_1[0:6, 0:1].copy())
     xref_1 = statePlanner_1.getReferenceStates()
-    statePlanner_2.computeReferenceStates(q[0:7, 0:1].copy(), h_v_2[0:6, 0:1].copy(), v_ref_2[0:6, 0:1].copy(), 0.0)
+    statePlanner_2.computeReferenceStates(q[0:7, 0:1].copy(), h_v_2[0:6, 0:1].copy(), v_ref_2[0:6, 0:1].copy())
     xref_2 = statePlanner_2.getReferenceStates()
 
     # Create gait matrix

@@ -80,7 +80,7 @@ void Controller::compute(FakeRobot* robot) {
       estimator.getHVWindowed().head(6), estimator.getVRef().head(6));
 
   // Run state planner (outputs the reference trajectory of the base)
-  statePlanner.computeReferenceStates(q_filt_mpc.head(6), h_v_filt_mpc, vref_filt_mpc, 0.0);
+  statePlanner.computeReferenceStates(q_filt_mpc.head(6), h_v_filt_mpc, vref_filt_mpc);
 
   // Solve MPC problem once every k_mpc iterations of the main loop
   if (k % k_mpc == 0) {

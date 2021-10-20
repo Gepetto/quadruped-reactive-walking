@@ -50,10 +50,9 @@ class StatePlanner {
   /// \param[in] q current position vector of the flying base in horizontal frame (linear and angular stacked)
   /// \param[in] v current velocity vector of the flying base in horizontal frame (linear and angular stacked)
   /// \param[in] vref desired velocity vector of the flying base in horizontal frame (linear and angular stacked)
-  /// \param[in] z_average average height of feet currently in stance phase
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void computeReferenceStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, double z_average);
+  void computeReferenceStates(VectorN const& q, Vector6 const& v, Vector6 const& vref);
 
   MatrixN getReferenceStates() { return referenceStates_; }
   int getNSteps() { return n_steps_; }

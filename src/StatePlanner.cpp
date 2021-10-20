@@ -12,7 +12,7 @@ void StatePlanner::initialize(Params& params) {
   dt_vector_ = VectorN::LinSpaced(n_steps_, dt_, static_cast<double>(n_steps_) * dt_);
 }
 
-void StatePlanner::computeReferenceStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, double z_average) {
+void StatePlanner::computeReferenceStates(VectorN const& q, Vector6 const& v, Vector6 const& vref) {
   if (q.rows() != 6) {
     throw std::runtime_error("q should be a vector of size 6");
   }
@@ -42,7 +42,7 @@ void StatePlanner::computeReferenceStates(VectorN const& q, Vector6 const& v, Ve
     referenceStates_(0, 1 + i) += referenceStates_(0, 0);
     referenceStates_(1, 1 + i) += referenceStates_(1, 0);
 
-    referenceStates_(2, 1 + i) = h_ref_ + z_average;
+    referenceStates_(2, 1 + i) = h_ref_;
 
     referenceStates_(5, 1 + i) = vref(5) * dt_vector_(i);
 

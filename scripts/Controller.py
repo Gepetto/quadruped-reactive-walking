@@ -283,7 +283,7 @@ class Controller:
 
         # Run state planner (outputs the reference trajectory of the base)
         self.statePlanner.computeReferenceStates(self.q_filt_mpc[0:6, 0:1], self.h_v_filt_mpc[0:6, 0:1].copy(),
-                                                 self.vref_filt_mpc[0:6, 0:1], 0.0)
+                                                 self.vref_filt_mpc[0:6, 0:1])
 
         # Result can be retrieved with self.statePlanner.getReferenceStates()
         xref = self.statePlanner.getReferenceStates()
