@@ -55,7 +55,7 @@ class FootTrajectoryGenerator {
   /// \brief Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
   ///        to the desired position on the ground (computed by the footstep planner)
   ///
-  /// \param[in] k Number of time steps since the start of the simulation
+  /// \param[in] k Numero of the current loop
   /// \param[in] targetFootstep Desired target locations at the end of the swing phases
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
