@@ -423,7 +423,7 @@ struct JoystickPythonVisitor : public bp::def_visitor<JoystickPythonVisitor<Joys
             .def("getSquare", &Joystick::getSquare, "Get Joystick Square status")
             .def("getL1", &Joystick::getL1, "Get Joystick L1 status")
             .def("getR1", &Joystick::getR1, "Get Joystick R1 status")
-            .def("handle_v_switch", &Joystick::handle_v_switch, bp::args("k", "k_switch", "v_switch"), "Run security check.\n");
+            .def("handle_v_switch", &Joystick::handle_v_switch_py, bp::args("k", "k_switch", "v_switch"), "Run security check.\n");
     }
 
     static void expose()

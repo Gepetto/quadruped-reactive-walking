@@ -3,10 +3,10 @@
 Joystick::Joystick()
     : A3_(Vector6::Zero()),
       A2_(Vector6::Zero()),
-      v_ref_(Vector6::Zero()),
-      v_gp_(Vector6::Zero()),
       p_ref_(Vector6::Zero()),
       p_gp_(Vector6::Zero()),
+      v_ref_(Vector6::Zero()),
+      v_gp_(Vector6::Zero()),
       v_ref_heavy_filter_(Vector6::Zero()) {}
 
 void Joystick::initialize(Params& params) {
@@ -30,7 +30,22 @@ void Joystick::initialize(Params& params) {
   }
 }
 
-VectorN Joystick::handle_v_switch(double k, VectorN const& k_switch, MatrixN const& v_switch) {
+VectorN Joystick::handle_v_switch_py(double k, VectorN const& k_switch_py, MatrixN const& v_switch_py) {
+  int i = 1;
+  while ((i < k_switch_py.rows()) && k_switch_py[i] <= k) {
+    i++;
+  }
+  if (i != k_switch_py.rows()) {
+    double ev = k - k_switch_py[i - 1];
+    double t1 = k_switch_py[i] - k_switch_py[i - 1];
+    A3_ = 2 * (v_switch_py.col(i - 1) - v_switch_py.col(i)) / pow(t1, 3);
+    A2_ = (-3.0 / 2.0) * t1 * A3_;
+    v_ref_ = v_switch_py.col(i - 1) + A2_ * pow(ev, 2) + A3_ * pow(ev, 3);
+  }
+  return v_ref_;
+}
+
+void Joystick::handle_v_switch(int k) {
   int i = 1;
   while ((i < k_switch.rows()) && k_switch[i] <= k) {
     i++;
@@ -42,17 +57,14 @@ VectorN Joystick::handle_v_switch(double k, VectorN const& k_switch, MatrixN con
     A2_ = (-3.0 / 2.0) * t1 * A3_;
     v_ref_ = v_switch.col(i - 1) + A2_ * pow(ev, 2) + A3_ * pow(ev, 3);
   }
-  return v_ref_;
 }
 
 void Joystick::update_v_ref(int k, int velID, bool gait_is_static) {
-  /* ONLY GAMEPAD CONTROL FOR NOW
-  if (predefined):
+  if (predefined) {
     update_v_ref_predefined(k, velID);
-  else:
-  */
-
-  update_v_ref_gamepad(k, gait_is_static);
+  } else {
+    update_v_ref_gamepad(k, gait_is_static);
+  }
 }
 
 int Joystick::read_event(int fd, struct js_event* event) {
@@ -144,6 +156,7 @@ void Joystick::update_v_ref_gamepad(int k, bool gait_is_static) {
     gamepad.w_yaw = 0.0;
   }*/
 
+  // Remember when L1 was pressed for the last time
   if (gamepad.L1 == 1) {
     lock_time_L1_ = std::chrono::system_clock::now();
   }
@@ -237,4 +250,23 @@ void Joystick::update_v_ref_gamepad(int k, bool gait_is_static) {
 
   // Low pass filter to slow down the changes of position when moving the joysticks
   p_ref_ = gp_alpha_pos * p_gp_ + (1 - gp_alpha_pos) * p_ref_;
+}
+
+void Joystick::update_v_ref_predefined(int k, int velID) {
+  // Initialization of velocity profile during first call
+  if (k == 0) {
+    MatrixN t_switch;
+    switch (velID) {
+      case 10:
+        t_switch = MatrixN::Zero(1, 7);
+        t_switch << 0, 2, 4, 6, 8, 10, 15;
+        v_switch = MatrixN::Zero(6, 7);
+        v_switch.row(0) << 0, 2, 4, 6, 8, 10, 15;
+        break;
+      default:
+        throw std::runtime_error("Unknown velocity ID for the polynomial interpolation.");
+    }
+    k_switch = (t_switch / dt_wbc).cast<int>();
+  }
+  handle_v_switch(k);  // Polynomial interpolation to generate the velocity profile
 }

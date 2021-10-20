@@ -96,8 +96,7 @@ void parallel_loop() {
 }
 
 MpcWrapper::MpcWrapper()
-    : test(0),
-      last_available_result(Eigen::Matrix<double, 24, 2>::Zero()),
+    : last_available_result(Eigen::Matrix<double, 24, 2>::Zero()),
       gait_past(Matrix14::Zero()),
       gait_next(Matrix14::Zero()) {}
 

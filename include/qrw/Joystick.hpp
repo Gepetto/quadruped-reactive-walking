@@ -76,7 +76,17 @@ class Joystick {
   /// \param[in] v_switch Information about the desired velocity for each key frame
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  VectorN handle_v_switch(double k, VectorN const& k_switch, MatrixN const& v_switch);
+  VectorN handle_v_switch_py(double k, VectorN const& k_switch_py, MatrixN const& v_switch_py);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Compute the remaining and total duration of a swing phase or a stance phase based
+  ///        on the content of the gait matrix
+  ///
+  /// \param[in] k Numero of the current loop
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void handle_v_switch(int k);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -110,6 +120,16 @@ class Joystick {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void update_v_ref_gamepad(int k, bool gait_is_static);
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Update the status of the joystick using polynomial interpolation
+  ///
+  /// \param[in] k Numero of the current loop
+  /// \param[in] velID Identifier of the current velocity profile to be able to handle different scenarios
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void update_v_ref_predefined(int k, int velID);
+
   Vector6 getPRef() { return p_ref_; }
   Vector6 getVRef() { return v_ref_; }
   int getJoystickCode() { return joystick_code_; }
@@ -141,6 +161,9 @@ class Joystick {
   double dt_mpc = 0.0;  // Time step of the MPC
   double dt_wbc = 0.0;  // Time step of the WBC
   int k_mpc = 0;        // Number of WBC time step for one MPC time step
+
+  Eigen::Matrix<int, 1, Eigen::Dynamic> k_switch;  // Key frames for the polynomial velocity interpolation
+  Eigen::Matrix<double, 6, Eigen::Dynamic> v_switch;  // Target velocity for the key frames
 
   // How much the gamepad velocity and position is filtered to avoid sharp changes
   double gp_alpha_vel = 0.0;                 // Low pass filter coefficient for v_ref_ (if gamepad-controlled)
