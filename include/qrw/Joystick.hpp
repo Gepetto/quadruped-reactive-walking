@@ -176,10 +176,10 @@ class Joystick {
   double vYawScale = 1.0;  // Rotation
 
   // Maximum position values
-  double pRollScale = -0.32;   // Lateral
-  double pPitchScale = -0.32;  // Forward
-  double pHeightScale = 0.0;   // Raise/Lower the base
-  double pYawScale = -0.35;    // Rotation Yaw
+  double pRollScale = -0.32;  // Lateral
+  double pPitchScale = 0.32;  // Forward
+  double pHeightScale = 0.0;  // Raise/Lower the base
+  double pYawScale = -0.35;   // Rotation Yaw
 
   // Variable to handle the automatic static/trot switching
   bool switch_static = false;   // Flag to switch to a static gait

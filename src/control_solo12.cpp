@@ -45,6 +45,7 @@ int put_on_the_floor(FakeRobot* robot, Vector12 const& q_init, Params& params, C
   }
 
   // Slow increase till 1/4th of mass is supported by each foot
+  /*
   double duration_increase = 2.0;  // in seconds
   double steps = std::round(duration_increase / params.dt_wbc);
   Vector12 tau_ff;
@@ -54,6 +55,7 @@ int put_on_the_floor(FakeRobot* robot, Vector12 const& q_init, Params& params, C
     robot->ParseSensorData();
     robot->SendCommandAndWaitEndOfCycle(params.dt_wbc);
   }
+  */
 
   return 0;
 }

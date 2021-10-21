@@ -20,7 +20,8 @@ Controller::Controller()
       dq_wbc(Vector18::Zero()),
       xgoals(Vector12::Zero()),
       hRb(Matrix3::Identity()),
-      p_ref_(Vector6::Zero()) {}
+      p_ref_(Vector6::Zero()),
+      f_mpc(Vector12::Zero()) {}
 
 void Controller::initialize(Params& params) {
   // Params store parameters
@@ -112,6 +113,16 @@ void Controller::compute(FakeRobot* robot) {
       h_ref_ = params_->h_ref;
     }
 
+    // If the four feet are in contact then we do not listen to MPC (default contact forces instead)
+    if (gait.getIsStatic()) {
+      double F = 9.81 * 2.5 / 4.0;
+      for (int i = 0; i < 4; i++) {
+        f_mpc.block(3 * i, 0, 3, 1) << 0.0, 0.0, F;
+      }
+    } else {
+      f_mpc = mpcWrapper.get_latest_result().block(12, 0, 12, 1);
+    }
+
     // Update configuration vector for wbc
     q_wbc(3, 0) = q_filt_mpc(3, 0);          // Roll
     q_wbc(4, 0) = q_filt_mpc(4, 0);          // Pitch
@@ -125,7 +136,7 @@ void Controller::compute(FakeRobot* robot) {
     xgoals.tail(6) = vref_filt_mpc;  // Velocities (in horizontal frame!)
 
     // Run InvKin + WBC QP
-    wbcWrapper.compute(q_wbc, dq_wbc, mpcWrapper.get_latest_result().block(12, 0, 12, 1), gait.getCurrentGait().row(0),
+    wbcWrapper.compute(q_wbc, dq_wbc, f_mpc, gait.getCurrentGait().row(0),
                        footTrajectoryGenerator.getFootPositionBaseFrame(
                            hRb * estimator.getoRh().transpose(), estimator.getoTh() + Vector3(0.0, 0.0, h_ref_)),
                        footTrajectoryGenerator.getFootVelocityBaseFrame(hRb * estimator.getoRh().transpose(),

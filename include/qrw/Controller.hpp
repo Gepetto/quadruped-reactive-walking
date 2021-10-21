@@ -138,6 +138,7 @@ class Controller {
   Vector12 xgoals;            // Base position, orientation and velocity references for whole body control
   Matrix3 hRb;                // Rotation matrix between horizontal and base frame
   Vector6 p_ref_;             // Position, orientation reference vector from the joystick
+  Vector12 f_mpc;             // Contact forces desired by the MPC
 };
 
 #endif  // CONTROLLER_H_INCLUDED

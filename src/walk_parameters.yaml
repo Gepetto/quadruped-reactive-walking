@@ -33,7 +33,7 @@ robot:
 
     # Parameters of Joystick
     gp_alpha_vel: 0.003  # Coefficient of the low pass filter applied to gamepad velocity
-    gp_alpha_pos: 0.004  # Coefficient of the low pass filter applied to gamepad position
+    gp_alpha_pos: 0.002  # Coefficient of the low pass filter applied to gamepad position
 
     # Parameters of Estimator
     fc_v_esti: 50.0  # Cut frequency for the low pass that filters the estimated base velocity
