@@ -168,7 +168,7 @@ class Joystick {
   // How much the gamepad velocity and position is filtered to avoid sharp changes
   double gp_alpha_vel = 0.0;                 // Low pass filter coefficient for v_ref_ (if gamepad-controlled)
   double gp_alpha_pos = 0.0;                 // Low pass filter coefficient for p_ref_
-  double gp_alpha_vel_heavy_filter = 0.001;  // Low pass filter coefficient for v_ref_heavy_filter_
+  double gp_alpha_vel_heavy_filter = 0.002;  // Low pass filter coefficient for v_ref_heavy_filter_
 
   // Maximum velocity values
   double vXScale = 0.3;    // Lateral
