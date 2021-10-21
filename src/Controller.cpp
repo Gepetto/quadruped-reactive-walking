@@ -95,7 +95,7 @@ void Controller::compute(FakeRobot* robot) {
   // If nothing wrong happened yet in the WBC controller
   if (!error && !joystick.getStop()) {
     // In static mode, do not rotate footsteps by roll and pitch
-    if (gait.getIsStatic()) {
+    if (params_->DEMONSTRATION && gait.getIsStatic()) {
       hRb.setIdentity();
     } else {
       hRb = estimator.gethRb();
@@ -103,7 +103,7 @@ void Controller::compute(FakeRobot* robot) {
 
     // In static mode with L1 pressed, perform orientation control of the base with joystick
     xgoals.head(6).setZero();
-    if (joystick.getL1() && gait.getIsStatic()) {
+    if (params_->DEMONSTRATION && joystick.getL1() && gait.getIsStatic()) {
       p_ref_ = joystick.getPRef();
       h_ref_ = p_ref_(2, 0);
       xgoals(3, 0) = p_ref_(3, 0);
@@ -114,7 +114,7 @@ void Controller::compute(FakeRobot* robot) {
     }
 
     // If the four feet are in contact then we do not listen to MPC (default contact forces instead)
-    if (gait.getIsStatic()) {
+    if (params_->DEMONSTRATION && gait.getIsStatic()) {
       double F = 9.81 * 2.5 / 4.0;
       for (int i = 0; i < 4; i++) {
         f_mpc.block(3 * i, 0, 3, 1) << 0.0, 0.0, F;

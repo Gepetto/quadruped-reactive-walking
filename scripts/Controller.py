@@ -143,6 +143,7 @@ class Controller:
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q)
         self.o_targetFootstep = np.zeros((3, 4))  # Store result for MPC_planner
 
+        self.DEMONSTRATION = params.DEMONSTRATION
         self.envID = params.envID
         self.velID = params.velID
         self.dt_wbc = params.dt_wbc
@@ -351,12 +352,12 @@ class Controller:
         # If nothing wrong happened yet in the WBC controller
         if (not self.error) and (not self.joystick.getStop()):
 
-            if self.gait.getIsStatic():
+            if self.DEMONSTRATION and self.gait.getIsStatic():
                 hRb = np.eye(3)
 
             # Desired position, orientation and velocities of the base
             self.xgoals[:6, 0] = np.zeros((6,))
-            if self.joystick.getL1() and self.gait.getIsStatic():
+            if self.DEMONSTRATION and self.joystick.getL1() and self.gait.getIsStatic():
                 self.p_ref[:, 0] = self.joystick.getPRef()
                 # self.p_ref[3, 0] = np.clip((self.k - 2000) / 2000, 0.0, 1.0)
                 self.xgoals[[3, 4], 0] = self.p_ref[[3, 4], 0]
@@ -366,6 +367,10 @@ class Controller:
                 # print(self.p_ref[2])
             else:
                 self.h_ref = self.h_ref_mem
+
+            # If the four feet are in contact then we do not listen to MPC (default contact forces instead)
+            if self.DEMONSTRATION and self.gait.getIsStatic():
+                self.x_f_mpc[12:24, 0] = [0.0, 0.0, 9.81 * 2.5 / 4.0] * 4
 
             # Update configuration vector for wbc
             self.q_wbc[3, 0] = self.q_filt_mpc[3, 0]  # Roll

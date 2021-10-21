@@ -5,6 +5,7 @@ using namespace yaml_control_interface;
 Params::Params()
     : config_file(""),
       interface(""),
+      DEMONSTRATION(false),
       SIMULATION(false),
       LOGGING(false),
       PLOTTING(false),
@@ -83,6 +84,9 @@ void Params::initialize(const std::string& file_path) {
 
   assert_yaml_parsing(robot_node, "robot", "interface");
   interface = robot_node["interface"].as<std::string>();
+
+  assert_yaml_parsing(robot_node, "robot", "DEMONSTRATION");
+  DEMONSTRATION = robot_node["DEMONSTRATION"].as<bool>();
 
   assert_yaml_parsing(robot_node, "robot", "SIMULATION");
   SIMULATION = robot_node["SIMULATION"].as<bool>();

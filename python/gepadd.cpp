@@ -456,6 +456,7 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             // Read Params from Python
             .def_readwrite("config_file", &Params::config_file)
             .def_readwrite("interface", &Params::interface)
+            .def_readwrite("DEMONSTRATION", &Params::DEMONSTRATION)
             .def_readwrite("SIMULATION", &Params::SIMULATION)
             .def_readwrite("LOGGING", &Params::LOGGING)
             .def_readwrite("PLOTTING", &Params::PLOTTING)

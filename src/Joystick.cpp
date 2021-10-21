@@ -199,49 +199,51 @@ void Joystick::update_v_ref_gamepad(int k, bool gait_is_static) {
   else if (gamepad.square == 1) {joystick_code_ = 4;}
   */
 
-  if (!getL1() && (k % k_mpc == 0) && (k > static_cast<int>(std::round(1.0 / params_->dt_wbc)))) {
-    // Check joysticks value to trigger the switch between static and trot
-    double v_low = 0.04;
-    double v_up = 0.08;
-    // If under lower threshold, trigger switch to static gait, if above upper threshold, switch back to trot gait
-    if (!switch_static && std::abs(v_gp_(0, 0)) < v_low && std::abs(v_gp_(1, 0)) < v_low &&
-        std::abs(v_gp_(5, 0)) < v_low && std::abs(v_ref_heavy_filter_(0, 0)) < v_low &&
-        std::abs(v_ref_heavy_filter_(1, 0)) < v_low && std::abs(v_ref_heavy_filter_(5, 0)) < v_low) {
-      switch_static = true;
-      lock_gp = true;
-      lock_time_static_ = std::chrono::system_clock::now();
-    } else if (switch_static &&
-               (std::abs(v_gp_(0, 0)) > v_up || std::abs(v_gp_(1, 0)) > v_up || std::abs(v_gp_(5, 0)) > v_up)) {
-      switch_static = false;
-      lock_gp = true;
-      lock_time_static_ = std::chrono::system_clock::now();
+  if (params_->DEMONSTRATION) {
+    if (!getL1() && (k % k_mpc == 0) && (k > static_cast<int>(std::round(1.0 / params_->dt_wbc)))) {
+      // Check joysticks value to trigger the switch between static and trot
+      double v_low = 0.04;
+      double v_up = 0.08;
+      // If under lower threshold, trigger switch to static gait, if above upper threshold, switch back to trot gait
+      if (!switch_static && std::abs(v_gp_(0, 0)) < v_low && std::abs(v_gp_(1, 0)) < v_low &&
+          std::abs(v_gp_(5, 0)) < v_low && std::abs(v_ref_heavy_filter_(0, 0)) < v_low &&
+          std::abs(v_ref_heavy_filter_(1, 0)) < v_low && std::abs(v_ref_heavy_filter_(5, 0)) < v_low) {
+        switch_static = true;
+        lock_gp = true;
+        lock_time_static_ = std::chrono::system_clock::now();
+      } else if (switch_static &&
+                (std::abs(v_gp_(0, 0)) > v_up || std::abs(v_gp_(1, 0)) > v_up || std::abs(v_gp_(5, 0)) > v_up)) {
+        switch_static = false;
+        lock_gp = true;
+        lock_time_static_ = std::chrono::system_clock::now();
+      }
+
+      // Set joystick code for gait switch till it is properly taken into account by the Gait handler
+      if (gait_is_static && !switch_static) {
+        joystick_code_ = 3;
+      } else if (!gait_is_static && switch_static) {
+        joystick_code_ = 1;
+      }
     }
 
-    // Set joystick code for gait switch till it is properly taken into account by the Gait handler
-    if (gait_is_static && !switch_static) {
-      joystick_code_ = 3;
-    } else if (!gait_is_static && switch_static) {
-      joystick_code_ = 1;
+    // Lock gamepad value during switching or after L1 is pressed
+    if ((lock_gp && ((std::chrono::duration<double>)(std::chrono::system_clock::now() - lock_time_static_)).count() <
+                        lock_duration_) ||
+        (((std::chrono::duration<double>)(std::chrono::system_clock::now() - lock_time_L1_)).count() < lock_duration_)) {
+      gp_alpha_vel = 0.0;
+      gp_alpha_pos = params_->gp_alpha_pos;
+    } else if (lock_gp) {
+      lock_gp = false;
+      gp_alpha_vel = params_->gp_alpha_vel;
+      p_ref_.setZero();
+      p_ref_(2, 0) = params_->h_ref;
+      gp_alpha_pos = 0.0;
     }
-  }
-
-  // Lock gamepad value during switching or after L1 is pressed
-  if ((lock_gp && ((std::chrono::duration<double>)(std::chrono::system_clock::now() - lock_time_static_)).count() <
-                      lock_duration_) ||
-      (((std::chrono::duration<double>)(std::chrono::system_clock::now() - lock_time_L1_)).count() < lock_duration_)) {
-    gp_alpha_vel = 0.0;
-    gp_alpha_pos = params_->gp_alpha_pos;
-  } else if (lock_gp) {
-    lock_gp = false;
-    gp_alpha_vel = params_->gp_alpha_vel;
-    p_ref_.setZero();
-    p_ref_(2, 0) = params_->h_ref;
-    gp_alpha_pos = 0.0;
   }
 
   // Low pass filter to slow down the changes of velocity when moving the joysticks
   v_ref_ = gp_alpha_vel * v_gp_ + (1 - gp_alpha_vel) * v_ref_;
-  if (getL1() && gait_is_static) {
+  if (params_->DEMONSTRATION && getL1() && gait_is_static) {
     v_ref_.setZero();
   }
 

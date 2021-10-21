@@ -2,6 +2,7 @@ robot:
     # General parameters
     config_file: config_solo12.yaml  #  Name of the yaml file containing hardware information
     interface: eth0  # Name of the communication interface (check with ifconfig)
+    DEMONSTRATION: false  # Enable/disable demonstration functionalities
     SIMULATION: true  # Enable/disable PyBullet simulation or running on real robot
     LOGGING: false  # Enable/disable logging during the experiment
     PLOTTING: false  # Enable/disable automatic plotting at the end of the experiment
@@ -33,7 +34,7 @@ robot:
 
     # Parameters of Joystick
     gp_alpha_vel: 0.003  # Coefficient of the low pass filter applied to gamepad velocity
-    gp_alpha_pos: 0.006  # Coefficient of the low pass filter applied to gamepad position
+    gp_alpha_pos: 0.005  # Coefficient of the low pass filter applied to gamepad position
 
     # Parameters of Estimator
     fc_v_esti: 50.0  # Cut frequency for the low pass that filters the estimated base velocity
