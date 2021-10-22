@@ -77,10 +77,10 @@ void InvKin::initialize(Params& params) {
 
 void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals, Matrix43 const& vgoals,
                                Matrix43 const& agoals) {
-  /*std::cout << std::fixed;
-  std::cout << std::setprecision(2);
+  std::cout << std::fixed;
+  std::cout << std::setprecision(5);
 
-  std::cout << "pgoals:" << std::endl;
+  /*std::cout << "pgoals:" << std::endl;
   std::cout << pgoals << std::endl;
   std::cout << "posf_" << std::endl;
   std::cout << posf_ << std::endl;*/

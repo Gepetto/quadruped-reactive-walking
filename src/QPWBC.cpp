@@ -736,6 +736,16 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // std::cout << "agoals " << std::endl << agoals << std::endl;
   // std::cout << "ddq_cmd_bis " << std::endl << ddq_cmd_.transpose() << std::endl;
 
+  // std::cout << "M : " << std::endl << data_.M.block(0, 0, 3, 18) << std::endl;
+  // std::cout << "ddq: " << std::endl << ddq_cmd_.transpose() << std::endl;
+  
+  std::cout << "-- BEFORE QP PROBLEM --" << std::endl;
+  std::cout << "M ddq_u: " << std::endl << (data_.M.block(0, 0, 3, 6) * ddq_cmd_.head(6)).transpose() << std::endl;
+  std::cout << "M ddq_a: " << std::endl << (data_.M.block(0, 6, 3, 12) * ddq_cmd_.tail(12)).transpose() << std::endl; 
+  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
+  std::cout << "Non linear effects: " << std::endl << data_.tau.head(6).transpose() << std::endl;
+  std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * (f_cmd + f_compensation)).transpose() << std::endl;
+
   // Solve the QP problem
   box_qp_->run(data_.M, Jc_, ddq_cmd_, f_cmd + f_compensation, data_.tau.head(6), k_since_contact_);
 
@@ -744,19 +754,19 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   ddq_with_delta_.head(6) = ddq_cmd_.head(6) + box_qp_->get_ddq_res();
   ddq_with_delta_.tail(12) = ddq_cmd_.tail(12);
 
-  /* DEBUG INERTIA AND NON LINEAR EFFECTS
+  // DEBUG INERTIA AND NON LINEAR EFFECTS
 
   Vector6 left = data_.M.block(0, 0, 6, 6) * box_qp_->get_ddq_res() - Jc_.transpose() * box_qp_->get_f_res();
   Vector6 right = - data_.tau.head(6) + Jc_.transpose() * (f_cmd + f_compensation);
   Vector6 tmp_RNEA = data_.tau.head(6);
 
   //std::cout << "RNEA: " << std::endl << data_.tau.head(6).transpose() << std::endl;
-  //std::cout << "left: " << std::endl << left.transpose() << std::endl;
-  //std::cout << "right: " << std::endl << right.transpose() << std::endl;
+  std::cout << "left: " << std::endl << left.transpose() << std::endl;
+  std::cout << "right: " << std::endl << right.transpose() << std::endl;
   //std::cout << "M: " << std::endl << data_.M.block(0, 0, 6, 6) << std::endl;
   //std::cout << "JcT: " << std::endl << Jc_.transpose() << std::endl;
   //std::cout << "M: " << std::endl << data_.M.block(0, 0, 3, 18) << std::endl;
-
+  /*
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
   Vector6 tmp_NLE = data_.tau.head(6);
 
@@ -823,6 +833,17 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   ddq_test.head(6) = ddq_with_delta_.head(6);
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_test);
   std::cout << "M DDQ Delta Bis: " << std::endl << (data_.tau.head(6) - tmp_NLE).transpose() << std::endl;*/
+
+
+  std::cout << "-- AFTER QP PROBLEM --" << std::endl;
+  std::cout << "M ddq_u: " << std::endl << (data_.M.block(0, 0, 3, 6) * ddq_with_delta_.head(6)).transpose() << std::endl;
+  std::cout << "M ddq_a: " << std::endl << (data_.M.block(0, 6, 3, 12) * ddq_with_delta_.tail(12)).transpose() << std::endl; 
+  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
+  std::cout << "Non linear effects: " << std::endl << data_.tau.head(6).transpose() << std::endl;
+  std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * f_with_delta_).transpose() << std::endl;
+
+  std::cout << "LEFT " << (tmp_RNEA.head(3) + data_.M.block(0, 0, 3, 6) * box_qp_->get_ddq_res()).transpose() << std::endl;
+
 
   // Increment log counter
   k_log_++;

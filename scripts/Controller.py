@@ -323,13 +323,13 @@ class Controller:
         # Retrieve reference contact forces in horizontal frame
         self.x_f_mpc = self.mpc_wrapper.get_latest_result()
 
-        """if self.k >= 8220 and (self.k % self.k_mpc == 0):
+        if self.k >= 8220 and (self.k % self.k_mpc == 0):
             print(self.k)
             print(self.x_f_mpc[:, 0])
             from matplotlib import pyplot as plt
             plt.figure()
             plt.plot(self.x_f_mpc[6, :])
-            plt.show(block=True)"""
+            plt.show(block=True)
 
         # Store o_targetFootstep, used with MPC_planner
         self.o_targetFootstep = o_targetFootstep.copy()
