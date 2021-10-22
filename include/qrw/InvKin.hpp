@@ -109,7 +109,7 @@ class InvKin {
   Matrix43 afeet;      // Feet acceleration references to get command accelerations for actuators
 
   int foot_ids_[4] = {0, 0, 0, 0};          // Feet frame IDs
-  int foot_joints_ids_[4] = {3, 6, 9, 12};  // Feet joints IDs
+  int foot_joints_ids_[4] = {4, 7, 10, 13};  // Feet joints IDs
   int base_id_ = 0;                         // Base ID
 
   Matrix43 posf_;                        // Current feet positions
