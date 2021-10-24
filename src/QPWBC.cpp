@@ -700,11 +700,11 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // Compute the inverse dynamics, aka the joint torques according to the current state of the system,
   // the desired joint accelerations and the external forces, using the Recursive Newton Euler Algorithm.
   // Result is stored in data_.tau
-  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
-  Vector12 f_compensation = Vector12::Zero();
+  // pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
+  // Vector12 f_compensation = Vector12::Zero();
 
   // FORCE COMPENSATION TERM
-  /*Vector18 ddq_test = Vector18::Zero();
+  Vector18 ddq_test = Vector18::Zero();
   ddq_test.head(6) = ddq_cmd_.head(6);
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_test);
   Vector6 RNEA_without_joints = data_.tau.head(6);
@@ -712,8 +712,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   Vector6 RNEA_NLE = data_.tau.head(6);
   RNEA_NLE(2, 0) -= 9.81 * data_.mass[0];
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
-  Vector12 f_compensation = pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);
-  */
+  Vector12 f_compensation = pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);  
 
   /*std::cout << "M inertia" << std::endl;
   std::cout << data_.M << std::endl;*/
@@ -744,9 +743,11 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   std::cout << "M ddq_a: " << std::endl << (data_.M.block(0, 6, 3, 12) * ddq_cmd_.tail(12)).transpose() << std::endl; 
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
   std::cout << "Non linear effects: " << std::endl << data_.tau.head(6).transpose() << std::endl;
-  std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * (f_cmd + f_compensation)).transpose() << std::endl;
+  std::cout << "JcT f_cmd + f_comp: " << std::endl << (Jc_.transpose() * (f_cmd + f_compensation)).transpose() << std::endl;
+  std::cout << "JcT f_comp: " << std::endl << (Jc_.transpose() * (f_compensation)).transpose() << std::endl;
 
   // Solve the QP problem
+  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
   box_qp_->run(data_.M, Jc_, ddq_cmd_, f_cmd + f_compensation, data_.tau.head(6), k_since_contact_);
 
   // Add to reference quantities the deltas found by the QP solver
