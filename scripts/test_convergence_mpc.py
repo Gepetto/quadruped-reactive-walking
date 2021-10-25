@@ -49,6 +49,7 @@ def test_1():
     footstepPlanner.initialize(params, gait)
 
     # MPC wrapper
+    params.type_MPC = 0
     mpc_wrapper_classic = MPC_Wrapper.MPC_Wrapper(params, q)
     params.type_MPC = 1
     mpc_wrapper_croco = MPC_Wrapper.MPC_Wrapper(params, q)
@@ -66,7 +67,7 @@ def test_1():
     fsteps[:12,  1] += h_v[1, 0] * params.T_gait * 0.25
     fsteps[:12,  9] += h_v[0, 0] * params.T_gait * 0.25
     fsteps[:12, 10] += h_v[1, 0] * params.T_gait * 0.25
-    
+
     """from IPython import embed
     embed()"""
 
@@ -228,7 +229,7 @@ def test_2():
     params = lqrw.Params()  # Object that holds all controller parameters
 
     # Initialisation of the solo model/data and of the Gepetto viewer
-    utils_mpc.init_robot(q[7:, 0], params, False)
+    utils_mpc.init_robot(q[7:, 0], params)
 
     # State planner
     statePlanner_1 = lqrw.StatePlanner()
@@ -558,5 +559,5 @@ def test_3(typeMPC=True):
     plt.show()
 
 test_1()
-#test_2()
+# test_2()
 #test_3()

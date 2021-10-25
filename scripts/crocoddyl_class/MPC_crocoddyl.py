@@ -3,7 +3,9 @@
 import crocoddyl
 import numpy as np
 import quadruped_walkgen as quadruped_walkgen
-np.set_printoptions(formatter={'float': lambda x: "{0:0.7f}".format(x)}, linewidth = 450)
+import pinocchio as pin
+
+np.set_printoptions(formatter={'float': lambda x: "{0:0.7f}".format(x)}, linewidth=450)
 
 
 class MPC_crocoddyl:
@@ -17,53 +19,55 @@ class MPC_crocoddyl:
         linearModel(bool) : Approximation in the cross product by using desired state
     """
 
-    def __init__(self, params,  mu=1, inner=True, linearModel=True):
-        
-        self.dt = params.dt_mpc         # Time step of the solver
-        self.n_nodes = int(params.gait.shape[0])    # Number of nodes    
-        self.mass = params.mass         # Mass of the robot
-        self.gI = np.array(params.I_mat.tolist()).reshape((3, 3)) # Inertia matrix in ody frame
+    def __init__(self, params, mu=1, inner=True, linearModel=True):
+
+        self.dt = params.dt_mpc  # Time step of the solver
+        self.n_nodes = int(params.gait.shape[0])  # Number of nodes
+        self.mass = params.mass  # Mass of the robot
+        self.gI = np.array(params.I_mat.tolist()).reshape((3, 3))  # Inertia matrix in ody frame
 
         # Friction coefficient
         if inner:
-            self.mu = (1/np.sqrt(2))*mu
+            self.mu = (1 / np.sqrt(2)) * mu
         else:
             self.mu = mu
 
-        # self.stateWeights = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]) 
-        
-        # Weights on the state vector
-        self.w_x = 0.3
-        self.w_y = 0.3
-        self.w_z = 20
-        self.w_roll = 0.9
-        self.w_pitch = 1.
-        self.w_yaw = 0.4
-        self.w_vx = 1.5*np.sqrt(self.w_x)
-        self.w_vy = 2*np.sqrt(self.w_y)
-        self.w_vz = 2*np.sqrt(self.w_z)
-        self.w_vroll = 0.05*np.sqrt(self.w_roll)
-        self.w_vpitch = 0.07*np.sqrt(self.w_pitch)
-        self.w_vyaw = 0.08*np.sqrt(self.w_yaw)
+        # PLANNER weights
+        # self.w_x = 0.3
+        # self.w_y = 0.3
+        # self.w_z = 20
+        # self.w_roll = 0.9
+        # self.w_pitch = 1.
+        # self.w_yaw = 0.4
+        # self.w_vx = 1.5*np.sqrt(self.w_x)
+        # self.w_vy = 2*np.sqrt(self.w_y)
+        # self.w_vz = 2*np.sqrt(self.w_z)
+        # self.w_vroll = 0.05*np.sqrt(self.w_roll)
+        # self.w_vpitch = 0.07*np.sqrt(self.w_pitch)
+        # self.w_vyaw = 0.08*np.sqrt(self.w_yaw)
+        # # Weights on the state vector
+        # self.stateWeights = np.array([self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw,
+        #                              self.w_vx, self.w_vy, self.w_vz, self.w_vroll, self.w_vpitch, self.w_vyaw])
+        # self.forceWeights = 1.*np.array(4*[0.0071, 0.0071, 0.0071]) # Force weights
 
-        self.stateWeights = np.array([self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw,
-                                     self.w_vx, self.w_vy, self.w_vz, self.w_vroll, self.w_vpitch, self.w_vyaw])
-        
-        self.forceWeights = 1*np.array(4*[0.0071, 0.0071, 0.0071]) # Weight Vector : Force Norm
-        self.frictionWeights = 1.0                            # Weight Vector : Friction cone cost
+        # OSQP weights
+        self.stateWeights = np.sqrt(params.osqp_w_states)  # State weights
+        self.forceWeights = np.tile(np.sqrt(params.osqp_w_forces), 4)  # Force weights
 
-        self.min_fz = 0.2       # Minimum normal force (N)
-        self.max_fz = 25        # Maximum normal force (N)   
+        self.frictionWeights = 1.0  # Friction cone weight
 
-        self.shoulderWeights = 0.       # Weight on the shoulder term :
-        self.shoulder_hlim = 0.235       # shoulder maximum height
+        self.min_fz = 0.2  # Minimum normal force (N)
+        self.max_fz = 25  # Maximum normal force (N)
+
+        self.shoulderWeights = 0.  # Weight on the shoulder term :
+        self.shoulder_hlim = 0.235  # shoulder maximum height
 
         # Integration scheme
         self.implicit_integration = False
         self.relative_forces = True
 
-        self.max_iteration = 10     # Max iteration ddp solver        
-        self.warm_start = True      # Warm Start for the solver
+        self.max_iteration = 10  # Max iteration ddp solver
+        self.warm_start = True  # Warm Start for the solver
 
         # Position of the feet
         self.fsteps = np.full((self.n_nodes, 12), np.nan)
@@ -85,7 +89,7 @@ class MPC_crocoddyl:
         self.updateActionModels()
 
         # Shooting problem
-        self.problem = crocoddyl.ShootingProblem(np.zeros(12),  self.ListAction, self.terminalModel)
+        self.problem = crocoddyl.ShootingProblem(np.zeros(12), self.ListAction, self.terminalModel)
 
         # DDP Solver
         self.ddp = crocoddyl.SolverDDP(self.problem)
@@ -118,12 +122,12 @@ class MPC_crocoddyl:
         # The first column of xref correspond to the current state
         for j in range(self.index):
             # Update model
-            self.ListAction[j].updateModel(np.reshape(self.fsteps[j, :], (3, 4), order='F'),
-                                           xref[:, j], self.gait[j, :])
+            self.ListAction[j].updateModel(np.reshape(self.fsteps[j, :], (3, 4), order='F'), xref[:, j],
+                                           self.gait[j, :])
 
         # Update model of the terminal model
-        self.terminalModel.updateModel(np.reshape(
-            self.fsteps[self.index-1, :], (3, 4), order='F'), xref[:, -1], self.gait[self.index-1, :])
+        self.terminalModel.updateModel(np.reshape(self.fsteps[self.index - 1, :], (3, 4), order='F'), xref[:, -1],
+                                       self.gait[self.index - 1, :])
 
         return 0
 
@@ -135,8 +139,8 @@ class MPC_crocoddyl:
             xref : desired state vector
             fsteps : feet predicted positions
         """
-        self.xref[:,:] = xref
-        self.xref[2,:] += self.offset_com
+        self.xref[:, :] = xref
+        self.xref[2, :] += self.offset_com
 
         # Update the dynamic depending on the predicted feet position
         self.updateProblem(fsteps, self.xref)
@@ -148,13 +152,13 @@ class MPC_crocoddyl:
         if self.warm_start and k != 0:
 
             self.u_init = self.ddp.us[1:]
-            self.u_init.append(np.repeat(self.gait[self.index-1, :], 3)*np.array(4*[0.5, 0.5, 5.]))
+            self.u_init.append(np.repeat(self.gait[self.index - 1, :], 3) * np.array(4 * [0.5, 0.5, 5.]))
 
             self.x_init = self.ddp.xs[2:]
             self.x_init.insert(0, self.xref[:, 0])
             self.x_init.append(self.ddp.xs[-1])
-       
-        self.ddp.solve(self.x_init,  self.u_init, self.max_iteration)
+
+        self.ddp.solve(self.x_init, self.u_init, self.max_iteration)
 
         return 0
 
@@ -165,7 +169,8 @@ class MPC_crocoddyl:
 
         output = np.zeros((24, self.n_nodes))
         for i in range(self.n_nodes):
-            output[:12, i] = np.asarray(self.ddp.xs[i+1])
+            output[:12, i] = np.asarray(self.ddp.xs[i + 1])
+            output[2, i] -= self.offset_com
             output[12:, i] = np.asarray(self.ddp.us[i])
         return output
 
