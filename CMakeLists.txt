@@ -48,11 +48,15 @@ SEARCH_FOR_BOOST()
 # Main Library
 set(${PROJECT_NAME}_HEADERS
   include/qrw/gepadd.hpp
+  include/qrw/Heightmap.hpp
   include/qrw/MPC.hpp
   include/qrw/Gait.hpp
   include/qrw/FootTrajectoryGenerator.hpp
+  include/qrw/FootTrajectoryGeneratorBezier.hpp
   include/qrw/FootstepPlanner.hpp
+  include/qrw/FootstepPlannerQP.hpp
   include/qrw/StatePlanner.hpp
+  include/qrw/StatePlanner3D.hpp
   include/qrw/Types.h
   include/qrw/InvKin.hpp
   include/qrw/QPWBC.hpp
@@ -64,16 +68,23 @@ set(${PROJECT_NAME}_HEADERS
   include/qrw/MpcWrapper.hpp
   include/qrw/FakeRobot.hpp
   include/other/st_to_cc.hpp
+  include/qrw/FootTrajectoryGeneratorBezier.hpp
+  include/qrw/FootstepPlannerQP.hpp
+  include/qrw/Surface.hpp
   )
 
 set(${PROJECT_NAME}_SOURCES
   src/st_to_cc.cpp
   src/gepadd.cpp
+  src/Heightmap.cpp
   src/MPC.cpp
   src/Gait.cpp
   src/FootTrajectoryGenerator.cpp
+  src/FootTrajectoryGeneratorBezier.cpp
   src/FootstepPlanner.cpp
+  src/FootstepPlannerQP.cpp
   src/StatePlanner.cpp
+  src/StatePlanner3D.cpp
   src/InvKin.cpp
   src/QPWBC.cpp
   src/Params.cpp
@@ -82,10 +93,14 @@ set(${PROJECT_NAME}_SOURCES
   src/Filter.cpp
   src/Controller.cpp
   src/MpcWrapper.cpp
+  src/FootTrajectoryGeneratorBezier.cpp
+  src/FootstepPlannerQP.cpp
+  src/Surface.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
 target_include_directories(${PROJECT_NAME} PUBLIC $<INSTALL_INTERFACE:include>)
+target_include_directories(${PROJECT_NAME} PUBLIC $<INSTALL_INTERFACE:include/qrw>)
 
 # Include Eigen3 directories
 TARGET_INCLUDE_DIRECTORIES(${PROJECT_NAME} SYSTEM PRIVATE ${EIGEN3_INCLUDE_DIR})
@@ -105,10 +120,10 @@ TARGET_LINK_LIBRARIES(${PROJECT_NAME} PUBLIC odri_control_interface::odri_contro
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} PUBLIC master_board_sdk::master_board_sdk)
 
 # Find parametric curves library and headers
-# add_project_dependency(curves REQUIRED)
+add_project_dependency(ndcurves REQUIRED)
 
 # Link parametric curves library
-# target_link_libraries(${PROJECT_NAME} PUBLIC curves::curves)
+target_link_libraries(${PROJECT_NAME} PUBLIC ndcurves::ndcurves)
 
 # Find eiquadprog library and headers
 add_project_dependency(eiquadprog REQUIRED)
