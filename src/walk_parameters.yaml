@@ -23,8 +23,8 @@ robot:
     dt_wbc: 0.001  # Time step of the whole body control
     dt_mpc: 0.02  # Time step of the model predictive control
     type_MPC: 0  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
-    Kp_main: [1.0, 1.0, 1.0]  # Proportional gains for the PD+
-    Kd_main: [0.1, 0.1, 0.1]  # Derivative gains for the PD+
+    Kp_main: [3.0, 3.0, 3.0]  # Proportional gains for the PD+
+    Kd_main: [0.3, 0.3, 0.3]  # Derivative gains for the PD+
     Kff_main: 1.0  # Feedforward torques multiplier for the PD+
 
     # Parameters of Gait
@@ -70,7 +70,7 @@ robot:
     Fz_min: 0.0  # Minimal vertical contact force [N]
 
     # Parameters fro solo3D simulation
-    solo3D: true  # Activation of the 3D environment, and corresponding planner blocks
+    solo3D: false  # Activation of the 3D environment, and corresponding planner blocks
     enable_multiprocessing_mip: false  # Enable/disable running the MIP in another process in parallel of the main loop
     environment_URDF: "/home/thomas_cbrs/Desktop/edin/quadruped-files/one_step_large/one_step_large.urdf" # URDF files
     environment_heightmap: "/home/thomas_cbrs/Desktop/edin/quadruped-files/one_step_large/one_step_large.bin"

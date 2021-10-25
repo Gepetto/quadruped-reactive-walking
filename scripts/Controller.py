@@ -15,11 +15,6 @@ from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRob
 import libquadruped_reactive_walking as lqrw
 from example_robot_data.robots_loader import Solo12Loader
 
-from solo3D.SurfacePlannerWrapper import SurfacePlanner_Wrapper
-from solo3D.tools.pyb_environment_3D import PybEnvironment3D
-from solo3D.tools.utils import quaternionToRPY
-from example_robot_data import load
-
 class Result:
     """Object to store the result of the control loop
     It contains what is sent to the robot (gains, desired positions and velocities,
@@ -145,6 +140,12 @@ class Controller:
 
         self.DEMONSTRATION = params.DEMONSTRATION
         self.solo3D = params.solo3D
+        if params.solo3D:
+            from solo3D.SurfacePlannerWrapper import SurfacePlanner_Wrapper
+            from solo3D.tools.pyb_environment_3D import PybEnvironment3D
+            from solo3D.tools.utils import quaternionToRPY
+            from example_robot_data import load
+
         self.enable_multiprocessing_mip = params.enable_multiprocessing_mip
         self.offset_perfect_estimator = 0.
         if self.solo3D:
@@ -386,7 +387,7 @@ class Controller:
                                                                     self.v_ref[0:6, 0:1])
             # Run state planner (outputs the reference trajectory of the base)
             self.statePlanner.computeReferenceStates(self.q_filt_mpc[0:6, 0:1], self.h_v_filt_mpc[0:6, 0:1].copy(),
-                                                     self.vref_filt_mpc[0:6, 0:1], 0.0)
+                                                     self.vref_filt_mpc[0:6, 0:1])
 
         # Result can be retrieved with self.statePlanner.getReferenceStates()
         xref = self.statePlanner.getReferenceStates()
