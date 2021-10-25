@@ -35,7 +35,8 @@ struct optimData
     int phase;
     int foot;
     Surface surface;
-    Vector3 next_pos;
+    Vector3 constant_term;
+    Matrix3 Rz_tmp;
 };
 
 class FootstepPlannerQP {
@@ -173,7 +174,7 @@ class FootstepPlannerQP {
   /// \brief Update the QP problem with the surface object
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int surfaceInequalities(int i_start, Surface const& surface, Vector3 const& next_ft, int id_foot);
+  int surfaceInequalities(int i_start, Surface const& surface, Vector3 const& next_ft, int id_foot, Matrix3 Rz_tmp);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -198,20 +199,19 @@ class FootstepPlannerQP {
 
   // Constant sized matrices
   Matrix34 footsteps_under_shoulders_;  // Positions of footsteps to be "under the shoulder"
-  Matrix34 footsteps_offset_;
-  Matrix34 currentFootstep_;           // Feet matrix
-  Vector3 next_footstep_;              // Temporary vector to perform computations
-  Vector3 next_footstep_qp_;           // Temporary vector to perform computations
-  Matrix34 targetFootstep_;            // In horizontal frame
-  Matrix34 o_targetFootstep_;          // targetFootstep_ in world frame
-  std::vector<Matrix34> footsteps_;    // Desired footsteps locations for each step of the horizon
-  std::vector<Matrix34> b_footsteps_;  // Desired footsteps locations for each step of the horizon in base frame
+  Matrix34 footsteps_offset_;           // Offset positions of footsteps
+  Matrix34 currentFootstep_;            // Feet matrix
+  Vector3 heuristic_fb_;                // Tmp vector3, heuristic term with feedback term
+  Vector3 heuristic_;                   // Tmp vector3, heuristic term without feedback term
+  Matrix34 targetFootstep_;             // In horizontal frame
+  Matrix34 o_targetFootstep_;           // targetFootstep_ in world frame
+  std::vector<Matrix34> footsteps_;     // Desired footsteps locations for each step of the horizon
+  std::vector<Matrix34> b_footsteps_;   // Desired footsteps locations for each step of the horizon in base frame
 
   MatrixN Rz;      // Rotation matrix along z axis
   MatrixN Rz_tmp;  // Temporary rotation matrix along z axis
   VectorN dt_cum;  // Cumulated time vector
-  VectorN yaws;    // Predicted yaw variation for each cumulated time
-  VectorN yaws_b;  // Predicted yaw variation for each cumulated time in base frame
+  VectorN yaws;    // Predicted yaw variation for each cumulated time in base frame
   VectorN dx;      // Predicted x displacement for each cumulated time
   VectorN dy;      // Predicted y displacement for each cumulated time
 
@@ -235,9 +235,10 @@ class FootstepPlannerQP {
   Vector4 t_swing;
 
   VectorN weights_;
-  Vector3 voptim_;
-  Vector6 b_voptim_;
+  Vector3 b_voptim;  // Velocity vector optimised in base frame
+  Vector3 delta_x;   // Tmp Vector3 to store results from optimisation
 
+  // Eiquadprog-Fast solves the problem :
   // min. 1/2 * x' C_ x + q_' x
   // s.t. C_ x + d_ = 0
   //      G_ x + h_ >= 0
