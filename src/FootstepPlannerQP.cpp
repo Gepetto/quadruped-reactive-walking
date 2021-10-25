@@ -219,7 +219,7 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
         q_dxdy << dx(i - 1, 0), dy(i - 1, 0), 0.0;
 
         // Get future desired position of footsteps
-        computeNextFootstep(i, j, b_v, b_vref, next_footstep_, true);
+        // computeNextFootstep(i, j, b_v, b_vref, next_footstep_, true);
         computeNextFootstep(i, j, b_v, b_vref, next_footstep_qp_, false);
 
         // Get desired position of footstep compared to current position
@@ -295,8 +295,6 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
 
   std::cout<< "o_vref :" << std::endl;
   std::cout<< o_vref << std::endl;
-  std::cout<< "weights_ :" << std::endl;
-  std::cout<< weights_ << std::endl;
 
   q_(0) = -weights_(0) * o_vref(0);
   q_(1) = -weights_(1) * o_vref(1);
@@ -324,11 +322,12 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
   // s.t. C_ x + d_ = 0
   //      G_ x + h_ >= 0
   status = qp.solve_quadprog(P_, q_, C_, d_, G_, h_, x);
-  std::cout << "status : " << status << std::endl;
 
   // Retrieve results
   voptim_.head(2) = x.head(2);
-  std::cout << "voptim : " << voptim_ << std::endl;
+  std::cout << "\n voptim : " << voptim_ << std::endl;
+  std::cout << "\n x : " << std::endl;
+  std::cout << x << std::endl;
 
   // Get new reference velocity in base frame to recompute the new footsteps
   b_voptim_.head(3) = Rz.transpose() * voptim_;  // lin velocity in base frame (rotated yaw)
@@ -337,8 +336,11 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
   for (uint id_l = 0; id_l < optimVector_.size(); id_l++) {
     int i = optimVector_[id_l].phase;
     int foot = optimVector_[id_l].foot;
+    std::cout << "\n\n\n" << std::endl;
     std::cout << "optim vector surface : " << std::endl;
     std::cout << optimVector_[id_l].surface.getVertices() << std::endl;
+    std::cout << optimVector_[id_l].surface.getA() << std::endl;
+    std::cout << optimVector_[id_l].surface.getb() << std::endl;
     std::cout << optimVector_[id_l].phase << std::endl;
     std::cout << optimVector_[id_l].foot << std::endl;
     std::cout << optimVector_[id_l].next_pos << std::endl;
@@ -347,20 +349,23 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
     q_dxdy << dx(i - 1, 0), dy(i - 1, 0), 0.0;
 
     // Get future desired position of footsteps with k_feedback
-    computeNextFootstep(i, foot, b_voptim_, b_vref, next_footstep_qp_, true);
+    computeNextFootstep(i, foot, b_v, b_voptim_, next_footstep_qp_, true);
+   
 
     Vector3 delta_x = Vector3::Zero();
-    delta_x(0) += x(2 + 3 * id_l);
-    delta_x(1) += x(2 + 3 * id_l + 1);
-    delta_x(2) += x(2 + 3 * id_l + 2);
+    delta_x(0) = x(2 + 3 * id_l);
+    delta_x(1) = x(2 + 3 * id_l + 1);
+    delta_x(2) = x(2 + 3 * id_l + 2);
 
     // World frame
     Rz_tmp.setZero();
     double c = std::cos(yaws(i - 1));
     double s = std::sin(yaws(i - 1));
     Rz_tmp.topLeftCorner<2, 2>() << c, -s, s, c;
-
+    
     Vector3 next_tmp = (Rz_tmp * next_footstep_qp_ + q_tmp + Rz*q_dxdy).transpose();
+    std::cout << "next_tmp" << std::endl;
+    std::cout << next_tmp << std::endl;
     footsteps_[i].col(foot) = next_tmp + delta_x;
     std::cout << "footsteps_[i].col(foot)" << std::endl;
     std::cout << footsteps_[i].col(foot) << std::endl;
@@ -545,29 +550,6 @@ int FootstepPlannerQP::surfaceInequalities(int i_start, Surface const& surface, 
   G_.block(i_start, 0, n_rows, 2) = params_->k_feedback * surface.getA().block(0, 0, n_rows, 2);
   G_.block(i_start, 2 + 3 * id_l, n_rows, 3) = -surface.getA();
   h_.segment(i_start, n_rows) = surface.getb() - surface.getA() * next_ft;
-
-  std::cout<< "\n\n  :" << std::endl;
-  std::cout<< "id_l  :" << std::endl;
-  std::cout<< id_l  << std::endl;
-  std::cout<< "id_l  :" << std::endl;
-  std::cout<< id_l  << std::endl;
-
-  std::cout<< "surface.getb() :" << std::endl;
-  std::cout<< surface.getb() << std::endl;
-  std::cout<< "surface.getA()  :" << std::endl;
-  std::cout<< surface.getA()  << std::endl;
-  std::cout<< "params_->k_feedback  :" << std::endl;
-  std::cout<< params_->k_feedback  << std::endl;
-  std::cout<< ">next_ft  :" << std::endl;
-  std::cout<< next_ft  << std::endl;
-  std::cout<< ">surface.getA().block(0, 0, n_rows, 2)  :" << std::endl;
-  std::cout<< surface.getA().block(0, 0, n_rows, 2)  << std::endl;
-  std::cout<< "j" << std::endl;
-  std::cout<< surface.getA().block(0, 0, n_rows, 2)  << std::endl;
-
-  
-
-
 
   return i_start + n_rows;
 }
