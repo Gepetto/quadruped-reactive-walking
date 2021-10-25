@@ -115,6 +115,12 @@ class Params {
   double Fz_max;  // Maximum vertical contact force [N]
   double Fz_min;  // Minimal vertical contact force [N]
 
+  // Parameters of MIP
+  bool solo3D;                        // Enable the 3D environment with corresponding planner blocks
+  bool enable_multiprocessing_mip;    // Enable/disable running the MIP in another process in parallel of the main loop
+  std::string environment_URDF;       // URDF path for the 3D environment
+  std::string environment_heightmap;  // path to the heightmap
+
   // Not defined in yaml
   Eigen::MatrixXd gait;                           // Initial gait matrix (Eigen)
   double T_gait;                                  // Period of the gait

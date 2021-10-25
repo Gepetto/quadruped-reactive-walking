@@ -214,6 +214,18 @@ void Params::initialize(const std::string& file_path) {
 
   assert_yaml_parsing(robot_node, "robot", "Fz_min");
   Fz_min = robot_node["Fz_min"].as<double>();
+
+  assert_yaml_parsing(robot_node, "robot", "solo3D");
+  solo3D = robot_node["solo3D"].as<bool>();
+
+  assert_yaml_parsing(robot_node, "robot", "enable_multiprocessing_mip");
+  enable_multiprocessing_mip = robot_node["enable_multiprocessing_mip"].as<bool>();
+
+  assert_yaml_parsing(robot_node, "robot", "environment_URDF");
+  environment_URDF = robot_node["environment_URDF"].as<std::string>();
+
+  assert_yaml_parsing(robot_node, "robot", "environment_heightmap");
+  environment_heightmap = robot_node["environment_heightmap"].as<std::string>();
 }
 
 void Params::convert_gait_vec() {

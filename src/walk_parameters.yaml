@@ -15,7 +15,7 @@ robot:
     enable_corba_viewer: true  # Enable/disable Corba Viewer
     enable_multiprocessing: false  # Enable/disable running the MPC in another process in parallel of the main loop
     perfect_estimator: false  # Enable/disable perfect estimator by using data directly from PyBullet
-    
+
     # General control parameters
     # [0.0, 0.865, -1.583, 0.0, 0.865, -1.583, 0.0, 0.865, -1.583, 0.0, 0.865, -1.583] # h_com = 0.2
     q_init: [0.0, 0.764, -1.407, 0.0, 0.76407, -1.4, 0.0, 0.76407, -1.407, 0.0, 0.764, -1.407]  # h_com = 0.218
@@ -23,8 +23,8 @@ robot:
     dt_wbc: 0.001  # Time step of the whole body control
     dt_mpc: 0.02  # Time step of the model predictive control
     type_MPC: 0  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
-    Kp_main: [3.0, 3.0, 3.0]  # Proportional gains for the PD+
-    Kd_main: [0.3, 0.3, 0.3]  # Derivative gains for the PD+
+    Kp_main: [1.0, 1.0, 1.0]  # Proportional gains for the PD+
+    Kd_main: [0.1, 0.1, 0.1]  # Derivative gains for the PD+
     Kff_main: 1.0  # Feedforward torques multiplier for the PD+
 
     # Parameters of Gait
@@ -68,3 +68,12 @@ robot:
     Q2: 10.0  # Weights for the "delta contact forces" optimization variables
     Fz_max: 35.0  # Maximum vertical contact force [N]
     Fz_min: 0.0  # Minimal vertical contact force [N]
+<<<<<<< HEAD:src/walk_parameters.yaml
+=======
+
+    # Parameters fro solo3D simulation
+    solo3D: true  # Activation of the 3D environment, and corresponding planner blocks
+    enable_multiprocessing_mip: false  # Enable/disable running the MIP in another process in parallel of the main loop
+    environment_URDF: "/home/thomas_cbrs/Desktop/edin/quadruped-files/one_step_large/one_step_large.urdf" # URDF files
+    environment_heightmap: "/home/thomas_cbrs/Desktop/edin/quadruped-files/one_step_large/one_step_large.bin"
+>>>>>>> solo3D integration:src/config_solo12.yaml

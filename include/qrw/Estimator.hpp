@@ -106,7 +106,7 @@ class Estimator {
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 const& baseAngularVelocity,
-                    Vector3 const& baseOrientation);
+                    Vector3 const& baseOrientation, VectorN const& dummyPos);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -229,6 +229,7 @@ class Estimator {
   double alpha_secu_;      // Low pass coefficient for the outputted filtered velocity for security check
   double offset_yaw_IMU_;  // Yaw orientation of the IMU at startup
   bool perfect_estimator;  // Enable perfect estimator (directly from the PyBullet simulation)
+  bool solo3D;             // Perfect estimator including yaw angle
   int N_SIMULATION;        // Number of loops before the control ends
   int k_log_;              // Number of time the estimator has been called
 

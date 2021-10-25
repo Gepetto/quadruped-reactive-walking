@@ -36,6 +36,7 @@ using Matrix118 = Eigen::Matrix<double, 1, 18>;
 using Matrix34 = Eigen::Matrix<double, 3, 4>;
 using Matrix43 = Eigen::Matrix<double, 4, 3>;
 using Matrix64 = Eigen::Matrix<double, 6, 4>;
+using Matrix74 = Eigen::Matrix<double, 7, 4>;
 using MatrixN4 = Eigen::Matrix<double, Eigen::Dynamic, 4>;
 using Matrix3N = Eigen::Matrix<double, 3, Eigen::Dynamic>;
 using Matrix6N = Eigen::Matrix<double, 6, Eigen::Dynamic>;

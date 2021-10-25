@@ -2,6 +2,7 @@
 #include "qrw/InvKin.hpp"
 #include "qrw/MPC.hpp"
 #include "qrw/StatePlanner.hpp"
+#include "qrw/StatePlanner3D.hpp"
 #include "qrw/Gait.hpp"
 #include "qrw/FootstepPlanner.hpp"
 #include "qrw/FootTrajectoryGenerator.hpp"
@@ -10,9 +11,14 @@
 #include "qrw/Joystick.hpp"
 #include "qrw/Filter.hpp"
 #include "qrw/Params.hpp"
+#include "qrw/FootstepPlannerQP.hpp"
+#include "qrw/Surface.hpp"
+#include "qrw/FootTrajectoryGeneratorBezier.hpp"
 
 #include <boost/python.hpp>
 #include <eigenpy/eigenpy.hpp>
+#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+
 
 namespace bp = boost::python;
 
@@ -491,8 +497,11 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("lock_time", &Params::lock_time)
             .def_readwrite("vert_time", &Params::vert_time)
             .def_readwrite("footsteps_init", &Params::footsteps_init)
-            .def_readwrite("footsteps_under_shoulders", &Params::footsteps_under_shoulders);
-
+            .def_readwrite("footsteps_under_shoulders", &Params::footsteps_under_shoulders)
+            .def_readwrite("solo3D", &Params::solo3D)
+            .def_readwrite("enable_multiprocessing_mip", &Params::enable_multiprocessing_mip)
+            .def_readwrite("environment_URDF", &Params::environment_URDF)
+            .def_readwrite("environment_heightmap", &Params::environment_heightmap);
     }
 
     static void expose()
@@ -505,25 +514,166 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
 void exposeParams() { ParamsPythonVisitor<Params>::expose(); }
 
 /////////////////////////////////
+/// Binding FootTrajectoryGeneratorBezier class
+/////////////////////////////////
+template <typename FootTrajectoryGeneratorBezier>
+struct FootTrajectoryGeneratorBezierPythonVisitor
+    : public bp::def_visitor<FootTrajectoryGeneratorBezierPythonVisitor<FootTrajectoryGeneratorBezier>> {
+  template <class PyClassFootTrajectoryGeneratorBezier>
+  void visit(PyClassFootTrajectoryGeneratorBezier& cl) const {
+    cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+
+        .def("getFootPosition", &FootTrajectoryGeneratorBezier::getFootPosition, "Get position_ matrix.\n")
+        .def("getFootVelocity", &FootTrajectoryGeneratorBezier::getFootVelocity, "Get velocity_ matrix.\n")
+        .def("getFootAcceleration", &FootTrajectoryGeneratorBezier::getFootAcceleration, "Get acceleration_ matrix.\n")
+        .def("getFootJerk", &FootTrajectoryGeneratorBezier::getFootJerk, "Get jerk_ matrix.\n")
+        .def("evaluateBezier", &FootTrajectoryGeneratorBezier::evaluateBezier, "Evaluate Bezier curve by foot.\n")
+        .def("evaluatePoly", &FootTrajectoryGeneratorBezier::evaluatePoly, "Evaluate Bezier curve by foot.\n")
+        .def("getFootPositionBaseFrame", &FootTrajectoryGeneratorBezier::getFootPositionBaseFrame, bp::args("R", "T"),
+             "Get position_ matrix in base frame.\n")
+        .def("getFootVelocityBaseFrame", &FootTrajectoryGeneratorBezier::getFootVelocityBaseFrame,
+             bp::args("R", "v_ref", "w_ref"), "Get velocity_ matrix in base frame.\n")
+        .def("getFootAccelerationBaseFrame", &FootTrajectoryGeneratorBezier::getFootAccelerationBaseFrame,
+             bp::args("R", "w_ref", "a_ref"), "Get acceleration_ matrix in base frame.\n")
+
+        .def("initialize", &FootTrajectoryGeneratorBezier::initialize, bp::args("params", "gaitIn"),
+             "Initialize FootTrajectoryGeneratorBezier from Python.\n")
+
+        .add_property("t0s", bp::make_function(&FootTrajectoryGeneratorBezier::get_t0s,
+                                               bp::return_value_policy<bp::return_by_value>()))
+        .add_property("t_swing", bp::make_function(&FootTrajectoryGeneratorBezier::get_t_swing,
+                                                   bp::return_value_policy<bp::return_by_value>()))
+
+        // Compute target location of footsteps from Python
+        .def("update", &FootTrajectoryGeneratorBezier::update, bp::args("k", "targetFootstep"),
+             "Compute target location of footsteps from Python.\n");
+  }
+
+  static void expose() {
+    bp::class_<FootTrajectoryGeneratorBezier>("FootTrajectoryGeneratorBezier", bp::no_init)
+        .def(FootTrajectoryGeneratorBezierPythonVisitor<FootTrajectoryGeneratorBezier>());
+
+    ENABLE_SPECIFIC_MATRIX_TYPE(MatrixN);
+  }
+};
+void exposeFootTrajectoryGeneratorBezier() {
+  FootTrajectoryGeneratorBezierPythonVisitor<FootTrajectoryGeneratorBezier>::expose();
+}
+
+/////////////////////////////////
+/// Binding Surface class
+/////////////////////////////////
+template <typename Surface>
+struct SurfacePythonVisitor : public bp::def_visitor<SurfacePythonVisitor<Surface>> {
+  template <class PyClassSurface>
+  void visit(PyClassSurface& cl) const {
+    cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+        .def(bp::init<MatrixN, VectorN, MatrixN>(bp::args("A", "b", "vertices"), "Constructor with parameters."))
+
+        .def("get_vertices", &Surface::getVertices, "get the vertices of the surface.\n")
+        .def("get_A", &Surface::getA, "get A vector of inequalities.\n")
+        .def("get_b", &Surface::getb, "get b vector of inequalities.\n")
+
+        .add_property("A", bp::make_function(&Surface::getA, bp::return_value_policy<bp::return_by_value>()))
+        .add_property("b", bp::make_function(&Surface::getb, bp::return_value_policy<bp::return_by_value>()))
+        .add_property("vertices",
+                      bp::make_function(&Surface::getVertices, bp::return_value_policy<bp::return_by_value>()))
+
+        .def("get_height", &Surface::getHeight, bp::args("point"), "get the height of a point of the surface.\n")
+        .def("has_point", &Surface::hasPoint, bp::args("point"), "return true if the point is in the surface.\n");
+  }
+
+  static void expose() {
+    bp::class_<Surface>("Surface", bp::no_init).def(SurfacePythonVisitor<Surface>());
+
+    ENABLE_SPECIFIC_MATRIX_TYPE(MatrixN);
+  }
+};
+void exposeSurface() { SurfacePythonVisitor<Surface>::expose(); }
+
+/////////////////////////////////
+/// Binding FootstepPlannerQP class
+/////////////////////////////////
+template <typename FootstepPlannerQP>
+struct FootstepPlannerQPPythonVisitor : public bp::def_visitor<FootstepPlannerQPPythonVisitor<FootstepPlannerQP>> {
+  template <class PyClassFootstepPlannerQP>
+  void visit(PyClassFootstepPlannerQP& cl) const {
+    cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+
+        .def("getFootsteps", &FootstepPlannerQP::getFootsteps, "Get footsteps_ matrix.\n")
+        .def("getTargetFootsteps", &FootstepPlannerQP::getTargetFootsteps, "Get footsteps_ matrix.\n")
+        .def("getRz", &FootstepPlannerQP::getRz, "Get rotation along z matrix.\n")
+
+        .def("initialize", &FootstepPlannerQP::initialize, bp::args("params", "gaitIn"),
+             "Initialize FootstepPlanner from Python.\n")
+
+        // Compute target location of footsteps from Python
+        .def("updateFootsteps", &FootstepPlannerQP::updateFootsteps, bp::args("refresh", "k", "q", "b_v", "b_vref"),
+             "Update and compute location of footsteps from Python.\n");
+  }
+
+  static void expose() {
+    bp::class_<SurfaceVector>("SurfaceVector").def(bp::vector_indexing_suite<SurfaceVector>());
+    bp::class_<SurfaceVectorVector>("SurfaceVectorVector").def(bp::vector_indexing_suite<SurfaceVectorVector>());
+    bp::class_<FootstepPlannerQP>("FootstepPlannerQP", bp::no_init)
+        .def(FootstepPlannerQPPythonVisitor<FootstepPlannerQP>());
+
+    ENABLE_SPECIFIC_MATRIX_TYPE(MatrixN);
+  }
+};
+void exposeFootstepPlannerQP() { FootstepPlannerQPPythonVisitor<FootstepPlannerQP>::expose(); }
+
+/////////////////////////////////
+/// Binding StatePlanner3D class
+/////////////////////////////////
+template <typename StatePlanner3D>
+struct StatePlanner3DPythonVisitor : public bp::def_visitor<StatePlanner3DPythonVisitor<StatePlanner3D>> {
+  template <class PyClassStatePlanner3D>
+  void visit(PyClassStatePlanner3D& cl) const {
+    cl.def(bp::init<>(bp::arg(""), "Default constructor."))
+
+        .def("getReferenceStates", &StatePlanner3D::getReferenceStates, "Get xref matrix.\n")
+        .def("getNSteps", &StatePlanner3D::getNSteps, "Get number of steps in prediction horizon.\n")
+        .def("get_configurations", &StatePlanner3D::get_configurations, "Get conf vector.\n")
+
+        .def("initialize", &StatePlanner3D::initialize, bp::args("params"), "Initialize StatePlanner3D from Python.\n")
+
+        // Run StatePlanner3D from Python
+        .def("computeReferenceStates", &StatePlanner3D::computeReferenceStates,
+             bp::args("q", "v", "b_vref", "is_new_step"), "Run StatePlanner from Python.\n");
+  }
+
+  static void expose() {
+    bp::class_<StatePlanner3D>("StatePlanner3D", bp::no_init).def(StatePlanner3DPythonVisitor<StatePlanner3D>());
+
+    ENABLE_SPECIFIC_MATRIX_TYPE(MatrixN);
+  }
+};
+void exposeStatePlanner3D() { StatePlanner3DPythonVisitor<StatePlanner3D>::expose(); }
+
+/////////////////////////////////
 /// Exposing classes
 /////////////////////////////////
-BOOST_PYTHON_MODULE(libquadruped_reactive_walking)
-{
-    boost::python::def("add", gepetto::example::add);
-    boost::python::def("sub", gepetto::example::sub);
+BOOST_PYTHON_MODULE(libquadruped_reactive_walking) {
+  boost::python::def("add", gepetto::example::add);
+  boost::python::def("sub", gepetto::example::sub);
 
-    eigenpy::enableEigenPy();
+  eigenpy::enableEigenPy();
 
-    exposeMPC();
-    exposeFilter();
-    exposeStatePlanner();
-    exposeGait();
-    exposeFootstepPlanner();
-    exposeFootTrajectoryGenerator();
-    exposeInvKin();
-    exposeQPWBC();
-    exposeWbcWrapper();
-    exposeEstimator();
-    exposeJoystick();
-    exposeParams();
+  exposeMPC();
+  exposeFilter();
+  exposeStatePlanner();
+  exposeGait();
+  exposeFootstepPlanner();
+  exposeFootTrajectoryGenerator();
+  exposeInvKin();
+  exposeQPWBC();
+  exposeWbcWrapper();
+  exposeEstimator();
+  exposeJoystick();
+  exposeParams();
+  exposeSurface();
+  exposeFootTrajectoryGeneratorBezier();
+  exposeFootstepPlannerQP();
+  exposeStatePlanner3D();
 }

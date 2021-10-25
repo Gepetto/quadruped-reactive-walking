@@ -45,6 +45,7 @@ Estimator::Estimator()
       alpha_secu_(0.0),
       offset_yaw_IMU_(0.0),
       perfect_estimator(false),
+      solo3D(false),
       N_SIMULATION(0),
       k_log_(0),
       IMU_lin_acc_(Vector3::Zero()),
@@ -86,6 +87,7 @@ void Estimator::initialize(Params& params) {
   dt_wbc = params.dt_wbc;
   N_SIMULATION = params.N_SIMULATION;
   perfect_estimator = params.perfect_estimator;
+  solo3D = params.solo3D;
 
   // Filtering estimated linear velocity
   int k_mpc = static_cast<int>(std::round(params.dt_mpc / params.dt_wbc));
@@ -136,7 +138,7 @@ void Estimator::initialize(Params& params) {
 }
 
 void Estimator::get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 const& baseAngularVelocity,
-                             Vector3 const& baseOrientation) {
+                             Vector3 const& baseOrientation, VectorN const& dummyPos) {
   // Linear acceleration of the trunk (base frame)
   IMU_lin_acc_ = baseLinearAcceleration;
 
@@ -150,6 +152,10 @@ void Estimator::get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 cons
     offset_yaw_IMU_ = IMU_RPY_(2, 0);
   }
   IMU_RPY_(2, 0) -= offset_yaw_IMU_;  // Remove initial offset of IMU
+
+  if (solo3D) {
+    IMU_RPY_.tail(1) = dummyPos.tail(1);  // Yaw angle from motion capture
+  }
 
   IMU_ang_pos_ =
       pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(IMU_RPY_(0, 0), IMU_RPY_(1, 0), IMU_RPY_(2, 0)));
@@ -268,7 +274,7 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
   }
 
   // Update IMU data
-  get_data_IMU(baseLinearAcceleration, baseAngularVelocity, baseOrientation);
+  get_data_IMU(baseLinearAcceleration, baseAngularVelocity, baseOrientation, dummyPos);
 
   // Angular position of the trunk
   Vector4 filt_ang_pos = IMU_ang_pos_.coeffs();
@@ -307,6 +313,11 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
 
   // Use cascade of complementary filters
 
+  // Base velocity estimated by FK, estimated by motion capture
+  if (solo3D) {
+    FK_lin_vel_ = b_baseVel;
+  }
+
   // Rotation matrix to go from base frame to world frame
   Matrix3 oRb = IMU_ang_pos_.toRotationMatrix();
 
@@ -330,12 +341,19 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
   Vector3 ob_filt_lin_vel = oRb * b_filt_lin_vel_;
 
   // Position of the center of the base from FGeometry and filtered velocity (world frame)
-  Vector3 filt_lin_pos =
-      filter_xyz_pos_.compute(FK_xyz_ + xyz_mean_feet_, ob_filt_lin_vel, Vector3(0.995, 0.995, 0.9));
+  Vector3 filt_lin_pos = Vector3::Zero();
+
+  if (solo3D) {
+    Vector3 offset_ = Vector3::Zero();
+    offset_.tail(3) << -0.0155;
+    filt_lin_pos = filter_xyz_pos_.compute(dummyPos.head(3) - offset_, ob_filt_lin_vel, Vector3(0.995, 0.995, 0.9));
+  } else {
+    filt_lin_pos = filter_xyz_pos_.compute(FK_xyz_ + xyz_mean_feet_, ob_filt_lin_vel, Vector3(0.995, 0.995, 0.9));
+  }
 
   // Output filtered position vector (19 x 1)
   q_filt_.head(3) = filt_lin_pos;
-  if (perfect_estimator) {                    // Base height directly from PyBullet
+  if (perfect_estimator || solo3D) {
     q_filt_(2, 0) = dummyPos(2, 0) - 0.0155;  // Minus feet radius
   }
   q_filt_.block(3, 0, 4, 1) = filt_ang_pos;
