@@ -68,12 +68,9 @@ robot:
     Q2: 10.0  # Weights for the "delta contact forces" optimization variables
     Fz_max: 35.0  # Maximum vertical contact force [N]
     Fz_min: 0.0  # Minimal vertical contact force [N]
-<<<<<<< HEAD:src/walk_parameters.yaml
-=======
 
     # Parameters fro solo3D simulation
     solo3D: true  # Activation of the 3D environment, and corresponding planner blocks
     enable_multiprocessing_mip: false  # Enable/disable running the MIP in another process in parallel of the main loop
     environment_URDF: "/home/thomas_cbrs/Desktop/edin/quadruped-files/one_step_large/one_step_large.urdf" # URDF files
     environment_heightmap: "/home/thomas_cbrs/Desktop/edin/quadruped-files/one_step_large/one_step_large.bin"
->>>>>>> solo3D integration:src/config_solo12.yaml
