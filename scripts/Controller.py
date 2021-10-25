@@ -596,9 +596,9 @@ class Controller:
 
         # Update PyBullet camera
         # to have yaw update in simu: utils_mpc.quaternionToRPY(self.estimator.q_filt[3:7, 0])[2, 0]
-        # self.pyb_camera(device, 0.0)
-
-        if self.solo3D:  # Update 3D Environment
+        if not self.solo3D:
+            self.pyb_camera(device, 0.0)
+        else:  # Update 3D Environment
             self.pybEnvironment3D.update(self.k)
 
         # Update debug display (spheres, ...)
@@ -631,10 +631,12 @@ class Controller:
             oTh_pyb[2, 0] += 0.0
             oRh_pyb = pin.rpy.rpyToMatrix(0.0, 0.0, device.imu.attitude_euler[2])
             for i in range(4):
-                # pos = oRh_pyb @ self.feet_p_cmd[:, i:(i+1)] + oTh_pyb
-                # pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids_deb[i], pos[:, 0].tolist(), [0, 0, 0, 1])
-                pos = self.o_targetFootstep[:,i]
-                pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids_deb[i], pos, [0, 0, 0, 1])
+                if not self.solo3D:
+                    pos = oRh_pyb @ self.feet_p_cmd[:, i:(i+1)] + oTh_pyb
+                    pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids_deb[i], pos[:, 0].tolist(), [0, 0, 0, 1])
+                else:
+                    pos = self.o_targetFootstep[:,i]
+                    pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids_deb[i], pos, [0, 0, 0, 1])
 
             # Display desired footstep positions as blue spheres
             for i in range(4):
