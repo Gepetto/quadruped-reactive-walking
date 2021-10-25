@@ -67,6 +67,7 @@ class ForceMonitor:
                 f_x += f_tmp[0]
                 f_y += f_tmp[1]
                 f_z += f_tmp[2]
+                # print("Contact: ", -f_tmp[0], -f_tmp[1], -f_tmp[2])
 
                 if (i_line+1) > len(self.lines):  # If not enough existing lines in line storage a new item is created
                     lineID = pyb.addUserDebugLine(start, end, lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8)
@@ -77,7 +78,7 @@ class ForceMonitor:
                 i_line += 1
 
         # Should be around 21,5 (2.2 kg * 9.81 m^2/s)
-        # print("Total ground reaction force: (", f_x, ", ", f_y, ", ", f_z, ")")
+        # print("Total ground reaction force: (", -f_x, ", ", -f_y, ", ", -f_z, ")")
 
         for i_zero in range(i_line, len(self.lines)):
             self.lines[i_zero] = pyb.addUserDebugLine([0.0, 0.0, 0.0], [0.0, 0.0, 0.0], lineColorRGB=[

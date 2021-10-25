@@ -131,8 +131,7 @@ void FootstepPlanner::computeFootsteps(int k, Vector6 const& b_v, Vector6 const&
   }
 
   // Update the footstep matrix depending on the different phases of the gait (swing & stance)
-  for (int i = 1; i < gait.rows(); i++)
-  {
+  for (int i = 1; i < gait.rows(); i++) {
     // Feet that were in stance phase and are still in stance phase do not move
     for (int j = 0; j < 4; j++) {
       if (gait(i - 1, j) * gait(i, j) > 0) {
@@ -165,16 +164,19 @@ void FootstepPlanner::computeNextFootstep(int i, int j, Vector6 const& b_v, Vect
 
   double t_stance = gait_->getPhaseDuration(i, j, 1.0);  // 1.0 for stance phase
 
-  // Add symmetry term
-  nextFootstep_.col(j) = t_stance * 0.5 * b_v.head(3);
+  // Disable heuristic terms if gait is going to switch to static so that feet land at vertical of shoulders
+  if (!gait_->getIsStatic()) {
+    // Add symmetry term
+    nextFootstep_.col(j) = t_stance * 0.5 * b_v.head(3);
 
-  // Add feedback term
-  nextFootstep_.col(j) += params_->k_feedback * (b_v.head(3) - b_vref.head(3));
+    // Add feedback term
+    nextFootstep_.col(j) += params_->k_feedback * (b_v.head(3) - b_vref.head(3));
 
-  // Add centrifugal term
-  Vector3 cross;
-  cross << b_v(1) * b_vref(5) - b_v(2) * b_vref(4), b_v(2) * b_vref(3) - b_v(0) * b_vref(5), 0.0;
-  nextFootstep_.col(j) += 0.5 * std::sqrt(h_ref / g) * cross;
+    // Add centrifugal term
+    Vector3 cross;
+    cross << b_v(1) * b_vref(5) - b_v(2) * b_vref(4), b_v(2) * b_vref(3) - b_v(0) * b_vref(5), 0.0;
+    nextFootstep_.col(j) += 0.5 * std::sqrt(h_ref / g) * cross;
+  }
 
   // Legs have a limited length so the deviation has to be limited
   nextFootstep_(0, j) = std::min(nextFootstep_(0, j), L);

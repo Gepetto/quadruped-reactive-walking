@@ -130,7 +130,8 @@ class MPC_Wrapper:
         self.last_available_result[:24, 0] = np.hstack((x_init, np.array([0.0, 0.0, 8.0] * 4)))
 
     def solve(self, k, xref, fsteps, gait, l_fsteps_target, oRh = np.eye(3), oTh = np.zeros((3,1)), 
-                    position = np.zeros((3,4)), velocity = np.zeros((3,4)) , acceleration = np.zeros((3,4)), jerk = np.zeros((3,4)) , dt_flying = np.zeros(4)):
+                    position = np.zeros((3,4)), velocity = np.zeros((3,4)) , acceleration = np.zeros((3,4)), jerk = np.zeros((3,4)) ,
+                    dt_flying = np.zeros(4)):
         """Call either the asynchronous MPC or the synchronous MPC depending on the value of multiprocessing during
         the creation of the wrapper
 

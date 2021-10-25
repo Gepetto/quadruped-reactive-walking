@@ -1,6 +1,8 @@
 robot:
     # General parameters
-    interface: enp2s0  # Name of the communication interface (check with ifconfig)
+    config_file: config_solo12.yaml  #  Name of the yaml file containing hardware information
+    interface: eth0  # Name of the communication interface (check with ifconfig)
+    DEMONSTRATION: false  # Enable/disable demonstration functionalities
     SIMULATION: true  # Enable/disable PyBullet simulation or running on real robot
     LOGGING: false  # Enable/disable logging during the experiment
     PLOTTING: true  # Enable/disable automatic plotting at the end of the experiment
@@ -8,14 +10,16 @@ robot:
     use_flat_plane: true  # If True the ground is flat, otherwise it has bumps
     predefined_vel: true  # If we are using a predefined reference velocity (True) or a joystick (False)
     velID: 10  # Identifier of the reference velocity profile to choose which one will be sent to the robot
-    N_SIMULATION: 30000  # Number of simulated wbc time steps
-    enable_pyb_GUI: true # Enable/disable PyBullet GUI
-    enable_corba_viewer: false  # Enable/disable Corba Viewer
-    enable_multiprocessing: true  # Enable/disable running the MPC in another process in parallel of the main loop
+    N_SIMULATION: 9000  # Number of simulated wbc time steps
+    enable_pyb_GUI: false  # Enable/disable PyBullet GUI
+    enable_corba_viewer: true  # Enable/disable Corba Viewer
+    enable_multiprocessing: false  # Enable/disable running the MPC in another process in parallel of the main loop
     perfect_estimator: false  # Enable/disable perfect estimator by using data directly from PyBullet
     
     # General control parameters
-    q_init: [0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, -0.7, 1.4, -0.0, -0.7, 1.4]  # Initial articular positions
+    # [0.0, 0.865, -1.583, 0.0, 0.865, -1.583, 0.0, 0.865, -1.583, 0.0, 0.865, -1.583] # h_com = 0.2
+    q_init: [0.0, 0.764, -1.407, 0.0, 0.76407, -1.4, 0.0, 0.76407, -1.407, 0.0, 0.764, -1.407]  # h_com = 0.218
+    # q_init: [0.0, 0.7, -1.4, 0.0, 0.7, -1.4, 0.0, -0.7, 1.4, 0.0, -0.7, 1.4]  # Initial articular positions
     dt_wbc: 0.001  # Time step of the whole body control
     dt_mpc: 0.02  # Time step of the model predictive control
     type_MPC: 0  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
@@ -24,9 +28,13 @@ robot:
     Kff_main: 1.0  # Feedforward torques multiplier for the PD+
 
     # Parameters of Gait
-    N_periods: 2
+    N_periods: 1
     gait: [12, 1, 0, 0, 1,
            12, 0, 1, 1, 0]  # Initial gait matrix
+
+    # Parameters of Joystick
+    gp_alpha_vel: 0.003  # Coefficient of the low pass filter applied to gamepad velocity
+    gp_alpha_pos: 0.005  # Coefficient of the low pass filter applied to gamepad position
 
     # Parameters of Estimator
     fc_v_esti: 50.0  # Cut frequency for the low pass that filters the estimated base velocity
@@ -40,21 +48,23 @@ robot:
     vert_time: 0.03  # Duration during which feet move only along Z when taking off and landing
 
     # Parameters of MPC with OSQP
-    osqp_w_states: [2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]  # Weights for state tracking error
+    # [0.0, 0.0, 20.0, 0.25, 0.25, 10.0, 0.05, 0.05, 0.2, 0.0, 0.0, 0.3]
+    # [2.0, 2.0, 5.0, 0.25, 0.25, 1.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]
+    osqp_w_states: [2.0, 2.0, 10.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]  # Weights for state tracking error
     osqp_w_forces: [0.00005, 0.00005, 0.00005]  # Weights for force regularisation
     osqp_Nz_lim: 35.0  # Maximum vertical force that can be applied at contact points
 
     # Parameters of InvKin
-    Kp_flyingfeet: 1000.0  # Proportional gain for feet position tasks
-    Kd_flyingfeet: 100.0  # Derivative gain for feet position tasks
-    Kp_base_position: [1000.0, 1000.0, 1000.0]  # Proportional gains for the base position task
-    Kd_base_position: [100.0, 100.0, 100.0]  # Derivative gains for the base position task
-    Kp_base_orientation: [1000.0, 1000.0, 1000.0]  # Proportional gains for the base orientation task
-    Kd_base_orientation: [100.0, 100.0, 100.0]  # Derivative gains for the base orientation task
-    w_tasks: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Tasks weights: [feet/base, vx, vy, vz, roll+wroll, pitch+wpitch, wyaw]
+    Kp_flyingfeet: 10.0  # Proportional gain for feet position tasks
+    Kd_flyingfeet: 6.3  # Derivative gain for feet position tasks
+    Kp_base_position: [10.0, 10.0, 10.0]  # Proportional gains for the base position task
+    Kd_base_position: [6.3, 6.3, 6.3]  # Derivative gains for the base position task
+    Kp_base_orientation: [10.0, 10.0, 10.0]  # Proportional gains for the base orientation task
+    Kd_base_orientation: [6.3, 6.3, 6.3]  # Derivative gains for the base orientation task
+    w_tasks: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Tasks weights: [feet/base, vx, vy, vz, roll+wroll, pitch+wpitch, wyaw, contacts]
 
     # Parameters of WBC QP problem
     Q1: 0.1  # Weights for the "delta articular accelerations" optimization variables
-    Q2: 5.0  # Weights for the "delta contact forces" optimization variables
+    Q2: 10.0  # Weights for the "delta contact forces" optimization variables
     Fz_max: 35.0  # Maximum vertical contact force [N]
     Fz_min: 0.0  # Minimal vertical contact force [N]

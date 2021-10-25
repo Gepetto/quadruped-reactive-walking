@@ -27,7 +27,7 @@ struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC>>
                                                "Constructor with parameters."))
 
             // Run MPC from Python
-            .def("run", &MPC::run, bp::args("num_iter", "xref_in", "fsteps_in"), "Run MPC from Python.\n")
+            .def("run", &MPC::run, bp::args("num_iter", "xref_in", "fsteps_in", "nle"), "Run MPC from Python.\n")
             .def("get_latest_result", &MPC::get_latest_result,
                  "Get latest result (predicted trajectory  forces to apply).\n")
             .def("get_gait", &MPC::get_gait, "Get gait matrix.\n")
@@ -90,7 +90,7 @@ struct StatePlannerPythonVisitor : public bp::def_visitor<StatePlannerPythonVisi
                  "Initialize StatePlanner from Python.\n")
 
             // Run StatePlanner from Python
-            .def("computeReferenceStates", &StatePlanner::computeReferenceStates, bp::args("q", "v", "b_vref", "z_average"),
+            .def("computeReferenceStates", &StatePlanner::computeReferenceStates, bp::args("q", "v", "b_vref"),
                  "Run StatePlanner from Python.\n");
     }
 
@@ -301,6 +301,9 @@ struct WbcWrapperPythonVisitor : public bp::def_visitor<WbcWrapperPythonVisitor<
             .def("get_qdes", &WbcWrapper::get_qdes, "Get qdes_.\n")
             .def("get_vdes", &WbcWrapper::get_vdes, "Get vdes_.\n")
             .def("get_tau_ff", &WbcWrapper::get_tau_ff, "Get tau_ff_.\n")
+            .def("get_tasks_acc", &WbcWrapper::get_tasks_acc, "Get tasks acceleration.\n")
+            .def("get_tasks_vel", &WbcWrapper::get_tasks_vel, "Get tasks velocity.\n")
+            .def("get_tasks_err", &WbcWrapper::get_tasks_err, "Get tasks error.\n")
 
             .def_readonly("bdes", &WbcWrapper::get_bdes)
             .def_readonly("qdes", &WbcWrapper::get_qdes)
@@ -309,12 +312,18 @@ struct WbcWrapperPythonVisitor : public bp::def_visitor<WbcWrapperPythonVisitor<
             .def_readonly("ddq_cmd", &WbcWrapper::get_ddq_cmd)
             .def_readonly("f_with_delta", &WbcWrapper::get_f_with_delta)
             .def_readonly("ddq_with_delta", &WbcWrapper::get_ddq_with_delta)
+            .def_readonly("nle", &WbcWrapper::get_nle)
             .def_readonly("feet_pos", &WbcWrapper::get_feet_pos)
             .def_readonly("feet_err", &WbcWrapper::get_feet_err)
             .def_readonly("feet_vel", &WbcWrapper::get_feet_vel)
             .def_readonly("feet_pos_target", &WbcWrapper::get_feet_pos_target)
             .def_readonly("feet_vel_target", &WbcWrapper::get_feet_vel_target)
             .def_readonly("feet_acc_target", &WbcWrapper::get_feet_acc_target)
+            .def_readonly("Mddq", &WbcWrapper::get_Mddq)
+            .def_readonly("NLE", &WbcWrapper::get_NLE)
+            .def_readonly("JcTf", &WbcWrapper::get_JcTf)
+            .def_readonly("Mddq_out", &WbcWrapper::get_Mddq_out)
+            .def_readonly("JcTf_out", &WbcWrapper::get_JcTf_out)
 
             // Run WbcWrapper from Python
             .def("compute", &WbcWrapper::compute, bp::args("q", "dq", "f_cmd", "contacts", "pgoals", "vgoals",
@@ -372,6 +381,7 @@ struct EstimatorPythonVisitor : public bp::def_visitor<EstimatorPythonVisitor<Es
             .def("getHVWindowed", &Estimator::getHVWindowed, "")
             .def("getoRb", &Estimator::getoRb, "")
             .def("getoRh", &Estimator::getoRh, "")
+            .def("gethRb", &Estimator::gethRb, "")
             .def("getoTh", &Estimator::getoTh, "")
             .def("getYawEstim", &Estimator::getYawEstim, "")
 
@@ -401,7 +411,22 @@ struct JoystickPythonVisitor : public bp::def_visitor<JoystickPythonVisitor<Joys
     {
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
-            .def("handle_v_switch", &Joystick::handle_v_switch, bp::args("k", "k_switch", "v_switch"), "Run security check.\n");
+            .def("initialize", &Joystick::initialize, bp::args("params"),
+                 "Initialize Joystick from Python.\n")
+            
+            .def("update_v_ref", &Joystick::update_v_ref, bp::args("k", "velID", "gait_is_static", "h_v"), "Update joystick values.")
+            .def("getPRef", &Joystick::getPRef, "Get Reference Position")
+            .def("getVRef", &Joystick::getVRef, "Get Reference Velocity")
+            .def("getJoystickCode", &Joystick::getJoystickCode, "Get Joystick Code")
+            .def("getStart", &Joystick::getStart, "Get Joystick Start")
+            .def("getStop", &Joystick::getStop, "Get Joystick Stop")
+            .def("getCross", &Joystick::getCross, "Get Joystick Cross status")
+            .def("getCircle", &Joystick::getCircle, "Get Joystick Circle status")
+            .def("getTriangle", &Joystick::getTriangle, "Get Joystick Triangle status")
+            .def("getSquare", &Joystick::getSquare, "Get Joystick Square status")
+            .def("getL1", &Joystick::getL1, "Get Joystick L1 status")
+            .def("getR1", &Joystick::getR1, "Get Joystick R1 status")
+            .def("handle_v_switch", &Joystick::handle_v_switch_py, bp::args("k", "k_switch", "v_switch"), "Run security check.\n");
     }
 
     static void expose()
@@ -429,7 +454,9 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
                  "Initialize Params from Python.\n")
 
             // Read Params from Python
+            .def_readwrite("config_file", &Params::config_file)
             .def_readwrite("interface", &Params::interface)
+            .def_readwrite("DEMONSTRATION", &Params::DEMONSTRATION)
             .def_readwrite("SIMULATION", &Params::SIMULATION)
             .def_readwrite("LOGGING", &Params::LOGGING)
             .def_readwrite("PLOTTING", &Params::PLOTTING)
@@ -454,6 +481,7 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("enable_corba_viewer", &Params::enable_corba_viewer)
             .def_readwrite("enable_multiprocessing", &Params::enable_multiprocessing)
             .def_readwrite("perfect_estimator", &Params::perfect_estimator)
+            .def_readwrite("w_tasks", &Params::w_tasks)
             .def_readwrite("T_gait", &Params::T_gait)
             .def_readwrite("mass", &Params::mass)
             .def_readwrite("I_mat", &Params::I_mat)

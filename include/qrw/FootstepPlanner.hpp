@@ -136,6 +136,8 @@ class FootstepPlanner {
   ///
   /// \brief Transform a std::vector of N 3x4 matrices into a single Nx12 matrix
   ///
+  /// \param[in] array The std::vector of N 3x4 matrices to transform
+  ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   MatrixN vectorToMatrix(std::vector<Matrix34> const& array);
 
@@ -155,7 +157,7 @@ class FootstepPlanner {
 
   // Constant sized matrices
   Matrix34 footsteps_under_shoulders_;  // Positions of footsteps to be "under the shoulder"
-  Matrix34 footsteps_offset_;
+  Matrix34 footsteps_offset_;           // Hardcoded offset to add to footsteps positions
   Matrix34 currentFootstep_;            // Feet matrix
   Matrix34 nextFootstep_;               // Temporary matrix to perform computations
   Matrix34 targetFootstep_;             // In horizontal frame
@@ -175,7 +177,7 @@ class FootstepPlanner {
   pinocchio::Data data_;            // Pinocchio datas for forward kinematics
   int foot_ids_[4] = {0, 0, 0, 0};  // Indexes of feet frames
   Matrix34 pos_feet_;               // Estimated feet positions based on measurements
-  Vector19 q_FK_;
+  Vector19 q_FK_;                   // Estimated state of the base (height, roll, pitch, joints)
 };
 
 #endif  // FOOTSTEPPLANNER_H_INCLUDED

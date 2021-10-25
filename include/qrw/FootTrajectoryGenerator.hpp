@@ -55,15 +55,44 @@ class FootTrajectoryGenerator {
   /// \brief Update the 3D desired position for feet in swing phase by using a 5-th order polynomial that lead them
   ///        to the desired position on the ground (computed by the footstep planner)
   ///
-  /// \param[in] k Number of time steps since the start of the simulation
+  /// \param[in] k Numero of the current loop
+  /// \param[in] targetFootstep Desired target locations at the end of the swing phases
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void update(int k, MatrixN const &targetFootstep);
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Get target positions of feet in desired frame from target positions in ideal world
+  ///
+  /// \param[in] R Rotation matrix to apply between output frame and the ideal world
+  /// \param[in] T Translation to apply between output frame and the ideal world
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
   Eigen::MatrixXd getFootPositionBaseFrame(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &T);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Get target velocities of feet in desired frame from target positions in ideal world
+  ///
+  /// \param[in] R Rotation matrix to apply between output frame and the ideal world
+  /// \param[in] v_ref Reference linear velocity (if required for change of frame)
+  /// \param[in] w_ref Reference angular velocity (if required for change of frame)
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
   Eigen::MatrixXd getFootVelocityBaseFrame(const Eigen::Matrix<double, 3, 3> &R,
                                            const Eigen::Matrix<double, 3, 1> &v_ref,
                                            const Eigen::Matrix<double, 3, 1> &w_ref);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Get target accelerations of feet in desired frame from target positions in ideal world
+  ///
+  /// \param[in] R Rotation matrix to apply between output frame and the ideal world
+  /// \param[in] v_ref Reference linear velocity (if required for change of frame)
+  /// \param[in] w_ref Reference angular velocity (if required for change of frame)
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
   Eigen::MatrixXd getFootAccelerationBaseFrame(const Eigen::Matrix<double, 3, 3> &R,
                                                const Eigen::Matrix<double, 3, 1> &w_ref,
                                                const Eigen::Matrix<double, 3, 1> &a_ref);
@@ -84,9 +113,9 @@ class FootTrajectoryGenerator {
   double lockTime_;   // Target lock before the touchdown
   double vertTime_;   // Duration during which feet move only along Z when taking off and landing
 
-  std::vector<int> feet;  // Column indexes of feet currently in swing phase
-  Vector4 t0s;            // Elapsed time since the start of the swing phase movement
-  Vector4 t_swing;        // Swing phase duration for each foot
+  Eigen::Matrix<int, 1, 4> feet;  // Column indexes of feet currently in swing phase
+  Vector4 t0s;                    // Elapsed time since the start of the swing phase movement
+  Vector4 t_swing;                // Swing phase duration for each foot
 
   Matrix34 targetFootstep_;  // Target for the X component
 

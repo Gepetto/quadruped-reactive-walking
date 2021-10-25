@@ -80,7 +80,7 @@ def init_robot(q_init, params):
         for j in range(3):
             params.shoulders[3*i+j] = shoulders_init[j, i]
             params.footsteps_init[3*i+j] = fsteps_init[j, i]
-            params.footsteps_under_shoulders[3*i+j] = fsteps_under_shoulders[j, i]
+            params.footsteps_under_shoulders[3*i+j] = fsteps_init[j, i]  # Use initial feet pos as reference
 
     return solo
 

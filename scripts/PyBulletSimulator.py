@@ -544,7 +544,7 @@ class IMU():
         self.accelerometer = np.zeros((3, ))
         self.gyroscope = np.zeros((3, ))
         self.attitude_euler = np.zeros((3, ))
-        self.attitude_quaternion = np.array([[0.0, 0.0, 0.0, 1.0]]).transpose()
+        self.attitude_quaternion = np.array([0.0, 0.0, 0.0, 1.0])
 
 class Powerboard():
     """Dummy class that simulates the Powerboard class used to communicate with the real masterboard"""
@@ -699,7 +699,7 @@ class PyBulletSimulator():
         # print("baseVel: ", np.array([self.baseVel[0]]))
 
         # Orientation of the base (quaternion)
-        self.imu.attitude_quaternion[:, 0] = np.array(self.baseState[1])
+        self.imu.attitude_quaternion[:] = np.array(self.baseState[1])
         self.imu.attitude_euler[:] = pin.rpy.matrixToRpy(pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix())
         self.rot_oMb = pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix()
         self.oMb = pin.SE3(self.rot_oMb, np.array([self.dummyHeight]).transpose())

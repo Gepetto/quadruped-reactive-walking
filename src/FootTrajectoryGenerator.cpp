@@ -8,7 +8,7 @@ FootTrajectoryGenerator::FootTrajectoryGenerator()
       k_mpc(0),
       maxHeight_(0.0),
       lockTime_(0.0),
-      feet(),
+      feet(Eigen::Matrix<int, 1, 4>::Zero()),
       t0s(Vector4::Zero()),
       t_swing(Vector4::Zero()),
       targetFootstep_(Matrix34::Zero()),
@@ -154,7 +154,7 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const &tar
     acceleration_(0, j) = 0.0;
     acceleration_(1, j) = 0.0;
     jerk_(0, j) = 0.0;
-    jerk_(1, j) = 0.0;    
+    jerk_(1, j) = 0.0;
   } else {
     position_(0, j) = Ax(5, j) + Ax(4, j) * ev + Ax(3, j) * std::pow(ev, 2) + Ax(2, j) * std::pow(ev, 3) +
                       Ax(1, j) * std::pow(ev, 4) + Ax(0, j) * std::pow(ev, 5);
@@ -176,41 +176,45 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const &tar
                     5 * Az(1, j) * std::pow(evz, 4) + 6 * Az(0, j) * std::pow(evz, 5);
   acceleration_(2, j) = 2 * 3 * Az(3, j) * evz + 3 * 4 * Az(2, j) * std::pow(evz, 2) +
                         4 * 5 * Az(1, j) * std::pow(evz, 3) + 5 * 6 * Az(0, j) * std::pow(evz, 4);
-  jerk_(2, j) = 2 * 3 * Az(3, j) + 3 * 4 * 2 * Az(2, j) * evz + 4 * 5 * 3 * Az(1, j) * std::pow(evz, 2) + 5 * 6 * 4 * Az(0, j) * std::pow(evz, 3);
+  jerk_(2, j) = 2 * 3 * Az(3, j) + 3 * 4 * 2 * Az(2, j) * evz + 4 * 5 * 3 * Az(1, j) * std::pow(evz, 2) +
+                5 * 6 * 4 * Az(0, j) * std::pow(evz, 3);
   position_(2, j) = Az(3, j) * std::pow(evz, 3) + Az(2, j) * std::pow(evz, 4) + Az(1, j) * std::pow(evz, 5) +
                     Az(0, j) * std::pow(evz, 6);
 }
 
 void FootTrajectoryGenerator::update(int k, MatrixN const &targetFootstep) {
   if ((k % k_mpc) == 0) {
-    // Indexes of feet in swing phase
-    feet.clear();
-    for (int i = 0; i < 4; i++) {
-      if (gait_->getCurrentGait()(0, i) == 0) feet.push_back(i);
-    }
+    // Status of feet
+    feet = gait_->getCurrentGait().row(0).cast<int>();
+
     // If no foot in swing phase
-    if (feet.size() == 0) return;
+    if (feet.sum() == 4) return;
 
     // For each foot in swing phase get remaining duration of the swing phase
-    for (int j = 0; j < (int)feet.size(); j++) {
-      int i = feet[j];
-      t_swing[i] = gait_->getPhaseDuration(0, feet[j], 0.0);  // 0.0 for swing phase
-      double value = t_swing[i] - (gait_->getRemainingTime() * k_mpc - ((k + 1) % k_mpc)) * dt_wbc - dt_wbc;
-      t0s[i] = std::max(0.0, value);
+    for (int i = 0; i < 4; i++) {
+      if (feet(0, i) == 0) {
+        t_swing[i] = gait_->getPhaseDuration(0, i, 0.0);  // 0.0 for swing phase
+        double value = t_swing[i] - (gait_->getRemainingTime() * k_mpc - ((k + 1) % k_mpc)) * dt_wbc - dt_wbc;
+        t0s[i] = std::max(0.0, value);
+      }
     }
   } else {
     // If no foot in swing phase
-    if (feet.size() == 0) return;
+    if (feet.sum() == 4) return;
 
     // Increment of one time step for feet in swing phase
-    for (int i = 0; i < (int)feet.size(); i++) {
-      double value = t0s[feet[i]] + dt_wbc;
-      t0s[feet[i]] = std::max(0.0, value);
+    for (int i = 0; i < 4; i++) {
+      if (feet(0, i) == 0) {
+        double value = t0s[i] + dt_wbc;
+        t0s[i] = std::max(0.0, value);
+      }
     }
   }
 
-  for (int i = 0; i < (int)feet.size(); i++) {
-    updateFootPosition(feet[i], targetFootstep.col(feet[i]));
+  for (int i = 0; i < 4; i++) {
+    if (feet(0, i) == 0) {
+      updateFootPosition(i, targetFootstep.col(i));
+    }
   }
   return;
 }

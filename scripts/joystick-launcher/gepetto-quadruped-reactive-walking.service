@@ -1,0 +1,7 @@
+[Unit]
+Description=Gepetto Quadruped Reactive Walking
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/src/quadruped-reactive-walking/build
+ExecStart=/usr/bin/chrt 99 /home/pi/src/quadruped-reactive-walking/build/gepetto-quadruped-reactive-walking

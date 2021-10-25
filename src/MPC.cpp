@@ -451,6 +451,11 @@ int MPC::update_NK() {
   for (int k = 0; k < n_steps; k++) {
     NK_up(12 * k + 8, 0) = -g(8, 0);  // only 8-th coeff is non zero
   }
+  /*for (int k = 0; k < n_steps; k++) {
+    NK_up(12 * k + 6, 0) = dt * nle(0) / mass;
+    NK_up(12 * k + 7, 0) = dt * nle(1) / mass;
+    NK_up(12 * k + 8, 0) = dt * nle(2) / mass;
+  }*/
 
   // Including - A*X0 in the first row of N
   NK_up.block(0, 0, 12, 1) += A * (-x0);
@@ -609,10 +614,8 @@ Matrix3 MPC::getSkew(Vector3 v) {
 }
 
 int MPC::construct_S() {
-
   inv_gait = Eigen::Matrix<int, Eigen::Dynamic, 4>::Ones(gait.rows(), 4) - gait;
-  for (int i = 0; i < gait.rows(); i++)
-  {
+  for (int i = 0; i < gait.rows(); i++) {
     // S_gait.block(k*12, 0, gait[i, 0]*12, 1) = (1 - (gait.block(i, 1, 1, 4)).transpose()).replicate<gait[i, 0], 1>()
     // not finished;
     for (int b = 0; b < 4; b++) {

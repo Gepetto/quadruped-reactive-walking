@@ -75,6 +75,7 @@ Estimator::Estimator()
       a_ref_(VectorN::Zero(6)),
       h_v_(VectorN::Zero(6)),
       oRh_(Matrix3::Identity()),
+      hRb_(Matrix3::Identity()),
       oTh_(Vector3::Zero()),
       yaw_estim_(0.0),
       N_queue_(0),
@@ -409,47 +410,46 @@ void Estimator::updateState(VectorN const& joystick_v_ref, Gait& gait) {
   // TODO: Joystick velocity given in base frame and not in horizontal frame (case of non flat ground)
 
   // Update reference acceleration vector
-  a_ref_.head(3) = (joystick_v_ref.head(3) - pinocchio::rpy::rpyToMatrix(0.0, 0.0, - v_ref_[5] * dt_wbc) * v_ref_.head(3)) / dt_wbc;
-  a_ref_.tail(3) = (joystick_v_ref.tail(3) - pinocchio::rpy::rpyToMatrix(0.0, 0.0, - v_ref_[5] * dt_wbc) * v_ref_.tail(3)) / dt_wbc;
+  a_ref_.head(3) =
+      (joystick_v_ref.head(3) - pinocchio::rpy::rpyToMatrix(0.0, 0.0, -v_ref_[5] * dt_wbc) * v_ref_.head(3)) / dt_wbc;
+  a_ref_.tail(3) =
+      (joystick_v_ref.tail(3) - pinocchio::rpy::rpyToMatrix(0.0, 0.0, -v_ref_[5] * dt_wbc) * v_ref_.tail(3)) / dt_wbc;
 
   // Update reference velocity vector
   v_ref_.head(3) = joystick_v_ref.head(3);
   v_ref_.tail(3) = joystick_v_ref.tail(3);
 
   // Update position and velocity state vectors
-  if (!gait.getIsStatic()) {
-    // Integration to get evolution of perfect x, y and yaw
-    Matrix2 Ryaw;
-    Ryaw << cos(yaw_estim_), -sin(yaw_estim_), sin(yaw_estim_), cos(yaw_estim_);
 
-    v_up_.head(2) = Ryaw * v_ref_.head(2);
-    q_up_.head(2) = q_up_.head(2) + v_up_.head(2) * dt_wbc;
+  // Integration to get evolution of perfect x, y and yaw
+  Matrix2 Ryaw;
+  Ryaw << cos(yaw_estim_), -sin(yaw_estim_), sin(yaw_estim_), cos(yaw_estim_);
+  v_up_.head(2) = Ryaw * v_ref_.head(2);
+  q_up_.head(2) = q_up_.head(2) + v_up_.head(2) * dt_wbc;
 
-    // Mix perfect x and y with height measurement
-    q_up_[2] = q_filt_dyn_[2];
+  // Mix perfect x and y with height measurement
+  q_up_[2] = q_filt_dyn_[2];
 
-    // Mix perfect yaw with pitch and roll measurements
-    v_up_[5] = v_ref_[5];
-    yaw_estim_ += v_ref_[5] * dt_wbc;
-    q_up_.block(3, 0, 3, 1) << IMU_RPY_[0], IMU_RPY_[1], yaw_estim_;
+  // Mix perfect yaw with pitch and roll measurements
+  v_up_[5] = v_ref_[5];
+  yaw_estim_ += v_ref_[5] * dt_wbc;
+  q_up_.block(3, 0, 3, 1) << IMU_RPY_[0], IMU_RPY_[1], yaw_estim_;
 
-    // Transformation matrices between world and base frames
-    oRb_ = pinocchio::rpy::rpyToMatrix(IMU_RPY_(0, 0), IMU_RPY_(1, 0), yaw_estim_);
+  // Transformation matrices between world and base frames
+  oRb_ = pinocchio::rpy::rpyToMatrix(IMU_RPY_(0, 0), IMU_RPY_(1, 0), yaw_estim_);
 
-    // Actuators measurements
-    q_up_.tail(12) = q_filt_dyn_.tail(12);
-    v_up_.tail(12) = v_filt_dyn_.tail(12);
+  // Actuators measurements
+  q_up_.tail(12) = q_filt_dyn_.tail(12);
+  v_up_.tail(12) = v_filt_dyn_.tail(12);
 
-    // Velocities are the one estimated by the estimator
-    Matrix3 hRb = pinocchio::rpy::rpyToMatrix(IMU_RPY_[0], IMU_RPY_[1], 0.0);
+  // Velocities are the one estimated by the estimator
+  hRb_ = pinocchio::rpy::rpyToMatrix(IMU_RPY_[0], IMU_RPY_[1], 0.0);
 
-    h_v_.head(3) = hRb * v_filt_.block(0, 0, 3, 1);
-    h_v_.tail(3) = hRb * v_filt_.block(3, 0, 3, 1);
-    h_v_windowed_.head(3) = hRb * v_filt_bis_.block(0, 0, 3, 1);
-    h_v_windowed_.tail(3) = hRb * v_filt_bis_.block(3, 0, 3, 1);
-  } else {
-    // TODO: Adapt static mode to new version of the code
-  }
+  // Express estimated velocity and filtered estimated velocity in horizontal frame
+  h_v_.head(3) = hRb_ * v_filt_.block(0, 0, 3, 1);
+  h_v_.tail(3) = hRb_ * v_filt_.block(3, 0, 3, 1);
+  h_v_windowed_.head(3) = hRb_ * v_filt_bis_.block(0, 0, 3, 1);
+  h_v_windowed_.tail(3) = hRb_ * v_filt_bis_.block(3, 0, 3, 1);
 
   // Transformation matrices between world and horizontal frames
   oRh_ = Matrix3::Identity();

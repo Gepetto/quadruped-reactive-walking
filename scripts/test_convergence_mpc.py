@@ -29,7 +29,6 @@ def test_1():
 
     # Params
     params = lqrw.Params()  # Object that holds all controller parameters
-    N_gait = int(params.gait.shape[0])
 
     """params.dt_mpc = dt_mpc
     params.T_mpc = T_mpc
@@ -74,7 +73,7 @@ def test_1():
 
 
     # Run state planner (outputs the reference trajectory of the base)
-    statePlanner.computeReferenceStates(q[0:6, 0:1].copy(), h_v[0:6, 0:1].copy(), v_ref[0:6, 0:1].copy(), 0.0)
+    statePlanner.computeReferenceStates(q[0:6, 0:1].copy(), h_v[0:6, 0:1].copy(), v_ref[0:6, 0:1].copy())
     xref = statePlanner.getReferenceStates()
 
     # Create fsteps matrix
@@ -85,7 +84,7 @@ def test_1():
 
     # Solve MPC problem once every k_mpc iterations of the main loop
     mpc_wrapper_classic.solve(0, xref.copy(), fsteps.copy(), cgait.copy(), np.zeros((3,4)))
-    mpc_wrapper_croco.solve(0, xref.copy(), fsteps.copy(), cgait.copy(), shoulders.copy())
+    #mpc_wrapper_croco.solve(0, xref.copy(), fsteps.copy(), cgait.copy(), shoulders.copy())
 
     # Retrieve reference contact forces in horizontal frame
     x_f_mpc_classic = mpc_wrapper_classic.get_latest_result()
@@ -93,14 +92,14 @@ def test_1():
 
     # Solve MPC problem once every k_mpc iterations of the main loop
     mpc_wrapper_classic.solve(1, xref, fsteps, cgait, np.zeros((3,4)))
-    mpc_wrapper_croco.solve(1, xref, fsteps, cgait, shoulders)
+    #mpc_wrapper_croco.solve(1, xref, fsteps, cgait, shoulders)
 
     # Retrieve reference contact forces in horizontal frame
     x_f_mpc_classic = mpc_wrapper_classic.get_latest_result()
-    x_f_mpc_croco_32 = mpc_wrapper_croco.get_latest_result()
+    #x_f_mpc_croco_32 = mpc_wrapper_croco.get_latest_result()
 
     x_f_mpc_classic = np.hstack((np.vstack((xref[:, 0:1], np.zeros((12, 1)))), x_f_mpc_classic))
-    x_f_mpc_croco = np.hstack((np.vstack((xref[:, 0:1], np.zeros((12, 1)))), x_f_mpc_croco_32[:24, :]))
+    #x_f_mpc_croco = np.hstack((np.vstack((xref[:, 0:1], np.zeros((12, 1)))), x_f_mpc_croco_32[:24, :]))
 
     # print(xref)
 
@@ -117,6 +116,18 @@ def test_1():
         plt.xlabel("Time [s]")
         # plt.legend([h1, h2, h3], ["Output trajectory of classic MPC", "Output trajectory of croco MPC", "Input trajectory of planner"])
         plt.legend([h1, h2, h3], ["OSQP", "Croco", "Ref"])
+        if i in [0, 1]:
+            m1 = np.min(x_f_mpc_classic[0:2, :N])
+            M1 = np.max(x_f_mpc_classic[0:2, :N])
+            m2 = np.min(x_f_mpc_croco[0:2, :N])
+            M2 = np.max(x_f_mpc_croco[0:2, :N])
+            plt.ylim([np.min([m1, m2]) - 0.01, np.max([M1, M2]) + 0.01])
+        elif i in [3, 4]:
+            m1 = np.min(x_f_mpc_classic[3:5, :N])
+            M1 = np.max(x_f_mpc_classic[3:5, :N])
+            m2 = np.min(x_f_mpc_croco[3:5, :N])
+            M2 = np.max(x_f_mpc_croco[3:5, :N])
+            plt.ylim([np.min([m1, m2]) - 0.01, np.max([M1, M2]) + 0.01])
         plt.title("Predicted trajectory for " + titles[i])
     plt.suptitle("Analysis of trajectories in position and orientation computed by the MPC")
 
@@ -127,6 +138,18 @@ def test_1():
         h2, = plt.plot(x_f_mpc_croco[i+6, :N], "r", linewidth=2)
         h3, = plt.plot(xref[i+6, :N], "b", linestyle="--", marker='x', color="g", linewidth=2)
         plt.xlabel("Time [s]")
+        if i in [0, 1]:
+            m1 = np.min(x_f_mpc_classic[6:8, :N])
+            M1 = np.max(x_f_mpc_classic[6:8, :N])
+            m2 = np.min(x_f_mpc_croco[6:8, :N])
+            M2 = np.max(x_f_mpc_croco[6:8, :N])
+            plt.ylim([np.min([m1, m2]) - 0.01, np.max([M1, M2]) + 0.01])
+        elif i in [3, 4]:
+            m1 = np.min(x_f_mpc_classic[9:11, :N])
+            M1 = np.max(x_f_mpc_classic[9:11, :N])
+            m2 = np.min(x_f_mpc_croco[9:11, :N])
+            M2 = np.max(x_f_mpc_croco[9:11, :N])
+            plt.ylim([np.min([m1, m2]) - 0.01, np.max([M1, M2]) + 0.01])
         # plt.legend([h1, h2, h3], ["Output trajectory of classic MPC", "Output trajectory of croco MPC", "Input trajectory of planner"])
         plt.title("Predicted trajectory for velocity in " + titles[i])
     plt.suptitle("Analysis of trajectories of linear and angular velocities computed by the MPC")
@@ -147,6 +170,24 @@ def test_1():
             plt.ylim([-0.0, 26.0])
         else:
             plt.ylim([-26.0, 26.0])"""
+
+        if i % 3 != 2:
+            row = int(int(i/3)*3+14)
+            plt.plot(0.9 * np.abs(x_f_mpc_croco[row, 1:(N+1)]), "b--", linewidth=3)
+            plt.plot(-0.9 * np.abs(x_f_mpc_croco[row, 1:(N+1)]), "b--", linewidth=3)
+            plt.plot(0.9 * np.abs(x_f_mpc_croco[row, 1:(N+1)]), "r--", linewidth=3)
+            plt.plot(-0.9 * np.abs(x_f_mpc_croco[row, 1:(N+1)]), "r--", linewidth=3)
+
+        if i % 3 != 2:
+            idx = np.array([0, 1, 3, 4, 6, 7, 9, 10]) + 12
+        else:
+            idx = np.array([2, 5, 8, 11]) + 12
+        m1 = np.min(x_f_mpc_classic[idx, :N])
+        M1 = np.max(x_f_mpc_classic[idx, :N])
+        m2 = np.min(x_f_mpc_croco[idx, :N])
+        M2 = np.max(x_f_mpc_croco[idx, :N])
+        plt.ylim([np.min([m1, m2]) - 0.2, np.max([M1, M2]) + 0.2])
+
         plt.legend([h1, h2], ["Classic", "Croco"])
     plt.suptitle("Contact forces (MPC command)")
 
@@ -217,9 +258,9 @@ def test_2():
     footstepPlanner_2.updateFootsteps(False, 20, q[:, 0:1], h_v_2[0:6, 0:1].copy(), v_ref_2[0:6, 0])
 
     # Run state planner (outputs the reference trajectory of the base)
-    statePlanner_1.computeReferenceStates(q[0:7, 0:1].copy(), h_v_1[0:6, 0:1].copy(), v_ref_1[0:6, 0:1].copy(), 0.0)
+    statePlanner_1.computeReferenceStates(q[0:7, 0:1].copy(), h_v_1[0:6, 0:1].copy(), v_ref_1[0:6, 0:1].copy())
     xref_1 = statePlanner_1.getReferenceStates()
-    statePlanner_2.computeReferenceStates(q[0:7, 0:1].copy(), h_v_2[0:6, 0:1].copy(), v_ref_2[0:6, 0:1].copy(), 0.0)
+    statePlanner_2.computeReferenceStates(q[0:7, 0:1].copy(), h_v_2[0:6, 0:1].copy(), v_ref_2[0:6, 0:1].copy())
     xref_2 = statePlanner_2.getReferenceStates()
 
     fsteps_1 = footstepPlanner_1.getFootsteps()
@@ -418,9 +459,9 @@ def test_3(typeMPC=True):
     mpc_wrapper_2 = MPC_Wrapper.MPC_Wrapper(params, q)
 
     # Run state planner (outputs the reference trajectory of the base)
-    statePlanner_1.computeReferenceStates(q[0:7, 0:1].copy(), h_v_1[0:6, 0:1].copy(), v_ref_1[0:6, 0:1].copy(), 0.0)
+    statePlanner_1.computeReferenceStates(q[0:7, 0:1].copy(), h_v_1[0:6, 0:1].copy(), v_ref_1[0:6, 0:1].copy())
     xref_1 = statePlanner_1.getReferenceStates()
-    statePlanner_2.computeReferenceStates(q[0:7, 0:1].copy(), h_v_2[0:6, 0:1].copy(), v_ref_2[0:6, 0:1].copy(), 0.0)
+    statePlanner_2.computeReferenceStates(q[0:7, 0:1].copy(), h_v_2[0:6, 0:1].copy(), v_ref_2[0:6, 0:1].copy())
     xref_2 = statePlanner_2.getReferenceStates()
 
     # Create gait matrix

@@ -16,10 +16,12 @@ using Vector4 = Eigen::Matrix<double, 4, 1>;
 using Vector5 = Eigen::Matrix<double, 5, 1>;
 using Vector6 = Eigen::Matrix<double, 6, 1>;
 using Vector7 = Eigen::Matrix<double, 7, 1>;
+using Vector8 = Eigen::Matrix<double, 8, 1>;
 using Vector11 = Eigen::Matrix<double, 11, 1>;
 using Vector12 = Eigen::Matrix<double, 12, 1>;
 using Vector18 = Eigen::Matrix<double, 18, 1>;
 using Vector19 = Eigen::Matrix<double, 19, 1>;
+using Vector24 = Eigen::Matrix<double, 24, 1>;
 using VectorN = Eigen::Matrix<double, Eigen::Dynamic, 1>;
 
 using Matrix2 = Eigen::Matrix<double, 2, 2>;
