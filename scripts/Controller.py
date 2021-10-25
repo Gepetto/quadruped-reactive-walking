@@ -15,6 +15,8 @@ from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRob
 import libquadruped_reactive_walking as lqrw
 from example_robot_data.robots_loader import Solo12Loader
 
+from solo3D.tools.utils import quaternionToRPY
+
 class Result:
     """Object to store the result of the control loop
     It contains what is sent to the robot (gains, desired positions and velocities,
@@ -143,8 +145,6 @@ class Controller:
         if params.solo3D:
             from solo3D.SurfacePlannerWrapper import SurfacePlanner_Wrapper
             from solo3D.tools.pyb_environment_3D import PybEnvironment3D
-            from solo3D.tools.utils import quaternionToRPY
-            from example_robot_data import load
 
         self.enable_multiprocessing_mip = params.enable_multiprocessing_mip
         self.offset_perfect_estimator = 0.
@@ -167,12 +167,6 @@ class Controller:
             N_sample = 8  # Number of sample in the least square optimisation for Bezier coeffs
             N_sample_ineq = 10  # Number of sample while browsing the curve
             degree = 7  # Degree of the Bezier curve
-
-            # pinocchio model and data, CoM and Inertia estimation for MPC
-            robot = load('solo12')
-            self.data = robot.data.copy()  # for velocity estimation (forward kinematics)
-            self.model = robot.model.copy()  # for velocity estimation (forward kinematics)
-            self.q_neutral = pin.neutral(self.model).reshape((19, 1))  # column vector
 
             self.footTrajectoryGenerator = lqrw.FootTrajectoryGeneratorBezier()
             self.footTrajectoryGenerator.initialize(params, self.gait, self.surfacePlanner.floor_surface,
@@ -453,10 +447,9 @@ class Controller:
                     self.o_targetFootstep[:2, foot] = self.x_f_mpc[24 + 2*foot:24+2*foot+2, id+1]
 
         # Update pos, vel and acc references for feet
-        if self.solo3D:  # Bezier curves, needs estimated position of the feet
-            currentPosition = self.computeFootPositionFeedback(self.k, device, self.q_filt_3d, self.v_filt_3d)
+        if self.solo3D:  # Bezier curves
             self.footTrajectoryGenerator.update(self.k, self.o_targetFootstep, self.surfacePlanner.selected_surfaces,
-                                                currentPosition)
+                                                self.q_filt_3d)
         else:
             self.footTrajectoryGenerator.update(self.k, self.o_targetFootstep)
         # Whole Body Control
@@ -523,7 +516,7 @@ class Controller:
                 self.h_ref += self.vref_filt_mpc[2, 0] * self.dt_wbc
                 self.h_ref = np.clip(self.h_ref, 0.19, 0.26)
                 self.xgoals[3:5, 0] = np.clip(self.xgoals[3:5, 0], [-0.25, -0.17], [0.25, 0.17])"""
-            
+
 
             self.xgoals[6:, 0] = self.vref_filt_mpc[:, 0]  # Velocities (in horizontal frame!)
 
@@ -576,7 +569,7 @@ class Controller:
 
         """if self.k == 1:
             quit()"""
-        
+
         """np.set_printoptions(precision=3, linewidth=300)
         print("---- ", self.k)
         print(self.x_f_mpc[12:24, 0])
@@ -727,65 +720,3 @@ class Controller:
         self.t_mpc = t_mpc - t_planner
         self.t_wbc = t_wbc - t_mpc
         self.t_loop = time.time() - tic
-
-    def computeFootPositionFeedback(self, k, device, q_filt, v_filt):
-        ''' Return the position of the foot using Pybullet feedback, Pybullet feedback with forward dynamics 
-        or Estimator feedback with forward dynamics
-        Args :
-        - k (int) : step indice
-        - q_filt (Arrayx18) : q estimated (only for estimator feedback)
-        - v_vilt (arrayx18) : v estimated (only for estimator feedback)
-        Returns :
-        - currentPosition (Array 3x4)
-        '''
-        currentPosition = np.zeros((3, 4))
-        q_filt_ = np.zeros((19, 1))
-        q_filt_[:3] = q_filt[:3]
-        q_filt_[3:7] = pin.Quaternion(pin.rpy.rpyToMatrix(q_filt[3:6, 0])).coeffs().reshape((4, 1))
-        q_filt_[7:] = q_filt[6:]
-
-        # Current position : Pybullet feedback, directly
-        ##########################
-
-        # linkId = [3, 7 ,11 ,15]
-        # if k != 0 :
-        #     links = pyb.getLinkStates(device.pyb_sim.robotId, linkId , computeForwardKinematics=True , computeLinkVelocity=True )
-
-        #     for j in range(4) :
-        #         self.goals[:,j] = np.array(links[j][4])[:]   # pos frame world for feet
-        #         self.goals[2,j] -= 0.016988                  #  Z offset due to position of frame in object
-        #         self.vgoals[:,j] = np.array(links[j][6])     # vel frame world for feet
-
-        # Current position : Pybullet feedback, with forward dynamics
-        ##########################
-
-        # if k > 0:    # Dummy device for k == 0
-        #     qmes = np.zeros((19, 1))
-        #     revoluteJointIndices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
-        #     jointStates = pyb.getJointStates(device.pyb_sim.robotId, revoluteJointIndices)
-        #     baseState = pyb.getBasePositionAndOrientation(device.pyb_sim.robotId)
-        #     qmes[:3, 0] = baseState[0]
-        #     qmes[3:7, 0] = baseState[1]
-        #     qmes[7:, 0] = [state[0] for state in jointStates]
-        #     pin.forwardKinematics(self.model, self.data, qmes, v_filt)
-        # else:
-        #     pin.forwardKinematics(self.model, self.data, q_filt_, v_filt)
-
-        # Current position : Estimator feedback, with forward dynamics
-        ##########################
-
-        pin.forwardKinematics(self.model, self.data, q_filt_, v_filt)
-
-        contactFrameId = [10, 18, 26, 34]  # = [ FL , FR , HL , HR]
-
-        for j in range(4):
-            framePlacement = pin.updateFramePlacement(self.model, self.data,
-                                                      contactFrameId[j])  # = solo.data.oMf[18].translation
-            frameVelocity = pin.getFrameVelocity(self.model, self.data, contactFrameId[j], pin.ReferenceFrame.LOCAL)
-
-            currentPosition[:, j] = framePlacement.translation[:]
-            # if k > 0:
-            #     currentPosition[2, j] -= 0.016988                     # Pybullet offset on Z
-            # self.vgoals[:,j] = frameVelocity.linear       # velocity feedback not working
-
-        return currentPosition
