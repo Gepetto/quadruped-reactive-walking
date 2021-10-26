@@ -89,8 +89,9 @@ class StatePlanner3D {
   VectorN dt_vector_;  // Vector containing all time steps in the prediction horizon
   Heightmap heightmap_;
   Vector3 rpy_map = Vector3::Zero(3);
+  Vector3 mean_surface; // Vector3 such as [a,b,c], such as ax + by -z + c = 0
 
-  double v_max = 0.3;    // rad.s-1
+  double v_max = 0.4;    // rad.s-1
   double v_max_z = 0.1;  // rad.s-1
   int n_surface_configs = 3;
   MatrixN configs;

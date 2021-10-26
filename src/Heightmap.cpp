@@ -22,10 +22,10 @@ void Heightmap::initialize(const std::string& file_name) {
   dx_ = std::abs((header_.x_init - header_.x_end) / (header_.size_x - 1));
   dy_ = std::abs((header_.y_init - header_.y_end) / (header_.size_y - 1));
 
-  FIT_SIZE_X = 0.4;
-  FIT_SIZE_Y = 0.4;
-  FIT_NX = 10;
-  FIT_NY = 5;
+  FIT_SIZE_X = 0.3;
+  FIT_SIZE_Y = 0.3;
+  FIT_NX = 16;
+  FIT_NY = 6;
 
   int i = 0;
   int j = 0;
@@ -72,18 +72,15 @@ double Heightmap::get_height(double x, double y) {
   }
 }
 
-void Heightmap::update_mean_surface(double x, double y) {
+Vector3 Heightmap::compute_mean_surface(double x, double y) {
   VectorN x_surface = VectorN::LinSpaced(FIT_NX, x - FIT_SIZE_X / 2, x + FIT_SIZE_X / 2);
   VectorN y_surface = VectorN::LinSpaced(FIT_NY, y - FIT_SIZE_Y / 2, x + FIT_SIZE_Y / 2);
 
   int i_pb = 0;
-  int idx, idy = 0;
   for (int i = 0; i < FIT_NX; i++) {
     for (int j = 0; j < FIT_NY; j++) {
-      idx = map_x(x_surface[i]);
-      idy = map_y(y_surface[j]);
-      A.block(i_pb, 0, 1, 3) << x_(idx), y_(idy), 1.0;
-      b.block(i_pb, 0, 1, 1) << z_(idx, idy);
+      A.block(i_pb, 0, 1, 3) << x_surface[i],y_surface[j], 1.0;
+      b.block(i_pb, 0, 1, 1) << get_height(x_surface[i],y_surface[j]);
       i_pb += 1;
     }
   }
@@ -92,4 +89,5 @@ void Heightmap::update_mean_surface(double x, double y) {
   P_ = A.transpose() * A;
   q_ = -A.transpose() * b;
   status = qp.solve_quadprog(P_, q_, C_, d_, G_, h_, surface_eq);
+  return surface_eq;
 }

@@ -12,9 +12,10 @@ void StatePlanner3D::initialize(Params& params) {
   referenceStates_ = MatrixN::Zero(12, 1 + n_steps_);
   dt_vector_ = VectorN::LinSpaced(n_steps_, dt_, static_cast<double>(n_steps_) * dt_);
   heightmap_.initialize(params.environment_heightmap);
-  configs = MatrixN::Zero(7,n_surface_configs);
+  configs = MatrixN::Zero(7, n_surface_configs);
   Rz = Matrix3::Zero();
   q_dxdy = Vector3::Zero();
+  mean_surface = Vector3::Zero();
 }
 
 void StatePlanner3D::computeReferenceStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, int is_new_step) {
@@ -22,10 +23,10 @@ void StatePlanner3D::computeReferenceStates(VectorN const& q, Vector6 const& v, 
     throw std::runtime_error("q should be a vector of size 6");
   }
   if (is_new_step) {
-    heightmap_.update_mean_surface(q(0), q(1));  // Update surface equality before new step
-    rpy_map(0) = -std::atan2(heightmap_.surface_eq(1), 1.);
-    rpy_map(1) = -std::atan2(heightmap_.surface_eq(0), 1.);
-    compute_configurations(q,vref);
+    mean_surface = heightmap_.compute_mean_surface(q(0), q(1));  // Update surface equality before new step
+    rpy_map(0) = -std::atan2(mean_surface(1), 1.);
+    rpy_map(1) = -std::atan2(mean_surface(0), 1.);
+    compute_configurations(q, vref);
   }
 
   RPY_ = q.tail(3);
@@ -73,13 +74,9 @@ void StatePlanner3D::computeReferenceStates(VectorN const& q, Vector6 const& v, 
     // Update according to heightmap
     q_dxdy(0) = referenceStates_(0, i + 1);
     q_dxdy(1) = referenceStates_(1, i + 1);
-    q_dxdy = Rz*q_dxdy + q.head(3); // world frame
+    q_dxdy = Rz * q_dxdy + q.head(3);  // world frame
 
-    int idx = heightmap_.map_x(q_dxdy(0));
-    int idy = heightmap_.map_y(q_dxdy(1));
-    double z = heightmap_.surface_eq(0) * heightmap_.x_(idx) + heightmap_.surface_eq(1) * heightmap_.y_(idy) +
-               heightmap_.surface_eq(2);
-    referenceStates_(2, 1 + i) = h_ref_ + z;
+    referenceStates_(2, 1 + i) = mean_surface(0) * q_dxdy(0) + mean_surface(1) * q_dxdy(1) + mean_surface(2) + h_ref_;
 
     referenceStates_(3, 1 + i) = rpy_map[0] * std::cos(RPY_[2]) - rpy_map[1] * std::sin(RPY_[2]);
     referenceStates_(4, 1 + i) = rpy_map[0] * std::sin(RPY_[2]) + rpy_map[1] * std::cos(RPY_[2]);
@@ -88,9 +85,9 @@ void StatePlanner3D::computeReferenceStates(VectorN const& q, Vector6 const& v, 
   // Update velocities according to heightmap
   for (int i = 0; i < n_steps_; i++) {
     if (i == 0) {
-      referenceStates_(8, 1) = std::max(std::min((referenceStates_(2, 1) - q[2]) / dt_, v_max_z), -v_max_z);
-      referenceStates_(9, 1) = std::max(std::min((referenceStates_(3, 1) - RPY_[0]) / dt_, v_max), -v_max);
-      referenceStates_(10, 1) = std::max(std::min((referenceStates_(4, 1) - RPY_[1]) / dt_, v_max), -v_max);
+      referenceStates_(8, 1 + i) = std::max(std::min((referenceStates_(2, 1) - q[2]) / dt_, v_max_z), -v_max_z);
+      referenceStates_(9, 1 + i) = std::max(std::min((referenceStates_(3, 1) - RPY_[0]) / dt_, v_max), -v_max);
+      referenceStates_(10, 1 + i) = std::max(std::min((referenceStates_(4, 1) - RPY_[1]) / dt_, v_max), -v_max);
     } else {
       referenceStates_(9, 1 + i) = 0.;
       referenceStates_(10, 1 + i) = 0.;
@@ -100,8 +97,9 @@ void StatePlanner3D::computeReferenceStates(VectorN const& q, Vector6 const& v, 
 }
 
 void StatePlanner3D::compute_configurations(VectorN const& q, Vector6 const& vref) {
-
   pinocchio::SE3::Quaternion quat_;
+  Vector3 rpy_map_tmp = Vector3::Zero(3);       // Tmp vector3 to recompute the orientation of the configuration
+  Vector3 mean_surface_tmp = Vector3::Zero(3);  // Tmp vector3 to recompute the mean surface
   for (int i = 0; i < n_surface_configs; i++) {
     Vector7 config_ = Vector7::Zero();
     // TODO : Not sure if (i+1)*T_step --> next step for MIP, not current
@@ -122,17 +120,25 @@ void StatePlanner3D::compute_configurations(VectorN const& q, Vector6 const& vre
     rpy_config(2) = q(5) + vref(5) * dt_config;
 
     // Update according to heightmap
-    int idx = heightmap_.map_x(config_(0));
-    int idy = heightmap_.map_y(config_(1));
-    config_(2) = heightmap_.surface_eq(0) * heightmap_.x_(idx) + heightmap_.surface_eq(1) * heightmap_.y_(idy) +
-                heightmap_.surface_eq(2) + h_ref_;
 
-    rpy_config(0) = rpy_map[0] * std::cos(rpy_config[2]) - rpy_map[1] * std::sin(rpy_config[2]);
-    rpy_config(1) = rpy_map[0] * std::sin(rpy_config[2]) + rpy_map[1] * std::cos(rpy_config[2]);
+    // Use the mean surface computed for the current position
+    // config_(2) = mean_surface(0) * config_(0) + mean_surface(1) * config_(1) +
+    //             mean_surface(2) + h_ref_;
+    // rpy_config(0) = rpy_map[0] * std::cos(rpy_config[2]) - rpy_map[1] * std::sin(rpy_config[2]);
+    // rpy_config(1) = rpy_map[0] * std::sin(rpy_config[2]) + rpy_map[1] * std::cos(rpy_config[2]);
+
+    // Rcomputed the mean surface for the estimated next position
+    mean_surface_tmp = heightmap_.compute_mean_surface(config_(0), config_(1));
+    config_(2) = mean_surface(0) * config_(0) + mean_surface(1) * config_(1) + mean_surface(2) + h_ref_;
+
+    rpy_map_tmp(0) = -std::atan2(mean_surface_tmp(1), 1.);
+    rpy_map_tmp(1) = -std::atan2(mean_surface_tmp(0), 1.);
+    rpy_config(0) = rpy_map_tmp[0] * std::cos(rpy_config[2]) - rpy_map_tmp[1] * std::sin(rpy_config[2]);
+    rpy_config(1) = rpy_map_tmp[0] * std::sin(rpy_config[2]) + rpy_map_tmp[1] * std::cos(rpy_config[2]);
 
     quat_ = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(rpy_config));
     config_.tail(4) = quat_.coeffs();
     // configs.push_back(config_);
-    configs.block(0,i,7,1) = config_;
+    configs.block(0, i, 7, 1) = config_;
   }
 }
