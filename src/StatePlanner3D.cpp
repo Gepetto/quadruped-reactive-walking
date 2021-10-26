@@ -13,6 +13,8 @@ void StatePlanner3D::initialize(Params& params) {
   dt_vector_ = VectorN::LinSpaced(n_steps_, dt_, static_cast<double>(n_steps_) * dt_);
   heightmap_.initialize(params.environment_heightmap);
   configs = MatrixN::Zero(7,n_surface_configs);
+  Rz = Matrix3::Zero();
+  q_dxdy = Vector3::Zero();
 }
 
 void StatePlanner3D::computeReferenceStates(VectorN const& q, Vector6 const& v, Vector6 const& vref, int is_new_step) {
@@ -27,6 +29,9 @@ void StatePlanner3D::computeReferenceStates(VectorN const& q, Vector6 const& v, 
   }
 
   RPY_ = q.tail(3);
+  double c = std::cos(RPY_(2));
+  double s = std::sin(RPY_(2));
+  Rz.topLeftCorner<2, 2>() << c, -s, s, c;
 
   // Update the current state
   referenceStates_(0, 0) = 0.0;                       // In horizontal frame x = 0.0
@@ -66,12 +71,15 @@ void StatePlanner3D::computeReferenceStates(VectorN const& q, Vector6 const& v, 
     referenceStates_(11, 1 + i) = vref(5);
 
     // Update according to heightmap
-    int idx = heightmap_.map_x(referenceStates_(0, i + 1));
-    int idy = heightmap_.map_y(referenceStates_(1, i + 1));
+    q_dxdy(0) = referenceStates_(0, i + 1);
+    q_dxdy(1) = referenceStates_(1, i + 1);
+    q_dxdy = Rz*q_dxdy + q.head(3); // world frame
+
+    int idx = heightmap_.map_x(q_dxdy(0));
+    int idy = heightmap_.map_y(q_dxdy(1));
     double z = heightmap_.surface_eq(0) * heightmap_.x_(idx) + heightmap_.surface_eq(1) * heightmap_.y_(idy) +
                heightmap_.surface_eq(2);
-
-    referenceStates_(2, i + 1) = h_ref_ + z;
+    referenceStates_(2, 1 + i) = h_ref_ + z;
 
     referenceStates_(3, 1 + i) = rpy_map[0] * std::cos(RPY_[2]) - rpy_map[1] * std::sin(RPY_[2]);
     referenceStates_(4, 1 + i) = rpy_map[0] * std::sin(RPY_[2]) + rpy_map[1] * std::cos(RPY_[2]);

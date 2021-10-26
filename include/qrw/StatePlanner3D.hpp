@@ -78,7 +78,9 @@ class StatePlanner3D {
   int n_steps_;    // Number of time steps in the prediction horizon
   double T_step_;  // Period of a step
 
-  Vector3 RPY_;  // To store roll, pitch and yaw angles
+  Vector3 RPY_;    // Current roll, pitch and yaw angles
+  Matrix3 Rz;      // Rotation matrix z-axis, yaw angle
+  Vector3 q_dxdy;  // Temporary vector for displacement on x and y axis
 
   // Reference trajectory matrix of size 12 by (1 + N)  with the current state of
   // the robot in column 0 and the N steps of the prediction horizon in the others

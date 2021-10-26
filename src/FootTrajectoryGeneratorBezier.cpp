@@ -79,6 +79,27 @@ void FootTrajectoryGeneratorBezier::initialize(Params& params, Gait& gaitIn, Sur
   x_margin_max_ = x_margin_max_in;
   t_margin_ = t_margin_in;  // 1 % of the curve after critical point
   z_margin_ = z_margin_in;
+
+  // Path to the robot URDF (TODO: Automatic path)
+  const std::string filename =
+      std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
+
+  // Build model from urdf (base is not free flyer)
+  pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
+
+  // Construct data from model
+  data_ = pinocchio::Data(model_);
+
+  // Update all the quantities of the model
+  VectorN q_tmp = VectorN::Zero(model_.nq);
+  q_tmp(6, 0) = 1.0;  // Quaternion (0, 0, 0, 1)
+  pinocchio::computeAllTerms(model_, data_, q_tmp, VectorN::Zero(model_.nv));
+
+  // Get feet frame IDs
+  foot_ids_[0] = static_cast<int>(model_.getFrameId("FL_FOOT"));  // from long uint to int
+  foot_ids_[1] = static_cast<int>(model_.getFrameId("FR_FOOT"));
+  foot_ids_[2] = static_cast<int>(model_.getFrameId("HL_FOOT"));
+  foot_ids_[3] = static_cast<int>(model_.getFrameId("HR_FOOT"));
 }
 
 void FootTrajectoryGeneratorBezier::updatePolyCoeff_XY(int const& i_foot, Vector3 const& x_init, Vector3 const& v_init,
@@ -488,7 +509,7 @@ void FootTrajectoryGeneratorBezier::updateFootPosition(int const& k, int const& 
 }
 
 void FootTrajectoryGeneratorBezier::update(int k, MatrixN const& targetFootstep, SurfaceVector const& surfacesSelected,
-                                           MatrixN const& currentPosition) {
+                                           VectorN const& q) {
   if ((k % k_mpc) == 0) {
     // Indexes of feet in swing phase
     feet.clear();
@@ -525,11 +546,32 @@ void FootTrajectoryGeneratorBezier::update(int k, MatrixN const& targetFootstep,
     }
   }
 
+  // Update feet position using estimated state, by FK
+  update_position_FK(q);
+
+  // Update desired position, velocities and accelerations for flying feet
   for (int i = 0; i < (int)feet.size(); i++) {
-    position_.col(feet[i]) = currentPosition.col(feet[i]);
+    position_.col(feet[i]) = position_FK_.col(feet[i]);
     updateFootPosition(k, feet[i], targetFootstep.col(feet[i]));
   }
   return;
+}
+
+void FootTrajectoryGeneratorBezier::update_position_FK(VectorN const& q) {
+  // Get position of the feet in world frame, using estimated state q
+  q_FK_.head(3) = q.head(3);
+  q_FK_.block(3, 0, 4, 1) =
+      pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q(3, 0), q(4, 0), q(5, 0))).coeffs();
+  q_FK_.tail(12) = q.tail(12);
+
+  // Update model and data of the robot
+  pinocchio::forwardKinematics(model_, data_, q_FK_);
+  pinocchio::updateFramePlacements(model_, data_);
+
+  // Get data required by IK with Pinocchio
+  for (int i = 0; i < 4; i++) {
+    position_FK_.col(i) = data_.oMf[foot_ids_[i]].translation();
+  }
 }
 
 bool FootTrajectoryGeneratorBezier::doIntersect_segment(Vector2 const& p1, Vector2 const& q1, Vector2 const& p2,

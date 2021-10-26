@@ -4,14 +4,13 @@ FootstepPlannerQP::FootstepPlannerQP()
     : gait_(NULL),
       g(9.81),
       L(0.155),
-      next_footstep_(Vector3::Zero()),
-      next_footstep_qp_(Vector3::Zero()),
+      heuristic_fb_(Vector3::Zero()),
+      heuristic_(Vector3::Zero()),
       footsteps_(),
       Rz(MatrixN::Identity(3, 3)),
       Rz_tmp(MatrixN::Identity(3, 3)),
       dt_cum(),
       yaws(),
-      yaws_b(),
       dx(),
       dy(),
       q_dxdy(Vector3::Zero()),
@@ -24,8 +23,8 @@ FootstepPlannerQP::FootstepPlannerQP()
       t0s(Vector4::Zero()),
       t_swing(Vector4::Zero()),
       weights_(VectorN::Zero(N)),
-      voptim_{Vector3::Zero()},
-      b_voptim_{Vector6::Zero()},
+      b_voptim{Vector3::Zero()},
+      delta_x{Vector3::Zero()},
       P_{MatrixN::Zero(N, N)},
       q_{VectorN::Zero(N)},
       G_{MatrixN::Zero(M, N)},
@@ -58,7 +57,6 @@ void FootstepPlannerQP::initialize(Params& params, Gait& gaitIn, Surface initial
   o_targetFootstep_ = currentFootstep_;
   dt_cum = VectorN::Zero(params.gait.rows());
   yaws = VectorN::Zero(params.gait.rows());
-  yaws_b = VectorN::Zero(params.gait.rows());
   dx = VectorN::Zero(params.gait.rows());
   dy = VectorN::Zero(params.gait.rows());
   for (int i = 0; i < params.gait.rows(); i++) {
@@ -76,7 +74,7 @@ void FootstepPlannerQP::initialize(Params& params, Gait& gaitIn, Surface initial
   // QP initialization
   qp.reset(N, 0, M);
   weights_.setZero(N);
-  weights_ << 0.05, 0.05, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0;;
+  weights_ << 1000., 1000., 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0;;
   P_.diagonal() << weights_;
 
   // Path to the robot URDF (TODO: Automatic path)
@@ -123,10 +121,12 @@ MatrixN FootstepPlannerQP::computeTargetFootstep(int k, Vector6 const& q, Vector
                                                  SurfaceVectorVector const& potentialSurfaces,
                                                  SurfaceVector const& surfaces, bool const surfaceStatus,
                                                  int const surfaceIteration) {
+  // Update intern parameters
   surfaceStatus_ = surfaceStatus;
   surfaceIteration_ = surfaceIteration;
   surfaces_ = surfaces;
   potentialSurfaces_ = potentialSurfaces;
+
   // Rotation matrix along z axis
   RPY_ = q.tail(3);
   double c = std::cos(RPY_(2));
@@ -143,15 +143,6 @@ MatrixN FootstepPlannerQP::computeTargetFootstep(int k, Vector6 const& q, Vector
   // Update desired location of footsteps on the ground
   updateTargetFootsteps();
 
-  // // Update target footstep in base frame
-  // for (int i = 0; i < 4; i++) {
-  //   int index = 0;
-  //   while (footsteps_[index](0, i) == 0.0) {
-  //     index++;
-  //   }
-  //   targetFootstep_.col(i) << b_footsteps_[index](0, i), b_footsteps_[index](1, i), 0.0;
-  // }
-
   return o_targetFootstep_;
 }
 
@@ -166,20 +157,18 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
   std::fill(footsteps_.begin(), footsteps_.end(), Matrix34::Zero());
   for (int j = 0; j < 4; j++) {
     if (gait(0, j) == 1.0) {
-      footsteps_[0].col(j) = currentFootstep_.col(j);
-      b_footsteps_[0].col(j) = Rz.transpose() * (currentFootstep_.col(j) - q_tmp );
+      footsteps_[0].col(j) = currentFootstep_.col(j);                               // world frame
+      b_footsteps_[0].col(j) = Rz.transpose() * (currentFootstep_.col(j) - q_tmp);  // base frame
     }
   }
 
   // Cumulative time by adding the terms in the first column (remaining number of timesteps)
   // Get future yaw yaws compared to current position
   dt_cum(0) = dt_wbc * k;
-  yaws(0) = b_vref(5) * dt_cum(0) + RPY_(2);
-  yaws_b(0) = b_vref(5) * dt_cum(0);
+  yaws(0) = b_vref(5) * dt_cum(0);  // base frame
   for (uint j = 1; j < footsteps_.size(); j++) {
     dt_cum(j) = gait.row(j).isZero() ? dt_cum(j - 1) : dt_cum(j - 1) + dt;
-    yaws(j) = b_vref(5) * dt_cum(j) + RPY_(2);
-    yaws_b(j) = b_vref(5) * dt_cum(j);
+    yaws(j) = b_vref(5) * dt_cum(j);
   }
 
   // Displacement following the reference velocity compared to current position
@@ -196,7 +185,7 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
       dy(j) = b_vref(1) * dt_cum(j);
     }
   }
-
+  // Compute remaining time of the current flying phase
   update_remaining_time(k);
 
   // Update the footstep matrix depending on the different phases of the gait (swing & stance)
@@ -207,8 +196,8 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
     // Feet that were in stance phase and are still in stance phase do not move
     for (int j = 0; j < 4; j++) {
       if (gait(i - 1, j) * gait(i, j) > 0) {
-        footsteps_[i].col(j) = footsteps_[i - 1].col(j);
-        b_footsteps_[i].col(j) = b_footsteps_[i - 1].col(j);
+        footsteps_[i].col(j) = footsteps_[i - 1].col(j);      // world frame
+        b_footsteps_[i].col(j) = b_footsteps_[i - 1].col(j);  // base frame
       }
     }
 
@@ -216,11 +205,11 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
     for (int j = 0; j < 4; j++) {
       if ((1 - gait(i - 1, j)) * gait(i, j) > 0) {
         // Offset to the future position
-        q_dxdy << dx(i - 1, 0), dy(i - 1, 0), 0.0;
+        q_dxdy << dx(i - 1, 0), dy(i - 1, 0), 0.0;  // q_dxdy from base frame
 
         // Get future desired position of footsteps
-        computeNextFootstep(i, j, b_v, b_vref, next_footstep_, true);
-        computeNextFootstep(i, j, b_v, b_vref, next_footstep_qp_, false);
+        computeNextFootstep(i, j, b_v, b_vref, heuristic_fb_, true);  // with feedback term
+        computeNextFootstep(i, j, b_v, b_vref, heuristic_, false);    // without feeback term
 
         // Get desired position of footstep compared to current position
         Rz_tmp.setZero();
@@ -229,18 +218,10 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
         Rz_tmp.topLeftCorner<2, 2>() << c, -s, s, c;
 
         // Use directly the heuristic method
-        // footsteps_[i].col(j) = (Rz_tmp * next_footstep_ + q_tmp + Rz*q_dxdy).transpose();
-        next_footstep_qp_ = (Rz_tmp * next_footstep_qp_ + q_tmp + Rz*q_dxdy).transpose();
-
-
-        // Get desired position of footstep compared to current position
-        // Rz_tmp.setZero();
-        // c = std::cos(yaws_b(i - 1));
-        // s = std::sin(yaws_b(i - 1));
-        // Rz_tmp.topLeftCorner<2, 2>() << c, -s, s, c;
-        // b_footsteps_[i].col(j) = (Rz_tmp * next_footstep_ + q_dxdy).transpose();
-
-
+        // footsteps_[i].col(j) = (Rz*Rz_tmp * heuristic_fb_ + q_tmp + Rz*q_dxdy).transpose();
+        // b_footsteps_[i].col(j) = (Rz_tmp * heuristic_fb_ + q_dxdy).transpose();
+        heuristic_fb_ = (Rz * Rz_tmp * heuristic_fb_ + q_tmp + Rz * q_dxdy).transpose();  // world, with feedback term
+        heuristic_ = (Rz * Rz_tmp * heuristic_ + q_tmp + Rz * q_dxdy).transpose();  // world, without feedback term
 
         // Check if current flying phase
         bool flying_foot = false;
@@ -257,19 +238,19 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
             if (surfaceStatus_) {
               selectedSurfaces_[j] = surfaces_[j];
             } else {
-              selectedSurfaces_[j] = selectSurfaceFromPoint(next_footstep_, phase, j);
+              selectedSurfaces_[j] = selectSurfaceFromPoint(heuristic_fb_, phase, j);
             }
           }
-          optimData optim_data = {i, j, selectedSurfaces_[j], next_footstep_qp_};
+          optimData optim_data = {i, j, selectedSurfaces_[j], heuristic_, Rz_tmp};
           optimVector_.push_back(optim_data);
         } else {
           Surface sf_ = Surface();
           if (surfaceStatus_) {
             sf_ = surfaces_[j];
           } else {
-            sf_ = selectSurfaceFromPoint(next_footstep_, phase, j);
+            sf_ = selectSurfaceFromPoint(heuristic_fb_, phase, j);
           }
-          optimData optim_data = {i, j, sf_, next_footstep_qp_};
+          optimData optim_data = {i, j, sf_, heuristic_, Rz_tmp};
           optimVector_.push_back(optim_data);
         }
       }
@@ -287,92 +268,38 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
   qp.reset(N, 0, M);
 
   // Adapting q_ vector with reference velocity
-  Vector3 o_vref = Rz * b_vref.head(3);
-  std::cout<< "Rz :" << std::endl;
-  std::cout<< Rz << std::endl;
-  std::cout<< "b_vref :" << std::endl;
-  std::cout<< b_vref << std::endl;
-
-  std::cout<< "o_vref :" << std::endl;
-  std::cout<< o_vref << std::endl;
-  std::cout<< "weights_ :" << std::endl;
-  std::cout<< weights_ << std::endl;
-
-  q_(0) = -weights_(0) * o_vref(0);
-  q_(1) = -weights_(1) * o_vref(1);
+  q_(0) = -weights_(0) * b_vref(0);
+  q_(1) = -weights_(1) * b_vref(1);
 
   // Convert problem to inequalities
   int iStart = 0;
   int foot = 0;
   for (uint id_l = 0; id_l < optimVector_.size(); id_l++)
   {
-      iStart = surfaceInequalities(iStart, optimVector_[id_l].surface, optimVector_[id_l].next_pos, id_l);
+      iStart = surfaceInequalities(iStart, optimVector_[id_l].surface, optimVector_[id_l].constant_term, id_l, optimVector_[id_l].Rz_tmp);
       foot++;
   }
-  std::cout<< "G :" << std::endl;
-  std::cout<< G_ << std::endl;
-  std::cout<< "h :" << std::endl;
-  std::cout<< h_ << std::endl;
-  std::cout<< "P :" << std::endl;
-  std::cout<< P_ << std::endl;
-  std::cout<< "Q :" << std::endl;
-  std::cout<< q_ << std::endl;
-
-
-  // Eiquadprog-Fast solves the problem :
-  // min. 1/2 * x' C_ x + q_' x
-  // s.t. C_ x + d_ = 0
-  //      G_ x + h_ >= 0
-  status = qp.solve_quadprog(P_, q_, C_, d_, G_, h_, x);
-  std::cout << "status : " << status << std::endl;
+  status = qp.solve_quadprog(P_, q_, C_, d_, G_, h_, x);  // solve QP
 
   // Retrieve results
-  voptim_.head(2) = x.head(2);
-  std::cout << "voptim : " << voptim_ << std::endl;
-
-  // Get new reference velocity in base frame to recompute the new footsteps
-  b_voptim_.head(3) = Rz.transpose() * voptim_;  // lin velocity in base frame (rotated yaw)
+  b_voptim.head(2) = x.head(2);
 
   // Update the foostep matrix with the position optimised, for changing phase index
   for (uint id_l = 0; id_l < optimVector_.size(); id_l++) {
     int i = optimVector_[id_l].phase;
     int foot = optimVector_[id_l].foot;
-    std::cout << "optim vector surface : " << std::endl;
-    std::cout << optimVector_[id_l].surface.getVertices() << std::endl;
-    std::cout << optimVector_[id_l].phase << std::endl;
-    std::cout << optimVector_[id_l].foot << std::endl;
-    std::cout << optimVector_[id_l].next_pos << std::endl;
 
     // Offset to the future position
     q_dxdy << dx(i - 1, 0), dy(i - 1, 0), 0.0;
 
-    // Get future desired position of footsteps with k_feedback
-    computeNextFootstep(i, foot, b_voptim_, b_vref, next_footstep_qp_, true);
+    
+    delta_x(0) = x(2 + 3 * id_l);
+    delta_x(1) = x(2 + 3 * id_l + 1);
+    delta_x(2) = x(2 + 3 * id_l + 2);
 
-    Vector3 delta_x = Vector3::Zero();
-    delta_x(0) += x(2 + 3 * id_l);
-    delta_x(1) += x(2 + 3 * id_l + 1);
-    delta_x(2) += x(2 + 3 * id_l + 2);
-
-    // World frame
-    Rz_tmp.setZero();
-    double c = std::cos(yaws(i - 1));
-    double s = std::sin(yaws(i - 1));
-    Rz_tmp.topLeftCorner<2, 2>() << c, -s, s, c;
-
-    Vector3 next_tmp = (Rz_tmp * next_footstep_qp_ + q_tmp + Rz*q_dxdy).transpose();
-    footsteps_[i].col(foot) = next_tmp + delta_x;
-    std::cout << "footsteps_[i].col(foot)" << std::endl;
-    std::cout << footsteps_[i].col(foot) << std::endl;
-
-    // Base frame
-    Rz_tmp.setZero();
-    c = std::cos(yaws_b(i - 1));
-    s = std::sin(yaws_b(i - 1));
-    Rz_tmp.topLeftCorner<2, 2>() << c, -s, s, c;
-
-    next_tmp = (Rz_tmp * next_footstep_qp_ + q_dxdy).transpose();
-    b_footsteps_[i].col(foot) = next_tmp + Rz.transpose()*delta_x;
+    footsteps_[i].col(foot) =
+        optimVector_[id_l].constant_term - params_->k_feedback * Rz * optimVector_[id_l].Rz_tmp * b_voptim + delta_x;
+    b_footsteps_[i].col(foot) = Rz.transpose() * (footsteps_[i].col(foot) - q_tmp);
   }
 
   // Update the next stance phase after the changing phase
@@ -385,8 +312,6 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
       }
     }
   }
-
-  // std::cout << "OKOK : " <<  std::endl;
 }
 
 void FootstepPlannerQP::computeNextFootstep(int i, int j, Vector6 const& b_v, Vector6 const& b_vref,
@@ -449,9 +374,6 @@ void FootstepPlannerQP::updateNewContact(Vector18 const& q) {
   for (int i = 0; i < 4; i++) {
     pos_feet_.col(i) = data_.oMf[foot_ids_[i]].translation();
   }
-
-  // std::cout << "--- pos_feet_: " << std::endl << pos_feet_ << std::endl;
-  // std::cout << "--- footsteps_:" << std::endl << footsteps_[1] << std::endl;
 
   // Refresh position with estimated position if foot is in stance phase
   for (int i = 0; i < 4; i++) {
@@ -540,34 +462,13 @@ Surface FootstepPlannerQP::selectSurfaceFromPoint(Vector3 const& point, int phas
   return sf;
 }
 
-int FootstepPlannerQP::surfaceInequalities(int i_start, Surface const& surface, Vector3 const& next_ft, int id_l) {
+int FootstepPlannerQP::surfaceInequalities(int i_start, Surface const& surface, Vector3 const& next_ft, int id_l, Matrix3 Rz_tmp) {
   int n_rows = int(surface.getA().rows());
-  G_.block(i_start, 0, n_rows, 2) = params_->k_feedback * surface.getA().block(0, 0, n_rows, 2);
+  MatrixN mat_tmp = MatrixN::Zero(n_rows,3);
+  mat_tmp = surface.getA() * Rz * Rz_tmp;
+  G_.block(i_start, 0, n_rows, 2) = params_->k_feedback * mat_tmp.block(0, 0, n_rows, 2);
   G_.block(i_start, 2 + 3 * id_l, n_rows, 3) = -surface.getA();
   h_.segment(i_start, n_rows) = surface.getb() - surface.getA() * next_ft;
-
-  std::cout<< "\n\n  :" << std::endl;
-  std::cout<< "id_l  :" << std::endl;
-  std::cout<< id_l  << std::endl;
-  std::cout<< "id_l  :" << std::endl;
-  std::cout<< id_l  << std::endl;
-
-  std::cout<< "surface.getb() :" << std::endl;
-  std::cout<< surface.getb() << std::endl;
-  std::cout<< "surface.getA()  :" << std::endl;
-  std::cout<< surface.getA()  << std::endl;
-  std::cout<< "params_->k_feedback  :" << std::endl;
-  std::cout<< params_->k_feedback  << std::endl;
-  std::cout<< ">next_ft  :" << std::endl;
-  std::cout<< next_ft  << std::endl;
-  std::cout<< ">surface.getA().block(0, 0, n_rows, 2)  :" << std::endl;
-  std::cout<< surface.getA().block(0, 0, n_rows, 2)  << std::endl;
-  std::cout<< "j" << std::endl;
-  std::cout<< surface.getA().block(0, 0, n_rows, 2)  << std::endl;
-
-  
-
-
 
   return i_start + n_rows;
 }

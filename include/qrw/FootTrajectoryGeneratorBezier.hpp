@@ -15,6 +15,13 @@
 #include "qrw/Types.h"
 #include "qrw/Params.hpp"
 
+#include "pinocchio/math/rpy.hpp"
+#include "pinocchio/multibody/model.hpp"
+#include "pinocchio/multibody/data.hpp"
+#include "pinocchio/parsers/urdf.hpp"
+#include "pinocchio/algorithm/compute-all-terms.hpp"
+#include "pinocchio/algorithm/frames.hpp"
+
 #include "ndcurves/fwd.h"
 #include "ndcurves/bezier_curve.h"
 #include "ndcurves/optimization/details.h"
@@ -60,8 +67,9 @@ class FootTrajectoryGeneratorBezier {
   ///
   /// \brief updates the nex foot position, velocity and acceleration, and the foot goal position
   ///
-  /// \param[in] j foot id
-  /// \param[in] targetFootstep desired target location at the end of the swing phase
+  /// \param[in] k (int): number of time steps since the start of the simulation
+  /// \param[in] j (int): index of the foot
+  /// \param[in] targetFootstep (Vector3): desired target location at the end of the swing phase
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void updateFootPosition(int const& k, int const& i_foot, Vector3 const& targetFootstep);
@@ -72,10 +80,21 @@ class FootTrajectoryGeneratorBezier {
   ///        to the desired position on the ground (computed by the footstep planner)
   ///
   /// \param[in] k (int): number of time steps since the start of the simulation
+  /// \param[in] surfacesSelected (SurfaceVector): Vector of contact surfaces for each foot
+  /// \param[in] targetFootstep (Matrix34): desired target location at the end of the swing phase
+  /// \param[in] q (Vector18): State of the robot, (RPY formulation, size 18)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void update(int k, MatrixN const& targetFootstep, SurfaceVector const& surfacesSelected,
-              MatrixN const& currentPosition);
+  void update(int k, MatrixN const& targetFootstep, SurfaceVector const& surfacesSelected, VectorN const& q);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Update the 3D position of the feet in world frame by forward kinematic, matrix position_FK_
+  ///
+  /// \param[in] q (Vector18): State of the robot, (RPY formulation, size 18)
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void update_position_FK(VectorN const& q);
 
   void updatePolyCoeff_XY(int const& i_foot, Vector3 const& x_init, Vector3 const& v_init, Vector3 const& a_init,
                           Vector3 const& x_target, double const& t0, double const& t1);
@@ -120,6 +139,7 @@ class FootTrajectoryGeneratorBezier {
   Matrix74 Az;  ///< Coefficients for the Z component
 
   Matrix34 position_;      // position computed in updateFootPosition
+  Matrix34 position_FK_;   // position computed by Forward dynamics
   Matrix34 velocity_;      // velocity computed in updateFootPosition
   Matrix34 acceleration_;  // acceleration computed in updateFootPosition
   Matrix34 jerk_;          // Jerk computed in updateFootPosition
@@ -176,8 +196,14 @@ class FootTrajectoryGeneratorBezier {
   // QP solver
   EiquadprogFast_status expected = EIQUADPROG_FAST_OPTIMAL;
   EiquadprogFast_status status;
-
   EiquadprogFast qp;
+
+  // Pinocchio model for foot estimation
+  pinocchio::Model model_;          // Pinocchio model for forward kinematics
+  pinocchio::Data data_;            // Pinocchio datas for forward kinematics
+  int foot_ids_[4] = {0, 0, 0, 0};  // Indexes of feet frames
+  Matrix34 pos_feet_;               // Estimated feet positions based on measurements
+  Vector19 q_FK_;                   // Estimated state of the base (height, roll, pitch, joints)
 
   // Methods to compute intersection point
   bool doIntersect_segment(Vector2 const& p1, Vector2 const& q1, Vector2 const& p2, Vector2 const& q2);
