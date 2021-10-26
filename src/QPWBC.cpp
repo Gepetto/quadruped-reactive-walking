@@ -738,6 +738,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // std::cout << "M : " << std::endl << data_.M.block(0, 0, 3, 18) << std::endl;
   // std::cout << "ddq: " << std::endl << ddq_cmd_.transpose() << std::endl;
   
+  /*
   std::cout << "-- BEFORE QP PROBLEM --" << std::endl;
   std::cout << "M ddq_u: " << std::endl << (data_.M.block(0, 0, 3, 6) * ddq_cmd_.head(6)).transpose() << std::endl;
   std::cout << "M ddq_a: " << std::endl << (data_.M.block(0, 6, 3, 12) * ddq_cmd_.tail(12)).transpose() << std::endl; 
@@ -745,6 +746,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   std::cout << "Non linear effects: " << std::endl << data_.tau.head(6).transpose() << std::endl;
   std::cout << "JcT f_cmd + f_comp: " << std::endl << (Jc_.transpose() * (f_cmd + f_compensation)).transpose() << std::endl;
   std::cout << "JcT f_comp: " << std::endl << (Jc_.transpose() * (f_compensation)).transpose() << std::endl;
+  */
 
   // Solve the QP problem
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
@@ -762,8 +764,8 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   Vector6 tmp_RNEA = data_.tau.head(6);
 
   //std::cout << "RNEA: " << std::endl << data_.tau.head(6).transpose() << std::endl;
-  std::cout << "left: " << std::endl << left.transpose() << std::endl;
-  std::cout << "right: " << std::endl << right.transpose() << std::endl;
+  //std::cout << "left: " << std::endl << left.transpose() << std::endl;
+  //std::cout << "right: " << std::endl << right.transpose() << std::endl;
   //std::cout << "M: " << std::endl << data_.M.block(0, 0, 6, 6) << std::endl;
   //std::cout << "JcT: " << std::endl << Jc_.transpose() << std::endl;
   //std::cout << "M: " << std::endl << data_.M.block(0, 0, 3, 18) << std::endl;
@@ -835,7 +837,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_test);
   std::cout << "M DDQ Delta Bis: " << std::endl << (data_.tau.head(6) - tmp_NLE).transpose() << std::endl;*/
 
-
+  /*
   std::cout << "-- AFTER QP PROBLEM --" << std::endl;
   std::cout << "M ddq_u: " << std::endl << (data_.M.block(0, 0, 3, 6) * ddq_with_delta_.head(6)).transpose() << std::endl;
   std::cout << "M ddq_a: " << std::endl << (data_.M.block(0, 6, 3, 12) * ddq_with_delta_.tail(12)).transpose() << std::endl; 
@@ -844,7 +846,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * f_with_delta_).transpose() << std::endl;
 
   std::cout << "LEFT " << (tmp_RNEA.head(3) + data_.M.block(0, 0, 3, 6) * box_qp_->get_ddq_res()).transpose() << std::endl;
-
+  */
 
   // Increment log counter
   k_log_++;
