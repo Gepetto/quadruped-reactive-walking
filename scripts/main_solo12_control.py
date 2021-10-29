@@ -51,6 +51,15 @@ def put_on_the_floor(device, q_init):
         device.parse_sensor_data()
         device.send_command_and_wait_end_of_cycle(params.dt_wbc)
     
+    # Slow increase till 1/4th of mass is supported by each foot
+    duration_increase = 2.0;  # in seconds
+    steps = int(duration_increase / params.dt_wbc)
+    tau_ff = np.array([0.0, 0.022, 0.5, 0.0, 0.022, 0.5, 0.0, 0.025, 0.575, 0.0, 0.025, 0.575])
+    for i in range(steps):
+        device.joints.set_torques(tau_ff * i / steps)
+        device.parse_sensor_data()
+        device.send_command_and_wait_end_of_cycle(params.dt_wbc)
+
     print("Start the motion.")
 
 
@@ -375,7 +384,7 @@ def main():
                         help='Name of the clone interface that will reproduce the movement of the first one \
                               (use ifconfig in a terminal), for instance "enp1s0"')
 
-    # os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
+    os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
     f, v = control_loop(parser.parse_args().clone)  # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print(f, v)
     quit()
