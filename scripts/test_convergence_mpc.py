@@ -84,7 +84,7 @@ def test_1():
 
     # Solve MPC problem once every k_mpc iterations of the main loop
     mpc_wrapper_classic.solve(0, xref.copy(), fsteps.copy(), cgait.copy(), np.zeros((3,4)))
-    #mpc_wrapper_croco.solve(0, xref.copy(), fsteps.copy(), cgait.copy(), shoulders.copy())
+    mpc_wrapper_croco.solve(0, xref.copy(), fsteps.copy(), cgait.copy(), shoulders.copy())
 
     # Retrieve reference contact forces in horizontal frame
     x_f_mpc_classic = mpc_wrapper_classic.get_latest_result()
@@ -92,14 +92,14 @@ def test_1():
 
     # Solve MPC problem once every k_mpc iterations of the main loop
     mpc_wrapper_classic.solve(1, xref, fsteps, cgait, np.zeros((3,4)))
-    #mpc_wrapper_croco.solve(1, xref, fsteps, cgait, shoulders)
+    mpc_wrapper_croco.solve(1, xref, fsteps, cgait, shoulders)
 
     # Retrieve reference contact forces in horizontal frame
     x_f_mpc_classic = mpc_wrapper_classic.get_latest_result()
-    #x_f_mpc_croco_32 = mpc_wrapper_croco.get_latest_result()
+    x_f_mpc_croco_32 = mpc_wrapper_croco.get_latest_result()
 
     x_f_mpc_classic = np.hstack((np.vstack((xref[:, 0:1], np.zeros((12, 1)))), x_f_mpc_classic))
-    #x_f_mpc_croco = np.hstack((np.vstack((xref[:, 0:1], np.zeros((12, 1)))), x_f_mpc_croco_32[:24, :]))
+    x_f_mpc_croco = np.hstack((np.vstack((xref[:, 0:1], np.zeros((12, 1)))), x_f_mpc_croco_32[:24, :]))
 
     # print(xref)
 
