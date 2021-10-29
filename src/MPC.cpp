@@ -20,7 +20,7 @@ MPC::MPC(Params &params) {
   cpt_ML = 0;
   cpt_P = 0;
   offset_CoM(0, 0) = params_->CoM_offset[0];
-  offset_CoM(1, 0) = params_->CoM_offset[1] * 0.0;
+  offset_CoM(1, 0) = params_->CoM_offset[1];
   offset_CoM(2, 0) = params_->CoM_offset[2];  // Vertical offset between center of base and CoM
 
   // Predefined matrices
