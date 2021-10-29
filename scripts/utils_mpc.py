@@ -75,6 +75,7 @@ def init_robot(q_init, params):
     params.mass = solo.data.mass[0]  # Mass of the whole urdf model (also = to Ycrb[1].mass)
     params.I_mat = solo.data.Ycrb[1].inertia.ravel().tolist()  # Composite rigid body inertia in q_init position
     params.CoM_offset = (solo.data.com[0][:3] - q[0:3, 0]).tolist()
+    params.CoM_offset[1] = 0.0
 
     for i in range(4):
         for j in range(3):
