@@ -76,16 +76,16 @@ class MPC_crocoddyl:
         self.index = 0
 
         # Offset CoM
-        self.offset_com = -0.03
+        self.offset_com = np.array(params.CoM_offset).reshape((-1, 1))
 
         # Action models
         self.ListAction = []
         if linearModel:
-            self.ListAction = [quadruped_walkgen.ActionModelQuadruped() for _ in range(self.n_nodes)]
-            self.terminalModel = quadruped_walkgen.ActionModelQuadruped()
+            self.ListAction = [quadruped_walkgen.ActionModelQuadruped(self.offset_com) for _ in range(self.n_nodes)]
+            self.terminalModel = quadruped_walkgen.ActionModelQuadruped(self.offset_com)
         else:
-            self.ListAction = [quadruped_walkgen.ActionModelQuadrupedNonLinear() for _ in range(self.n_nodes)]
-            self.terminalModel = quadruped_walkgen.ActionModelQuadrupedNonLinear()
+            self.ListAction = [quadruped_walkgen.ActionModelQuadrupedNonLinear(self.offset_com) for _ in range(self.n_nodes)]
+            self.terminalModel = quadruped_walkgen.ActionModelQuadrupedNonLinear(self.offset_com)
         self.updateActionModels()
 
         # Shooting problem
@@ -140,7 +140,7 @@ class MPC_crocoddyl:
             fsteps : feet predicted positions
         """
         self.xref[:, :] = xref
-        self.xref[2, :] += self.offset_com
+        self.xref[0:3, :] += self.offset_com
 
         # Update the dynamic depending on the predicted feet position
         self.updateProblem(fsteps, self.xref)
@@ -170,7 +170,7 @@ class MPC_crocoddyl:
         output = np.zeros((24, self.n_nodes))
         for i in range(self.n_nodes):
             output[:12, i] = np.asarray(self.ddp.xs[i + 1])
-            output[2, i] -= self.offset_com
+            output[:3, i] -= self.offset_com.ravel()
             output[12:, i] = np.asarray(self.ddp.us[i])
         return output
 

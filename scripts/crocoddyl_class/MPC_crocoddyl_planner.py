@@ -89,7 +89,7 @@ class MPC_crocoddyl_planner():
         self.jerk_beta = 0.  # Define the slope of the cost, not used
 
         # Offset CoM
-        self.offset_com = -0.03
+        self.offset_com = np.array(params.CoM_offset).reshape((-1, 1))
         self.vert_time = params.vert_time
 
         # Gait matrix
@@ -136,7 +136,7 @@ class MPC_crocoddyl_planner():
         self.models_step = []
 
         for _ in range(self.n_nodes):
-            model = quadruped_walkgen.ActionModelQuadrupedAugmented()
+            model = quadruped_walkgen.ActionModelQuadrupedAugmented(self.offset_com)
             self.update_model_augmented(model)
             self.models_augmented.append(model)
 
@@ -147,7 +147,7 @@ class MPC_crocoddyl_planner():
             self.models_step.append(model)
 
         # Terminal node
-        self.terminal_model = quadruped_walkgen.ActionModelQuadrupedAugmented()
+        self.terminal_model = quadruped_walkgen.ActionModelQuadrupedAugmented(self.offset_com)
         self.update_model_augmented(self.terminal_model, terminal=True)
 
     def solve(self, k, xref, footsteps, l_stop, position, velocity, acceleration, jerk, oRh, oTh, dt_flying):
@@ -167,7 +167,7 @@ class MPC_crocoddyl_planner():
             dt_flying (Array 4x)    : Remaining timing of flying feet
         """
         self.xref[:, :] = xref
-        self.xref[2, :] += self.offset_com
+        self.xref[0:3, :] += self.offset_com
 
         self.updateProblem(k, self.xref, footsteps, l_stop, position, velocity, acceleration, jerk, oRh, oTh,
                            dt_flying)
@@ -415,6 +415,7 @@ class MPC_crocoddyl_planner():
                 if index >= self.n_nodes:
                     raise ValueError("Too many action model considering the current MPC prediction horizon")
                 result[:12, index] = self.ddp.xs[i + 1][:12]  # First node correspond to current state
+                result[:3, index] -= self.offset_com.ravel()
                 result[12:24, index] = self.ddp.us[i]
                 result[24:, index] = (oRh[:2, :2] @ (self.ddp.xs[i + 1][12:].reshape(
                     (2, 4), order="F")) + oTh[:2]).reshape((8), order="F")
