@@ -82,7 +82,7 @@ for i in range(4):
     if MPCs[i]:
         data_[:,:,i] = get_mocap_logs(folder_path + name_files[i])
         tau_ff_[:, :, i] = np.load(folder_path + name_files[i]).get("wbc_tau_ff")
-        mpc_x_f[:, :, i] = np.load(folder_path + name_files[i]).get("mpc_x_f")[:, :, 0]
+        mpc_x_f[:, :, i] = np.load(folder_path + name_files[i]).get("mpc_x_f")[:, :24, 0]
         wbc_f_ctc[:, :, i] = np.load(folder_path + name_files[i]).get("wbc_f_ctc")
 
 for j in range(4):
@@ -97,7 +97,7 @@ lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitc
 index6 = [1, 3, 5, 2, 4, 6]
 t_range = np.array([k*params.dt_wbc for k in range(N)])
 
-color = ["k", "b", "r", "g"]
+color = ["rebeccapurple", "b", "r", "g"]
 legend = []
 for i in range(4):
     if MPCs[i]:
@@ -125,8 +125,8 @@ for i in range(6):
     
     for j in range(4):
         if MPCs[j]:
-            plt.plot(t_range, data_[:,i+6,j], color[j], linewidth=3)    
-   
+            plt.plot(t_range, data_[:,i+6,j], color[j], linewidth=3)
+    plt.plot(t_range, joy_v_ref[:, i], "k--", linewidth=3)
     plt.legend(legend, prop={'size': 8})
     plt.ylabel(lgd[i])
 plt.suptitle("Measured velocities - MOCAP - ")
