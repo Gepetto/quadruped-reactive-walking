@@ -259,6 +259,12 @@ void Joystick::update_v_ref_predefined(int k, int velID) {
   if (k == 0) {
     MatrixN t_switch;
     switch (velID) {
+      case 6:
+        t_switch = MatrixN::Zero(1, 9);
+        t_switch << 0, 1, 2, 3, 4, 6, 7, 8, 9;
+        v_switch = MatrixN::Zero(6, 9);
+        v_switch.row(0) << 0.0, 0.0, 0.25, 0.5, 0.8, 0.8, 0.5, 0.25, 0.0;
+        break;
       case 7:
         t_switch = MatrixN::Zero(1, 9);
         t_switch << 0, 1, 3, 4, 6, 7, 9, 10, 11;
@@ -272,6 +278,13 @@ void Joystick::update_v_ref_predefined(int k, int velID) {
         v_switch = MatrixN::Zero(6, 9);
         v_switch.row(0) << 0.0, 0.4, 0.8, 0.8, 0.4, 0.0, 0.0, 0.0, 0.0;
         v_switch.row(5) << 0.0, 0.8, -1.2, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0;
+        break;
+      case 9:
+        t_switch = MatrixN::Zero(1, 9);
+        t_switch << 0, 2.5, 6.5, 9;
+        v_switch = MatrixN::Zero(6, 9);
+        v_switch.row(0) << 0.0, 0.6, 0.6, 0.0;
+        v_switch.row(5) << 0.0, 0.4, 0.4, 0.0;
         break;
       case 10:
         t_switch = MatrixN::Zero(1, 7);
