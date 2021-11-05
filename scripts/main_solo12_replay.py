@@ -2,11 +2,9 @@
 
 import os
 import threading
-from Controller import Controller
 import numpy as np
 import argparse
 from LoggerSensors import LoggerSensors
-from LoggerControl import LoggerControl
 import libquadruped_reactive_walking as lqrw
 import time
 
@@ -34,7 +32,7 @@ def put_on_the_floor(device, q_init):
 
     print("PUT ON THE FLOOR.")
 
-    Kp_pos = 6.
+    Kp_pos = 3.
     Kd_pos = 0.3
 
     device.joints.set_position_gains(Kp_pos * np.ones(12))
@@ -43,6 +41,9 @@ def put_on_the_floor(device, q_init):
     device.joints.set_desired_velocities(np.zeros(12))
     device.joints.set_torques(np.zeros(12))
 
+    print("Init")
+    print(q_init)
+
     i = threading.Thread(target=get_input)
     i.start()
     print("Put the robot on the floor and press Enter")
@@ -50,7 +51,7 @@ def put_on_the_floor(device, q_init):
     while i.is_alive():
         device.parse_sensor_data()
         device.send_command_and_wait_end_of_cycle(params.dt_wbc)
-    
+
     print("Start the motion.")
 
 def control_loop(name_interface_clone=None, des_vel_analysis=None):
@@ -64,13 +65,24 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
     # Check .yaml file for parameters of the controller
 
     # Read replay data
-    replay = np.load("path_of_replay.npz")
-    replay_P = replay["P"]
-    replay_D = replay["D"]
-    replay_q = replay["q"]
-    replay_v = replay["dq"]
-    replay_tau = replay["tau_ff"]
+    # replay = np.load("/home/odri/git/abonnefoy/Motion/Logs/push_up.npz")
+    # replay = np.load("/home/odri/git/abonnefoy/Motion/Logs/one_leg_position.npz")    
+    # replay = np.load("/home/odri/git/abonnefoy/Motion/Logs/push_up_position.npz")
+    replay = np.load("/home/odri/git/abonnefoy/Motion/Logs/full_push_up.npz")
+
+    replay_q = replay['q'][7:,1:].transpose().copy() 
+    replay_v = replay['v'][6:,1:].transpose().copy() 
+    replay_tau = replay['tau'].transpose().copy()
     params.N_SIMULATION = replay_q.shape[0]
+    N = replay_q.shape[0]
+    replay_P = 6.0 * np.ones((N, 12)) # replay["P"]
+    replay_D = 0.3 * np.ones((N, 12)) # replay["D"]
+
+    # 0.09547498,  1.25215899, -2.01927128, -0.09552912,  1.25175677,
+    # -2.01855657,  0.52255345,  1.34166507,  0.11203987, -0.52311626,
+    #  1.34141582,  0.11178296]
+
+    # replay_q[0, :] = np.array([0.0, 0.3, 0.0] * 4)
 
     # Enable or disable PyBullet GUI
     if not params.SIMULATION:
@@ -80,10 +92,12 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
     t = 0.0
 
     # Default position after calibration
-    q_init = np.array(params.q_init.tolist())
+    q_init = (replay_q[0, :]).copy()
+    params.q_init = q_init.tolist()
 
-    # Run a scenario and retrieve data thanks to the logger
-    controller = Controller(params, q_init, t)
+    """from IPython import embed
+    from matplotlib import pyplot as plt
+    embed()"""
 
     ####
 
@@ -96,12 +110,6 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
 
     if params.LOGGING or params.PLOTTING:
         loggerSensors = LoggerSensors(device, qualisys=qc, logSize=params.N_SIMULATION-3)
-        loggerControl = LoggerControl(params.dt_wbc, params.gait.shape[0], params.type_MPC, joystick=controller.joystick,
-                                      estimator=controller.estimator, loop=controller,
-                                      gait=controller.gait, statePlanner=controller.statePlanner,
-                                      footstepPlanner=controller.footstepPlanner,
-                                      footTrajectoryGenerator=controller.footTrajectoryGenerator,
-                                      logSize=params.N_SIMULATION-3)
 
     # Number of motors
     nb_motors = 12
@@ -127,7 +135,8 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
     k_log_whole = 0
     T_whole = time.time()
     dT_whole = 0.0
-    while ((not device.is_timeout) and (t < t_max) and (not controller.error)):
+    np.set_printoptions(precision=2, linewidth=300)
+    while ((not device.is_timeout) and (t < t_max)):
 
         # Update sensor data (IMU, encoders, Motion capture)
         device.parse_sensor_data()
@@ -135,9 +144,9 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         # Check that the initial position of actuators is not too far from the
         # desired position of actuators to avoid breaking the robot
         if (t <= 10 * params.dt_wbc):
-            if np.max(np.abs(controller.result.q_des - device.joints.positions)) > 0.15:
-                print("DIFFERENCE: ", controller.result.q_des - device.joints.positions)
-                print("q_des: ", controller.result.q_des)
+            if np.max(np.abs(replay_q[k_log_whole, :] - device.joints.positions)) > 0.15:
+                print("DIFFERENCE: ", replay_q[k_log_whole, :] - device.joints.positions)
+                print("q_des: ", replay_q[k_log_whole, :])
                 print("q_mes: ", device.joints.positions)
                 break
 
@@ -146,15 +155,15 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         device.joints.set_velocity_gains(replay_D[k_log_whole, :])
         device.joints.set_desired_positions(replay_q[k_log_whole, :])
         device.joints.set_desired_velocities(replay_v[k_log_whole, :])
-        device.joints.set_torques(params.Kff_main * replay_tau[k_log_whole, :])
+        device.joints.set_torques(1.0 * replay_tau[k_log_whole, :])
+
+        """print("--- ", k_log_whole)
+        print(replay_q[k_log_whole, :])
+        print(replay_v[k_log_whole, :])"""
 
         # Call logger
         if params.LOGGING or params.PLOTTING:
             loggerSensors.sample(device, qc)
-            loggerControl.sample(controller.joystick, controller.estimator,
-                                 controller, controller.gait, controller.statePlanner,
-                                 controller.footstepPlanner, controller.footTrajectoryGenerator,
-                                 controller.wbcWrapper, dT_whole)
 
         # Send command to the robot
         for i in range(1):
@@ -208,27 +217,14 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         print("Masterboard timeout detected.")
         print("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.")
 
-    # Plot recorded data
-    if params.PLOTTING:
-        loggerControl.plotAll(loggerSensors)
-
     # Save the logs of the Logger object
     if params.LOGGING:
-        loggerControl.saveAll(loggerSensors)
+        loggerSensors.saveAll()
         print("Log saved")
 
     if params.SIMULATION and params.enable_pyb_GUI:
         # Disconnect the PyBullet server (also close the GUI)
         device.Stop()
-
-    if controller.error:
-        if (controller.error_flag == 1):
-            print("-- POSITION LIMIT ERROR --")
-        elif (controller.error_flag == 2):
-            print("-- VELOCITY TOO HIGH ERROR --")
-        elif (controller.error_flag == 3):
-            print("-- FEEDFORWARD TORQUES TOO HIGH ERROR --")
-        print(controller.error_value)
 
     print("End of script")
 
