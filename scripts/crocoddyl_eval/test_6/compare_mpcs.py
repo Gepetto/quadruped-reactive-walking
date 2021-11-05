@@ -48,7 +48,16 @@ def get_mocap_logs(path):
         state_measured[i,6:9] = (oRh.transpose() @ mRo.transpose() @ mocapVelocity[i].reshape((3, 1))).ravel()
         state_measured[i,9:12] = (oRb.transpose() @ mocapAngularVelocity[i].reshape((3, 1))).ravel()       
 
-    return state_measured
+    return acausal_filter(state_measured)
+
+def acausal_filter(data):
+    N = 25
+    filter = np.ones((N, )) / N
+
+    for i in range(data.shape[1]):
+        data[:, i] = np.convolve(filter, data[:, i], mode="same")
+    
+    return data
 
 def compute_RMSE(array, norm):
     return np.sqrt((array**2).mean()) / norm
