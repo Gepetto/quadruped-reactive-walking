@@ -34,24 +34,32 @@ class MPC_crocoddyl_planner():
 
         # Weights Vector : States
         # self.stateWeights = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3])
-        self.w_x = 0.3
-        self.w_y = 0.3
-        self.w_z = 20
-        self.w_roll = 0.9
-        self.w_pitch = 1.
-        self.w_yaw = 0.9
-        self.w_vx = 1.5 * np.sqrt(self.w_x)
-        self.w_vy = 2 * np.sqrt(self.w_y)
-        self.w_vz = 1 * np.sqrt(self.w_z)
-        self.w_vroll = 0.05 * np.sqrt(self.w_roll)
-        self.w_vpitch = 0.07 * np.sqrt(self.w_pitch)
-        self.w_vyaw = 0.08 * np.sqrt(self.w_yaw)
-        self.stateWeights = np.array([
-            self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw, self.w_vx, self.w_vy, self.w_vz,
-            self.w_vroll, self.w_vpitch, self.w_vyaw
-        ])
+        # self.w_x = 0.5
+        # self.w_y = 0.3
+        # self.w_z = 10
+        # self.w_roll = 0.9
+        # self.w_pitch = 1.2
+        # self.w_yaw = 0.9
+        # self.w_vx = 2. * np.sqrt(self.w_x)
+        # self.w_vy = 2 * np.sqrt(self.w_y)
+        # self.w_vz = 1 * np.sqrt(self.w_z)
+        # self.w_vroll = 0.05 * np.sqrt(self.w_roll)
+        # self.w_vpitch = 0.07 * np.sqrt(self.w_pitch)
+        # self.w_vyaw = 0.08 * np.sqrt(self.w_yaw)
+        # self.stateWeights = np.array([
+        #     self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw, self.w_vx, self.w_vy, self.w_vz,
+        #     self.w_vroll, self.w_vpitch, self.w_vyaw
+        # ])
+        state_tmp = np.sqrt(params.osqp_w_states)
+        # state_tmp[0] = np.sqrt(10.)
+        # state_tmp[6] = np.sqrt(10.)
+        # state_tmp[10] = np.sqrt(0.01)
+        self.stateWeights = state_tmp
 
-        self.forceWeights = 1 * np.array(4 * [0.007, 0.007, 0.007])  # Weight vector : Force Norm
+        # self.stateWeights = np.sqrt(params.osqp_w_states)
+        self.forceWeights = np.tile(np.sqrt(params.osqp_w_forces), 4) 
+
+        # self.forceWeights = 1 * np.array(4 * [0.007, 0.007, 0.007])  # Weight vector : Force Norm
         self.frictionWeights = 1.  # Weight vector : Friction cone penalisation
         self.heuristicWeights = 0. * np.array(4 * [0.03, 0.04])  # Weight vector : Heuristic term
         self.stepWeights = 0. * np.full(8, 0.005)  # Weight vector : Norm of step command (distance between steps)
@@ -106,7 +114,7 @@ class MPC_crocoddyl_planner():
         self.Xs = np.zeros((20, int(self.n_nodes / self.dt_mpc)))  # Xs results without the actionStepModel
 
         # Initial foot location (local frame, X,Y plan)
-        self.shoulders = [0.1946, 0.14695, 0.1946, -0.14695, -0.1946, 0.14695, -0.1946, -0.14695]
+        self.shoulders = [0.18, 0.14695, 0.18, -0.14695, -0.21, 0.14695, -0.21, -0.14695]
         self.xref = np.full((12, self.n_nodes + 1), np.nan)
 
         # Index to stop the feet optimisation
@@ -408,6 +416,7 @@ class MPC_crocoddyl_planner():
         Args : 
          - q ( Array 7x1 ) : pos, quaternion orientation
         """
+        # print("\n\n")
         index = 0
         result = np.zeros((32, self.n_nodes))
         for i in range(len(self.action_models)):
@@ -420,6 +429,7 @@ class MPC_crocoddyl_planner():
                 result[24:, index] = (oRh[:2, :2] @ (self.ddp.xs[i + 1][12:].reshape(
                     (2, 4), order="F")) + oTh[:2]).reshape((8), order="F")
                 if i > 0 and self.action_models[i - 1].__class__.__name__ == "ActionModelQuadrupedStep":
+                    # print(self.ddp.xs[i + 1][12:].reshape((2, 4), order="F"))
                     pass
                 index += 1
 
