@@ -8,7 +8,7 @@ import pinocchio as pin
 
 class LoggerControl():
     def __init__(self, dt, N0_gait, type_MPC=None, joystick=None, estimator=None, loop=None, gait=None, statePlanner=None,
-                 footstepPlanner=None, footTrajectoryGenerator=None, logSize=60e3, ringBuffer=False):
+                 footstepPlanner=None, footTrajectoryGenerator=None, logSize=60e3, ringBuffer=False, loading=False, fileName=None):
         self.ringBuffer = ringBuffer
         logSize = np.int(logSize)
         self.logSize = logSize
@@ -19,6 +19,16 @@ class LoggerControl():
             self.type_MPC = int(type_MPC)
         else:
             self.type_MPC = 0
+
+        if loading:
+            if fileName is None:
+                import glob
+                fileName = np.sort(glob.glob('data_2021_*.npz'))[-1]  # Most recent file
+
+            self.data = np.load(fileName, allow_pickle = True)
+            N0_gait = self.data["planner_gait"].shape[1]
+            logSize = self.data["planner_gait"].shape[0]
+            self.logSize = logSize
 
         # Allocate the data:
         # Joystick
@@ -72,10 +82,10 @@ class LoggerControl():
         self.planner_is_static = np.zeros([logSize])  # if the planner is in static mode or not
 
         # State planner
-        self.planner_xref = np.zeros([logSize, 12, 1+statePlanner.getNSteps()])  # Reference trajectory
+        self.planner_xref = np.zeros([logSize, 12, 1+N0_gait])  # Reference trajectory
 
         # Footstep planner
-        self.planner_fsteps = np.zeros([logSize, gait.getCurrentGait().shape[0], 12])  # Reference footsteps position
+        self.planner_fsteps = np.zeros([logSize, N0_gait, 12])  # Reference footsteps position
         self.planner_target_fsteps = np.zeros([logSize, 3, 4])  # For each foot, next target on the ground
         # o_target_foosteps can be reconstructed using yaw_ideal and x y ideal (top of q_up)
         self.planner_h_ref = np.zeros([logSize])  # reference height of the planner
@@ -90,10 +100,16 @@ class LoggerControl():
 
         # Model Predictive Control
         # output vector of the MPC (next state + reference contact force)
-        if loop.type_MPC == 3:
-            self.mpc_x_f = np.zeros([logSize, 32, statePlanner.getNSteps()])
+        if loading:
+            if int(fileName[-5]) == 3:
+                self.mpc_x_f = np.zeros([logSize, 32, N0_gait])
+            else:
+                self.mpc_x_f = np.zeros([logSize, 24, N0_gait])
         else:
-            self.mpc_x_f = np.zeros([logSize, 24, statePlanner.getNSteps()])
+            if loop.type_MPC == 3:
+                self.mpc_x_f = np.zeros([logSize, 32, N0_gait])
+            else:
+                self.mpc_x_f = np.zeros([logSize, 24, N0_gait])
         self.mpc_solving_duration = np.zeros([logSize])
 
         # Whole body control
@@ -836,110 +852,108 @@ class LoggerControl():
 
     def loadAll(self, loggerSensors, fileName=None):
 
-        if fileName is None:
-            import glob
-            fileName = np.sort(glob.glob('data_2021_*.npz'))[-1]  # Most recent file
-
-        data = np.load(fileName, allow_pickle = True)
+        if self.data is None:
+            print("No data file loaded. Need one in the constructor.")
+            return
 
         # Load LoggerControl arrays
-        self.joy_v_ref = data["joy_v_ref"]
+        self.joy_v_ref = self.data["joy_v_ref"]
 
         self.logSize = self.joy_v_ref.shape[0]
 
-        self.esti_feet_status = data["esti_feet_status"]
-        self.esti_feet_goals = data["esti_feet_goals"]
-        self.esti_q_filt = data["esti_q_filt"]
-        self.esti_q_up = data["esti_q_up"]
-        self.esti_v_filt = data["esti_v_filt"]
-        self.esti_v_filt_bis = data["esti_v_filt_bis"]
-        self.esti_v_up = data["esti_v_up"]
-        self.esti_v_ref = data["esti_v_ref"]
-        self.esti_v_secu = data["esti_v_secu"]
-        self.esti_a_ref = data["esti_a_ref"]
+        self.esti_feet_status = self.data["esti_feet_status"]
+        self.esti_feet_goals = self.data["esti_feet_goals"]
+        self.esti_q_filt = self.data["esti_q_filt"]
+        self.esti_q_up = self.data["esti_q_up"]
+        self.esti_v_filt = self.data["esti_v_filt"]
+        self.esti_v_filt_bis = self.data["esti_v_filt_bis"]
+        self.esti_v_up = self.data["esti_v_up"]
+        self.esti_v_ref = self.data["esti_v_ref"]
+        self.esti_v_secu = self.data["esti_v_secu"]
+        self.esti_a_ref = self.data["esti_a_ref"]
 
-        self.esti_FK_lin_vel = data["esti_FK_lin_vel"]
-        self.esti_FK_xyz = data["esti_FK_xyz"]
-        self.esti_xyz_mean_feet = data["esti_xyz_mean_feet"]
-        self.esti_filt_lin_vel = data["esti_filt_lin_vel"]
+        self.esti_FK_lin_vel = self.data["esti_FK_lin_vel"]
+        self.esti_FK_xyz = self.data["esti_FK_xyz"]
+        self.esti_xyz_mean_feet = self.data["esti_xyz_mean_feet"]
+        self.esti_filt_lin_vel = self.data["esti_filt_lin_vel"]
 
-        self.esti_HP_x = data["esti_HP_x"]
-        self.esti_HP_dx = data["esti_HP_dx"]
-        self.esti_HP_alpha = data["esti_HP_alpha"]
-        self.esti_HP_filt_x = data["esti_HP_filt_x"]
+        self.esti_HP_x = self.data["esti_HP_x"]
+        self.esti_HP_dx = self.data["esti_HP_dx"]
+        self.esti_HP_alpha = self.data["esti_HP_alpha"]
+        self.esti_HP_filt_x = self.data["esti_HP_filt_x"]
 
-        self.esti_LP_x = data["esti_LP_x"]
-        self.esti_LP_dx = data["esti_LP_dx"]
-        self.esti_LP_alpha = data["esti_LP_alpha"]
-        self.esti_LP_filt_x = data["esti_LP_filt_x"]
+        self.esti_LP_x = self.data["esti_LP_x"]
+        self.esti_LP_dx = self.data["esti_LP_dx"]
+        self.esti_LP_alpha = self.data["esti_LP_alpha"]
+        self.esti_LP_filt_x = self.data["esti_LP_filt_x"]
 
-        self.loop_o_q = data["loop_o_q"]
-        self.loop_o_v = data["loop_o_v"]
-        self.loop_h_v = data["loop_h_v"]
-        self.loop_h_v_windowed = data["loop_h_v_windowed"]
-        self.loop_t_filter = data["loop_t_filter"]
-        self.loop_t_planner = data["loop_t_planner"]
-        self.loop_t_mpc = data["loop_t_mpc"]
-        self.loop_t_wbc = data["loop_t_wbc"]
-        self.loop_t_loop = data["loop_t_loop"]
-        self.loop_t_loop_if = data["loop_t_loop_if"]
-        self.loop_q_filt_mpc = data["loop_q_filt_mpc"]
-        self.loop_h_v_filt_mpc = data["loop_h_v_filt_mpc"]
-        self.loop_vref_filt_mpc = data["loop_vref_filt_mpc"]
+        self.loop_o_q = self.data["loop_o_q"]
+        self.loop_o_v = self.data["loop_o_v"]
+        self.loop_h_v = self.data["loop_h_v"]
+        self.loop_h_v_windowed = self.data["loop_h_v_windowed"]
+        self.loop_t_filter = self.data["loop_t_filter"]
+        self.loop_t_planner = self.data["loop_t_planner"]
+        self.loop_t_mpc = self.data["loop_t_mpc"]
+        self.loop_t_wbc = self.data["loop_t_wbc"]
+        self.loop_t_loop = self.data["loop_t_loop"]
+        self.loop_t_loop_if = self.data["loop_t_loop_if"]
+        self.loop_q_filt_mpc = self.data["loop_q_filt_mpc"]
+        self.loop_h_v_filt_mpc = self.data["loop_h_v_filt_mpc"]
+        self.loop_vref_filt_mpc = self.data["loop_vref_filt_mpc"]
 
-        self.planner_xref = data["planner_xref"]
-        self.planner_fsteps = data["planner_fsteps"]
-        self.planner_target_fsteps = data["planner_target_fsteps"]
-        self.planner_gait = data["planner_gait"]
-        self.planner_goals = data["planner_goals"]
-        self.planner_vgoals = data["planner_vgoals"]
-        self.planner_agoals = data["planner_agoals"]
-        self.planner_jgoals = data["planner_jgoals"]
-        self.planner_is_static = data["planner_is_static"]
-        self.planner_h_ref = data["planner_h_ref"]
+        self.planner_xref = self.data["planner_xref"]
+        self.planner_fsteps = self.data["planner_fsteps"]
+        self.planner_target_fsteps = self.data["planner_target_fsteps"]
+        self.planner_gait = self.data["planner_gait"]
+        self.planner_goals = self.data["planner_goals"]
+        self.planner_vgoals = self.data["planner_vgoals"]
+        self.planner_agoals = self.data["planner_agoals"]
+        self.planner_jgoals = self.data["planner_jgoals"]
+        self.planner_is_static = self.data["planner_is_static"]
+        self.planner_h_ref = self.data["planner_h_ref"]
 
-        self.mpc_x_f = data["mpc_x_f"]
-        self.mpc_solving_duration = data["mpc_solving_duration"]
+        self.mpc_x_f = self.data["mpc_x_f"]
+        self.mpc_solving_duration = self.data["mpc_solving_duration"]
 
-        self.wbc_P = data["wbc_P"]
-        self.wbc_D = data["wbc_D"]
-        self.wbc_q_des = data["wbc_q_des"]
-        self.wbc_v_des = data["wbc_v_des"]
-        self.wbc_FF = data["wbc_FF"]
-        self.wbc_tau_ff = data["wbc_tau_ff"]
-        self.wbc_ddq_IK = data["wbc_ddq_IK"]
-        self.wbc_f_ctc = data["wbc_f_ctc"]
-        self.wbc_ddq_QP = data["wbc_ddq_QP"]
-        self.wbc_feet_pos = data["wbc_feet_pos"]
-        self.wbc_feet_pos_target = data["wbc_feet_pos_target"]
-        self.wbc_feet_err = data["wbc_feet_err"]
-        self.wbc_feet_vel = data["wbc_feet_vel"]
-        self.wbc_feet_vel_target = data["wbc_feet_vel_target"]
-        self.wbc_feet_acc_target = data["wbc_feet_acc_target"]
-        self.wbc_tasks_acc = data["wbc_tasks_acc"]
-        self.wbc_tasks_vel = data["wbc_tasks_vel"]
-        self.wbc_tasks_err = data["wbc_tasks_err"]
+        self.wbc_P = self.data["wbc_P"]
+        self.wbc_D = self.data["wbc_D"]
+        self.wbc_q_des = self.data["wbc_q_des"]
+        self.wbc_v_des = self.data["wbc_v_des"]
+        self.wbc_FF = self.data["wbc_FF"]
+        self.wbc_tau_ff = self.data["wbc_tau_ff"]
+        self.wbc_ddq_IK = self.data["wbc_ddq_IK"]
+        self.wbc_f_ctc = self.data["wbc_f_ctc"]
+        self.wbc_ddq_QP = self.data["wbc_ddq_QP"]
+        self.wbc_feet_pos = self.data["wbc_feet_pos"]
+        self.wbc_feet_pos_target = self.data["wbc_feet_pos_target"]
+        self.wbc_feet_err = self.data["wbc_feet_err"]
+        self.wbc_feet_vel = self.data["wbc_feet_vel"]
+        self.wbc_feet_vel_target = self.data["wbc_feet_vel_target"]
+        self.wbc_feet_acc_target = self.data["wbc_feet_acc_target"]
+        self.wbc_tasks_acc = self.data["wbc_tasks_acc"]
+        self.wbc_tasks_vel = self.data["wbc_tasks_vel"]
+        self.wbc_tasks_err = self.data["wbc_tasks_err"]
 
-        self.tstamps = data["tstamps"]
+        self.tstamps = self.data["tstamps"]
 
         # Load LoggerSensors arrays
-        loggerSensors.q_mes = data["q_mes"]
-        loggerSensors.v_mes = data["v_mes"]
-        loggerSensors.baseOrientation = data["baseOrientation"]
-        loggerSensors.baseOrientationQuat = data["baseOrientationQuat"]
-        loggerSensors.baseAngularVelocity = data["baseAngularVelocity"]
-        loggerSensors.baseLinearAcceleration = data["baseLinearAcceleration"]
-        loggerSensors.baseAccelerometer = data["baseAccelerometer"]
-        loggerSensors.torquesFromCurrentMeasurment = data["torquesFromCurrentMeasurment"]
-        loggerSensors.mocapPosition = data["mocapPosition"]
-        loggerSensors.mocapVelocity = data["mocapVelocity"]
-        loggerSensors.mocapAngularVelocity = data["mocapAngularVelocity"]
-        loggerSensors.mocapOrientationMat9 = data["mocapOrientationMat9"]
-        loggerSensors.mocapOrientationQuat = data["mocapOrientationQuat"]
+        loggerSensors.q_mes = self.data["q_mes"]
+        loggerSensors.v_mes = self.data["v_mes"]
+        loggerSensors.baseOrientation = self.data["baseOrientation"]
+        loggerSensors.baseOrientationQuat = self.data["baseOrientationQuat"]
+        loggerSensors.baseAngularVelocity = self.data["baseAngularVelocity"]
+        loggerSensors.baseLinearAcceleration = self.data["baseLinearAcceleration"]
+        loggerSensors.baseAccelerometer = self.data["baseAccelerometer"]
+        loggerSensors.torquesFromCurrentMeasurment = self.data["torquesFromCurrentMeasurment"]
+        loggerSensors.mocapPosition = self.data["mocapPosition"]
+        loggerSensors.mocapVelocity = self.data["mocapVelocity"]
+        loggerSensors.mocapAngularVelocity = self.data["mocapAngularVelocity"]
+        loggerSensors.mocapOrientationMat9 = self.data["mocapOrientationMat9"]
+        loggerSensors.mocapOrientationQuat = self.data["mocapOrientationQuat"]
         loggerSensors.logSize = loggerSensors.q_mes.shape[0]
-        loggerSensors.current = data["current"]
-        loggerSensors.voltage = data["voltage"]
-        loggerSensors.energy = data["energy"]
+        loggerSensors.current = self.data["current"]
+        loggerSensors.voltage = self.data["voltage"]
+        loggerSensors.energy = self.data["energy"]
         
 
     def slider_predicted_trajectory(self):
@@ -1140,11 +1154,11 @@ if __name__ == "__main__":
     file_name = "/home/odri/data_2021_10_07_17_40.npz"
 
     # Create loggers
-    loggerSensors = LoggerSensors.LoggerSensors(logSize=20000-3)
-    logger = LoggerControl(0.001, 30, logSize=20000-3)
+    logger = LoggerControl(0.001, 30, loading=True)
+    loggerSensors = LoggerSensors.LoggerSensors(logSize=logger.logSize)
 
     # Load data from .npz file
-    logger.loadAll(loggerSensors, fileName= file_name)
+    logger.loadAll(LoggerSensors)
 
     # Call all ploting functions
     logger.plotAll(loggerSensors)
