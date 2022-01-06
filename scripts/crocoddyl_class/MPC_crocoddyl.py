@@ -151,10 +151,10 @@ class MPC_crocoddyl:
         # Warm start : set candidate state and input vector
         if self.warm_start and k != 0:
 
-            self.u_init = self.ddp.us[1:]
+            self.u_init = self.ddp.us[1:].tolist()
             self.u_init.append(np.repeat(self.gait[self.index - 1, :], 3) * np.array(4 * [0.5, 0.5, 5.]))
 
-            self.x_init = self.ddp.xs[2:]
+            self.x_init = self.ddp.xs[2:].tolist()
             self.x_init.insert(0, self.xref[:, 0])
             self.x_init.append(self.ddp.xs[-1])
 
