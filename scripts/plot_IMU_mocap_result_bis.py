@@ -303,10 +303,10 @@ for ax in [ax0, ax1, ax2]:
     ax.tick_params(axis='both', which='major', labelsize=10)
     ax.tick_params(axis='both', which='minor', labelsize=10)
 
-plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/H_R_P_expe.eps",
+"""plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/H_R_P_expe.eps",
             dpi=150, bbox_inches="tight")
 plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/H_R_P_expe.png",
-            dpi=800, bbox_inches="tight")
+            dpi=800, bbox_inches="tight")"""
 
 # VX / VY / WYAW FIGURE
 fig2 = plt.figure(figsize=(15, 4))
@@ -356,10 +356,10 @@ for ax in [ax0, ax1, ax2]:
     ax.tick_params(axis='both', which='major', labelsize=10)
     ax.tick_params(axis='both', which='minor', labelsize=10)
 
-plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/Vx_Vy_Wyaw_expe.eps",
+"""plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/Vx_Vy_Wyaw_expe.eps",
             dpi=150, bbox_inches="tight")
 plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/Vx_Vy_Wyaw_expe.png",
-            dpi=800, bbox_inches="tight")
+            dpi=800, bbox_inches="tight")"""
 
 plt.show(block=True)
 

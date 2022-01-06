@@ -67,7 +67,7 @@ def compute_RMSE(array, norm):
 ##############
 
 # [Linear, Non Linear, Planner, OSQP]
-MPCs = [True, True, True, True] # Boolean to choose which MPC to plot
+MPCs = [True, True, True, False] # Boolean to choose which MPC to plot
 MPCs_names = ["Linear", "Non Linear", "Planner", "OSQP"]
 name_files = ["data_2021_08_27_16_08_0.npz", "data_2021_08_27_15_53_0.npz", "data_2021_08_27_15_42_0.npz", "data_2021_08_27_15_44_0.npz"] # Names of the files
 name_files = ["data_2021_09_02_16_51_0.npz", "data_2021_09_02_16_53_0.npz", "data_2021_09_02_16_55_0.npz", "data_2021_09_02_17_52_0.npz"] # Names of the files
@@ -81,6 +81,17 @@ name_files = ["data_2021_10_26_13_58_1.npz", "data_2021_10_27_11_53_1.npz", "dat
 # Test straight line up to 0.8 m/s
 MPCs_names = ["Linear", "Non Linear", "Planner", "OSQP"]
 name_files = ["data_2021_10_27_14_33_1.npz", "data_2021_10_27_14_34_2.npz", "data_2021_10_27_14_45_3.npz", "data_2021_10_27_14_31_0.npz"]
+
+# Test straight line up to 0.8 m/s
+name_files = ["data_2021_11_05_10_23_1.npz", "data_2021_11_05_10_26_2.npz", "data_2021_11_05_10_28_3.npz", "data_2021_11_05_10_21_0.npz"]
+
+# Test zigzag
+#name_files = ["data_2021_11_05_10_40_1.npz", "data_2021_11_05_10_41_2.npz", "data_2021_11_05_10_42_3.npz", "data_2021_11_05_10_39_0.npz"]
+
+MPCs_names = ["No Compensation", "No Compensation", "Compensation", ""]
+MPCs = [False, True, True, False] # Boolean to choose which MPC to plot
+name_files = ["data_2021_11_17_15_43_0.npz", "data_2021_11_17_15_43_0.npz", "data_2021_11_17_15_39_0.npz", "data_2021_11_17_15_39_0.npz"]
+
 
 # Common data shared by 4 MPCs
 params = lqrw.Params()  # Object that holds all controller parameters
