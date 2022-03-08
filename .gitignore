@@ -16,7 +16,6 @@ cprofile.txt
 # Distribution / packaging
 .Python
 build/
-cmake/
 develop-eggs/
 dist/
 downloads/
@@ -140,4 +139,3 @@ dmypy.json
 .vscode/
 scripts/solopython
 scripts/cprofile*
-

@@ -1,30 +1,28 @@
-
 import glob
 import numpy as np
 from matplotlib import pyplot as plt
 import pinocchio as pin
 import tsid as tsid
+from example_robot_data.path import EXAMPLE_ROBOT_DATA_MODEL_DIR as modelPath
 from IPython import embed
 
 import plot_utils
-
 """import matplotlib as matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42"""
 
 # Transform between the base frame and the IMU frame
-_1Mi = pin.SE3(pin.Quaternion(np.array([[0.0, 0.0, 0.0, 1.0]]).transpose()),
-               np.array([0.1163, 0.0, 0.02]))
+_1Mi = pin.SE3(pin.Quaternion(np.array([[0.0, 0.0, 0.0, 1.0]]).transpose()), np.array([0.1163, 0.0, 0.02]))
 
 
 def EulerToQuaternion(roll_pitch_yaw):
     roll, pitch, yaw = roll_pitch_yaw
-    sr = np.sin(roll/2.)
-    cr = np.cos(roll/2.)
-    sp = np.sin(pitch/2.)
-    cp = np.cos(pitch/2.)
-    sy = np.sin(yaw/2.)
-    cy = np.cos(yaw/2.)
+    sr = np.sin(roll / 2.)
+    cr = np.cos(roll / 2.)
+    sp = np.sin(pitch / 2.)
+    cp = np.cos(pitch / 2.)
+    sy = np.sin(yaw / 2.)
+    cy = np.cos(yaw / 2.)
     qx = sr * cp * cy - cr * sp * sy
     qy = cr * sp * cy + sr * cp * sy
     qz = cr * cp * sy - sr * sp * cy
@@ -38,24 +36,24 @@ def quaternionToRPY(quat):
     qz = quat[2]
     qw = quat[3]
 
-    rotateXa0 = 2.0*(qy*qz + qw*qx)
-    rotateXa1 = qw*qw - qx*qx - qy*qy + qz*qz
+    rotateXa0 = 2.0 * (qy * qz + qw * qx)
+    rotateXa1 = qw * qw - qx * qx - qy * qy + qz * qz
     rotateX = 0.0
 
     if (rotateXa0 != 0.0) and (rotateXa1 != 0.0):
         rotateX = np.arctan2(rotateXa0, rotateXa1)
 
-    rotateYa0 = -2.0*(qx*qz - qw*qy)
+    rotateYa0 = -2.0 * (qx * qz - qw * qy)
     rotateY = 0.0
     if (rotateYa0 >= 1.0):
-        rotateY = np.pi/2.0
+        rotateY = np.pi / 2.0
     elif (rotateYa0 <= -1.0):
-        rotateY = -np.pi/2.0
+        rotateY = -np.pi / 2.0
     else:
         rotateY = np.arcsin(rotateYa0)
 
-    rotateZa0 = 2.0*(qx*qy + qw*qz)
-    rotateZa1 = qw*qw + qx*qx - qy*qy - qz*qz
+    rotateZa0 = 2.0 * (qx * qy + qw * qz)
+    rotateZa1 = qw * qw + qx * qx - qy * qy - qz * qz
     rotateZ = 0.0
     if (rotateZa0 != 0.0) and (rotateZa1 != 0.0):
         rotateZ = np.arctan2(rotateZa0, rotateZa1)
@@ -88,8 +86,7 @@ def cross3(left, right):
         left (3x0 array): left term of the cross product
         right (3x0 array): right term of the cross product
     """
-    return np.array([[left[1] * right[2] - left[2] * right[1]],
-                     [left[2] * right[0] - left[0] * right[2]],
+    return np.array([[left[1] * right[2] - left[2] * right[1]], [left[2] * right[0] - left[0] * right[2]],
                      [left[0] * right[1] - left[1] * right[0]]])
 
 
@@ -101,10 +98,8 @@ def BaseVelocityFromKinAndIMU(contactFrameId, model, data, IMU_ang_vel):
         contactFrameId (int): ID of the contact point frame (foot frame)
     """
 
-    frameVelocity = pin.getFrameVelocity(
-        model, data, contactFrameId, pin.ReferenceFrame.LOCAL)
-    framePlacement = pin.updateFramePlacement(
-        model, data, contactFrameId)
+    frameVelocity = pin.getFrameVelocity(model, data, contactFrameId, pin.ReferenceFrame.LOCAL)
+    framePlacement = pin.updateFramePlacement(model, data, contactFrameId)
 
     # Angular velocity of the base wrt the world in the base frame (Gyroscope)
     _1w01 = IMU_ang_vel.reshape((3, 1))
@@ -122,13 +117,12 @@ def BaseVelocityFromKinAndIMU(contactFrameId, model, data, IMU_ang_vel):
 
     return _1v01, np.array(_iv0i)
 
+
 #########
 # START #
 #########
 
-
 on_solo8 = False
-
 """for name in np.sort(glob.glob('./*.npz')):
     print(name)"""
 last_date = np.sort(glob.glob('./*.npz'))[-1][-20:]
@@ -155,8 +149,7 @@ cheatPos = data["dummyPos"]
 for i in range(3):
     mocapPosition[:, i] = linearly_interpolate_nans(mocapPosition[:, i])
     mocapVelocity[:, i] = linearly_interpolate_nans(mocapVelocity[:, i])
-    mocapAngularVelocity[:, i] = linearly_interpolate_nans(
-        mocapAngularVelocity[:, i])
+    mocapAngularVelocity[:, i] = linearly_interpolate_nans(mocapAngularVelocity[:, i])
 
 # From IMU
 baseOrientation = data['baseOrientation']  # Orientation as quat
@@ -196,7 +189,7 @@ if N == 0:
     N = baseOrientation.shape[0]
 N = baseOrientation.shape[0]
 Tend = N * 0.002
-t = np.linspace(0, Tend, N+1, endpoint=True)
+t = np.linspace(0, Tend, N + 1, endpoint=True)
 t = t[:-1]
 
 # Parameters
@@ -212,18 +205,17 @@ vy_ref = np.zeros((N, 1))
 vx_est = np.zeros((N, 1))
 vy_est = np.zeros((N, 1))
 for i in range(N):
-    imuRPY[i, :] = pin.rpy.matrixToRpy(pin.Quaternion(
-        baseOrientation[i:(i+1), :].transpose()).toRotationMatrix())
+    imuRPY[i, :] = pin.rpy.matrixToRpy(pin.Quaternion(baseOrientation[i:(i + 1), :].transpose()).toRotationMatrix())
 
     c = np.cos(imuRPY[i, 2])
     s = np.sin(imuRPY[i, 2])
     R = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
-    v = R.transpose() @ log_xfmpc[i:(i+1), 6:9].transpose()
+    v = R.transpose() @ log_xfmpc[i:(i + 1), 6:9].transpose()
     # v = pin.Quaternion(baseOrientation[i:(i+1), :].transpose()).toRotationMatrix().transpose() @ log_xfmpc[i:(i+1), 6:9].transpose()
     vx_ref[i] = v[0]
     vy_ref[i] = v[1]
 
-    v_est = log_dq[0:3, i:(i+1)]
+    v_est = log_dq[0:3, i:(i + 1)]
     vx_est[i] = v_est[0]
     vy_est[i] = v_est[1]
 
@@ -240,25 +232,21 @@ offset_h = cheatPos[0, 2] - log_xfmpc[0, 2]
 ax0 = plt.subplot(3, 1, 1)
 plt.plot(t[:-1], cheatPos[:-1, 2] - offset_h, color=c[0], linewidth=lwdth)
 plt.plot(t[:-1], log_q[2, :-1], color="darkgreen", linewidth=lwdth)
-plt.plot(t[:-1], log_xfmpc[:-1, 2],
-         "darkorange", linewidth=lwdth, linestyle="--")
+plt.plot(t[:-1], log_xfmpc[:-1, 2], "darkorange", linewidth=lwdth, linestyle="--")
 plt.ylabel("Height [m]", fontsize=14)
 plt.legend(["Ground truth", "Estimated", "Command"], prop={'size': 10}, loc=2)
-
 
 # Roll subplot
 ax1 = plt.subplot(3, 1, 2, sharex=ax0)
 plt.plot(t[:-1], imuRPY[:-1, 0], color=c[0], linewidth=lwdth)
 plt.plot(t[:-1], log_q[3, :-1], color="darkgreen", linewidth=lwdth)
-plt.plot(t[:-1], log_xfmpc[:-1, 3], "darkorange",
-         linewidth=lwdth, linestyle="--")
+plt.plot(t[:-1], log_xfmpc[:-1, 3], "darkorange", linewidth=lwdth, linestyle="--")
 plt.ylabel("Roll [rad]", fontsize=14)
 
 if plot_forces:
     ax1bis = ax1.twinx()
     ax1bis.set_ylabel("$F_y$ [N]", color='k', fontsize=14)
-    ax1bis.plot(t[:-1], cheatForce[:-1, 1], color="darkviolet",
-                linewidth=lwdth, linestyle="--")
+    ax1bis.plot(t[:-1], cheatForce[:-1, 1], color="darkviolet", linewidth=lwdth, linestyle="--")
     ax1bis.tick_params(axis='y', labelcolor='k')
     ax1bis.legend(["Force"], prop={'size': 10}, loc=1)
 
@@ -266,16 +254,14 @@ if plot_forces:
 ax2 = plt.subplot(3, 1, 3, sharex=ax0)
 plt.plot(t[:-1], imuRPY[:-1, 1], color=c[0], linewidth=lwdth)
 plt.plot(t[:-1], log_q[4, :-1], color="darkgreen", linewidth=lwdth)
-plt.plot(t[:-1], log_xfmpc[:-1, 4], "darkorange",
-         linewidth=lwdth, linestyle="--")
+plt.plot(t[:-1], log_xfmpc[:-1, 4], "darkorange", linewidth=lwdth, linestyle="--")
 plt.xlabel("Time [s]", fontsize=16)
 plt.ylabel("Pitch [rad]", fontsize=14)
 
 if plot_forces:
     ax2bis = ax2.twinx()
     ax2bis.set_ylabel("$F_x$ [N]", color='k', fontsize=14)
-    ax2bis.plot(t[:-1], cheatForce[:-1, 0], color="darkviolet",
-                linewidth=lwdth, linestyle="--")
+    ax2bis.plot(t[:-1], cheatForce[:-1, 0], color="darkviolet", linewidth=lwdth, linestyle="--")
     ax2bis.tick_params(axis='y', labelcolor='k')
     ax2bis.legend(["Force"], prop={'size': 10}, loc=1)
 
@@ -283,10 +269,14 @@ for ax in [ax0, ax1, ax2]:
     ax.tick_params(axis='both', which='major', labelsize=10)
     ax.tick_params(axis='both', which='minor', labelsize=10)
 
-plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/H_R_P_vele" +
-            str(velID)+ last_date[:-4] +".eps", dpi="figure", bbox_inches="tight")
-plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/H_R_P_vele" +
-            str(velID)+ last_date[:-4] +".png", dpi=800, bbox_inches="tight")
+plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/H_R_P_vele" + str(velID) +
+            last_date[:-4] + ".eps",
+            dpi="figure",
+            bbox_inches="tight")
+plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/H_R_P_vele" + str(velID) +
+            last_date[:-4] + ".png",
+            dpi=800,
+            bbox_inches="tight")
 
 # VX / VY / WYAW FIGURE
 fig2 = plt.figure(figsize=(7, 4))
@@ -301,8 +291,7 @@ ax0.legend(["Ground truth", "Estimated", "Command"], prop={'size': 10}, loc=2)
 if plot_forces:
     ax0bis = ax0.twinx()
     ax0bis.set_ylabel("$F_x$ [N]", color='k', fontsize=14)
-    ax0bis.plot(t[:-1], cheatForce[:-1, 0], color="darkviolet",
-                linewidth=lwdth, linestyle="--")
+    ax0bis.plot(t[:-1], cheatForce[:-1, 0], color="darkviolet", linewidth=lwdth, linestyle="--")
     ax0bis.tick_params(axis='y', labelcolor='k')
     ax0bis.legend(["Force"], prop={'size': 10}, loc=1)
 
@@ -317,8 +306,7 @@ plt.ylabel("$\dot y$ [m/s]", fontsize=14)
 if plot_forces:
     ax1bis = ax1.twinx()
     ax1bis.set_ylabel("$F_y$ [N]", color='k', fontsize=14)
-    ax1bis.plot(t[:-1], cheatForce[:-1, 1], color="darkviolet",
-                linewidth=lwdth, linestyle="--")
+    ax1bis.plot(t[:-1], cheatForce[:-1, 1], color="darkviolet", linewidth=lwdth, linestyle="--")
     ax1bis.tick_params(axis='y', labelcolor='k')
     ax1bis.legend(["Force"], prop={'size': 10}, loc=1)
 
@@ -326,8 +314,7 @@ if plot_forces:
 ax2 = plt.subplot(3, 1, 3, sharex=ax0)
 plt.plot(t[:-1], baseAngularVelocity[:-1, 2], color=c[0], linewidth=lwdth)
 plt.plot(t[:-1], log_dq[5, :-1], color="darkgreen", linewidth=lwdth)
-plt.plot(t[:-1], log_xfmpc[:-1, 11], "darkorange",
-         linewidth=lwdth, linestyle="--")
+plt.plot(t[:-1], log_xfmpc[:-1, 11], "darkorange", linewidth=lwdth, linestyle="--")
 plt.ylabel("$\dot \omega_z$ [rad/s]", fontsize=16)
 plt.xlabel("Time [s]", fontsize=14)
 #ax2.legend(["Ground truth", "Estimated", "Command"], prop={'size': 10}, loc=2)
@@ -337,9 +324,13 @@ for ax in [ax0, ax1, ax2]:
     ax.tick_params(axis='both', which='minor', labelsize=10)
 
 plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/Vx_Vy_Wyaw_vele" +
-            str(velID)+ last_date[:-4] + ".eps", dpi="figure", bbox_inches="tight")
+            str(velID) + last_date[:-4] + ".eps",
+            dpi="figure",
+            bbox_inches="tight")
 plt.savefig("/home/palex/Documents/Travail/Article_10_2020/solopython_02_11_2020ter/Figures/Vx_Vy_Wyaw_vele" +
-            str(velID)+ last_date[:-4] + ".png", dpi=800, bbox_inches="tight")
+            str(velID) + last_date[:-4] + ".png",
+            dpi=800,
+            bbox_inches="tight")
 
 plt.show(block=True)
 
@@ -368,10 +359,10 @@ for i in range(12):
     else:
         plt.subplot(3, 4, index[i], sharex=ax0)
 
-    h1, = plt.plot(log_xfmpc[:, 12+i], "b", linewidth=5)
+    h1, = plt.plot(log_xfmpc[:, 12 + i], "b", linewidth=5)
 
     plt.xlabel("Time [s]")
-    plt.ylabel(lgd1[i % 3]+" "+lgd2[int(i/3)])
+    plt.ylabel(lgd1[i % 3] + " " + lgd2[int(i / 3)])
 
     if (i % 3) == 2:
         plt.ylim([-1.0, 15.0])
@@ -382,7 +373,6 @@ plt.suptitle("b_xfmpc forces")
 
 # plt.show(block=True)
 
-
 ###############
 # ORIENTATION #
 ###############
@@ -391,8 +381,7 @@ mocapRPY = np.zeros((N, 3))
 imuRPY = np.zeros((N, 3))
 for i in range(N):
     mocapRPY[i, :] = pin.rpy.matrixToRpy(mocapOrientationMat9[i, :, :])
-    imuRPY[i, :] = pin.rpy.matrixToRpy(pin.Quaternion(
-        baseOrientation[i:(i+1), :].transpose()).toRotationMatrix())
+    imuRPY[i, :] = pin.rpy.matrixToRpy(pin.Quaternion(baseOrientation[i:(i + 1), :].transpose()).toRotationMatrix())
 
 fig = plt.figure()
 # Roll orientation
@@ -416,13 +405,12 @@ plt.xlabel("Time [s]")
 mocapBaseLinearVelocity = np.zeros((N, 3))
 imuBaseLinearVelocity = np.zeros((N, 3))
 for i in range(N):
-    mocapBaseLinearVelocity[i, :] = ((mocapOrientationMat9[i, :, :]) @
-                                     (mocapVelocity[i:(i+1), :]).transpose()).ravel()
+    mocapBaseLinearVelocity[i, :] = (
+        (mocapOrientationMat9[i, :, :]) @ (mocapVelocity[i:(i + 1), :]).transpose()).ravel()
     if i == 0:
         imuBaseLinearVelocity[i, :] = mocapBaseLinearVelocity[0, :]
     else:
-        imuBaseLinearVelocity[i, :] = imuBaseLinearVelocity[i -
-                                                            1, :] + dt * baseLinearAcceleration[i-1, :]
+        imuBaseLinearVelocity[i, :] = imuBaseLinearVelocity[i - 1, :] + dt * baseLinearAcceleration[i - 1, :]
 
 fig = plt.figure()
 # X linear velocity
@@ -458,14 +446,13 @@ plt.xlabel("Time [s]")
 mocapBaseAngularVelocity = np.zeros(mocapAngularVelocity.shape)
 for i in range(N):
     #mocapBaseAngularVelocity[i, :] = ((mocapOrientationMat9[i, :, :]) @ (mocapAngularVelocity[i:(i+1), :]).transpose()).ravel()
-    mocapBaseAngularVelocity[i, :] = (
-        mocapAngularVelocity[i:(i+1), :]).transpose().ravel()
+    mocapBaseAngularVelocity[i, :] = (mocapAngularVelocity[i:(i + 1), :]).transpose().ravel()
 
 fig = plt.figure()
 # Angular velocity X subplot
 ax0 = plt.subplot(3, 1, 1)
 plt.plot(t, mocapBaseAngularVelocity[:N, 0], "darkorange", linewidth=lwdth)
-plt.plot(t, baseAngularVelocity[:N, 0], "royalblue", linewidth=lwdth*2)
+plt.plot(t, baseAngularVelocity[:N, 0], "royalblue", linewidth=lwdth * 2)
 plt.plot(t, referenceVelocity[:N, 3], color="darkviolet", linewidth=lwdth)
 plt.ylabel("$\dot \phi$ [rad/s]")
 plt.legend(["Mocap", "IMU", "Reference"], prop={'size': 8})
@@ -543,8 +530,7 @@ for i in range(8):
         ax0 = plt.subplot(2, 4, index[i])
     else:
         plt.subplot(2, 4, index[i], sharex=ax0)
-    plt.plot(
-        t, torquesFromCurrentMeasurment[:N, i], "forestgreen", linewidth=lwdth)
+    plt.plot(t, torquesFromCurrentMeasurment[:N, i], "forestgreen", linewidth=lwdth)
 
     if (i % 2 == 1):
         plt.xlabel("Time [s]")
@@ -559,26 +545,25 @@ for i in range(4):
     front_up = 0
     front_down = 0
     for j in range(N):
-        if (state == 0) and (np.abs(torquesFromCurrentMeasurment[j, 2*i+1]) >= treshold):
+        if (state == 0) and (np.abs(torquesFromCurrentMeasurment[j, 2 * i + 1]) >= treshold):
             state = 1
             front_up = j
-        if (state == 1) and (np.abs(torquesFromCurrentMeasurment[j, 2*i+1]) < treshold):
+        if (state == 1) and (np.abs(torquesFromCurrentMeasurment[j, 2 * i + 1]) < treshold):
             state = 0
             front_down = j
-            l = np.min((front_up+margin, N))
-            u = np.max((front_down-margin, 0))
+            l = np.min((front_up + margin, N))
+            u = np.max((front_down - margin, 0))
             contact_state[l:u, i] = 1
 
 plt.figure()
 for i in range(4):
     if i == 0:
-        ax0 = plt.subplot(1, 4, i+1)
+        ax0 = plt.subplot(1, 4, i + 1)
     else:
-        plt.subplot(1, 4, i+1, sharex=ax0)
-    plt.plot(t, torquesFromCurrentMeasurment[:N, 2*i+1])
+        plt.subplot(1, 4, i + 1, sharex=ax0)
+    plt.plot(t, torquesFromCurrentMeasurment[:N, 2 * i + 1])
     plt.plot(t, contact_state[:N, i])
     plt.legend(["Torque", "Estimated contact state"], prop={'size': 8})
-
 """fig = plt.figure()
 # Angular velocity X subplot
 ax0 = plt.subplot(3, 1, 1)
@@ -595,9 +580,7 @@ plt.plot(t, v_mes[:N, 2], "forestgreen", linewidth=lwdth)
 plt.ylabel("Angular velocity [rad/s]")
 plt.xlabel("Time [s]")"""
 
-
 # Set the paths where the urdf and srdf file of the robot are registered
-modelPath = "/opt/openrobots/share/example-robot-data/robots"
 if on_solo8:
     urdf = modelPath + "/solo_description/robots/solo.urdf"
 else:
@@ -607,14 +590,12 @@ vector = pin.StdVec_StdString()
 vector.extend(item for item in modelPath)
 
 # Create the robot wrapper from the urdf model (which has no free flyer) and add a free flyer
-robot = tsid.RobotWrapper(
-    urdf, vector, pin.JointModelFreeFlyer(), False)
+robot = tsid.RobotWrapper(urdf, vector, pin.JointModelFreeFlyer(), False)
 model = robot.model()
 
 # Creation of the Invverse Dynamics HQP problem using the robot
 # accelerations (base + joints) and the contact forces
-invdyn = tsid.InverseDynamicsFormulationAccForce(
-    "tsid", robot, False)
+invdyn = tsid.InverseDynamicsFormulationAccForce("tsid", robot, False)
 
 # Compute the problem data with a solver based on EiQuadProg
 t0 = 0.0
@@ -669,8 +650,8 @@ for alpha in alphas:
         vel_est = np.zeros((3, ))
         ivel_est = np.zeros((3, ))
         for j in (np.where(contactStatus[i, :] == 1))[0]:
-            vel_estimated_baseframe, _iv0i = BaseVelocityFromKinAndIMU(
-                indexes[j], model, data, baseAngularVelocity[i, :])
+            vel_estimated_baseframe, _iv0i = BaseVelocityFromKinAndIMU(indexes[j], model, data,
+                                                                       baseAngularVelocity[i, :])
 
             cpt += 1
             vel_est += vel_estimated_baseframe[:, 0]
@@ -679,7 +660,7 @@ for alpha in alphas:
             FK_lin_vel = vel_est / cpt  # average of all feet in contact
             iFK_lin_vel = ivel_est / cpt
 
-            filteredLinearVelocity[i, :] = alpha * (filteredLinearVelocity[i-1, :] +
+            filteredLinearVelocity[i, :] = alpha * (filteredLinearVelocity[i - 1, :] +
                                                     baseLinearAcceleration[i, :] * dt) + (1 - alpha) * FK_lin_vel
             FK_lin_vel_log[i, :] = FK_lin_vel
 
@@ -701,15 +682,14 @@ for alpha in alphas:
             #print(ifilteredLinearVelocity[i, :])
             """if np.array_equal(filteredLinearVelocity[i, :], ifilteredLinearVelocity[i, :]):
                 print("Same values")
-                
+
             else:
                 print("Different")
                 print(filteredLinearVelocity[i, :])
                 print(ifilteredLinearVelocity[i, :])"""
 
         else:
-            filteredLinearVelocity[i, :] = filteredLinearVelocity[i -
-                                                                  1, :] + baseLinearAcceleration[i, :] * dt
+            filteredLinearVelocity[i, :] = filteredLinearVelocity[i - 1, :] + baseLinearAcceleration[i, :] * dt
 
             # Get previous base vel wrt world in base frame into IMU frame
             i_filt_lin_vel = ifilteredLinearVelocity[i-1, :] + \
@@ -743,32 +723,28 @@ plt.plot(alphas, rms_z)
 plt.plot(alphas, irms_x)
 plt.plot(alphas, irms_y)
 plt.plot(alphas, irms_z)
-plt.legend(["RMS X", "RMS Y", "RMS Z", "New RMS X",
-            "New RMS Y", "New RMS Z"], prop={'size': 8})
+plt.legend(["RMS X", "RMS Y", "RMS Z", "New RMS X", "New RMS Y", "New RMS Z"], prop={'size': 8})
 plt.xlabel("Alpha")
 plt.ylabel("RMS erreur en vitesse")
 
 fc = 10
-y = 1 - np.cos(2*np.pi*fc*dt)
-alpha_v = -y+np.sqrt(y*y+2*y)
+y = 1 - np.cos(2 * np.pi * fc * dt)
+alpha_v = -y + np.sqrt(y * y + 2 * y)
 lowpass_ifilteredLinearVelocity = np.zeros(ifilteredLinearVelocity.shape)
 lowpass_ifilteredLinearVelocity[0, :] = ifilteredLinearVelocity[0, :]
 for k in range(1, N):
-    lowpass_ifilteredLinearVelocity[k, :] = (
-        1 - alpha_v) * lowpass_ifilteredLinearVelocity[k-1, :] + alpha_v * ifilteredLinearVelocity[k, :]
-
+    lowpass_ifilteredLinearVelocity[
+        k, :] = (1 - alpha_v) * lowpass_ifilteredLinearVelocity[k - 1, :] + alpha_v * ifilteredLinearVelocity[k, :]
 
 plt.figure()
 plt.plot(t, filteredLinearVelocity[:N, 0], linewidth=3)
 plt.plot(t, ifilteredLinearVelocity[:N, 0], linewidth=3, linestyle="--")
 plt.plot(t, mocapBaseLinearVelocity[:N, 0], linewidth=3)
-plt.plot(
-    t, lowpass_ifilteredLinearVelocity[:N, 0], color="darkviolet", linewidth=3)
+plt.plot(t, lowpass_ifilteredLinearVelocity[:N, 0], color="darkviolet", linewidth=3)
 # plt.plot(t, FK_lin_vel_log[:N, 0], color="darkviolet", linestyle="--")
 """plt.plot(t, baseLinearAcceleration[:N, 0], linestyle="--")"""
 plt.legend(["Filtered", "New Filtered", "Mocap"], prop={'size': 8})
 # plt.show()
-
 
 data_control = np.load("data_control_" + last_date)
 

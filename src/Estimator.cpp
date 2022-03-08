@@ -1,3 +1,5 @@
+#include <example-robot-data/path.hpp>
+
 #include "qrw/Estimator.hpp"
 
 ////////////////////////////////////
@@ -121,9 +123,9 @@ void Estimator::initialize(Params& params) {
   q_up_(2, 0) = params.h_ref;                       // Reference height
   q_up_.tail(12) = Vector12(params.q_init.data());  // Actuator initial positions
 
-  // Path to the robot URDF (TODO: Automatic path)
+  // Path to the robot URDF
   const std::string filename =
-      std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
+      std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
 
   // Build model from urdf
   pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);

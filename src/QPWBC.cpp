@@ -1,3 +1,5 @@
+#include <example-robot-data/path.hpp>
+
 #include "qrw/QPWBC.hpp"
 
 QPWBC::QPWBC() {
@@ -605,9 +607,9 @@ void WbcWrapper::initialize(Params &params) {
   // Params store parameters
   params_ = &params;
 
-  // Path to the robot URDF (TODO: Automatic path)
+  // Path to the robot URDF
   const std::string filename =
-      std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
+      std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
 
   // Build model from urdf (base is not free flyer)
   pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
@@ -712,7 +714,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   Vector6 RNEA_NLE = data_.tau.head(6);
   RNEA_NLE(2, 0) -= 9.81 * data_.mass[0];
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
-  Vector12 f_compensation = pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);*/
+  Vector12 f_compensation = pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);
 
   /*std::cout << "M inertia" << std::endl;
   std::cout << data_.M << std::endl;*/
@@ -839,14 +841,13 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
 
   /*
   std::cout << "-- AFTER QP PROBLEM --" << std::endl;
-  std::cout << "M ddq_u: " << std::endl << (data_.M.block(0, 0, 3, 6) * ddq_with_delta_.head(6)).transpose() <<
-  std::endl; std::cout << "M ddq_a: " << std::endl << (data_.M.block(0, 6, 3, 12) *
-  ddq_with_delta_.tail(12)).transpose() << std::endl; pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_,
-  VectorN::Zero(model_.nv)); std::cout << "Non linear effects: " << std::endl << data_.tau.head(6).transpose() <<
-  std::endl; std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * f_with_delta_).transpose() << std::endl;
+  std::cout << "M ddq_u: " << std::endl << (data_.M.block(0, 0, 3, 6) * ddq_with_delta_.head(6)).transpose() << std::endl;
+  std::cout << "M ddq_a: " << std::endl << (data_.M.block(0, 6, 3, 12) * ddq_with_delta_.tail(12)).transpose() << std::endl;
+  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
+  std::cout << "Non linear effects: " << std::endl << data_.tau.head(6).transpose() << std::endl;
+  std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * f_with_delta_).transpose() << std::endl;
 
-  std::cout << "LEFT " << (tmp_RNEA.head(3) + data_.M.block(0, 0, 3, 6) * box_qp_->get_ddq_res()).transpose() <<
-  std::endl;
+  std::cout << "LEFT " << (tmp_RNEA.head(3) + data_.M.block(0, 0, 3, 6) * box_qp_->get_ddq_res()).transpose() << std::endl;
   */
 
   // Increment log counter

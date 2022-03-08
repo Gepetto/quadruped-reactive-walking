@@ -1,3 +1,5 @@
+#include <example-robot-data/path.hpp>
+
 #include "qrw/FootstepPlanner.hpp"
 
 FootstepPlanner::FootstepPlanner()
@@ -44,9 +46,9 @@ void FootstepPlanner::initialize(Params& params, Gait& gaitIn) {
   }
   Rz(2, 2) = 1.0;
 
-  // Path to the robot URDF (TODO: Automatic path)
+  // Path to the robot URDF
   const std::string filename =
-      std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
+      std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
 
   // Build model from urdf (base is not free flyer)
   pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);

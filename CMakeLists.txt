@@ -1,6 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
-
-set (CMAKE_CXX_STANDARD 11)
+cmake_minimum_required(VERSION 3.14)
 
 # Project properties
 set(PROJECT_NAMESPACE gepetto)
@@ -29,12 +27,13 @@ SET(CXX_DISABLE_WERROR True)
 # Project definition
 COMPUTE_PROJECT_ARGS(PROJECT_ARGS LANGUAGES CXX)
 project(${PROJECT_NAME} ${PROJECT_ARGS})
+CHECK_MINIMAL_CXX_STANDARD(11 REQUIRED)
 
 # Project dependencies
 set(BOOST_COMPONENTS unit_test_framework)
 ADD_PROJECT_DEPENDENCY(Eigen3 REQUIRED)
+ADD_PROJECT_DEPENDENCY(example-robot-data REQUIRED)
 
-set(BUILD_PYTHON_INTERFACE TRUE)
 if(BUILD_PYTHON_INTERFACE)
   FINDPYTHON()
   ADD_PROJECT_DEPENDENCY(eigenpy REQUIRED)
@@ -101,7 +100,7 @@ set(${PROJECT_NAME}_SOURCES
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
 target_include_directories(${PROJECT_NAME} PUBLIC $<INSTALL_INTERFACE:include>)
 target_include_directories(${PROJECT_NAME} PUBLIC $<INSTALL_INTERFACE:include/qrw>)
-set_target_properties(${PROJECT_NAME} PROPERTIES INSTALL_RPATH "\$ORIGIN")
+target_link_libraries(${PROJECT_NAME} PUBLIC example-robot-data::example-robot-data)
 
 # Include Eigen3 directories
 TARGET_INCLUDE_DIRECTORIES(${PROJECT_NAME} SYSTEM PRIVATE ${EIGEN3_INCLUDE_DIR})

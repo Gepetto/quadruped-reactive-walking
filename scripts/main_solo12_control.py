@@ -7,7 +7,7 @@ import numpy as np
 import argparse
 from LoggerSensors import LoggerSensors
 from LoggerControl import LoggerControl
-import libquadruped_reactive_walking as lqrw
+from quadruped_reactive_walking import libquadruped_reactive_walking as lqrw
 import time
 
 params = lqrw.Params()  # Object that holds all controller parameters
