@@ -1,6 +1,7 @@
 import numpy as np
 import pybullet as pyb
 import pybullet_data
+import os
 
 class PybEnvironment3D():
     ''' Class to vizualise the 3D environment and foot trajectory and in PyBullet simulation.
@@ -17,7 +18,7 @@ class PybEnvironment3D():
         - footTrajectoryGenerator: Foot trajectory class (Bezier version).
         """
         self.enable_pyb_GUI = params.enable_pyb_GUI
-        self.URDF = params.environment_URDF
+        self.URDF = os.environ["SOLO3D_ENV_DIR"] + params.environment_URDF
         self.params = params
 
         # Solo3D python class
@@ -43,12 +44,8 @@ class PybEnvironment3D():
             self.initializeEnv()
 
         if self.enable_pyb_GUI and k > 1 and not self.params.enable_multiprocessing_mip:
-
             if k % self.refresh == 0:
-
-                # Update target trajectory, current and next phase
                 self.updateTargetTrajectory()
-
         return 0
 
     def updateCamera(self, k, device):
@@ -69,16 +66,16 @@ class PybEnvironment3D():
         -  all_feet_pos : list of optimized position such as : [[Foot 1 next_pos, None , Foot1 next_pos] , [Foot 2 next_pos, None , Foot2 next_pos] ]
         '''
 
-        for i in range(len(all_feet_pos[0])):
-            for j in range(len(all_feet_pos)):
-                if all_feet_pos[j][i] is None:
-                    pyb.resetBasePositionAndOrientation(int(self.sl1m_Ids_target[i, j]),
+        for step in range(len(all_feet_pos[0])):
+            for foot in range(len(all_feet_pos)):
+                if all_feet_pos[foot][step] is None:
+                    pyb.resetBasePositionAndOrientation(int(self.sl1m_Ids_target[step, foot]),
                                                         posObj=np.array([0., 0., -0.5]),
                                                         ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
 
                 else:
-                    pyb.resetBasePositionAndOrientation(int(self.sl1m_Ids_target[i, j]),
-                                                        posObj=all_feet_pos[j][i],
+                    pyb.resetBasePositionAndOrientation(int(self.sl1m_Ids_target[step, foot]),
+                                                        posObj=all_feet_pos[foot][step],
                                                         ornObj=np.array([0.0, 0.0, 0.0, 1.0]))
 
         return 0

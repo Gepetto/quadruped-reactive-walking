@@ -52,6 +52,14 @@ class MPC {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   int run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in);
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Retrieve the value of the cost function at the end of the resolution
+  /// \return the cost value
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  float retrieve_cost();
+
   // Getters
   Eigen::MatrixXd get_latest_result();  // Return the latest desired contact forces that have been computed
   Eigen::MatrixXd get_gait();           // Return the gait matrix

@@ -111,7 +111,8 @@ void Estimator::initialize(Params& params) {
 
   _1Mi_ = pinocchio::SE3(pinocchio::SE3::Quaternion(1.0, 0.0, 0.0, 0.0), Vector3(0.1163, 0.0, 0.02));
 
-  q_security_ = (Vector3(M_PI * 0.4, M_PI * 80 / 180, M_PI)).replicate<4, 1>();
+  q_security_ = (Vector3(1.2, 2.1, 3.14)).replicate<4, 1>();
+//   q_security_ = (Vector3(M_PI * 0.4, M_PI * 80 / 180, M_PI)).replicate<4, 1>();
 
   q_FK_(6, 0) = 1.0;        // Last term of the quaternion
   q_filt_(6, 0) = 1.0;      // Last term of the quaternion
@@ -138,7 +139,7 @@ void Estimator::initialize(Params& params) {
 }
 
 void Estimator::get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 const& baseAngularVelocity,
-                             Vector3 const& baseOrientation, VectorN const& dummyPos) {
+                             Vector3 const& baseOrientation, VectorN const& q_perfect) {
   // Linear acceleration of the trunk (base frame)
   IMU_lin_acc_ = baseLinearAcceleration;
 
@@ -154,7 +155,7 @@ void Estimator::get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 cons
   IMU_RPY_(2, 0) -= offset_yaw_IMU_;  // Remove initial offset of IMU
 
   if (solo3D) {
-    IMU_RPY_.tail(1) = dummyPos.tail(1);  // Yaw angle from motion capture
+    IMU_RPY_.tail(1) = q_perfect.tail(1);  // Yaw angle from motion capture
   }
 
   IMU_ang_pos_ =
@@ -264,7 +265,7 @@ Vector3 Estimator::BaseVelocityFromKinAndIMU(int contactFrameId) {
 
 void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN const& baseLinearAcceleration,
                            VectorN const& baseAngularVelocity, VectorN const& baseOrientation, VectorN const& q_mes,
-                           VectorN const& v_mes, VectorN const& dummyPos, Vector3 const& b_baseVel) {
+                           VectorN const& v_mes, VectorN const& q_perfect, Vector3 const& b_baseVel_perfect) {
   feet_status_ = gait.block(0, 0, 1, 4);
   feet_goals_ = goals;
 
@@ -274,7 +275,7 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
   }
 
   // Update IMU data
-  get_data_IMU(baseLinearAcceleration, baseAngularVelocity, baseOrientation, dummyPos);
+  get_data_IMU(baseLinearAcceleration, baseAngularVelocity, baseOrientation, q_perfect);
 
   // Angular position of the trunk
   Vector4 filt_ang_pos = IMU_ang_pos_.coeffs();
@@ -315,7 +316,7 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
 
   // Base velocity estimated by FK, estimated by motion capture
   if (solo3D) {
-    FK_lin_vel_ = b_baseVel;
+    FK_lin_vel_ = b_baseVel_perfect;
   }
 
   // Rotation matrix to go from base frame to world frame
@@ -345,8 +346,8 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
 
   if (solo3D) {
     Vector3 offset_ = Vector3::Zero();
-    offset_.tail(3) << -0.0155;
-    filt_lin_pos = filter_xyz_pos_.compute(dummyPos.head(3) - offset_, ob_filt_lin_vel, Vector3(0.995, 0.995, 0.9));
+    // offset_.tail(3) << -0.0155;
+    filt_lin_pos = filter_xyz_pos_.compute(q_perfect.head(3) - offset_, ob_filt_lin_vel, Vector3(0.995, 0.995, 0.9));
   } else {
     filt_lin_pos = filter_xyz_pos_.compute(FK_xyz_ + xyz_mean_feet_, ob_filt_lin_vel, Vector3(0.995, 0.995, 0.9));
   }
@@ -354,23 +355,23 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
   // Output filtered position vector (19 x 1)
   q_filt_.head(3) = filt_lin_pos;
   if (perfect_estimator || solo3D) {
-    q_filt_(2, 0) = dummyPos(2, 0) - 0.0155;  // Minus feet radius
+    q_filt_(2, 0) = q_perfect(2, 0);  // Minus feet radius
   }
   q_filt_.block(3, 0, 4, 1) = filt_ang_pos;
   q_filt_.tail(12) = actuators_pos_;  // Actuators pos are already directly from PyBullet
 
   // Output filtered velocity vector (18 x 1)
   // Linear velocities directly from PyBullet if perfect estimator
-  v_filt_.head(3) = perfect_estimator ? b_baseVel : b_filt_lin_vel_;
+  v_filt_.head(3) = perfect_estimator ? b_baseVel_perfect : b_filt_lin_vel_;
   v_filt_.block(3, 0, 3, 1) = filt_ang_vel;  // Angular velocities are already directly from PyBullet
   v_filt_.tail(12) = actuators_vel_;         // Actuators velocities are already directly from PyBullet
 
   vx_queue_.pop_back();
   vy_queue_.pop_back();
   vz_queue_.pop_back();
-  vx_queue_.push_front(perfect_estimator ? b_baseVel(0) : b_filt_lin_vel_(0));
-  vy_queue_.push_front(perfect_estimator ? b_baseVel(1) : b_filt_lin_vel_(1));
-  vz_queue_.push_front(perfect_estimator ? b_baseVel(2) : b_filt_lin_vel_(2));
+  vx_queue_.push_front(perfect_estimator ? b_baseVel_perfect(0) : b_filt_lin_vel_(0));
+  vy_queue_.push_front(perfect_estimator ? b_baseVel_perfect(1) : b_filt_lin_vel_(1));
+  vz_queue_.push_front(perfect_estimator ? b_baseVel_perfect(2) : b_filt_lin_vel_(2));
   v_filt_bis_(0) = std::accumulate(vx_queue_.begin(), vx_queue_.end(), 0.0) / N_queue_;
   v_filt_bis_(1) = std::accumulate(vy_queue_.begin(), vy_queue_.end(), 0.0) / N_queue_;
   v_filt_bis_(2) = std::accumulate(vz_queue_.begin(), vz_queue_.end(), 0.0) / N_queue_;
@@ -415,10 +416,13 @@ void Estimator::run_filter(MatrixN const& gait, MatrixN const& goals, VectorN co
 
 int Estimator::security_check(VectorN const& tau_ff) {
   if (((q_filt_.tail(12).cwiseAbs()).array() > q_security_.array()).any()) {  // Test position limits
+    std::cout << "Position limit error " << ((q_filt_.tail(12).cwiseAbs()).array() > q_security_.array()).transpose() << std::endl;
     return 1;
-  } else if (((v_secu_.cwiseAbs()).array() > 50.0).any()) {  // Test velocity limits
+  } else if (((v_secu_.cwiseAbs()).array() > 100.0).any()) {  // Test velocity limits
+    std::cout << "Velocity limit error " << ((v_secu_.cwiseAbs()).array() > 100.0).transpose() << std::endl;
     return 2;
   } else if (((tau_ff.cwiseAbs()).array() > 8.0).any()) {  // Test feedforward torques limits
+    std::cout << "feedforward limit error " << ((tau_ff.cwiseAbs()).array() > 8.0).transpose() << std::endl;
     return 3;
   }
   return 0;

@@ -1,12 +1,11 @@
-from numpy import identity, zeros, ones, array
 import numpy as np
-import matplotlib.pyplot as plt
-import mpl_toolkits.mplot3d as a3
 import hppfcl
-from time import perf_counter as clock
-import trimesh
 import pickle
 import ctypes
+import libquadruped_reactive_walking as lqrw
+
+
+COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
 
 class MapHeader(ctypes.Structure):
@@ -29,15 +28,13 @@ class Heightmap:
         :param x_lim bounds in x
         :param y_lim bounds in y
         """
-
         self.n_x = n_x
         self.n_y = n_y
 
         self.x = np.linspace(x_lim[0], x_lim[1], n_x)
         self.y = np.linspace(y_lim[0], y_lim[1], n_y)
 
-        self.xv, self.yv = np.meshgrid(self.x, self.y, sparse=False, indexing='ij')
-        self.zv = np.zeros((n_x, n_y))
+        self.z = np.zeros((n_x, n_y))
 
     def save_pickle(self, filename):
         filehandler = open(filename, 'wb')
@@ -50,7 +47,7 @@ class Heightmap:
         - filename (str) : name of the file saved.
         """
 
-        arr_bytes = self.zv.astype(ctypes.c_double).tobytes()
+        arr_bytes = self.z.astype(ctypes.c_double).tobytes()
         h = MapHeader(self.n_x, self.n_y, self.x[0], self.x[-1], self.y[0], self.y[-1])
         h_bytes = bytearray(h)
 
@@ -59,6 +56,17 @@ class Heightmap:
             f.write(h_bytes)
             f.write(arr_bytes)
 
+    def build_from_fit(self, fit):
+        """
+        Build the heightmap and return it
+        For each slot in the grid create a vertical segment and check its collisions with the 
+        affordances until one is found
+        :param affordances list of affordances
+        """
+        for i in range(2):
+            for j in range(2):
+                self.z[i, j] = fit[0] * self.x[i] + fit[1] * self.y[j] + fit[2]
+
     def build(self, affordances):
         """
         Build the heightmap and return it
@@ -66,10 +74,11 @@ class Heightmap:
         affordances until one is found
         :param affordances list of affordances
         """
+        last_z = 0.
         for i in range(self.n_x):
             for j in range(self.n_y):
-                p1 = np.array([self.xv[i, j], self.yv[i, j], -1.])
-                p2 = np.array([self.xv[i, j], self.yv[i, j], 10.])
+                p1 = np.array([self.x[i], self.y[j], -1.])
+                p2 = np.array([self.x[i], self.y[j], 10.])
                 segment = np.array([p1, p2])
                 fcl_segment = convex(segment, [0, 1, 0])
 
@@ -83,15 +92,33 @@ class Heightmap:
                                 intersections.append(get_point_intersect_line_triangle(segment, triangle)[2])
 
                 if len(intersections) != 0:
-                    self.zv[i, j] = np.max(np.array(intersections))
+                    self.z[i, j] = np.max(np.array(intersections))
+                    last_z = self.z[i, j]
+                else:
+                    self.z[i, j] = last_z
 
-    def map_index(self, x, y):
+    def plot(self, alpha=1., ax=None):
         """
-        Get the i, j indices of a given position in the heightmap
+        Plot the heightmap
         """
-        i = np.searchsorted(self.x, x) - 1
-        j = np.searchsorted(self.y, y) - 1
-        return i, j
+        import matplotlib.pyplot as plt
+
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection="3d")
+        i = 0
+        if alpha != 1.:
+            i = 1
+
+        xv, yv = np.meshgrid(self.x, self.y, sparse=False, indexing='ij')
+        ax.plot_surface(xv, yv, self.z, color=COLORS[i], alpha=alpha)
+
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        ax.set_zlim([np.min(self.z), np.max(self.z) + 1.])
+
+        return ax
 
 
 def affordance_to_convex(affordance):

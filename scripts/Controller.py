@@ -1,21 +1,14 @@
-# coding: utf8
-
 import numpy as np
-from numpy.lib.function_base import sinc
-from IPython import embed_kernel
 import utils_mpc
 import time
-import math
 
 import MPC_Wrapper
-import Joystick
 import pybullet as pyb
 import pinocchio as pin
-from solopython.utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
 import libquadruped_reactive_walking as lqrw
-from example_robot_data.robots_loader import Solo12Loader
 
 from solo3D.tools.utils import quaternionToRPY
+
 
 class Result:
     """Object to store the result of the control loop
@@ -72,7 +65,7 @@ class dummyDevice:
         self.imu = dummyIMU()
         self.joints = dummyJoints()
         self.dummyPos = np.zeros(3)
-        self.dummyPos[2] = 0.24
+        self.dummyPos[2] = 0.1944
         self.b_baseVel = np.zeros(3)
 
 
@@ -106,7 +99,6 @@ class Controller:
         self.solo = utils_mpc.init_robot(q_init, params)
 
         # Create Joystick object
-        # self.joystick = Joystick.Joystick(params)
         self.joystick = lqrw.Joystick()
         self.joystick.initialize(params)
 
@@ -116,8 +108,9 @@ class Controller:
         self.h_ref = params.h_ref
         self.h_ref_mem = params.h_ref
         self.q = np.zeros((18, 1))  # Orientation part is in roll pitch yaw
-        self.q[0:6, 0] = np.array([0.0, 0.0, self.h_ref, 0.0, 0.0, 0.0])
+        self.q[:6, 0] = np.array([0.0, 0.0, self.h_ref, 0.0, 0.0, 0.0])
         self.q[6:, 0] = q_init
+        self.q_init = q_init.copy()
         self.v = np.zeros((18, 1))
         self.b_v = np.zeros((18, 1))
         self.o_v_filt = np.zeros((18, 1))
@@ -142,14 +135,22 @@ class Controller:
 
         self.DEMONSTRATION = params.DEMONSTRATION
         self.solo3D = params.solo3D
+        self.SIMULATION = params.SIMULATION
+
+        self.last_q_perfect = np.zeros(6)
+        self.last_b_vel = np.zeros(3)
+        self.n_nan = 0
+
         if params.solo3D:
-            from solo3D.SurfacePlannerWrapper import SurfacePlanner_Wrapper
-            from solo3D.tools.pyb_environment_3D import PybEnvironment3D
+            from solo3D.SurfacePlannerWrapper import Surface_planner_wrapper
+            if self.SIMULATION:
+                from solo3D.tools.pyb_environment_3D import PybEnvironment3D
 
         self.enable_multiprocessing_mip = params.enable_multiprocessing_mip
         self.offset_perfect_estimator = 0.
+        self.update_mip = False
         if self.solo3D:
-            self.surfacePlanner = SurfacePlanner_Wrapper(params)  # MIP Wrapper
+            self.surfacePlanner = Surface_planner_wrapper(params)
 
             self.statePlanner = lqrw.StatePlanner3D()
             self.statePlanner.initialize(params)
@@ -157,13 +158,11 @@ class Controller:
             self.footstepPlanner = lqrw.FootstepPlannerQP()
             self.footstepPlanner.initialize(params, self.gait, self.surfacePlanner.floor_surface)
 
-            self.footstepPlanner_ref = lqrw.FootstepPlanner()
-            self.footstepPlanner_ref.initialize(params, self.gait)
-
             # Trajectory Generator Bezier
-            x_margin_max_ = 0.05  # 4cm margin
-            t_margin_ = 0.3  # 15% of the curve around critical point
-            z_margin_ = 0.01  # 1% of the curve after the critical point
+            x_margin_max_ = 0.06  # margin inside convex surfaces [m].
+            t_margin_ = 0.3  # 100*t_margin_% of the curve around critical point. range: [0, 1]
+            z_margin_ = 0.06  # 100*z_margin_% of the curve after the critical point. range: [0, 1]
+
             N_sample = 8  # Number of sample in the least square optimisation for Bezier coeffs
             N_sample_ineq = 10  # Number of sample while browsing the curve
             degree = 7  # Degree of the Bezier curve
@@ -172,18 +171,9 @@ class Controller:
             self.footTrajectoryGenerator.initialize(params, self.gait, self.surfacePlanner.floor_surface,
                                                     x_margin_max_, t_margin_, z_margin_, N_sample, N_sample_ineq,
                                                     degree)
-
-            self.pybEnvironment3D = PybEnvironment3D(params, self.gait, self.statePlanner, self.footstepPlanner,
+            if self.SIMULATION:
+                self.pybEnvironment3D = PybEnvironment3D(params, self.gait, self.statePlanner, self.footstepPlanner,
                                                          self.footTrajectoryGenerator)
-
-            self.q_mes_3d = np.zeros((18,1))
-            self.v_mes_3d = np.zeros((18,1))
-            self.q_filt_3d = np.zeros((18,1))
-            self.v_filt_3d = np.zeros((18,1))
-            self.filter_q_3d = lqrw.Filter()
-            self.filter_q_3d.initialize(params)
-            self.filter_v_3d = lqrw.Filter()
-            self.filter_v_3d.initialize(params)
 
         else:
             self.statePlanner = lqrw.StatePlanner()
@@ -233,10 +223,8 @@ class Controller:
         self.feet_p_cmd = np.zeros((3, 4))
 
         self.error = False  # True if something wrong happens in the controller
-        self.error_flag = 0
-        self.q_security = np.array([np.pi*0.4, np.pi*80/180, np.pi] * 4)
 
-        self.q_filt_mpc = np.zeros((18, 1))
+        self.q_filter = np.zeros((18, 1))
         self.h_v_filt_mpc = np.zeros((6, 1))
         self.vref_filt_mpc = np.zeros((6, 1))
         self.filter_mpc_q = lqrw.Filter()
@@ -265,177 +253,135 @@ class Controller:
         Args:
             device (object): Interface with the masterboard or the simulation
         """
-
         t_start = time.time()
 
-        # Update the reference velocity coming from the gamepad
         self.joystick.update_v_ref(self.k, self.velID, self.gait.getIsStatic())
 
-        # dummyPos replaced by dummy_state to give Yaw estimated by motion capture to the estimator
-        dummy_state = np.zeros((6,1))  # state = [x,y,z,roll,pitch,yaw]
-        b_baseVel = np.zeros((3,1))
+        q_perfect = np.zeros(6)
+        b_baseVel_perfect = np.zeros(3)
         if self.solo3D and qc == None:
-            dummy_state[:3,0] = device.dummyPos
-            dummy_state[3:,0] = device.imu.attitude_euler  # Yaw only used for solo3D
-            b_baseVel[:,0] = device.b_baseVel
+            q_perfect[:3] = device.dummyPos
+            q_perfect[3:] = device.imu.attitude_euler
+            b_baseVel_perfect = device.b_baseVel
         elif self.solo3D and qc != None:
-            # motion capture data
-            dummy_state[:3,0] = qc.getPosition()
-            dummy_state[3:] = quaternionToRPY(qc.getOrientationQuat())
-            b_baseVel[:,0] = (self.qc.getOrientationMat9().reshape((3,3)).transpose() @ self.qc.getVelocity().reshape((3, 1))).ravel()
+            if self.k <= 1:
+                self.initial_pos = [0., 0., -0.046]
+                self.initial_matrix = pin.rpy.rpyToMatrix(0., 0., 0.).transpose()
+            q_perfect[:3] = self.initial_matrix @ (qc.getPosition() - self.initial_pos)
+            q_perfect[3:] = quaternionToRPY(qc.getOrientationQuat())[:, 0]
+            b_baseVel_perfect[:] = (qc.getOrientationMat9().reshape((3, 3)).transpose() @ qc.getVelocity().reshape((3, 1))).ravel()
 
-        # Process state estimator
+        if np.isnan(np.sum(q_perfect)):
+            print("Error: nan values in perfect position of the robot")
+            q_perfect = self.last_q_perfect
+            self.n_nan += 1
+            if not np.any(self.last_q_perfect) or self.n_nan >= 5:
+                self.error = True
+        elif np.isnan(np.sum(b_baseVel_perfect)):
+            print("Error: nan values in perfect velocity of the robot")
+            b_baseVel_perfect = self.last_b_vel
+            self.n_nan += 1
+            if not np.any(self.last_b_vel) or self.n_nan >= 5:
+                self.error = True
+        else:
+            self.last_q_perfect = q_perfect
+            self.last_b_vel = b_baseVel_perfect
+            self.n_nan = 0
+
         self.estimator.run_filter(self.gait.getCurrentGait(),
                                   self.footTrajectoryGenerator.getFootPosition(),
-                                  device.imu.linear_acceleration.reshape((-1, 1)),
-                                  device.imu.gyroscope.reshape((-1, 1)),
-                                  device.imu.attitude_euler.reshape((-1, 1)),
-                                  device.joints.positions.reshape((-1, 1)),
-                                  device.joints.velocities.reshape((-1, 1)),
-                                  dummy_state,
-                                  b_baseVel)
+                                  device.imu.linear_acceleration,
+                                  device.imu.gyroscope,
+                                  device.imu.attitude_euler,
+                                  device.joints.positions,
+                                  device.joints.velocities,
+                                  q_perfect, b_baseVel_perfect)
 
         # Update state vectors of the robot (q and v) + transformation matrices between world and horizontal frames
         self.estimator.updateState(self.joystick.getVRef(), self.gait)
-        oRb = self.estimator.getoRb()
         oRh = self.estimator.getoRh()
         hRb = self.estimator.gethRb()
         oTh = self.estimator.getoTh().reshape((3, 1))
-        self.a_ref[0:6, 0] = self.estimator.getARef()
-        self.v_ref[0:6, 0] = self.estimator.getVRef()
-        self.h_v[0:6, 0] = self.estimator.getHV()
-        self.h_v_windowed[0:6, 0] = self.estimator.getHVWindowed()
-        self.q[:, 0] = self.estimator.getQUpdated()
+        self.a_ref[:6, 0] = self.estimator.getARef()
+        self.v_ref[:6, 0] = self.estimator.getVRef()
+        self.h_v[:6, 0] = self.estimator.getHV()
+        self.h_v_windowed[:6, 0] = self.estimator.getHVWindowed()
+        if self.solo3D:
+            self.q[:3, 0] = self.estimator.getQFilt()[:3]
+            self.q[6:, 0] = self.estimator.getQFilt()[7:]
+            self.q[3:6] = quaternionToRPY(self.estimator.getQFilt()[3:7])
+        else:
+            self.q[:, 0] = self.estimator.getQUpdated()
         self.v[:, 0] = self.estimator.getVUpdated()
         self.yaw_estim = self.estimator.getYawEstim()
-        # TODO: Understand why using Python or C++ h_v leads to a slightly different result since the
-        # difference between them at each time step is 1e-16 at max (butterfly effect?)
-
-        # Use position and velocities from motion capture for solo3D
-        if self.solo3D:
-            self.q_mes_3d[:3,0] = self.estimator.getQFilt()[:3]
-            self.q_mes_3d[6:,0] = self.estimator.getQFilt()[7:]
-            self.q_mes_3d[3:6] = quaternionToRPY(self.estimator.getQFilt()[3:7])
-            self.v_mes_3d[:,0] = self.estimator.getVFilt()
-            # Quantities go through a 1st order low pass filter with fc = 15 Hz (avoid >25Hz foldback)
-            self.q_filt_3d[:6, 0] = self.filter_q_3d.filter(self.q_mes_3d[:6, 0:1], True)
-            self.q_filt_3d[6:, 0] = self.q_mes_3d[6:, 0].copy()
-            self.v_filt_3d[:6, 0] = self.filter_v_3d.filter(self.v_mes_3d[:6, 0:1], False)
-            self.v_filt_3d[6:, 0] = self.v_mes_3d[6:, 0].copy()
-            oTh_3d = np.zeros((3,1))
-            oTh_3d[:2,0] = self.q_filt_3d[:2,0]
-            oRh_3d = pin.rpy.rpyToMatrix(self.q_filt_3d[3:6,0])
-
-        t_filter = time.time()
-
-        """if (self.k % self.k_mpc) == 0 and self.k > 1000:
-            print(self.v_ref[[0, 1, 5], 0])
-            if not self.treshold_static and np.all(self.v_gp[[0, 1, 5], 0] < 0.01):
-                print("SWITCH TO STATIC")
-                self.treshold_static = True
-            elif self.treshold_static and np.any(self.v_gp[[0, 1, 5], 0] > 0.03):
-                print("SWITCH TO TROT")
-                self.treshold_static = False
-
-            if (self.gait.getIsStatic() and not self.treshold_static):
-                print("CODE 3")
-                self.joystick.joystick_code = 3
-            elif (not self.gait.getIsStatic() and self.treshold_static):
-                print("CODE 1")
-                self.joystick.joystick_code = 1"""
-
-        """if self.k == 0:
-            self.joystick.joystick_code = 4"""
-
-        # Update gait
-        self.gait.updateGait(self.k, self.k_mpc, self.joystick.getJoystickCode())
 
         # Quantities go through a 1st order low pass filter with fc = 15 Hz (avoid >25Hz foldback)
-        self.q_filt_mpc[:6, 0] = self.filter_mpc_q.filter(self.q[:6, 0:1], True)
-        self.q_filt_mpc[6:, 0] = self.q[6:, 0].copy()
-        self.h_v_filt_mpc[:, 0] = self.filter_mpc_v.filter(self.h_v[:6, 0:1], False)
-        self.vref_filt_mpc[:, 0] = self.filter_mpc_vref.filter(self.v_ref[:6, 0:1], False)
+        self.q_filter[:6, 0] = self.filter_mpc_q.filter(self.q[:6, 0], True)
+        self.q_filter[6:, 0] = self.q[6:, 0].copy()
+        self.h_v_filt_mpc[:, 0] = self.filter_mpc_v.filter(self.h_v[:6, 0], False)
+        self.vref_filt_mpc[:, 0] = self.filter_mpc_vref.filter(self.v_ref[:6, 0], False)
 
-        is_new_step = self.k % self.k_mpc == 0 and self.gait.isNewPhase()
         if self.solo3D:
-            if is_new_step:
-                if self.surfacePlanner.first_iteration:
-                    self.surfacePlanner.first_iteration = False
-                else:
-                    self.surfacePlanner.update_latest_results()
-                    self.pybEnvironment3D.update_target_SL1M(self.surfacePlanner.all_feet_pos)
-            # Compute target footstep based on current and reference velocities
-            o_targetFootstep = self.footstepPlanner.updateFootsteps(
-                self.k % self.k_mpc == 0 and self.k != 0, int(self.k_mpc - self.k % self.k_mpc), self.q_filt_3d[:, 0],
-                self.h_v_windowed[0:6, 0:1].copy(), self.v_ref[0:6, 0:1], self.surfacePlanner.potential_surfaces,
-                self.surfacePlanner.selected_surfaces, self.surfacePlanner.mip_success,
-                self.surfacePlanner.mip_iteration)
-            # Run state planner (outputs the reference trajectory of the base)
-            self.statePlanner.computeReferenceStates(self.q_filt_3d[0:6, 0:1], self.h_v_filt_mpc[0:6, 0:1].copy(),
-                                                        self.vref_filt_mpc[0:6, 0:1], is_new_step)
-        else:
-            # Compute target footstep based on current and reference velocities
-            o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
-                                                                    int(self.k_mpc - self.k % self.k_mpc),
-                                                                    self.q[:, 0], self.h_v_windowed[0:6, 0:1].copy(),
-                                                                    self.v_ref[0:6, 0:1])
-            # Run state planner (outputs the reference trajectory of the base)
-            self.statePlanner.computeReferenceStates(self.q_filt_mpc[0:6, 0:1], self.h_v_filt_mpc[0:6, 0:1].copy(),
-                                                     self.vref_filt_mpc[0:6, 0:1])
+            oTh_3d = np.zeros((3, 1))
+            oTh_3d[:2, 0] = self.q_filter[:2, 0]
+            oRh_3d = pin.rpy.rpyToMatrix(0., 0., self.q_filter[5, 0])
 
-        # Result can be retrieved with self.statePlanner.getReferenceStates()
+        t_filter = time.time()
+        self.t_filter = t_filter - t_start
+
+        self.gait.updateGait(self.k, self.k_mpc, self.joystick.getJoystickCode())
+
+        self.update_mip = self.k % self.k_mpc == 0 and self.gait.isNewPhase()
+        if self.solo3D:
+            if self.update_mip:
+                self.statePlanner.updateSurface(self.q_filter[:6, :1], self.vref_filt_mpc[:6, :1])
+                if self.surfacePlanner.initialized:
+                    self.error = self.surfacePlanner.get_latest_results()
+
+            self.footstepPlanner.updateSurfaces(self.surfacePlanner.potential_surfaces, self.surfacePlanner.selected_surfaces,
+                                                self.surfacePlanner.mip_success, self.surfacePlanner.mip_iteration)
+
+        self.o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
+                                                                     int(self.k_mpc - self.k % self.k_mpc),
+                                                                     self.q_filter[:, 0], self.h_v_windowed[:6, :1].copy(),
+                                                                     self.v_ref[:6, :1])
+
+        self.statePlanner.computeReferenceStates(self.q_filter[:6, :1], self.h_v_filt_mpc[:6, :1].copy(), self.vref_filt_mpc[:6, :1])
+
         xref = self.statePlanner.getReferenceStates()
         fsteps = self.footstepPlanner.getFootsteps()
         cgait = self.gait.getCurrentGait()
 
-        if is_new_step and self.solo3D: # Run surface planner
-            configs = self.statePlanner.get_configurations().transpose()
-            self.surfacePlanner.run(configs, cgait, o_targetFootstep, self.vref_filt_mpc.copy())
+        if self.update_mip and self.solo3D:
+            configs = self.statePlanner.getConfigurations().transpose()
+            self.surfacePlanner.run(configs, cgait, self.o_targetFootstep, self.vref_filt_mpc[:3, 0].copy())
+            self.surfacePlanner.initialized = True
+            if not self.enable_multiprocessing_mip and self.SIMULATION:
+                self.pybEnvironment3D.update_target_SL1M(self.surfacePlanner.all_feet_pos_syn)
 
         t_planner = time.time()
+        self.t_planner = t_planner - t_filter
 
-        """if self.k % 250 == 0:
-            print("iteration : " , self.k) # print iteration"""
-
-        # TODO: Add 25Hz filter for the inputs of the MPC
-
-        # Solve MPC problem once every k_mpc iterations of the main loop
+        # Solve MPC
         if (self.k % self.k_mpc) == 0:
             try:
                 if self.type_MPC == 3:
                     # Compute the target foostep in local frame, to stop the optimisation around it when t_lock overpass
                     l_targetFootstep = oRh.transpose() @ (self.o_targetFootstep - oTh)
                     self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, l_targetFootstep, oRh, oTh,
-                                                self.footTrajectoryGenerator.getFootPosition(),
-                                                self.footTrajectoryGenerator.getFootVelocity(),
-                                                self.footTrajectoryGenerator.getFootAcceleration(),
-                                                self.footTrajectoryGenerator.getFootJerk(),
-                                                self.footTrajectoryGenerator.getTswing() - self.footTrajectoryGenerator.getT0s())
-                else :
-                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3,4)))
-
+                                           self.footTrajectoryGenerator.getFootPosition(),
+                                           self.footTrajectoryGenerator.getFootVelocity(),
+                                           self.footTrajectoryGenerator.getFootAcceleration(),
+                                           self.footTrajectoryGenerator.getFootJerk(),
+                                           self.footTrajectoryGenerator.getTswing() - self.footTrajectoryGenerator.getT0s())
+                else:
+                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3, 4)))
             except ValueError:
                 print("MPC Problem")
-
-        """if (self.k % self.k_mpc) == 0:
-            from IPython import embed
-            embed()"""
-
-        # Retrieve reference contact forces in horizontal frame
-        self.x_f_mpc = self.mpc_wrapper.get_latest_result()
-
-        """if self.k >= 8220 and (self.k % self.k_mpc == 0):
-            print(self.k)
-            print(self.x_f_mpc[:, 0])
-            from matplotlib import pyplot as plt
-            plt.figure()
-            plt.plot(self.x_f_mpc[6, :])
-            plt.show(block=True)"""
-
-        # Store o_targetFootstep, used with MPC_planner
-        self.o_targetFootstep = o_targetFootstep.copy()
+        self.x_f_mpc, self.mpc_cost = self.mpc_wrapper.get_latest_result()
 
         t_mpc = time.time()
+        self.t_mpc = t_mpc - t_planner
 
         # If the MPC optimizes footsteps positions then we use them
         if self.k > 100 and self.type_MPC == 3:
@@ -447,15 +393,12 @@ class Controller:
                     self.o_targetFootstep[:2, foot] = self.x_f_mpc[24 + 2*foot:24+2*foot+2, id+1]
 
         # Update pos, vel and acc references for feet
-        if self.solo3D:  # Bezier curves
-            self.footTrajectoryGenerator.update(self.k, self.o_targetFootstep, self.surfacePlanner.selected_surfaces,
-                                                self.q_filt_3d)
+        if self.solo3D:
+            self.footTrajectoryGenerator.update(self.k, self.o_targetFootstep, self.surfacePlanner.selected_surfaces, self.q_filter)
         else:
             self.footTrajectoryGenerator.update(self.k, self.o_targetFootstep)
-        # Whole Body Control
-        # If nothing wrong happened yet in the WBC controller
-        if (not self.error) and (not self.joystick.getStop()):
 
+        if not self.error and not self.joystick.getStop():
             if self.DEMONSTRATION and self.gait.getIsStatic():
                 hRb = np.eye(3)
 
@@ -463,29 +406,20 @@ class Controller:
             self.xgoals[:6, 0] = np.zeros((6,))
             if self.DEMONSTRATION and self.joystick.getL1() and self.gait.getIsStatic():
                 self.p_ref[:, 0] = self.joystick.getPRef()
-                # self.p_ref[3, 0] = np.clip((self.k - 2000) / 2000, 0.0, 1.0)
                 self.xgoals[[3, 4], 0] = self.p_ref[[3, 4], 0]
                 self.h_ref = self.p_ref[2, 0]
                 hRb = pin.rpy.rpyToMatrix(0.0, 0.0, self.p_ref[5, 0])
-                # print(self.joystick.getPRef())
-                # print(self.p_ref[2])
             else:
+                self.xgoals[[3, 4], 0] = xref[[3, 4], 1]
                 self.h_ref = self.h_ref_mem
 
             # If the four feet are in contact then we do not listen to MPC (default contact forces instead)
             if self.DEMONSTRATION and self.gait.getIsStatic():
                 self.x_f_mpc[12:24, 0] = [0.0, 0.0, 9.81 * 2.5 / 4.0] * 4
 
-            # Update configuration vector for wbc
-            if self.solo3D:  # Update roll, pitch according to heighmap
-                self.q_wbc[3, 0] = self.dt_wbc * (xref[3, 1] -
-                                                  self.q_filt_mpc[3, 0]) / self.dt_mpc + self.q_filt_mpc[3, 0]  # Roll
-                self.q_wbc[4, 0] = self.dt_wbc * (xref[4, 1] -
-                                                  self.q_filt_mpc[4, 0]) / self.dt_mpc + self.q_filt_mpc[4, 0]  # Pitch
-            else:
-                self.q_wbc[3, 0] = self.q_filt_mpc[3, 0]  # Roll
-                self.q_wbc[4, 0] = self.q_filt_mpc[4, 0]  # Pitch
-            self.q_wbc[6:, 0] = self.wbcWrapper.qdes[:]  # with reference angular positions of previous loop
+            # Update configuration vector for wbc with filtered roll and pitch and reference angular positions of previous loop
+            self.q_wbc[3:5, 0] = self.q_filter[3:5, 0]
+            self.q_wbc[6:, 0] = self.wbcWrapper.qdes[:]
 
             # Update velocity vector for wbc
             self.dq_wbc[:6, 0] = self.estimator.getVFilt()[:6]  #  Velocities in base frame (not horizontal frame!)
@@ -498,7 +432,7 @@ class Controller:
                 self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(
                     oRh_3d.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
                 self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(
-                    oRh_3d.transpose(), oTh_3d + np.array([[0.0], [0.0], [self.h_ref]]))
+                    oRh_3d.transpose(), oTh_3d + np.array([[0.0], [0.0], [xref[2, 1]]]))
             else:  # Use ideal base frame
                 self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(
                     hRb @ oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
@@ -507,20 +441,7 @@ class Controller:
                 self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(
                     hRb @ oRh.transpose(), oTh + np.array([[0.0], [0.0], [self.h_ref]]))
 
-            # Desired position, orientation and velocities of the base
-            """self.xgoals[[0, 1, 2, 5], 0] = np.zeros((4,))
-            if not self.gait.getIsStatic():
-                self.xgoals[3:5, 0] = [0.0, 0.0]  #  Height (in horizontal frame!)
-            else:
-                self.xgoals[3:5, 0] += self.vref_filt_mpc[3:5, 0] * self.dt_wbc
-                self.h_ref += self.vref_filt_mpc[2, 0] * self.dt_wbc
-                self.h_ref = np.clip(self.h_ref, 0.19, 0.26)
-                self.xgoals[3:5, 0] = np.clip(self.xgoals[3:5, 0], [-0.25, -0.17], [0.25, 0.17])"""
-
-
             self.xgoals[6:, 0] = self.vref_filt_mpc[:, 0]  # Velocities (in horizontal frame!)
-
-            #print(" ###### ")
 
             # Run InvKin + WBC QP
             self.wbcWrapper.compute(self.q_wbc, self.dq_wbc,
@@ -529,107 +450,65 @@ class Controller:
                                     self.feet_v_cmd,
                                     self.feet_a_cmd,
                                     self.xgoals)
-
             # Quantities sent to the control board
             self.result.P = np.array(self.Kp_main.tolist() * 4)
             self.result.D = np.array(self.Kd_main.tolist() * 4)
+            self.result.FF = self.Kff_main * np.ones(12)
             self.result.q_des[:] = self.wbcWrapper.qdes[:]
             self.result.v_des[:] = self.wbcWrapper.vdes[:]
-            self.result.FF = self.Kff_main * np.ones(12)
             self.result.tau_ff[:] = self.wbcWrapper.tau_ff
+
+            self.clamp_result(device)
 
             self.nle[:3, 0] = self.wbcWrapper.nle[:3]
 
             # Display robot in Gepetto corba viewer
             if self.enable_corba_viewer and (self.k % 5 == 0):
-                self.q_display[:3, 0] = self.q_wbc[0:3, 0]
+                self.q_display[:3, 0] = self.q_wbc[:3, 0]
                 self.q_display[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(self.q_wbc[3:6, 0])).coeffs()
                 self.q_display[7:, 0] = self.q_wbc[6:, 0]
                 self.solo.display(self.q_display)
 
-            """if self.k > 0:
+        self.t_wbc = time.time() - t_mpc
 
-                oTh_pyb = device.dummyPos.ravel().tolist()
-                oTh_pyb[2] = 0.30
-                q_oRb_pyb = pin.Quaternion(pin.rpy.rpyToMatrix(self.k/(57.3 * 500), 0.0,
-                                           device.imu.attitude_euler[2])).coeffs().tolist()
-                pyb.resetBasePositionAndOrientation(device.pyb_sim.robotId, oTh_pyb, q_oRb_pyb)"""
-
-        """if self.k >= 8220 and (self.k % self.k_mpc == 0):
-            print(self.k)
-            print("x_f_mpc: ", self.x_f_mpc[:, 0])
-            print("ddq delta: ", self.wbcWrapper.ddq_with_delta)
-            print("f delta: ", self.wbcWrapper.f_with_delta)
-            from matplotlib import pyplot as plt
-            plt.figure()
-            plt.plot(self.x_f_mpc[6, :])
-            plt.show(block=True)
-
-        print("f delta: ", self.wbcWrapper.f_with_delta)"""
-
-        """if self.k == 1:
-            quit()"""
-
-        """np.set_printoptions(precision=3, linewidth=300)
-        print("---- ", self.k)
-        print(self.x_f_mpc[12:24, 0])
-        print(self.result.q_des[:])
-        print(self.result.v_des[:])
-        print(self.result.tau_ff[:])
-        print(self.xgoals.ravel())"""
-
-        """np.set_printoptions(precision=3, linewidth=300)
-        print("#####")
-        print(cgait)
-        print(self.result.tau_ff[:])"""
-
-        t_wbc = time.time()
-
-        # Security check
         self.security_check()
+        if self.error or self.joystick.getStop():
+            self.set_null_control()
 
         # Update PyBullet camera
-        # to have yaw update in simu: utils_mpc.quaternionToRPY(self.estimator.q_filt[3:7, 0])[2, 0]
         if not self.solo3D:
             self.pyb_camera(device, 0.0)
         else:  # Update 3D Environment
-            self.pybEnvironment3D.update(self.k)
+            if self.SIMULATION:
+                self.pybEnvironment3D.update(self.k)
 
-        # Update debug display (spheres, ...)
         self.pyb_debug(device, fsteps, cgait, xref)
 
-        # Logs
-        self.log_misc(t_start, t_filter, t_planner, t_mpc, t_wbc)
-
-        # Increment loop counter
+        self.t_loop = time.time() - t_start
         self.k += 1
 
-        return 0.0
+        return self.error
 
     def pyb_camera(self, device, yaw):
-
-        # Update position of PyBullet camera on the robot position to do as if it was attached to the robot
+        """
+           Update position of PyBullet camera on the robot position to do as if it was attached to the robot
+        """
         if self.k > 10 and self.enable_pyb_GUI:
-            # pyb.resetDebugVisualizerCamera(cameraDistance=0.8, cameraYaw=45, cameraPitch=-30,
-            #                                cameraTargetPosition=[1.0, 0.3, 0.25])
             pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
                                            cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])
 
     def pyb_debug(self, device, fsteps, cgait, xref):
 
         if self.k > 1 and self.enable_pyb_GUI:
-
             # Display desired feet positions in WBC as green spheres
             oTh_pyb = device.dummyPos.reshape((-1, 1))
-            # print("h: ", oTh_pyb[2, 0], " ", self.h_ref)
-            oTh_pyb[2, 0] += 0.0
             oRh_pyb = pin.rpy.rpyToMatrix(0.0, 0.0, device.imu.attitude_euler[2])
             for i in range(4):
                 if not self.solo3D:
                     pos = oRh_pyb @ self.feet_p_cmd[:, i:(i+1)] + oTh_pyb
                     pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids_deb[i], pos[:, 0].tolist(), [0, 0, 0, 1])
                 else:
-                    pos = self.o_targetFootstep[:,i]
+                    pos = self.o_targetFootstep[:, i]
                     pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids_deb[i], pos, [0, 0, 0, 1])
 
             # Display desired footstep positions as blue spheres
@@ -643,13 +522,11 @@ class Controller:
                     if cpt < cgait.shape[0]:
                         status = cgait[cpt, i]
                         if status:
-                            pos = oRh_pyb @ fsteps[cpt, (3*i):(3*(i+1))].reshape(
-                                (-1, 1)) + oTh_pyb - np.array([[0.0], [0.0], [self.h_ref]])
+                            pos = oRh_pyb @ fsteps[cpt, (3*i):(3*(i+1))].reshape((-1, 1)) + oTh_pyb - np.array([[0.0], [0.0], [oTh_pyb[2, 0]]])
                             pyb.resetBasePositionAndOrientation(
                                 device.pyb_sim.ftps_Ids[i, j], pos[:, 0].tolist(), [0, 0, 0, 1])
                         else:
-                            pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids[i, j], [
-                                                                0.0, 0.0, -0.1], [0, 0, 0, 1])
+                            pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids[i, j], [0.0, 0.0, -0.1], [0, 0, 0, 1])
                         j += 1
 
                 # Hide unused spheres underground
@@ -657,9 +534,6 @@ class Controller:
                     pyb.resetBasePositionAndOrientation(device.pyb_sim.ftps_Ids[i, k], [0.0, 0.0, -0.1], [0, 0, 0, 1])
 
             # Display reference trajectory
-            """from IPython import embed
-            embed()"""
-
             xref_rot = np.zeros((3, xref.shape[1]))
             for i in range(xref.shape[1]):
                 xref_rot[:, i:(i+1)] = oRh_pyb @ xref[:3, i:(i+1)] + oTh_pyb + np.array([[0.0], [0.0], [0.05 - self.h_ref]])
@@ -686,37 +560,74 @@ class Controller:
             else:
                 for i in range(self.x_f_mpc.shape[1]-1):
                     device.pyb_sim.lineId_blue[i] = pyb.addUserDebugLine(x_f_mpc_rot[:3, i].tolist(), x_f_mpc_rot[:3, i+1].tolist(),
-                                                                        lineColorRGB=[0.0, 0.0, 1.0], lineWidth=8,
-                                                                        replaceItemUniqueId=device.pyb_sim.lineId_blue[i])
+                                                                         lineColorRGB=[0.0, 0.0, 1.0], lineWidth=8,
+                                                                         replaceItemUniqueId=device.pyb_sim.lineId_blue[i])
 
     def security_check(self):
-
-        if (self.error_flag == 0) and (not self.error) and (not self.joystick.getStop()):
-            self.error_flag = self.estimator.security_check(self.wbcWrapper.tau_ff)
-            if (self.error_flag != 0):
+        """
+        Check if the command is fine and set the command to zero in case of error
+        """
+        if not (self.error or self.joystick.getStop()):
+            error_flag = self.estimator.security_check(self.wbcWrapper.tau_ff)
+            if (error_flag != 0):
                 self.error = True
-                if (self.error_flag == 1):
-                    self.error_value = self.estimator.getQFilt()[7:] * 180 / 3.1415
-                elif (self.error_flag == 2):
-                    self.error_value = self.estimator.getVSecu()
+                if (error_flag == 1):
+                    print("-- POSITION LIMIT ERROR --")
+                    print(self.estimator.getQFilt()[7:])
+                elif (error_flag == 2):
+                    print("-- VELOCITY TOO HIGH ERROR --")
+                    print(self.estimator.getVSecu())
                 else:
-                    self.error_value = self.wbcWrapper.tau_ff
+                    print("-- FEEDFORWARD TORQUES TOO HIGH ERROR --")
+                    print(self.wbcWrapper.tau_ff)
 
-        # If something wrong happened in the controller we stick to a security controller
-        if self.error or self.joystick.getStop():
+    def clamp(self, num, min_value=None, max_value=None):
+        clamped = False
+        if min_value is not None and num <= min_value:
+            num = min_value
+            clamped = True
+        if max_value is not None and num >= max_value:
+            num = max_value
+            clamped = True
+        return clamped
 
-            # Quantities sent to the control board
-            self.result.P = np.zeros(12)
-            self.result.D = 0.1 * np.ones(12)
-            self.result.q_des[:] = np.zeros(12)
-            self.result.v_des[:] = np.zeros(12)
-            self.result.FF = np.zeros(12)
-            self.result.tau_ff[:] = np.zeros(12)
+    def clamp_result(self, device, set_error=False):
+        """
+        Clamp the result
+        """
+        hip_max = 120. * np.pi / 180.
+        knee_min = 5. * np.pi / 180.
+        for i in range(4):
+            if self.clamp(self.result.q_des[3 * i + 1], -hip_max, hip_max):
+                print("Clamping hip n " + str(i))
+                self.error = set_error
+            if self.q_init[3 * i + 2] >= 0. and self.clamp(self.result.q_des[3 * i + 2], knee_min):
+                print("Clamping knee n " + str(i))
+                self.error = set_error
+            elif self.q_init[3 * i + 2] <= 0. and self.clamp(self.result.q_des[3 * i + 2], max_value=-knee_min):
+                print("Clamping knee n " + str(i))
+                self.error = set_error
 
-    def log_misc(self, tic, t_filter, t_planner, t_mpc, t_wbc):
+        for i in range(12):
+            if self.clamp(self.result.q_des[i], device.joints.positions[i] - 4., device.joints.positions[i] + 4.):
+                print("Clamping position difference of motor n " + str(i))
+                self.error = set_error
 
-        self.t_filter = t_filter - tic
-        self.t_planner = t_planner - t_filter
-        self.t_mpc = t_mpc - t_planner
-        self.t_wbc = t_wbc - t_mpc
-        self.t_loop = time.time() - tic
+            if self.clamp(self.result.v_des[i], device.joints.velocities[i] - 100., device.joints.velocities[i] + 100.):
+                print("Clamping velocity of motor n " + str(i))
+                self.error = set_error
+
+            if self.clamp(self.result.tau_ff[i], -8., 8.):
+                print("Clamping torque of motor n " + str(i))
+                self.error = set_error
+
+    def set_null_control(self):
+        """
+        Send default null values to the robot
+        """
+        self.result.P = np.zeros(12)
+        self.result.D = 0.1 * np.ones(12)
+        self.result.q_des[:] = np.zeros(12)
+        self.result.v_des[:] = np.zeros(12)
+        self.result.FF = np.zeros(12)
+        self.result.tau_ff[:] = np.zeros(12)

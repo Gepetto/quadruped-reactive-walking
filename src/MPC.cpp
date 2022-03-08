@@ -475,6 +475,16 @@ int MPC::update_NK() {
   return 0;
 }
 
+float MPC::retrieve_cost() {
+  // Cost function is x^T P x + q^T x
+  // Here P is a diagonal matrix and q = 0
+  float cost = 0.0;
+  for (int i = 0; i < 2 * 12 * n_steps; i++) {
+    cost += (workspce->solution->x)[i] * P->x[i] * (workspce->solution->x)[i];
+  }
+  return cost;
+}
+
 int MPC::call_solver(int k) {
   // Initial guess for forces (mass evenly supported by all legs in contact)
   warmxf.block(0, 0, 12 * (n_steps - 1), 1) = x.block(12, 0, 12 * (n_steps - 1), 1);

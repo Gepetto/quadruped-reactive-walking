@@ -106,7 +106,7 @@ class Estimator {
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void get_data_IMU(Vector3 const& baseLinearAcceleration, Vector3 const& baseAngularVelocity,
-                    Vector3 const& baseOrientation, VectorN const& dummyPos);
+                    Vector3 const& baseOrientation, VectorN const& q_perfect);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -158,13 +158,13 @@ class Estimator {
   /// \param[in] baseOrientation Quaternion orientation of the IMU
   /// \param[in] q_mes Position of the 12 actuators
   /// \param[in] v_mes Velocity of the 12 actuators
-  /// \param[in] dummyPos Position of the robot in PyBullet simulator (only for simulation)
-  /// \param[in] b_baseVel Velocity of the robot in PyBullet simulator (only for simulation)
+  /// \param[in] q_perfect Position of the robot in PyBullet simulator (only for simulation)
+  /// \param[in] b_baseVel_perfect Velocity of the robot in PyBullet simulator (only for simulation)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void run_filter(MatrixN const& gait, MatrixN const& goals, VectorN const& baseLinearAcceleration,
                   VectorN const& baseAngularVelocity, VectorN const& baseOrientation, VectorN const& q_mes,
-                  VectorN const& v_mes, VectorN const& dummyPos, Vector3 const& b_baseVel);
+                  VectorN const& v_mes, VectorN const& q_perfect, Vector3 const& b_baseVel_perfect);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///

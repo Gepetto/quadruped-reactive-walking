@@ -37,7 +37,8 @@ struct MPCPythonVisitor : public bp::def_visitor<MPCPythonVisitor<MPC>>
             .def("get_latest_result", &MPC::get_latest_result,
                  "Get latest result (predicted trajectory  forces to apply).\n")
             .def("get_gait", &MPC::get_gait, "Get gait matrix.\n")
-            .def("get_Sgait", &MPC::get_Sgait, "Get S_gait matrix.\n");
+            .def("get_Sgait", &MPC::get_Sgait, "Get S_gait matrix.\n")
+            .def("retrieve_cost", &MPC::retrieve_cost, "retrieve the cost.\n");
     }
 
     static void expose()
@@ -90,7 +91,7 @@ struct StatePlannerPythonVisitor : public bp::def_visitor<StatePlannerPythonVisi
         cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
             .def("getReferenceStates", &StatePlanner::getReferenceStates, "Get xref matrix.\n")
-            .def("getNSteps", &StatePlanner::getNSteps, "Get number of steps in prediction horizon.\n")
+            .def("getNumberStates", &StatePlanner::getNumberStates, "Get number of steps in prediction horizon.\n")
 
             .def("initialize", &StatePlanner::initialize, bp::args("params"),
                  "Initialize StatePlanner from Python.\n")
@@ -168,7 +169,6 @@ struct FootstepPlannerPythonVisitor : public bp::def_visitor<FootstepPlannerPyth
             // Compute target location of footsteps from Python
             .def("updateFootsteps", &FootstepPlanner::updateFootsteps, bp::args("refresh", "k", "q", "b_v", "b_vref"),
                  "Update and compute location of footsteps from Python.\n");
-
     }
 
     static void expose()
@@ -431,8 +431,7 @@ struct JoystickPythonVisitor : public bp::def_visitor<JoystickPythonVisitor<Joys
             .def("getTriangle", &Joystick::getTriangle, "Get Joystick Triangle status")
             .def("getSquare", &Joystick::getSquare, "Get Joystick Square status")
             .def("getL1", &Joystick::getL1, "Get Joystick L1 status")
-            .def("getR1", &Joystick::getR1, "Get Joystick R1 status")
-            .def("handle_v_switch", &Joystick::handle_v_switch_py, bp::args("k", "k_switch", "v_switch"), "Run security check.\n");
+            .def("getR1", &Joystick::getR1, "Get Joystick R1 status");
     }
 
     static void expose()
@@ -483,6 +482,9 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("osqp_w_states", &Params::osqp_w_states)
             .def_readwrite("osqp_w_forces", &Params::osqp_w_forces)
             .def_readonly("gait", &Params::get_gait)
+            .def_readonly("t_switch", &Params::get_t_switch)             
+            .def_readonly("v_switch", &Params::get_v_switch)             
+            .def("set_v_switch", &Params::set_v_switch, bp::args("v_switch"), "Set v_switch matrix from Python.\n")
             .def_readwrite("enable_pyb_GUI", &Params::enable_pyb_GUI)
             .def_readwrite("enable_corba_viewer", &Params::enable_corba_viewer)
             .def_readwrite("enable_multiprocessing", &Params::enable_multiprocessing)
@@ -501,7 +503,14 @@ struct ParamsPythonVisitor : public bp::def_visitor<ParamsPythonVisitor<Params>>
             .def_readwrite("solo3D", &Params::solo3D)
             .def_readwrite("enable_multiprocessing_mip", &Params::enable_multiprocessing_mip)
             .def_readwrite("environment_URDF", &Params::environment_URDF)
-            .def_readwrite("environment_heightmap", &Params::environment_heightmap);
+            .def_readwrite("environment_heightmap", &Params::environment_heightmap)
+            .def_readwrite("heightmap_fit_length", &Params::heightmap_fit_length)
+            .def_readwrite("heightmap_fit_size", &Params::heightmap_fit_size)
+            .def_readwrite("number_steps", &Params::number_steps)
+            .def_readwrite("max_velocity", &Params::max_velocity)
+            .def_readwrite("use_bezier", &Params::use_bezier)
+            .def_readwrite("use_sl1m", &Params::use_sl1m)
+            .def_readwrite("use_heuristic", &Params::max_velocity);
     }
 
     static void expose()
@@ -545,8 +554,10 @@ struct FootTrajectoryGeneratorBezierPythonVisitor
                                                    bp::return_value_policy<bp::return_by_value>()))
 
         // Compute target location of footsteps from Python
-        .def("update", &FootTrajectoryGeneratorBezier::update, bp::args("k", "targetFootstep"),
-             "Compute target location of footsteps from Python.\n");
+        .def("update", &FootTrajectoryGeneratorBezier::update, bp::args("k", "targetFootstep", "surfaces", "q"),
+             "Compute target location of footsteps from Python.\n")
+        .def("updateDebug", &FootTrajectoryGeneratorBezier::updateDebug, bp::args("k", "targetFootstep", "surface", "currentPosition"),
+             "Compute target location of footsteps from Python, debug version.\n");
   }
 
   static void expose() {
@@ -579,7 +590,7 @@ struct SurfacePythonVisitor : public bp::def_visitor<SurfacePythonVisitor<Surfac
         .add_property("vertices",
                       bp::make_function(&Surface::getVertices, bp::return_value_policy<bp::return_by_value>()))
 
-        .def("get_height", &Surface::getHeight, bp::args("point"), "get the height of a point of the surface.\n")
+        .def("getHeight", &Surface::getHeight, bp::args("point"), "get the height of a point of the surface.\n")
         .def("has_point", &Surface::hasPoint, bp::args("point"), "return true if the point is in the surface.\n");
   }
 
@@ -609,7 +620,9 @@ struct FootstepPlannerQPPythonVisitor : public bp::def_visitor<FootstepPlannerQP
 
         // Compute target location of footsteps from Python
         .def("updateFootsteps", &FootstepPlannerQP::updateFootsteps, bp::args("refresh", "k", "q", "b_v", "b_vref"),
-             "Update and compute location of footsteps from Python.\n");
+             "Update and compute location of footsteps from Python.\n")
+        .def("updateSurfaces", &FootstepPlannerQP::updateSurfaces, bp::args("potential_surfaces", "selected_surfaces", "status", "iterations"),
+                 "Update the surfaces from surface planner.\n");
   }
 
   static void expose() {
@@ -633,14 +646,17 @@ struct StatePlanner3DPythonVisitor : public bp::def_visitor<StatePlanner3DPython
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
         .def("getReferenceStates", &StatePlanner3D::getReferenceStates, "Get xref matrix.\n")
-        .def("getNSteps", &StatePlanner3D::getNSteps, "Get number of steps in prediction horizon.\n")
-        .def("get_configurations", &StatePlanner3D::get_configurations, "Get conf vector.\n")
+        .def("getNumberStates", &StatePlanner3D::getNumberStates, "Get number of steps in prediction horizon.\n")
+        .def("getConfigurations", &StatePlanner3D::getConfigurations, "Get conf vector.\n")
 
         .def("initialize", &StatePlanner3D::initialize, bp::args("params"), "Initialize StatePlanner3D from Python.\n")
 
         // Run StatePlanner3D from Python
         .def("computeReferenceStates", &StatePlanner3D::computeReferenceStates,
-             bp::args("q", "v", "b_vref", "is_new_step"), "Run StatePlanner from Python.\n");
+             bp::args("q", "v", "b_vref"), "Run StatePlanner from Python.\n")
+        .def("getFit", &StatePlanner3D::getFit, "Get the fitted surface.\n")
+        .def("updateSurface", &StatePlanner3D::updateSurface,
+             bp::args("q", "b_vref"), "Update the average surface from heightmap and positions.\n");
   }
 
   static void expose() {

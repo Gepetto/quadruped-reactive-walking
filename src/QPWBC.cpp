@@ -700,11 +700,11 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // Compute the inverse dynamics, aka the joint torques according to the current state of the system,
   // the desired joint accelerations and the external forces, using the Recursive Newton Euler Algorithm.
   // Result is stored in data_.tau
-  // pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
-  // Vector12 f_compensation = Vector12::Zero();
+  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
+  Vector12 f_compensation = Vector12::Zero();
 
   // FORCE COMPENSATION TERM
-  Vector18 ddq_test = Vector18::Zero();
+  /*Vector18 ddq_test = Vector18::Zero();
   ddq_test.head(6) = ddq_cmd_.head(6);
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_test);
   Vector6 RNEA_without_joints = data_.tau.head(6);
@@ -712,7 +712,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   Vector6 RNEA_NLE = data_.tau.head(6);
   RNEA_NLE(2, 0) -= 9.81 * data_.mass[0];
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
-  Vector12 f_compensation = pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);  
+  Vector12 f_compensation = pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);*/
 
   /*std::cout << "M inertia" << std::endl;
   std::cout << data_.M << std::endl;*/
@@ -737,15 +737,15 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
 
   // std::cout << "M : " << std::endl << data_.M.block(0, 0, 3, 18) << std::endl;
   // std::cout << "ddq: " << std::endl << ddq_cmd_.transpose() << std::endl;
-  
+
   /*
   std::cout << "-- BEFORE QP PROBLEM --" << std::endl;
   std::cout << "M ddq_u: " << std::endl << (data_.M.block(0, 0, 3, 6) * ddq_cmd_.head(6)).transpose() << std::endl;
-  std::cout << "M ddq_a: " << std::endl << (data_.M.block(0, 6, 3, 12) * ddq_cmd_.tail(12)).transpose() << std::endl; 
+  std::cout << "M ddq_a: " << std::endl << (data_.M.block(0, 6, 3, 12) * ddq_cmd_.tail(12)).transpose() << std::endl;
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
   std::cout << "Non linear effects: " << std::endl << data_.tau.head(6).transpose() << std::endl;
-  std::cout << "JcT f_cmd + f_comp: " << std::endl << (Jc_.transpose() * (f_cmd + f_compensation)).transpose() << std::endl;
-  std::cout << "JcT f_comp: " << std::endl << (Jc_.transpose() * (f_compensation)).transpose() << std::endl;
+  std::cout << "JcT f_cmd + f_comp: " << std::endl << (Jc_.transpose() * (f_cmd + f_compensation)).transpose() <<
+  std::endl; std::cout << "JcT f_comp: " << std::endl << (Jc_.transpose() * (f_compensation)).transpose() << std::endl;
   */
 
   // Solve the QP problem
@@ -760,15 +760,15 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // DEBUG INERTIA AND NON LINEAR EFFECTS
 
   Vector6 left = data_.M.block(0, 0, 6, 6) * box_qp_->get_ddq_res() - Jc_.transpose() * box_qp_->get_f_res();
-  Vector6 right = - data_.tau.head(6) + Jc_.transpose() * (f_cmd + f_compensation);
+  Vector6 right = -data_.tau.head(6) + Jc_.transpose() * (f_cmd + f_compensation);
   Vector6 tmp_RNEA = data_.tau.head(6);
 
-  //std::cout << "RNEA: " << std::endl << data_.tau.head(6).transpose() << std::endl;
-  //std::cout << "left: " << std::endl << left.transpose() << std::endl;
-  //std::cout << "right: " << std::endl << right.transpose() << std::endl;
-  //std::cout << "M: " << std::endl << data_.M.block(0, 0, 6, 6) << std::endl;
-  //std::cout << "JcT: " << std::endl << Jc_.transpose() << std::endl;
-  //std::cout << "M: " << std::endl << data_.M.block(0, 0, 3, 18) << std::endl;
+  // std::cout << "RNEA: " << std::endl << data_.tau.head(6).transpose() << std::endl;
+  // std::cout << "left: " << std::endl << left.transpose() << std::endl;
+  // std::cout << "right: " << std::endl << right.transpose() << std::endl;
+  // std::cout << "M: " << std::endl << data_.M.block(0, 0, 6, 6) << std::endl;
+  // std::cout << "JcT: " << std::endl << Jc_.transpose() << std::endl;
+  // std::cout << "M: " << std::endl << data_.M.block(0, 0, 3, 18) << std::endl;
   /*
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
   Vector6 tmp_NLE = data_.tau.head(6);
@@ -839,13 +839,14 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
 
   /*
   std::cout << "-- AFTER QP PROBLEM --" << std::endl;
-  std::cout << "M ddq_u: " << std::endl << (data_.M.block(0, 0, 3, 6) * ddq_with_delta_.head(6)).transpose() << std::endl;
-  std::cout << "M ddq_a: " << std::endl << (data_.M.block(0, 6, 3, 12) * ddq_with_delta_.tail(12)).transpose() << std::endl; 
-  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
-  std::cout << "Non linear effects: " << std::endl << data_.tau.head(6).transpose() << std::endl;
-  std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * f_with_delta_).transpose() << std::endl;
+  std::cout << "M ddq_u: " << std::endl << (data_.M.block(0, 0, 3, 6) * ddq_with_delta_.head(6)).transpose() <<
+  std::endl; std::cout << "M ddq_a: " << std::endl << (data_.M.block(0, 6, 3, 12) *
+  ddq_with_delta_.tail(12)).transpose() << std::endl; pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_,
+  VectorN::Zero(model_.nv)); std::cout << "Non linear effects: " << std::endl << data_.tau.head(6).transpose() <<
+  std::endl; std::cout << "JcT f_cmd: " << std::endl << (Jc_.transpose() * f_with_delta_).transpose() << std::endl;
 
-  std::cout << "LEFT " << (tmp_RNEA.head(3) + data_.M.block(0, 0, 3, 6) * box_qp_->get_ddq_res()).transpose() << std::endl;
+  std::cout << "LEFT " << (tmp_RNEA.head(3) + data_.M.block(0, 0, 3, 6) * box_qp_->get_ddq_res()).transpose() <<
+  std::endl;
   */
 
   // Increment log counter
