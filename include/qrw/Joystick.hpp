@@ -10,17 +10,14 @@
 #define JOYSTICK_H_INCLUDED
 
 #include <fcntl.h>
+#include <linux/joystick.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <linux/joystick.h>
-#include <iostream>
-#include <fstream>
-#include <cmath>
+
 #include <chrono>
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include "qrw/Types.h"
+
 #include "qrw/Params.hpp"
+#include "qrw/Types.h"
 
 struct gamepad_struct {
   double v_x = 0.0;    // Up/down status of left pad
@@ -68,20 +65,7 @@ class Joystick {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Compute the remaining and total duration of a swing phase or a stance phase based
-  ///        on the content of the gait matrix
-  ///
-  /// \param[in] k Numero of the current loop
-  /// \param[in] k_switch Information about the position of key frames
-  /// \param[in] v_switch Information about the desired velocity for each key frame
-  ///
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  VectorN handle_v_switch_py(double k, VectorN const& k_switch_py, MatrixN const& v_switch_py);
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ///
-  /// \brief Compute the remaining and total duration of a swing phase or a stance phase based
-  ///        on the content of the gait matrix
+  /// \brief update the
   ///
   /// \param[in] k Numero of the current loop
   ///
@@ -162,8 +146,8 @@ class Joystick {
   double dt_wbc = 0.0;  // Time step of the WBC
   int k_mpc = 0;        // Number of WBC time step for one MPC time step
 
-  Eigen::Matrix<int, 1, Eigen::Dynamic> k_switch;  // Key frames for the polynomial velocity interpolation
-  Eigen::Matrix<double, 6, Eigen::Dynamic> v_switch;  // Target velocity for the key frames
+  VectorNint k_switch;   // Key frames for the polynomial velocity interpolation
+  Matrix6N v_switch;  // Target velocity for the key frames
 
   // How much the gamepad velocity and position is filtered to avoid sharp changes
   double gp_alpha_vel = 0.0;                 // Low pass filter coefficient for v_ref_ (if gamepad-controlled)
@@ -171,8 +155,8 @@ class Joystick {
   double gp_alpha_vel_heavy_filter = 0.002;  // Low pass filter coefficient for v_ref_heavy_filter_
 
   // Maximum velocity values
-  double vXScale = 0.3;    // Lateral
-  double vYScale = 0.5;    // Forward
+  double vXScale = 0.3;   // Lateral
+  double vYScale = 0.5;   // Forward
   double vYawScale = 1.0;  // Rotation
 
   // Maximum position values

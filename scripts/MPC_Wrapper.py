@@ -14,12 +14,14 @@ import libquadruped_reactive_walking as lqrw
 import ctypes
 from ctypes import Structure, c_double
 
+
 class MPC_type(Enum):
     OSQP = 0
     CROCODDYL_LINEAR = 1
     CROCODDYL_NON_LINEAR = 2
     CROCODDYL_PLANNER = 3
     CROCODDYL_PLANNER_TIME = 4
+
 
 class DataInCtype(Structure):
     ''' Ctype data structure for the shared memory between processes.
@@ -30,21 +32,21 @@ class DataInCtype(Structure):
     N_gait = int(params.gait.shape[0])      # Row size for fsteps  (N_gait x 12), from utils_mpc.py
 
     if mpc_type == MPC_type.CROCODDYL_PLANNER:
-        _fields_ = [('k',  ctypes.c_int64 ),
-                    ('xref',   ctypes.c_double * 12 * (n_steps+1) ),
-                    ('fsteps', ctypes.c_double * 12 * N_gait  ),
-                    ('l_fsteps_target', ctypes.c_double * 3 * 4 ),
-                    ('oRh', ctypes.c_double * 3 * 3 ),
-                    ('oTh', ctypes.c_double * 3 * 1 ),
-                    ('position', ctypes.c_double * 3 * 4 ),
-                    ('velocity', ctypes.c_double * 3 * 4 ),
-                    ('acceleration', ctypes.c_double * 3 * 4 ),
-                    ('jerk', ctypes.c_double * 3 * 4 ),
+        _fields_ = [('k',  ctypes.c_int64),
+                    ('xref',   ctypes.c_double * 12 * (n_steps+1)),
+                    ('fsteps', ctypes.c_double * 12 * N_gait),
+                    ('l_fsteps_target', ctypes.c_double * 3 * 4),
+                    ('oRh', ctypes.c_double * 3 * 3),
+                    ('oTh', ctypes.c_double * 3 * 1),
+                    ('position', ctypes.c_double * 3 * 4),
+                    ('velocity', ctypes.c_double * 3 * 4),
+                    ('acceleration', ctypes.c_double * 3 * 4),
+                    ('jerk', ctypes.c_double * 3 * 4),
                     ('dt_flying', ctypes.c_double * 4)]
     else:
-        _fields_ = [('k',  ctypes.c_int64 ),
-                    ('xref',   ctypes.c_double * 12 * (n_steps+1) ),
-                    ('fsteps', ctypes.c_double * 12 * N_gait  )]
+        _fields_ = [('k',  ctypes.c_int64),
+                    ('xref',   ctypes.c_double * 12 * (n_steps+1)),
+                    ('fsteps', ctypes.c_double * 12 * N_gait)]
 
 
 class Dummy:
@@ -98,6 +100,7 @@ class MPC_Wrapper:
         if self.multiprocessing:  # Setup variables in the shared memory
             self.newData = Value('b', False)
             self.newResult = Value('b', False)
+            self.cost = Value('d', 0.)
             self.dataIn = Value(DataInCtype)
             if self.mpc_type == MPC_type.CROCODDYL_PLANNER:
                 self.dataOut = Array('d', [0] * 32 * (np.int(self.n_steps)))
@@ -128,10 +131,11 @@ class MPC_Wrapper:
         else:
             self.last_available_result = np.zeros((24, (np.int(self.n_steps))))
         self.last_available_result[:24, 0] = np.hstack((x_init, np.array([0.0, 0.0, 8.0] * 4)))
+        self.last_cost = 0.
 
-    def solve(self, k, xref, fsteps, gait, l_fsteps_target, oRh = np.eye(3), oTh = np.zeros((3,1)), 
-                    position = np.zeros((3,4)), velocity = np.zeros((3,4)) , acceleration = np.zeros((3,4)), jerk = np.zeros((3,4)) ,
-                    dt_flying = np.zeros(4)):
+    def solve(self, k, xref, fsteps, gait, l_fsteps_target, oRh=np.eye(3), oTh=np.zeros((3, 1)),
+              position=np.zeros((3, 4)), velocity=np.zeros((3, 4)), acceleration=np.zeros((3, 4)), jerk=np.zeros((3, 4)),
+              dt_flying=np.zeros(4)):
         """Call either the asynchronous MPC or the synchronous MPC depending on the value of multiprocessing during
         the creation of the wrapper
 
@@ -178,16 +182,17 @@ class MPC_Wrapper:
                     self.t_mpc_solving_duration = time() - self.t_mpc_solving_start
                     # Retrieve desired contact forces with through the memory shared with the asynchronous
                     self.last_available_result = self.convert_dataOut()
-                    return self.last_available_result
+                    self.last_cost = self.cost.value
+                    return self.last_available_result, self.last_cost
                 else:
-                    return self.last_available_result
+                    return self.last_available_result, self.last_cost
             else:
                 # Directly retrieve desired contact force of the synchronous MPC object
-                return self.f_applied
+                return self.f_applied, self.last_cost
         else:
             # Default forces for the first iteration
             self.not_first_iter = True
-            return self.last_available_result
+            return self.last_available_result, self.last_cost
 
     def run_MPC_synchronous(self, k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying):
         """Run the MPC (synchronous version) to get the desired contact forces for the feet currently in stance phase
@@ -205,7 +210,7 @@ class MPC_Wrapper:
         if self.mpc_type == MPC_type.OSQP:
             # OSQP MPC
             self.mpc.run(np.int(k), xref.copy(), fsteps.copy())
-        elif self.mpc_type == MPC_type.CROCODDYL_PLANNER: # Add goal position to stop the optimisation
+        elif self.mpc_type == MPC_type.CROCODDYL_PLANNER:  # Add goal position to stop the optimisation
             # Crocoddyl MPC
             self.mpc.solve(k, xref.copy(), fsteps.copy(), l_fsteps_target, position, velocity, acceleration, jerk, oRh, oTh,  dt_flying)
         else:
@@ -214,9 +219,12 @@ class MPC_Wrapper:
 
         # Output of the MPC
         if self.mpc_type == MPC_type.CROCODDYL_PLANNER:
-            self.f_applied = self.mpc.get_latest_result(oRh,oTh )
+            self.f_applied = self.mpc.get_latest_result(oRh, oTh)
         else:
             self.f_applied = self.mpc.get_latest_result()
+        
+        if self.mpc_type == MPC_type.OSQP:
+            self.last_cost = self.mpc.retrieve_cost()
 
     def run_MPC_asynchronous(self, k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying):
         """Run the MPC (asynchronous version) to get the desired contact forces for the feet currently in stance phase
@@ -278,7 +286,7 @@ class MPC_Wrapper:
                         loop_mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=False)
                     elif self.mpc_type == MPC_type.CROCODDYL_PLANNER:  # Crocoddyl MPC Non-Linear with footsteps optimization
                         loop_mpc = MPC_crocoddyl_planner.MPC_crocoddyl_planner(self.params, mu=0.9, inner=False)
-                    else: # Using linear model
+                    else:  # Using linear model
                         loop_mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=True)
 
                 # Run the asynchronous MPC with the data that as been retrieved
@@ -286,9 +294,9 @@ class MPC_Wrapper:
                     fsteps[np.isnan(fsteps)] = 0.0
                     loop_mpc.run(np.int(k), xref, fsteps)
                 elif self.mpc_type == MPC_type.CROCODDYL_PLANNER:
-                    loop_mpc.solve(k, xref.copy(), fsteps.copy(), l_fsteps_target.copy(),  
-                                      position.copy(), velocity.copy(), acceleration.copy(), jerk.copy(),
-                                      oRh.copy(), oTh.copy(), dt_flying.copy())
+                    loop_mpc.solve(k, xref.copy(), fsteps.copy(), l_fsteps_target.copy(),
+                                   position.copy(), velocity.copy(), acceleration.copy(), jerk.copy(),
+                                   oRh.copy(), oTh.copy(), dt_flying.copy())
                 else:
                     loop_mpc.solve(k, xref.copy(), fsteps.copy())
 
@@ -300,6 +308,9 @@ class MPC_Wrapper:
                     self.dataOut[:] = loop_mpc.get_latest_result(oRh, oTh).ravel(order='F')
                 else:
                     self.dataOut[:] = loop_mpc.get_latest_result().ravel(order='F')
+
+                if self.mpc_type == MPC_type.OSQP:
+                    self.cost.value = loop_mpc.retrieve_cost()
 
                 # Set shared variable to true to signal that a new result is available
                 newResult.value = True
@@ -323,21 +334,21 @@ class MPC_Wrapper:
         with self.dataIn.get_lock():
             if self.mpc_type == MPC_type.CROCODDYL_PLANNER:
                 self.dataIn.k = k
-                np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps+1))[:,:] = xref
-                np.frombuffer(self.dataIn.fsteps).reshape((self.N_gait, 12))[:,:] = fsteps
-                np.frombuffer(self.dataIn.l_fsteps_target).reshape((3, 4))[:,:] = l_fsteps_target
-                np.frombuffer(self.dataIn.oRh).reshape((3, 3))[:,:] = oRh
-                np.frombuffer(self.dataIn.oTh).reshape((3, 1))[:,:] = oTh
-                np.frombuffer(self.dataIn.position).reshape((3, 4))[:,:] = position
-                np.frombuffer(self.dataIn.velocity).reshape((3, 4))[:,:] = velocity
-                np.frombuffer(self.dataIn.acceleration).reshape((3, 4))[:,:] = acceleration
-                np.frombuffer(self.dataIn.jerk).reshape((3, 4))[:,:] = jerk
+                np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps+1))[:, :] = xref
+                np.frombuffer(self.dataIn.fsteps).reshape((self.N_gait, 12))[:, :] = fsteps
+                np.frombuffer(self.dataIn.l_fsteps_target).reshape((3, 4))[:, :] = l_fsteps_target
+                np.frombuffer(self.dataIn.oRh).reshape((3, 3))[:, :] = oRh
+                np.frombuffer(self.dataIn.oTh).reshape((3, 1))[:, :] = oTh
+                np.frombuffer(self.dataIn.position).reshape((3, 4))[:, :] = position
+                np.frombuffer(self.dataIn.velocity).reshape((3, 4))[:, :] = velocity
+                np.frombuffer(self.dataIn.acceleration).reshape((3, 4))[:, :] = acceleration
+                np.frombuffer(self.dataIn.jerk).reshape((3, 4))[:, :] = jerk
                 np.frombuffer(self.dataIn.dt_flying).reshape(4)[:] = dt_flying
 
             else:
                 self.dataIn.k = k
-                np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps+1))[:,:] = xref
-                np.frombuffer(self.dataIn.fsteps).reshape((self.N_gait, 12))[:,:] = fsteps
+                np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps+1))[:, :] = xref
+                np.frombuffer(self.dataIn.fsteps).reshape((self.N_gait, 12))[:, :] = fsteps
 
     def decompress_dataIn(self, dataIn):
         """Decompress data from a C-type structure that belongs to the shared memory to retrieve data from the main control
@@ -352,14 +363,14 @@ class MPC_Wrapper:
                 k = self.dataIn.k
                 xref = np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps+1))
                 fsteps = np.frombuffer(self.dataIn.fsteps).reshape((self.N_gait, 12))
-                l_fsteps_target = np.frombuffer(self.dataIn.l_fsteps_target).reshape((3,4))
-                oRh = np.frombuffer(self.dataIn.oRh).reshape((3,3))
-                oTh = np.frombuffer(self.dataIn.oTh).reshape((3,1))
-                position = np.frombuffer(self.dataIn.position).reshape((3,4))
-                velocity = np.frombuffer(self.dataIn.velocity).reshape((3,4))
-                acceleration = np.frombuffer(self.dataIn.acceleration).reshape((3,4))
-                jerk = np.frombuffer(self.dataIn.jerk).reshape((3,4))
-                dt_flying = np.frombuffer(self.dataIn.dt_flying).reshape(4)               
+                l_fsteps_target = np.frombuffer(self.dataIn.l_fsteps_target).reshape((3, 4))
+                oRh = np.frombuffer(self.dataIn.oRh).reshape((3, 3))
+                oTh = np.frombuffer(self.dataIn.oTh).reshape((3, 1))
+                position = np.frombuffer(self.dataIn.position).reshape((3, 4))
+                velocity = np.frombuffer(self.dataIn.velocity).reshape((3, 4))
+                acceleration = np.frombuffer(self.dataIn.acceleration).reshape((3, 4))
+                jerk = np.frombuffer(self.dataIn.jerk).reshape((3, 4))
+                dt_flying = np.frombuffer(self.dataIn.dt_flying).reshape(4)
 
                 return k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying
 

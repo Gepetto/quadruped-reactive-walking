@@ -11,18 +11,19 @@
 #ifndef FOOTSTEPPLANNERQP_H_INCLUDED
 #define FOOTSTEPPLANNERQP_H_INCLUDED
 
-#include "pinocchio/math/rpy.hpp"
-#include "pinocchio/multibody/model.hpp"
-#include "pinocchio/multibody/data.hpp"
-#include "pinocchio/parsers/urdf.hpp"
+#include <vector>
+
+#include "eiquadprog/eiquadprog-fast.hpp"
 #include "pinocchio/algorithm/compute-all-terms.hpp"
 #include "pinocchio/algorithm/frames.hpp"
+#include "pinocchio/math/rpy.hpp"
+#include "pinocchio/multibody/data.hpp"
+#include "pinocchio/multibody/model.hpp"
+#include "pinocchio/parsers/urdf.hpp"
 #include "qrw/Gait.hpp"
 #include "qrw/Params.hpp"
 #include "qrw/Surface.hpp"
 #include "qrw/Types.h"
-#include <vector>
-#include "eiquadprog/eiquadprog-fast.hpp"
 
 // Order of feet/legs: FL, FR, HL, HR
 
@@ -30,13 +31,17 @@ using namespace eiquadprog::solvers;
 typedef std::vector<Surface> SurfaceVector;
 typedef std::vector<std::vector<Surface>> SurfaceVectorVector;
 
-struct optimData
-{
-    int phase;
-    int foot;
-    Surface surface;
-    Vector3 constant_term;
-    Matrix3 Rz_tmp;
+struct Pair {
+  double F;  // First
+  double S;  // Second
+};
+
+struct optimData {
+  int phase;
+  int foot;
+  Surface surface;
+  Vector3 constant_term;
+  Matrix3 Rz_tmp;
 };
 
 class FootstepPlannerQP {
@@ -80,10 +85,18 @@ class FootstepPlannerQP {
   ///  \param[in] b_vref Desired velocity vector of the flying base in horizontal frame (linear and angular
   ///  stacked)
   ///
+  ///  Precondition : updateSurfaces should have been called to store the new surface planner result
+  ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  MatrixN updateFootsteps(bool refresh, int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref,
-                          SurfaceVectorVector const& potentialSurfaces, SurfaceVector const& surfaces,
-                          bool const surfaceStatus, int const surfaceIteration);
+  MatrixN updateFootsteps(bool refresh, int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Updates the surfaces result from the surface planner
+  ///
+  ///////////////////////////////////////////////////////////////////////////////////////////////
+  void updateSurfaces(SurfaceVectorVector const& potentialSurfaces, SurfaceVector const& surfaces,
+                      bool const surfaceStatus, int const surfaceIteration);
 
   MatrixN getFootsteps();
   MatrixN getTargetFootsteps();
@@ -104,9 +117,7 @@ class FootstepPlannerQP {
   ///  angular stacked)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  MatrixN computeTargetFootstep(int k, Vector6 const& q, Vector6 const& b_v, Vector6 const& b_vref,
-                                SurfaceVectorVector const& potentialSurfaces, SurfaceVector const& surfaces,
-                                bool const surfaceStatus, int const surfaceIteration);
+  MatrixN computeTargetFootstep(int k, Vector6 const& q, Vector6 const& b_v, Vector6 const& b_vref);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -119,7 +130,8 @@ class FootstepPlannerQP {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Compute a X by 13 matrix containing the remaining number of steps of each phase of the gait (first column)
+  /// \brief Compute a X by 13 matrix containing the remaining number of steps of each phase of the gait (first
+  /// column)
   ///        and the [x, y, z]^T desired position of each foot for each phase of the gait (12 other columns).
   ///        For feet currently touching the ground the desired position is where they currently are.
   ///
@@ -182,6 +194,13 @@ class FootstepPlannerQP {
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   MatrixN vectorToMatrix(std::vector<Matrix34> const& array);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Compute a distance from a point to a segment.
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  double minDistance(Pair const& A, Pair const& B, Pair const& E);
 
   Params* params_;  // Params object to store parameters
   Gait* gait_;      // Gait object to hold the gait informations
@@ -253,13 +272,13 @@ class FootstepPlannerQP {
   MatrixN C_;
   VectorN d_;
 
-
   // qp solver
   EiquadprogFast_status expected = EIQUADPROG_FAST_OPTIMAL;
   EiquadprogFast_status status;
   VectorN x;
   EiquadprogFast qp;
 
+  bool useSL1M;
   bool surfaceStatus_;
   int surfaceIteration_;
   SurfaceVector surfaces_;

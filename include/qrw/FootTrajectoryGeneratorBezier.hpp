@@ -10,25 +10,23 @@
 #ifndef TRAJGEN_BEZIER_H_INCLUDED
 #define TRAJGEN_BEZIER_H_INCLUDED
 
-#include "qrw/Gait.hpp"
-#include "qrw/Surface.hpp"
-#include "qrw/Types.h"
-#include "qrw/Params.hpp"
-
-#include "pinocchio/math/rpy.hpp"
-#include "pinocchio/multibody/model.hpp"
-#include "pinocchio/multibody/data.hpp"
-#include "pinocchio/parsers/urdf.hpp"
-#include "pinocchio/algorithm/compute-all-terms.hpp"
-#include "pinocchio/algorithm/frames.hpp"
-
-#include "ndcurves/fwd.h"
-#include "ndcurves/bezier_curve.h"
-#include "ndcurves/optimization/details.h"
 #include <Eigen/Dense>
 #include <vector>
 
 #include "eiquadprog/eiquadprog-fast.hpp"
+#include "ndcurves/bezier_curve.h"
+#include "ndcurves/fwd.h"
+#include "ndcurves/optimization/details.h"
+#include "pinocchio/algorithm/compute-all-terms.hpp"
+#include "pinocchio/algorithm/frames.hpp"
+#include "pinocchio/math/rpy.hpp"
+#include "pinocchio/multibody/data.hpp"
+#include "pinocchio/multibody/model.hpp"
+#include "pinocchio/parsers/urdf.hpp"
+#include "qrw/Gait.hpp"
+#include "qrw/Params.hpp"
+#include "qrw/Surface.hpp"
+#include "qrw/Types.h"
 
 using namespace ndcurves;
 using namespace eiquadprog::solvers;
@@ -86,6 +84,8 @@ class FootTrajectoryGeneratorBezier {
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void update(int k, MatrixN const& targetFootstep, SurfaceVector const& surfacesSelected, VectorN const& q);
+  void updateDebug(int k, MatrixN const& targetFootstep, SurfaceVector const& surfacesSelected,
+                   MatrixN const& currentPosition);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -156,6 +156,7 @@ class FootTrajectoryGeneratorBezier {
   typedef optimization::problem_definition<pointX_t, double> problem_definition_t;
   typedef optimization::problem_data<pointX_t, double> problem_data_t;
   static const bool safe = true;
+  bool useBezier;
 
   // Number of points in the least square problem
   int N_samples;

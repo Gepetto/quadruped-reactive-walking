@@ -55,7 +55,7 @@ class StatePlanner {
   void computeReferenceStates(VectorN const& q, Vector6 const& v, Vector6 const& vref);
 
   MatrixN getReferenceStates() { return referenceStates_; }
-  int getNSteps() { return n_steps_; }
+  int getNumberStates() { return n_steps_; }
 
  private:
   double dt_;     // Time step of the contact sequence (time step of the MPC)

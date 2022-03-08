@@ -11,8 +11,9 @@
 #ifndef PARAMS_H_INCLUDED
 #define PARAMS_H_INCLUDED
 
-#include "qrw/Types.h"
 #include <yaml-cpp/yaml.h>
+
+#include "qrw/Types.h"
 
 class Params {
  public:
@@ -46,7 +47,24 @@ class Params {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void convert_gait_vec();
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Convert the t_switch vector of the yaml into an Eigen vector
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void convert_t_switch();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Convert the v_switch vector of the yaml into an Eigen matrix
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void convert_v_switch();
+
   MatrixN get_gait() { return gait; }
+  VectorN get_t_switch() { return t_switch; }
+  MatrixN get_v_switch() { return v_switch; }
+  void set_v_switch(MatrixN v_switch_in) { v_switch = v_switch_in; }
 
   // See .yaml file for meaning of parameters
   // General parameters
@@ -81,8 +99,12 @@ class Params {
   std::vector<int> gait_vec;  // Initial gait matrix (vector)
 
   // Parameters of Joystick
-  double gp_alpha_vel;  // Coefficient of the low pass filter applied to gamepad velocity
-  double gp_alpha_pos;  // Coefficient of the low pass filter applied to gamepad position
+  double gp_alpha_vel;               // Coefficient of the low pass filter applied to gamepad velocity
+  double gp_alpha_pos;               // Coefficient of the low pass filter applied to gamepad position
+  std::vector<double> t_switch_vec;  // Predefined velocity switch times vector
+  VectorN t_switch;                  // Predefined velocity switch times matrix
+  std::vector<double> v_switch_vec;  // Predefined velocity switch values vector
+  MatrixN v_switch;                  // Predefined velocity switch values matrix
 
   // Parameters of Estimator
   double fc_v_esti;  // Cut frequency for the low pass that filters the estimated base velocity
@@ -119,10 +141,17 @@ class Params {
   bool solo3D;                        // Enable the 3D environment with corresponding planner blocks
   bool enable_multiprocessing_mip;    // Enable/disable running the MIP in another process in parallel of the main loop
   std::string environment_URDF;       // URDF path for the 3D environment
-  std::string environment_heightmap;  // path to the heightmap
+  std::string environment_heightmap;  // Path to the heightmap
+  double heightmap_fit_length;        // Size of the heightmap around the robot
+  int heightmap_fit_size;             // Number of points used in the heightmap QP
+  int number_steps;                   // Number of steps to optimize with the MIP
+  std::vector<double> max_velocity;   // Maximum velocity of the base
+  bool use_bezier;                    // Use Bezier to plan trajectories, otherwise use simple 6d polynomial curve.
+  bool use_sl1m;       // Use SL1M to select the surfaces, otherwise use Raibert heuristic projection in 2D.
+  bool use_heuristic;  // Use heuristic as SL1M cost.
 
   // Not defined in yaml
-  Eigen::MatrixXd gait;                           // Initial gait matrix (Eigen)
+  MatrixN gait;                           // Initial gait matrix (Eigen)
   double T_gait;                                  // Period of the gait
   double mass;                                    // Mass of the robot
   std::vector<double> I_mat;                      // Inertia matrix

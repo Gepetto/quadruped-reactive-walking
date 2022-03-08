@@ -1,8 +1,8 @@
 #include "qrw/FootTrajectoryGeneratorBezier.hpp"
+
 #include <chrono>
 
 using namespace std::chrono;
-
 
 // Trajectory generator functions (output reference pos, vel and acc of feet in swing phase)
 
@@ -30,8 +30,8 @@ FootTrajectoryGeneratorBezier::FootTrajectoryGeneratorBezier()
       acceleration_base_(Matrix34::Zero()),
       intersectionPoint_(Vector2::Zero()),
       ineq_vector_{Vector4::Zero()},
+      useBezier(true),
       x_margin_{Vector4::Zero()} {
-  // Initialise vector
   for (int i = 0; i < 4; i++) {
     pDefs.push_back(optimization::problem_definition<pointX_t, double>(3));
     pDefs[i].degree = 7;
@@ -55,6 +55,7 @@ void FootTrajectoryGeneratorBezier::initialize(Params& params, Gait& gaitIn, Sur
   N_samples_ineq = N_samples_ineq_in;
   degree = degree_in;
   res_size = dim * (degree + 1 - 6);
+  useBezier = params.use_bezier;
 
   P_ = MatrixN::Zero(res_size, res_size);
   q_ = VectorN::Zero(res_size);
@@ -67,10 +68,10 @@ void FootTrajectoryGeneratorBezier::initialize(Params& params, Gait& gaitIn, Sur
   k_mpc = (int)std::round(params.dt_mpc / params.dt_wbc);
   maxHeight_ = params.max_height;
   lockTime_ = params.lock_time;
-  targetFootstep_ <<
-      Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.footsteps_init.data(), params.footsteps_init.size());
-  position_ <<
-      Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.footsteps_init.data(), params.footsteps_init.size());
+  targetFootstep_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.footsteps_init.data(),
+                                                                   params.footsteps_init.size());
+  position_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.footsteps_init.data(),
+                                                             params.footsteps_init.size());
   gait_ = &gaitIn;
   for (int foot = 0; foot < 4; foot++) {
     newSurface_.push_back(initialSurface_in);
@@ -197,14 +198,6 @@ void FootTrajectoryGeneratorBezier::updatePolyCoeff_Z(int const& i_foot, Vector3
   double z0 = x_init(2);
   double z1 = x_target(2);
 
-  //  coefficients for z (deterministic)
-  //  Version 2D (z1 = 0)
-  //  Az[6,i_foot] = -h/((t1/2)**3*(t1 - t1/2)**3)
-  //  Az[5,i_foot]  = (3*t1*h)/((t1/2)**3*(t1 - t1/2)**3)
-  //  Az[4,i_foot]  = -(3*t1**2*h)/((t1/2)**3*(t1 - t1/2)**3)
-  //  Az[3,i_foot]  = (t1**3*h)/((t1/2)**3*(t1 - t1/2)**3)
-  //  Az[:3,i_foot] = 0
-
   //  Version 3D (z1 != 0)
   Az(6, i_foot) = (32. * z0 + 32. * z1 - 64. * h) / std::pow(t1, 6);
   Az(5, i_foot) = -(102. * z0 + 90. * z1 - 192. * h) / std::pow(t1, 5);
@@ -268,7 +261,8 @@ Vector3 FootTrajectoryGeneratorBezier::evaluatePoly(int const& i_foot, int const
   return vector;
 }
 
-void FootTrajectoryGeneratorBezier::updateFootPosition(int const& k, int const& i_foot, Vector3 const& targetFootstep) {
+void FootTrajectoryGeneratorBezier::updateFootPosition(int const& k, int const& i_foot,
+                                                       Vector3 const& targetFootstep) {
   double t0 = t0s[i_foot];
   double t1 = t_swing[i_foot];
   double h = maxHeight_;
@@ -278,8 +272,9 @@ void FootTrajectoryGeneratorBezier::updateFootPosition(int const& k, int const& 
   if (t0 < t1 - lockTime_) {
     // compute reference polynoms coefficients
     if (t0s[i_foot] < 10e-4 || k == 0) {
+      double height_ = std::max(position_(2, i_foot), targetFootstep[2]);
       // Update Z coefficients only at the beginning of the flying phase
-      updatePolyCoeff_Z(i_foot, position_.col(i_foot), targetFootstep, t1, h + targetFootstep[2]);
+      updatePolyCoeff_Z(i_foot, position_.col(i_foot), targetFootstep, t1, h + height_);
       // Initale velocity and acceleration nulle
       updatePolyCoeff_XY(i_foot, position_.col(i_foot), Vector3::Zero(), Vector3::Zero(), targetFootstep, t0, t1);
 
@@ -297,18 +292,8 @@ void FootTrajectoryGeneratorBezier::updateFootPosition(int const& k, int const& 
       // New swing phase --> ineq surface
       t_stop[i_foot] = 0.;
 
-
       if ((newSurface_[i_foot].getHeight(targetFootstep.head(2)) -
-           pastSurface_[i_foot].getHeight(targetFootstep.head(2))) >= 10e-3)
-      // Only uphill
-      {
-        std::cout << "\n\n\n\n\n--------------------" << std::endl;
-        std::cout << "DIFF SURFACES" << std::endl;
-        std::cout << "newSurface_[i_foot].getb" << std::endl;
-        std::cout << newSurface_[i_foot].getb() << std::endl;
-        std::cout << "pastSurface_[i_foot].getb" << std::endl;
-        std::cout << pastSurface_[i_foot].getb() << std::endl;
-
+           pastSurface_[i_foot].getHeight(targetFootstep.head(2))) >= 10e-3) {
         int nb_vert = newSurface_[i_foot].vertices_.rows();
         MatrixN vert = newSurface_[i_foot].vertices_;
 
@@ -499,12 +484,15 @@ void FootTrajectoryGeneratorBezier::updateFootPosition(int const& k, int const& 
     acceleration_(1, i_foot) = 0.0;
     acceleration_(2, i_foot) = evaluatePoly(i_foot, 2, ev)[2];
   } else {
-    position_.col(i_foot) = fitBeziers[i_foot](t_b);
-    velocity_.col(i_foot) = fitBeziers[i_foot].derivate(t_b, 1) / delta_t;
-    acceleration_.col(i_foot) = fitBeziers[i_foot].derivate(t_b, 2) / std::pow(delta_t, 2);
-    // position_.col(i_foot) = evaluatePoly(i_foot, 0, ev);
-    // velocity_.col(i_foot) = evaluatePoly(i_foot, 1, ev);
-    // acceleration_.col(i_foot) = evaluatePoly(i_foot, 2, ev);
+    if (useBezier) {
+      position_.col(i_foot) = fitBeziers[i_foot](t_b);
+      velocity_.col(i_foot) = fitBeziers[i_foot].derivate(t_b, 1) / delta_t;
+      acceleration_.col(i_foot) = fitBeziers[i_foot].derivate(t_b, 2) / std::pow(delta_t, 2);
+    } else {
+      position_.col(i_foot) = evaluatePoly(i_foot, 0, ev);
+      velocity_.col(i_foot) = evaluatePoly(i_foot, 1, ev);
+      acceleration_.col(i_foot) = evaluatePoly(i_foot, 2, ev);
+    }
   }
 }
 
@@ -551,7 +539,57 @@ void FootTrajectoryGeneratorBezier::update(int k, MatrixN const& targetFootstep,
 
   // Update desired position, velocities and accelerations for flying feet
   for (int i = 0; i < (int)feet.size(); i++) {
-    position_.col(feet[i]) = position_FK_.col(feet[i]);
+    // position_.col(feet[i]) = position_FK_.col(feet[i]);
+    updateFootPosition(k, feet[i], targetFootstep.col(feet[i]));
+  }
+  return;
+}
+
+void FootTrajectoryGeneratorBezier::updateDebug(int k, MatrixN const& targetFootstep,
+                                                SurfaceVector const& surfacesSelected,
+                                                MatrixN const& currentPosition) {
+  if ((k % k_mpc) == 0) {
+    // Indexes of feet in swing phase
+    feet.clear();
+    for (int i = 0; i < 4; i++) {
+      if (gait_->getCurrentGait()(0, i) == 0) feet.push_back(i);
+    }
+    // If no foot in swing phase
+    if (feet.size() == 0) return;
+
+    // For each foot in swing phase get remaining duration of the swing phase
+    for (int j = 0; j < (int)feet.size(); j++) {
+      int i = feet[j];
+      t_swing[i] = gait_->getPhaseDuration(0, feet[j], 0.0);  // 0.0 for swing phase
+      double value = t_swing[i] - (gait_->getRemainingTime() * k_mpc - ((k + 1) % k_mpc)) * dt_wbc - dt_wbc;
+      t0s[i] = std::max(0.0, value);
+    }
+  } else {
+    // If no foot in swing phase
+    if (feet.size() == 0) return;
+
+    // Increment of one time step for feet in swing phase
+    for (int i = 0; i < (int)feet.size(); i++) {
+      double value = t0s[feet[i]] + dt_wbc;
+      t0s[feet[i]] = std::max(0.0, value);
+    }
+  }
+  // Update new surface and past if t0 == 0 (new swing phase)
+  if (((k % k_mpc) == 0) and (surfacesSelected.size() != 0)) {
+    for (int i_foot = 0; i_foot < (int)feet.size(); i_foot++) {
+      if (t0s[i_foot] <= 10e-5) {
+        pastSurface_[i_foot] = newSurface_[i_foot];
+        newSurface_[i_foot] = surfacesSelected[i_foot];
+      }
+    }
+  }
+
+  // Update feet position using estimated state, by FK
+  // update_position_FK(q);
+
+  // Update desired position, velocities and accelerations for flying feet
+  for (int i = 0; i < (int)feet.size(); i++) {
+    position_.col(feet[i]) = currentPosition.col(feet[i]);
     updateFootPosition(k, feet[i], targetFootstep.col(feet[i]));
   }
   return;
@@ -668,23 +706,23 @@ void FootTrajectoryGeneratorBezier::get_intersect_segment(Vector2 a1, Vector2 a2
 }
 
 Eigen::MatrixXd FootTrajectoryGeneratorBezier::getFootPositionBaseFrame(const Eigen::Matrix<double, 3, 3>& R,
-                                                                  const Eigen::Matrix<double, 3, 1>& T) {
+                                                                        const Eigen::Matrix<double, 3, 1>& T) {
   position_base_ =
       R * (position_ - T.replicate<1, 4>());  // Value saved because it is used to get velocity and acceleration
   return position_base_;
 }
 
 Eigen::MatrixXd FootTrajectoryGeneratorBezier::getFootVelocityBaseFrame(const Eigen::Matrix<double, 3, 3>& R,
-                                                                  const Eigen::Matrix<double, 3, 1>& v_ref,
-                                                                  const Eigen::Matrix<double, 3, 1>& w_ref) {
+                                                                        const Eigen::Matrix<double, 3, 1>& v_ref,
+                                                                        const Eigen::Matrix<double, 3, 1>& w_ref) {
   velocity_base_ = R * velocity_ - v_ref.replicate<1, 4>() +
                    position_base_.colwise().cross(w_ref);  // Value saved because it is used to get acceleration
   return velocity_base_;
 }
 
 Eigen::MatrixXd FootTrajectoryGeneratorBezier::getFootAccelerationBaseFrame(const Eigen::Matrix<double, 3, 3>& R,
-                                                                      const Eigen::Matrix<double, 3, 1>& w_ref,
-                                                                      const Eigen::Matrix<double, 3, 1>& a_ref) {
+                                                                            const Eigen::Matrix<double, 3, 1>& w_ref,
+                                                                            const Eigen::Matrix<double, 3, 1>& a_ref) {
   return R * acceleration_ - (position_base_.colwise().cross(w_ref)).colwise().cross(w_ref) +
          2 * velocity_base_.colwise().cross(w_ref) - a_ref.replicate<1, 4>();
 }
