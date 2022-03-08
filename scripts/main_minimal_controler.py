@@ -1,5 +1,4 @@
 # coding: utf8
-
 """from utils.logger import Logger
 import tsid as tsid
 import pinocchio as pin
@@ -12,8 +11,6 @@ from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot"""
 """import os
 import sys
 sys.path.insert(0, './mpctsid')"""
-
-
 """SIMULATION = True
 LOGGING = False
 
@@ -27,12 +24,12 @@ else:
 # from utils_mpc import PyBulletSimulator
 import numpy as np
 import argparse
+from example_robot_data.path import EXAMPLE_ROBOT_DATA_MODEL_DIR
 # from solo12 import Solo12
 # from pynput import keyboard
 
 # from utils.logger import Logger
 # from utils.qualisysClient import QualisysClient
-
 """import os
 import sys
 sys.path.insert(0, './mpctsid')"""
@@ -81,8 +78,8 @@ def put_on_the_floor(device, q_init):
     while not key_pressed:
         device.UpdateMeasurment()
         for motor in range(device.nb_motors):
-            ref = Kp_pos*(pos[motor] - device.hardware.GetMotor(motor).GetPosition() -
-                          Kd_pos*device.hardware.GetMotor(motor).GetVelocity())
+            ref = Kp_pos * (pos[motor] - device.hardware.GetMotor(motor).GetPosition() -
+                            Kd_pos * device.hardware.GetMotor(motor).GetVelocity())
             ref = min(imax, max(-imax, ref))
             device.hardware.GetMotor(motor).SetCurrentReference(ref)
         device.SendCommand(WaitEndOfCycle=True)
@@ -104,14 +101,13 @@ def mcapi_playback(name_interface):
     # Start the client for PyBullet
     pyb.connect(pyb.GUI)
     pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
-    robotStartPos = [0, 0, 0.235+0.0045]  # +0.2]
+    robotStartPos = [0, 0, 0.235 + 0.0045]  # +0.2]
     robotStartOrientation = pyb.getQuaternionFromEuler([0.0, 0.0, 0.0])  # -np.pi/2
-    pyb.setAdditionalSearchPath("/opt/openrobots/share/example-robot-data/robots/solo_description/robots")
+    pyb.setAdditionalSearchPath(EXAMPLE_ROBOT_DATA_MODEL_DIR + "/solo_description/robots")
     robotId = pyb.loadURDF("solo12.urdf", robotStartPos, robotStartOrientation)
-    
+
     print("PASS")
     embed()
-
 
     #########################################
     # PARAMETERS OF THE MPC-TSID CONTROLLER #
@@ -136,8 +132,7 @@ def mcapi_playback(name_interface):
     enable_pyb_GUI = True
 
     # Default position after calibration
-    q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6,
-                       0, -0.8, 1.6, 0, -0.8, 1.6])
+    q_init = np.array([0.0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6])
 
     ####
 
@@ -151,15 +146,19 @@ def mcapi_playback(name_interface):
 
     # Calibrate encoders
     #device.Init(calibrateEncoders=True, q_init=q_init)
-    device.Init(calibrateEncoders=True, q_init=q_init, envID=envID,
-                use_flat_plane=use_flat_plane, enable_pyb_GUI=enable_pyb_GUI, dt=dt_tsid)
+    device.Init(calibrateEncoders=True,
+                q_init=q_init,
+                envID=envID,
+                use_flat_plane=use_flat_plane,
+                enable_pyb_GUI=enable_pyb_GUI,
+                dt=dt_tsid)
 
     # Wait for Enter input before starting the control loop
     # put_on_the_floor(device, q_init)
 
     # CONTROL LOOP ***************************************************
     t = 0.0
-    t_max = (N_SIMULATION-2) * dt_tsid
+    t_max = (N_SIMULATION - 2) * dt_tsid
     while ((not device.hardware.IsTimeout()) and (t < t_max)):
 
         device.UpdateMeasurment()  # Retrieve data from IMU and Motion capture
@@ -183,7 +182,7 @@ def mcapi_playback(name_interface):
     # ****************************************************************
 
     # Whatever happened we send 0 torques to the motors.
-    device.SetDesiredJointTorque([0]*nb_motors)
+    device.SetDesiredJointTorque([0] * nb_motors)
     device.SendCommand(WaitEndOfCycle=True)
 
     if device.hardware.IsTimeout():
@@ -200,8 +199,7 @@ def main():
     """Main function
     """
 
-    parser = argparse.ArgumentParser(
-        description='Playback trajectory to show the extent of solo12 workspace.')
+    parser = argparse.ArgumentParser(description='Playback trajectory to show the extent of solo12 workspace.')
     parser.add_argument('-i',
                         '--interface',
                         required=True,

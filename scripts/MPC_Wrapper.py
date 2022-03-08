@@ -3,14 +3,13 @@
 from operator import pos
 from typing import FrozenSet
 import numpy as np
-import libquadruped_reactive_walking as MPC
 from multiprocessing import Process, Value, Array
 import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
 import pinocchio as pin
 from time import time
 from enum import Enum
-import libquadruped_reactive_walking as lqrw
+from quadruped_reactive_walking import libquadruped_reactive_walking as lqrw
 import ctypes
 from ctypes import Structure, c_double
 
@@ -111,7 +110,7 @@ class MPC_Wrapper:
         else:
             # Create the new version of the MPC solver object
             if self.mpc_type == MPC_type.OSQP:  # OSQP MPC
-                self.mpc = MPC.MPC(params)  # self.dt, self.n_steps, self.T_gait, self.N_gait)
+                self.mpc = lqrw.MPC(params)  # self.dt, self.n_steps, self.T_gait, self.N_gait)
             elif self.mpc_type == MPC_type.CROCODDYL_LINEAR:  # Crocoddyl MPC Linear
                 self.mpc = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=True)
             elif self.mpc_type == MPC_type.CROCODDYL_NON_LINEAR:  # Crocoddyl MPC Non-Linear
@@ -279,7 +278,7 @@ class MPC_Wrapper:
                 if k == 0:
                     # loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait)
                     if self.mpc_type == MPC_type.OSQP:
-                        loop_mpc = MPC.MPC(self.params)
+                        loop_mpc = lqrw.MPC(self.params)
                     elif self.mpc_type == MPC_type.CROCODDYL_LINEAR:  # Crocoddyl MPC Linear
                         loop_mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=True)
                     elif self.mpc_type == MPC_type.CROCODDYL_NON_LINEAR:  # Crocoddyl MPC Non-Linear

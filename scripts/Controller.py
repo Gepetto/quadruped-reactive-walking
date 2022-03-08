@@ -5,7 +5,7 @@ import time
 import MPC_Wrapper
 import pybullet as pyb
 import pinocchio as pin
-import libquadruped_reactive_walking as lqrw
+from quadruped_reactive_walking import libquadruped_reactive_walking as lqrw
 
 from solo3D.tools.utils import quaternionToRPY
 

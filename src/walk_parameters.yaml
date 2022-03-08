@@ -82,7 +82,7 @@ robot:
     Fz_min: 0.0  # Minimal vertical contact force [N]
 
     # Parameters fro solo3D simulation
-    solo3D: true  # Activation of the 3D environment, and corresponding planner blocks
+    solo3D: false  # Activation of the 3D environment, and corresponding planner blocks
     enable_multiprocessing_mip: true  # Enable/disable running the MIP in another process in parallel of the main loop
     environment_URDF: "/short_bricks/short_bricks.urdf"
     environment_heightmap: "/short_bricks/short_bricks.bin"

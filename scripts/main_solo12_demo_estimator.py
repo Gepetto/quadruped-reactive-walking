@@ -9,6 +9,8 @@ from mpctsid.Estimator import Estimator
 from utils.viewerClient import viewerClient, NonBlockingViewerFromRobot
 import os
 import sys
+from example_robot_data.path import EXAMPLE_ROBOT_DATA_MODEL_DIR as modelPath
+
 sys.path.insert(0, './mpctsid')
 
 SIMULATION = True
@@ -24,6 +26,7 @@ else:
 DT = 0.002
 
 key_pressed = False
+
 
 def on_press(key):
     """Wait for a specific key press on the keyboard
@@ -64,8 +67,8 @@ def put_on_the_floor(device, q_init):
     while not key_pressed:
         device.UpdateMeasurment()
         for motor in range(device.nb_motors):
-            ref = Kp_pos*(pos[motor] - device.hardware.GetMotor(motor).GetPosition() -
-                          Kd_pos*device.hardware.GetMotor(motor).GetVelocity())
+            ref = Kp_pos * (pos[motor] - device.hardware.GetMotor(motor).GetPosition() -
+                            Kd_pos * device.hardware.GetMotor(motor).GetVelocity())
             ref = min(imax, max(-imax, ref))
             device.hardware.GetMotor(motor).SetCurrentReference(ref)
         device.SendCommand(WaitEndOfCycle=True)
@@ -93,7 +96,9 @@ def mcapi_playback(name_interface):
 
     # Number of motors
     nb_motors = device.nb_motors
-    q_viewer = np.array((7 + nb_motors) * [0., ])
+    q_viewer = np.array((7 + nb_motors) * [
+        0.,
+    ])
 
     # Gepetto-gui
     v = viewerClient()
@@ -109,7 +114,7 @@ def mcapi_playback(name_interface):
     q_init = np.array([0, 0.8, -1.6, 0, 0.8, -1.6, 0, -0.8, 1.6, 0, -0.8, 1.6])
 
     # Create Estimator object
-    estimator = Estimator(DT, np.int(t_max/DT))
+    estimator = Estimator(DT, np.int(t_max / DT))
 
     # Set the paths where the urdf and srdf file of the robot are registered
     modelPath = "/opt/openrobots/share/example-robot-data/robots"
@@ -126,13 +131,16 @@ def mcapi_playback(name_interface):
     invdyn = tsid.InverseDynamicsFormulationAccForce("tsid", robot, False)
 
     # Compute the problem data with a solver based on EiQuadProg
-    invdyn.computeProblemData(0.0, np.hstack(
-        (np.zeros(7), q_init)), np.zeros(18))
+    invdyn.computeProblemData(0.0, np.hstack((np.zeros(7), q_init)), np.zeros(18))
 
     # Initiate communication with the device and calibrate encoders
     if SIMULATION:
-        device.Init(calibrateEncoders=True, q_init=q_init, envID=0,
-                    use_flat_plane=True, enable_pyb_GUI=enable_pyb_GUI, dt=DT)
+        device.Init(calibrateEncoders=True,
+                    q_init=q_init,
+                    envID=0,
+                    use_flat_plane=True,
+                    enable_pyb_GUI=enable_pyb_GUI,
+                    dt=DT)
     else:
         device.Init(calibrateEncoders=True, q_init=q_init)
 
@@ -148,8 +156,7 @@ def mcapi_playback(name_interface):
         device.UpdateMeasurment()  # Retrieve data from IMU and Motion capture
 
         # Run estimator with hind left leg touching the ground
-        estimator.run_filter(k, np.array(
-            [0, 0, 1, 0]), device, invdyn.data(), model)
+        estimator.run_filter(k, np.array([0, 0, 1, 0]), device, invdyn.data(), model)
 
         # Zero desired torques
         tau = np.zeros(12)
@@ -169,8 +176,7 @@ def mcapi_playback(name_interface):
         # Gepetto GUI
         if k > 0:
             pos = np.array(estimator.data.oMf[26].translation).ravel()
-            q_viewer[0:3] = np.array(
-                [-pos[0], -pos[1], estimator.FK_h])  # Position
+            q_viewer[0:3] = np.array([-pos[0], -pos[1], estimator.FK_h])  # Position
             q_viewer[3:7] = estimator.q_FK[3:7, 0]  # Orientation
             q_viewer[7:] = estimator.q_FK[7:, 0]  # Encoders
             v.display(q_viewer)
@@ -181,7 +187,7 @@ def mcapi_playback(name_interface):
     # ****************************************************************
 
     # Whatever happened we send 0 torques to the motors.
-    device.SetDesiredJointTorque([0]*nb_motors)
+    device.SetDesiredJointTorque([0] * nb_motors)
     device.SendCommand(WaitEndOfCycle=True)
 
     if device.hardware.IsTimeout():
@@ -206,8 +212,7 @@ def main():
     """Main function
     """
 
-    parser = argparse.ArgumentParser(
-        description='Playback trajectory to show the extent of solo12 workspace.')
+    parser = argparse.ArgumentParser(description='Playback trajectory to show the extent of solo12 workspace.')
     parser.add_argument('-i',
                         '--interface',
                         required=True,

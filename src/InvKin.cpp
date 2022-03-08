@@ -1,3 +1,5 @@
+#include <example-robot-data/path.hpp>
+
 #include "qrw/InvKin.hpp"
 
 InvKin::InvKin()
@@ -41,9 +43,9 @@ void InvKin::initialize(Params& params) {
   // Params store parameters
   params_ = &params;
 
-  // Path to the robot URDF (TODO: Automatic path)
+  // Path to the robot URDF
   const std::string filename =
-      std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
+      std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
 
   // Build model from urdf (base is not free flyer)
   pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
