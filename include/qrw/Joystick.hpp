@@ -146,7 +146,7 @@ class Joystick {
   double dt_wbc = 0.0;  // Time step of the WBC
   int k_mpc = 0;        // Number of WBC time step for one MPC time step
 
-  VectorNint k_switch;   // Key frames for the polynomial velocity interpolation
+  VectorNi k_switch;   // Key frames for the polynomial velocity interpolation
   Matrix6N v_switch;  // Target velocity for the key frames
 
   // How much the gamepad velocity and position is filtered to avoid sharp changes

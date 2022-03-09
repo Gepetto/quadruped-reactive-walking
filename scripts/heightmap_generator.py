@@ -11,10 +11,10 @@ from hpp.corbaserver.affordance.affordance import AffordanceTool
 from hpp.corbaserver.rbprm.tools.surfaces_from_path import getAllSurfacesDict
 from hpp.corbaserver.problem_solver import ProblemSolver
 from hpp.gepetto import ViewerFactory
-import libquadruped_reactive_walking as lqrw
+import quadruped_reactive_walking as qrw
 
 # --------------------------------- PROBLEM DEFINITION ---------------------------------------------------------------
-params = lqrw.Params()
+params = qrw.Params()
 
 N_X = 400
 N_Y = 90

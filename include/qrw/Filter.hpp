@@ -10,14 +10,13 @@
 #ifndef FILTER_H_INCLUDED
 #define FILTER_H_INCLUDED
 
-#include <iostream>
-#include <fstream>
 #include <cmath>
 #include <deque>
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include "qrw/Params.hpp"
+#include <fstream>
+#include <iostream>
+
 #include "pinocchio/math/rpy.hpp"
+#include "qrw/Params.hpp"
 
 class Filter {
  public:
@@ -67,7 +66,7 @@ class Filter {
   VectorN getFilt() { return y_; }
 
  private:
-  Vector1 b_;      // Denominator coefficients of the filter transfer function
+  double b_;       // Denominator coefficients of the filter transfer function
   Vector2 a_;      // Numerator coefficients of the filter transfer function
   Vector6 x_;      // Latest measurement
   VectorN y_;      // Latest result

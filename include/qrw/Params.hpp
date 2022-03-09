@@ -12,6 +12,8 @@
 #define PARAMS_H_INCLUDED
 
 #include <yaml-cpp/yaml.h>
+#include <fstream>
+#include <vector>
 
 #include "qrw/Types.h"
 

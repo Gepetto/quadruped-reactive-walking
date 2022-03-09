@@ -97,8 +97,8 @@ void parallel_loop() {
 
 MpcWrapper::MpcWrapper()
     : last_available_result(Eigen::Matrix<double, 24, 2>::Zero()),
-      gait_past(Matrix14::Zero()),
-      gait_next(Matrix14::Zero()) {}
+      gait_past(RowVector4::Zero()),
+      gait_next(RowVector4::Zero()) {}
 
 void MpcWrapper::initialize(Params& params) {
   params_ = &params;

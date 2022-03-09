@@ -5,7 +5,7 @@ import time
 import MPC_Wrapper
 import pybullet as pyb
 import pinocchio as pin
-from quadruped_reactive_walking import libquadruped_reactive_walking as lqrw
+import quadruped_reactive_walking as qrw
 
 from solo3D.tools.utils import quaternionToRPY
 
@@ -99,7 +99,7 @@ class Controller:
         self.solo = utils_mpc.init_robot(q_init, params)
 
         # Create Joystick object
-        self.joystick = lqrw.Joystick()
+        self.joystick = qrw.Joystick()
         self.joystick.initialize(params)
 
         # Enable/Disable hybrid control
@@ -120,13 +120,13 @@ class Controller:
         self.xgoals = np.zeros((12, 1))
         self.xgoals[2, 0] = self.h_ref
 
-        self.gait = lqrw.Gait()
+        self.gait = qrw.Gait()
         self.gait.initialize(params)
 
-        self.estimator = lqrw.Estimator()
+        self.estimator = qrw.Estimator()
         self.estimator.initialize(params)
 
-        self.wbcWrapper = lqrw.WbcWrapper()
+        self.wbcWrapper = qrw.WbcWrapper()
         self.wbcWrapper.initialize(params)
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
@@ -152,10 +152,10 @@ class Controller:
         if self.solo3D:
             self.surfacePlanner = Surface_planner_wrapper(params)
 
-            self.statePlanner = lqrw.StatePlanner3D()
+            self.statePlanner = qrw.StatePlanner3D()
             self.statePlanner.initialize(params)
 
-            self.footstepPlanner = lqrw.FootstepPlannerQP()
+            self.footstepPlanner = qrw.FootstepPlannerQP()
             self.footstepPlanner.initialize(params, self.gait, self.surfacePlanner.floor_surface)
 
             # Trajectory Generator Bezier
@@ -167,7 +167,7 @@ class Controller:
             N_sample_ineq = 10  # Number of sample while browsing the curve
             degree = 7  # Degree of the Bezier curve
 
-            self.footTrajectoryGenerator = lqrw.FootTrajectoryGeneratorBezier()
+            self.footTrajectoryGenerator = qrw.FootTrajectoryGeneratorBezier()
             self.footTrajectoryGenerator.initialize(params, self.gait, self.surfacePlanner.floor_surface,
                                                     x_margin_max_, t_margin_, z_margin_, N_sample, N_sample_ineq,
                                                     degree)
@@ -176,13 +176,13 @@ class Controller:
                                                          self.footTrajectoryGenerator)
 
         else:
-            self.statePlanner = lqrw.StatePlanner()
+            self.statePlanner = qrw.StatePlanner()
             self.statePlanner.initialize(params)
 
-            self.footstepPlanner = lqrw.FootstepPlanner()
+            self.footstepPlanner = qrw.FootstepPlanner()
             self.footstepPlanner.initialize(params, self.gait)
 
-            self.footTrajectoryGenerator = lqrw.FootTrajectoryGenerator()
+            self.footTrajectoryGenerator = qrw.FootTrajectoryGenerator()
             self.footTrajectoryGenerator.initialize(params, self.gait)
 
         # ForceMonitor to display contact forces in PyBullet with red lines
@@ -227,11 +227,11 @@ class Controller:
         self.q_filter = np.zeros((18, 1))
         self.h_v_filt_mpc = np.zeros((6, 1))
         self.vref_filt_mpc = np.zeros((6, 1))
-        self.filter_mpc_q = lqrw.Filter()
+        self.filter_mpc_q = qrw.Filter()
         self.filter_mpc_q.initialize(params)
-        self.filter_mpc_v = lqrw.Filter()
+        self.filter_mpc_v = qrw.Filter()
         self.filter_mpc_v.initialize(params)
-        self.filter_mpc_vref = lqrw.Filter()
+        self.filter_mpc_vref = qrw.Filter()
         self.filter_mpc_vref.initialize(params)
 
         self.nle = np.zeros((6, 1))

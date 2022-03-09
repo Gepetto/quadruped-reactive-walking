@@ -1,5 +1,8 @@
 #include "qrw/Controller.hpp"
 
+#include "pinocchio/math/rpy.hpp"
+#include "pinocchio/algorithm/crba.hpp"
+
 Controller::Controller()
     : P(Vector12::Zero()),
       D(Vector12::Zero()),

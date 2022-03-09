@@ -8,7 +8,7 @@ sys.path.insert(0, os.getcwd()) # adds current directory to python path
 import numpy as np
 import matplotlib.pylab as plt
 import pinocchio as pin
-import libquadruped_reactive_walking as lqrw
+import quadruped_reactive_walking as qrw
 
 def get_mocap_logs(path):
     ''' Get mocap logs and store state in (N,12) array in Base frame (local).
@@ -94,7 +94,7 @@ name_files = ["data_2021_11_17_15_43_0.npz", "data_2021_11_17_15_43_0.npz", "dat
 
 
 # Common data shared by 4 MPCs
-params = lqrw.Params()  # Object that holds all controller parameters
+params = qrw.Params()  # Object that holds all controller parameters
 logs = np.load(folder_path + name_files[0])
 joy_v_ref = logs.get('joy_v_ref')       # Ref velocity (Nx6) given by the joystick  
 planner_xref = logs.get("planner_xref") # Ref state

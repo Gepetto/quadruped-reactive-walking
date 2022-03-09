@@ -5,10 +5,10 @@ import threading
 import numpy as np
 import argparse
 from LoggerSensors import LoggerSensors
-import libquadruped_reactive_walking as lqrw
+import quadruped_reactive_walking as qrw
 import time
 
-params = lqrw.Params()  # Object that holds all controller parameters
+params = qrw.Params()  # Object that holds all controller parameters
 
 if params.SIMULATION:
     from PyBulletSimulator import PyBulletSimulator

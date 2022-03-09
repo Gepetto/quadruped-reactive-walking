@@ -17,16 +17,16 @@ class Test:
 
         self.h_ref = params.h_ref
 
-        self.wbcWrapper = lqrw.WbcWrapper()
+        self.wbcWrapper = qrw.WbcWrapper()
         self.wbcWrapper.initialize(params)
 
-        self.gait = lqrw.Gait()
+        self.gait = qrw.Gait()
         self.gait.initialize(params)
 
-        self.footstepPlanner = lqrw.FootstepPlanner()
+        self.footstepPlanner = qrw.FootstepPlanner()
         self.footstepPlanner.initialize(params, self.gait)
 
-        self.footTrajectoryGenerator = lqrw.FootTrajectoryGenerator()
+        self.footTrajectoryGenerator = qrw.FootTrajectoryGenerator()
         self.footTrajectoryGenerator.initialize(params, self.gait)
 
         self.q = np.zeros((19, 1))  # Orientation part is in roll pitch yaw
@@ -115,10 +115,10 @@ class Test:
 
 if __name__ == "__main__":
 
-    import libquadruped_reactive_walking as lqrw
+    import quadruped_reactive_walking as qrw
     import pinocchio as pin
 
-    params = lqrw.Params()  # Object that holds all controller parameters
+    params = qrw.Params()  # Object that holds all controller parameters
     params.enable_corba_viewer = True
     test = Test(params)
     q_display = np.zeros((19, 1))

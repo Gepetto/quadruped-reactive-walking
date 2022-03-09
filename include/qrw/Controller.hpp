@@ -12,9 +12,6 @@
 #include <odri_control_interface/robot.hpp>
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include "qrw/FakeRobot.hpp"
-#include "pinocchio/math/rpy.hpp"
-#include <Eigen/Core>
-#include <Eigen/Dense>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -29,6 +26,7 @@
 #include "qrw/MpcWrapper.hpp"
 #include "qrw/FootTrajectoryGenerator.hpp"
 #include "qrw/QPWBC.hpp"
+#include "qrw/WbcWrapper.hpp"
 #include "qrw/Filter.hpp"
 
 class Controller {

@@ -3,7 +3,7 @@
 import numpy as np
 
 import quadruped_walkgen as quadruped_walkgen
-import libquadruped_reactive_walking as lqrw
+import quadruped_reactive_walking as qrw
 import crocoddyl 
 
 #####################

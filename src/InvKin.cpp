@@ -1,6 +1,14 @@
+#include "qrw/InvKin.hpp"
+
 #include <example-robot-data/path.hpp>
 
-#include "qrw/InvKin.hpp"
+#include "pinocchio/algorithm/compute-all-terms.hpp"
+#include "pinocchio/algorithm/frames.hpp"
+#include "pinocchio/algorithm/jacobian.hpp"
+#include "pinocchio/algorithm/joint-configuration.hpp"
+#include "pinocchio/math/rpy.hpp"
+#include "pinocchio/parsers/urdf.hpp"
+#include "pinocchio/spatial/explog.hpp"
 
 InvKin::InvKin()
     : invJ(Matrix12::Zero()),
@@ -44,8 +52,7 @@ void InvKin::initialize(Params& params) {
   params_ = &params;
 
   // Path to the robot URDF
-  const std::string filename =
-      std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
+  const std::string filename = std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
 
   // Build model from urdf (base is not free flyer)
   pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
@@ -77,7 +84,7 @@ void InvKin::initialize(Params& params) {
   w_tasks = Vector8(params_->w_tasks.data());
 }
 
-void InvKin::refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals, Matrix43 const& vgoals,
+void InvKin::refreshAndCompute(RowVector4 const& contacts, Matrix43 const& pgoals, Matrix43 const& vgoals,
                                Matrix43 const& agoals) {
   std::cout << std::fixed;
   std::cout << std::setprecision(5);
