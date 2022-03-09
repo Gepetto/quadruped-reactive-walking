@@ -7,7 +7,7 @@ sys.path.insert(0, os.getcwd()) # adds current directory to python path
 
 import numpy as np
 import matplotlib.pylab as plt
-import libquadruped_reactive_walking as lqrw
+import quadruped_reactive_walking as qrw
 import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
 import crocoddyl
 import utils_mpc
@@ -19,7 +19,7 @@ np.set_printoptions(formatter={'float': lambda x: "{0:0.7f}".format(x)}, linewid
 iteration_mpc = 350  # Control cycle
 Relaunch_DDP = True # Compare a third MPC with != parameters
 linear_mpc = True
-params = lqrw.Params()  # Object that holds all controller parameters
+params = qrw.Params()  # Object that holds all controller parameters
 
 # Default position after calibration
 q_init = np.array(params.q_init.tolist())
@@ -40,7 +40,7 @@ mpc_x_f = logs.get("mpc_x_f")
 k = int( iteration_mpc * (params.dt_mpc / params.dt_wbc) ) # simulation iteration corresponding
 
 # OSQP MPC
-mpc_osqp = lqrw.MPC(params)
+mpc_osqp = qrw.MPC(params)
 mpc_osqp.run(0, planner_xref[0] , planner_fsteps[0]) # Initialization of the matrix
 # mpc_osqp.run(1, planner_xref[1] , planner_fsteps[1])
 mpc_osqp.run(k, planner_xref[k] , planner_fsteps[k])

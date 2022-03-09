@@ -10,22 +10,9 @@
 #ifndef INVKIN_H_INCLUDED
 #define INVKIN_H_INCLUDED
 
-#include "pinocchio/math/rpy.hpp"
-#include "pinocchio/spatial/explog.hpp"
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/multibody/data.hpp"
-#include "pinocchio/parsers/urdf.hpp"
-#include "pinocchio/algorithm/compute-all-terms.hpp"
-#include "pinocchio/algorithm/jacobian.hpp"
-#include "pinocchio/algorithm/frames.hpp"
-#include "pinocchio/algorithm/joint-configuration.hpp"
-#include "pinocchio/algorithm/rnea.hpp"
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include <cmath>
-#include <fstream>
-#include <iostream>
-#include <string>
+
 #include "qrw/Params.hpp"
 #include "qrw/Types.h"
 
@@ -64,7 +51,7 @@ class InvKin {
   /// \param[in] agoals Desired accelerations of the four feet in base frame
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void refreshAndCompute(Matrix14 const& contacts, Matrix43 const& pgoals, Matrix43 const& vgoals,
+  void refreshAndCompute(RowVector4 const& contacts, Matrix43 const& pgoals, Matrix43 const& vgoals,
                          Matrix43 const& agoals);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////

@@ -8,7 +8,7 @@ sys.path.insert(0, os.getcwd()) # adds current directory to python path
 
 import numpy as np
 import matplotlib.pylab as plt
-import libquadruped_reactive_walking as lqrw
+import quadruped_reactive_walking as qrw
 import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
 import time
 import utils_mpc
@@ -82,7 +82,7 @@ class Poly_5():
 ################
 iteration_mpc = 180 # Control cycle
 iteration_init = iteration_mpc 
-params = lqrw.Params()  # Object that holds all controller parameters
+params = qrw.Params()  # Object that holds all controller parameters
 vert_time = params.vert_time
 
 # Default position after calibration

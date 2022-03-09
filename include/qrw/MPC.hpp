@@ -1,19 +1,12 @@
 #ifndef MPC_H_INCLUDED
 #define MPC_H_INCLUDED
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <cmath>
 #include <limits>
 #include <vector>
-#include <Eigen/Core>
-#include <Eigen/Dense>
+
 #include "osqp.h"
 #include "other/st_to_cc.hpp"
 #include "qrw/Params.hpp"
-
-typedef Eigen::MatrixXd matXd;
 
 class MPC {
  public:
@@ -50,7 +43,7 @@ class MPC {
   /// \param[in] fsteps_in Footsteps location over the prediction horizon stored in a Nx12 matrix
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int run(int num_iter, const Eigen::MatrixXd &xref_in, const Eigen::MatrixXd &fsteps_in);
+  int run(int num_iter, const MatrixN &xref_in, const MatrixN &fsteps_in);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -61,10 +54,10 @@ class MPC {
   float retrieve_cost();
 
   // Getters
-  Eigen::MatrixXd get_latest_result();  // Return the latest desired contact forces that have been computed
-  Eigen::MatrixXd get_gait();           // Return the gait matrix
-  Eigen::MatrixXd get_Sgait();          // Return the S_gait matrix
-  double *get_x_next();                 // Return the next predicted state of the base
+  MatrixN get_latest_result();  // Return the latest desired contact forces that have been computed
+  MatrixNi get_gait();           // Return the gait matrix
+  VectorNi get_Sgait();          // Return the S_gait matrix
+  double *get_x_next();         // Return the next predicted state of the base
 
  private:
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -165,7 +158,7 @@ class MPC {
   /// \param[in] fsteps Footsteps location over the prediction horizon stored in a Nx12 matrix
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int update_matrices(Eigen::MatrixXd fsteps);
+  int update_matrices(MatrixN fsteps);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -174,7 +167,7 @@ class MPC {
   /// \param[in] fsteps Footsteps location over the prediction horizon stored in a Nx12 matrix
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int update_ML(Eigen::MatrixXd fsteps);
+  int update_ML(MatrixN fsteps);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -221,7 +214,7 @@ class MPC {
   /// \param[in] fsteps Footsteps location over the prediction horizon stored in a Nx12 matrix
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int construct_gait(Eigen::MatrixXd fsteps_in);
+  int construct_gait(MatrixN fsteps_in);
 
   Params *params_;  // Object that stores parameters
   double dt;        // Time step
@@ -231,20 +224,20 @@ class MPC {
   int cpt_ML;       // Counter of ML coefficients
   int cpt_P;        // Counter of P coefficients
 
-  Matrix3 gI;                                      // Inertia matrix
-  Matrix34 footholds = Matrix34::Zero();           // Initial position of footsteps
-  Matrix112 footholds_tmp = Matrix112::Zero();     // Updated position of footsteps
-  Matrix34 lever_arms = Matrix34::Zero();          // Lever arms of footsteps with the center of mass
-  Eigen::Matrix<int, Eigen::Dynamic, 4> gait;      // Contact status over the prediction horizon
-  Eigen::Matrix<int, Eigen::Dynamic, 4> inv_gait;  // Inversed contact status over the prediction horizon
-  Vector12 g = Vector12::Zero();                   // Gravity vector
-  Vector3 offset_CoM = Vector3::Zero();            // Offset of the CoM position compared to center of base
+  Matrix3 gI;                                 // Inertia matrix
+  Matrix34 footholds = Matrix34::Zero();      // Initial position of footsteps
+  Vector12 footholds_tmp = Vector12::Zero();  // Updated position of footsteps
+  Matrix34 lever_arms = Matrix34::Zero();     // Lever arms of footsteps with the center of mass
+  MatrixN4i gait;                              // Contact status over the prediction horizon
+  MatrixN4i inv_gait;                          // Inversed contact status over the prediction horizon
+  Vector12 g = Vector12::Zero();              // Gravity vector
+  Vector3 offset_CoM = Vector3::Zero();       // Offset of the CoM position compared to center of base
 
   Matrix12 A = Matrix12::Identity();  // Of evolution X+ = A*X + B*f + C
   Matrix12 B = Matrix12::Zero();      // Of evolution X+ = A*X + B*f + C
   Vector12 x0 = Vector12::Zero();     // Current state of the robot
   double x_next[12] = {};             // Next state of the robot (difference with reference state)
-  Eigen::MatrixXd x_f_applied;        // Next predicted state of the robot + Desired contact forces to reach it
+  MatrixN x_f_applied;                // Next predicted state of the robot + Desired contact forces to reach it
 
   // Matrix ML
   const static int size_nz_ML = 5000;
@@ -276,15 +269,15 @@ class MPC {
   OSQPSettings *settings = (OSQPSettings *)c_malloc(sizeof(OSQPSettings));
 
   // Matrices whose size depends on the arguments sent to the constructor function
-  Eigen::Matrix<double, 12, Eigen::Dynamic> xref;  // Reference state trajectory over the prediction horizon
-  VectorN x;                                       // State vector
-  Eigen::Matrix<int, Eigen::Dynamic, 1> S_gait;    // Matrix used to enable/disable feet in the solver
-  VectorN warmxf;                                  // Vector to store the solver warm start
-  VectorN NK_up;                                   // Upper constraint limit
-  VectorN NK_low;                                  // Lower constraint limit
+  Matrix12N xref;  // Reference state trajectory over the prediction horizon
+  VectorN x;       // State vector
+  VectorNi S_gait;  // Matrix used to enable/disable feet in the solver
+  VectorN warmxf;  // Vector to store the solver warm start
+  VectorN NK_up;   // Upper constraint limit
+  VectorN NK_low;  // Lower constraint limit
   // There is no M.X = N and L.X <= K, it's actually NK_low <= ML.X <= NK_up for the solver
-  MatrixN D;                                    // Matrix used to create NK matrix
-  Eigen::Matrix<int, Eigen::Dynamic, 1> i_off;  // Coefficient offsets to directly update the data field
+  MatrixN D;      // Matrix used to create NK matrix
+  VectorNi i_off;  // Coefficient offsets to directly update the data field
   // Sparse matrix coefficents are all stored in M->x so if we know the indexes we can update them directly
 };
 

@@ -1,1 +1,1 @@
-from .libquadruped_reactive_walking import *  # noqa: F401
+from .quadruped_reactive_walking import *

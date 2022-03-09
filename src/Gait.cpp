@@ -1,5 +1,7 @@
 #include "qrw/Gait.hpp"
 
+#include <iostream>
+
 Gait::Gait()
     : pastGait_(),
       currentGait_(),

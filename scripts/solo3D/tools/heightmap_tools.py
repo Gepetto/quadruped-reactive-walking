@@ -2,7 +2,7 @@ import numpy as np
 import hppfcl
 import pickle
 import ctypes
-import libquadruped_reactive_walking as lqrw
+import quadruped_reactive_walking as qrw
 
 
 COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']

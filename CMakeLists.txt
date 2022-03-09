@@ -46,7 +46,7 @@ SEARCH_FOR_BOOST()
 
 # Main Library
 set(${PROJECT_NAME}_HEADERS
-  include/qrw/gepadd.hpp
+  include/bindings/python.hpp
   include/qrw/Heightmap.hpp
   include/qrw/MPC.hpp
   include/qrw/Gait.hpp
@@ -59,6 +59,7 @@ set(${PROJECT_NAME}_HEADERS
   include/qrw/Types.h
   include/qrw/InvKin.hpp
   include/qrw/QPWBC.hpp
+  include/qrw/WbcWrapper.hpp
   include/qrw/Params.hpp
   include/qrw/Estimator.hpp
   include/qrw/Joystick.hpp
@@ -74,7 +75,6 @@ set(${PROJECT_NAME}_HEADERS
 
 set(${PROJECT_NAME}_SOURCES
   src/st_to_cc.cpp
-  src/gepadd.cpp
   src/Heightmap.cpp
   src/MPC.cpp
   src/Gait.cpp
@@ -86,6 +86,7 @@ set(${PROJECT_NAME}_SOURCES
   src/StatePlanner3D.cpp
   src/InvKin.cpp
   src/QPWBC.cpp
+  src/WbcWrapper.cpp
   src/Params.cpp
   src/Estimator.cpp
   src/Joystick.cpp
@@ -162,7 +163,6 @@ target_link_libraries(mqtt-interface PRIVATE paho-mqtt3c paho-mqtt3a)
 target_include_directories(mqtt-interface PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>)
 
 # Main Executable
-# add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/main.cpp)
 add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/control_solo12.cpp)
 target_link_libraries(${PROJECT_NAMESPACE}-${PROJECT_NAME} ${PROJECT_NAME} mqtt-interface)
 

@@ -535,9 +535,9 @@ if __name__ == "__main__":
     """
 
     import matplotlib.pyplot as plt
-    import libquadruped_reactive_walking as lqrw
+    import quadruped_reactive_walking as qrw
 
-    params = lqrw.Params()
+    params = qrw.Params()
     mpc = MPC_crocoddyl_planner(params)
     mpc.jerk_alpha = 20  # Define the slope of the cost, not used
     mpc.jerk_beta = 0.  # Define the slope of the cost, not used

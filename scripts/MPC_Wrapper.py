@@ -9,7 +9,7 @@ import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
 import pinocchio as pin
 from time import time
 from enum import Enum
-from quadruped_reactive_walking import libquadruped_reactive_walking as lqrw
+import quadruped_reactive_walking as qrw
 import ctypes
 from ctypes import Structure, c_double
 
@@ -25,7 +25,7 @@ class MPC_type(Enum):
 class DataInCtype(Structure):
     ''' Ctype data structure for the shared memory between processes.
     '''
-    params = lqrw.Params()                  # Object that holds all controller parameters
+    params = qrw.Params()                  # Object that holds all controller parameters
     mpc_type = MPC_type(params.type_MPC)    # MPC type
     n_steps = np.int(params.gait.shape[0])  # Colomn size for xref (12 x n_steps)
     N_gait = int(params.gait.shape[0])      # Row size for fsteps  (N_gait x 12), from utils_mpc.py
@@ -110,7 +110,7 @@ class MPC_Wrapper:
         else:
             # Create the new version of the MPC solver object
             if self.mpc_type == MPC_type.OSQP:  # OSQP MPC
-                self.mpc = lqrw.MPC(params)  # self.dt, self.n_steps, self.T_gait, self.N_gait)
+                self.mpc = qrw.MPC(params)  # self.dt, self.n_steps, self.T_gait, self.N_gait)
             elif self.mpc_type == MPC_type.CROCODDYL_LINEAR:  # Crocoddyl MPC Linear
                 self.mpc = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=True)
             elif self.mpc_type == MPC_type.CROCODDYL_NON_LINEAR:  # Crocoddyl MPC Non-Linear
@@ -278,7 +278,7 @@ class MPC_Wrapper:
                 if k == 0:
                     # loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait)
                     if self.mpc_type == MPC_type.OSQP:
-                        loop_mpc = lqrw.MPC(self.params)
+                        loop_mpc = qrw.MPC(self.params)
                     elif self.mpc_type == MPC_type.CROCODDYL_LINEAR:  # Crocoddyl MPC Linear
                         loop_mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=True)
                     elif self.mpc_type == MPC_type.CROCODDYL_NON_LINEAR:  # Crocoddyl MPC Non-Linear

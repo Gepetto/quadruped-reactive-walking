@@ -1143,13 +1143,13 @@ if __name__ == "__main__":
     import LoggerSensors
     import sys
     import os
-    import libquadruped_reactive_walking as lqrw
+    import quadruped_reactive_walking as qrw
 
     sys.path.insert(0, os.getcwd())
 
     file_name = "/home/odri/git/fanny/logs/data_2022_02_16_13_33_0.npz"
 
-    params = lqrw.Params()
+    params = qrw.Params()
     logger = LoggerControl(params, loading=True, fileName=file_name)
 
     loggerSensors = LoggerSensors.LoggerSensors(logSize=logger.logSize)

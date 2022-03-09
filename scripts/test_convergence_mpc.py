@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-import libquadruped_reactive_walking as lqrw
+import quadruped_reactive_walking as qrw
 import MPC_Wrapper
 import utils_mpc
 
@@ -28,7 +28,7 @@ def test_1():
     v_ref[0, 0] = 0.1
 
     # Params
-    params = lqrw.Params()  # Object that holds all controller parameters
+    params = qrw.Params()  # Object that holds all controller parameters
 
     """params.dt_mpc = dt_mpc
     params.T_mpc = T_mpc
@@ -39,13 +39,13 @@ def test_1():
     utils_mpc.init_robot(q[6:, 0], params)
 
     # State planner
-    statePlanner = lqrw.StatePlanner()
+    statePlanner = qrw.StatePlanner()
     statePlanner.initialize(params)
 
-    gait = lqrw.Gait()
+    gait = qrw.Gait()
     gait.initialize(params)
 
-    footstepPlanner = lqrw.FootstepPlanner()
+    footstepPlanner = qrw.FootstepPlanner()
     footstepPlanner.initialize(params, gait)
 
     # MPC wrapper
@@ -226,23 +226,23 @@ def test_2():
     v_ref_2[0, 0] = - v_ref_1[0, 0]
 
     # Params
-    params = lqrw.Params()  # Object that holds all controller parameters
+    params = qrw.Params()  # Object that holds all controller parameters
 
     # Initialisation of the solo model/data and of the Gepetto viewer
     utils_mpc.init_robot(q[7:, 0], params)
 
     # State planner
-    statePlanner_1 = lqrw.StatePlanner()
+    statePlanner_1 = qrw.StatePlanner()
     statePlanner_1.initialize(params)
-    statePlanner_2 = lqrw.StatePlanner()
+    statePlanner_2 = qrw.StatePlanner()
     statePlanner_2.initialize(params)
 
-    gait = lqrw.Gait()
+    gait = qrw.Gait()
     gait.initialize(params)
 
-    footstepPlanner_1 = lqrw.FootstepPlanner()
+    footstepPlanner_1 = qrw.FootstepPlanner()
     footstepPlanner_1.initialize(params, gait)
-    footstepPlanner_2 = lqrw.FootstepPlanner()
+    footstepPlanner_2 = qrw.FootstepPlanner()
     footstepPlanner_2.initialize(params, gait)
 
     # MPC wrapper
@@ -442,16 +442,16 @@ def test_3(typeMPC=True):
     v_ref_2[0, 0] = - v_ref_1[0, 0]
 
     # Params
-    params = lqrw.Params()  # Object that holds all controller parameters
+    params = qrw.Params()  # Object that holds all controller parameters
     params.dt_mpc = dt_mpc
     params.T_mpc = T_mpc
     params.h_ref = h_ref
     params.enable_multiprocessing = False
 
     # State planner
-    statePlanner_1 = lqrw.StatePlanner()
+    statePlanner_1 = qrw.StatePlanner()
     statePlanner_1.initialize(params)
-    statePlanner_2 = lqrw.StatePlanner()
+    statePlanner_2 = qrw.StatePlanner()
     statePlanner_2.initialize(params)
 
     # MPC wrapper

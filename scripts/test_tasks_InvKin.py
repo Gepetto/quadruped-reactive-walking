@@ -2,12 +2,12 @@ import numpy as np
 import utils_mpc
 from example_robot_data.robots_loader import Solo12Loader
 import pinocchio as pin
-import libquadruped_reactive_walking as lqrw
+import quadruped_reactive_walking as qrw
 from IPython import embed
 
 def check_task_tracking():
 
-    params = lqrw.Params()  # Object that holds all controller parameters
+    params = qrw.Params()  # Object that holds all controller parameters
     params.w_tasks = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Keep only contact task
     dt = params.dt_wbc
     h_ref = 0.244749
@@ -27,7 +27,7 @@ def check_task_tracking():
         solo.viewer.gui.setRefreshIsSynchronous(False)
     solo.display(q)
 
-    wbcWrapper = lqrw.WbcWrapper()
+    wbcWrapper = qrw.WbcWrapper()
     wbcWrapper.initialize(params)
 
     feet_p_cmd0 = np.array([[0.1946, 0.1946, -0.1946, -0.1946],
@@ -102,7 +102,7 @@ def check_task_tracking():
 
 def check_task_contact():
 
-    params = lqrw.Params()  # Object that holds all controller parameters
+    params = qrw.Params()  # Object that holds all controller parameters
     params.w_tasks = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Keep only contact task
     dt = params.dt_wbc
     h_ref = 0.244749
@@ -122,7 +122,7 @@ def check_task_contact():
         solo.viewer.gui.setRefreshIsSynchronous(False)
     solo.display(q)
 
-    wbcWrapper = lqrw.WbcWrapper()
+    wbcWrapper = qrw.WbcWrapper()
     wbcWrapper.initialize(params)
 
     feet_p_cmd0 = np.array([[0.1946, 0.1946, -0.1946, -0.1946],

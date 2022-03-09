@@ -143,8 +143,8 @@ class MpcWrapper {
   MPC mpc_;         // MPC object used for synchronous solving (not in parallel loop)
 
   Eigen::Matrix<double, 24, 2> last_available_result;  // Latest available result of the MPC
-  Matrix14 gait_past;                                  // Gait status of the previous MPC time step
-  Matrix14 gait_next;                                  // Gait status of the next MPC time step
+  RowVector4 gait_past;                                  // Gait status of the previous MPC time step
+  RowVector4 gait_next;                                  // Gait status of the next MPC time step
 };
 
 #endif  // MPCWRAPPER_H_INCLUDED
