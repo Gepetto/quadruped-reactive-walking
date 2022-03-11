@@ -1,7 +1,6 @@
-from IPython import embed
 import numpy as np
-from example_robot_data.robots_loader import Solo12Loader
 import pinocchio as pin
+from example_robot_data.robots_loader import Solo12Loader
 
 # Parameters of the Invkin 
 l = 0.1946 * 2

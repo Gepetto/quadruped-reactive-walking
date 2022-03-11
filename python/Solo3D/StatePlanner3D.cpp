@@ -1,4 +1,4 @@
-#include "qrw/StatePlanner3D.hpp"
+#include "qrw/Solo3D/StatePlanner3D.hpp"
 
 #include "bindings/python.hpp"
 

@@ -1,13 +1,13 @@
 import numpy as np
-import utils_mpc
 import time
 
-import MPC_Wrapper
 import pybullet as pyb
 import pinocchio as pin
 import quadruped_reactive_walking as qrw
 
-from solo3D.tools.utils import quaternionToRPY
+import MPC_Wrapper
+from tools.utils_mpc import init_robot
+from solo3D.utils import quaternionToRPY
 
 
 class Result:
@@ -98,7 +98,7 @@ class Controller:
             params.perfectEstimator = False  # Cannot use perfect estimator if we are running on real robot
 
         # Initialisation of the solo model/data and of the Gepetto viewer
-        self.solo = utils_mpc.init_robot(q_init, params)
+        self.solo = init_robot(q_init, params)
 
         # Create Joystick object
         self.joystick = qrw.Joystick()
@@ -146,7 +146,7 @@ class Controller:
         if params.solo3D:
             from solo3D.SurfacePlannerWrapper import Surface_planner_wrapper
             if self.SIMULATION:
-                from solo3D.tools.pyb_environment_3D import PybEnvironment3D
+                from solo3D.pyb_environment_3D import PybEnvironment3D
 
         self.enable_multiprocessing_mip = params.enable_multiprocessing_mip
         self.offset_perfect_estimator = 0.

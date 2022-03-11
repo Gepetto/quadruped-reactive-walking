@@ -1,17 +1,13 @@
-# coding: utf8
-
-from operator import pos
-from typing import FrozenSet
 import numpy as np
 from multiprocessing import Process, Value, Array
-import crocoddyl_class.MPC_crocoddyl as MPC_crocoddyl
-import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
-import pinocchio as pin
 from time import time
 from enum import Enum
-import quadruped_reactive_walking as qrw
 import ctypes
-from ctypes import Structure, c_double
+from ctypes import Structure
+
+import Crocoddyl.MPC_crocoddyl as MPC_crocoddyl
+import Crocoddyl.MPC_crocoddyl_planner as MPC_crocoddyl_planner
+import quadruped_reactive_walking as qrw
 
 
 class MPC_type(Enum):
@@ -221,7 +217,7 @@ class MPC_Wrapper:
             self.f_applied = self.mpc.get_latest_result(oRh, oTh)
         else:
             self.f_applied = self.mpc.get_latest_result()
-        
+
         if self.mpc_type == MPC_type.OSQP:
             self.last_cost = self.mpc.retrieve_cost()
 

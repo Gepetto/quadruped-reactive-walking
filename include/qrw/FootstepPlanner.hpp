@@ -11,15 +11,11 @@
 #ifndef FOOTSTEPPLANNER_H_INCLUDED
 #define FOOTSTEPPLANNER_H_INCLUDED
 
-#include "pinocchio/math/rpy.hpp"
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/multibody/data.hpp"
-#include "pinocchio/parsers/urdf.hpp"
-#include "pinocchio/algorithm/compute-all-terms.hpp"
-#include "pinocchio/algorithm/frames.hpp"
+
 #include "qrw/Gait.hpp"
 #include "qrw/Params.hpp"
-#include "qrw/Types.h"
 #include <vector>
 
 // Order of feet/legs: FL, FR, HL, HR

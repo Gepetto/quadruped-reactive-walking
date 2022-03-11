@@ -1,5 +1,9 @@
 #include "qrw/Joystick.hpp"
 
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+
 Joystick::Joystick()
     : A3_(Vector6::Zero()),
       A2_(Vector6::Zero()),
@@ -8,6 +12,12 @@ Joystick::Joystick()
       v_ref_(Vector6::Zero()),
       v_gp_(Vector6::Zero()),
       v_ref_heavy_filter_(Vector6::Zero()) {}
+
+Joystick::~Joystick() {
+  if (js != -1) {
+    close(js);
+  }
+}
 
 void Joystick::initialize(Params& params) {
   params_ = &params;

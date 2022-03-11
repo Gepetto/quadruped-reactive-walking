@@ -1,6 +1,11 @@
 #include <example-robot-data/path.hpp>
 
-#include "qrw/FootstepPlannerQP.hpp"
+#include "pinocchio/math/rpy.hpp"
+#include "pinocchio/parsers/urdf.hpp"
+#include "pinocchio/algorithm/compute-all-terms.hpp"
+#include "pinocchio/algorithm/frames.hpp"
+
+#include "qrw/Solo3D/FootstepPlannerQP.hpp"
 
 FootstepPlannerQP::FootstepPlannerQP()
     : gait_(NULL),

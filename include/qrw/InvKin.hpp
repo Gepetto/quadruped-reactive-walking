@@ -14,7 +14,6 @@
 #include "pinocchio/multibody/data.hpp"
 
 #include "qrw/Params.hpp"
-#include "qrw/Types.h"
 
 class InvKin {
  public:

@@ -9,8 +9,6 @@
 #ifndef FAKEROBOT_H_INCLUDED
 #define FAKEROBOT_H_INCLUDED
 
-#include <Eigen/Core>
-#include <Eigen/Dense>
 #include "qrw/Types.h"
 
 class FakeJoints {

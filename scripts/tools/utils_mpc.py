@@ -3,11 +3,6 @@ from example_robot_data.robots_loader import Solo12Loader
 import pinocchio as pin
 
 
-##################
-# Initialisation #
-##################
-
-
 def init_robot(q_init, params):
     """Load the solo model and initialize the Gepetto viewer if it is enabled
 
@@ -15,7 +10,6 @@ def init_robot(q_init, params):
         q_init (array): the default position of the robot actuators
         params (object): store parameters
     """
-
     # Load robot model and data
     # Initialisation of the Gepetto viewer
     Solo12Loader.free_flyer = True
@@ -81,35 +75,6 @@ def init_robot(q_init, params):
         for j in range(3):
             params.shoulders[3*i+j] = shoulders_init[j, i]
             params.footsteps_init[3*i+j] = fsteps_init[j, i]
-            params.footsteps_under_shoulders[3*i+j] = fsteps_init[j, i]  # Use initial feet pos as reference
+            params.footsteps_under_shoulders[3*i+j] = fsteps_init[j, i]  #  Use initial feet pos as reference
 
     return solo
-
-
-def display_all(solo, k, sequencer, fstep_planner, ftraj_gen, mpc):
-    """Update various objects in the Gepetto viewer: the Solo robot as well as debug spheres
-
-    Args:
-        k (int): current iteration of the simulation
-        sequencer (object): ContactSequencer object
-        fstep_planner (object): FootstepPlanner object
-        ftraj_gen (object): FootTrajectoryGenerator object
-        mpc (object): MpcSolver object
-    """
-
-    # Display non-locked target footholds with green spheres (gepetto gui)
-    fstep_planner.update_viewer(solo.viewer, (k == 0))
-
-    # Display locked target footholds with red spheres (gepetto gui)
-    # Display desired 3D position of feet with magenta spheres (gepetto gui)
-    ftraj_gen.update_viewer(solo.viewer, (k == 0))
-
-    # Display reference trajectory, predicted trajectory, desired contact forces, current velocity
-    # mpc.update_viewer(solo.viewer, (k == 0), sequencer)
-    # mpc.plot_graphs(sequencer)
-
-    qu_pinocchio = np.array(solo.q0).flatten()
-    qu_pinocchio[0:3] = mpc.q_w[0:3, 0]
-    qu_pinocchio[3:7] = pin.rpy.matrixToRpy(pin.Quaternion(mpc.q_w[3:6, 0]).toRotationMatrix()).ravel()
-    # Refresh the gepetto viewer display
-    solo.display(qu_pinocchio)

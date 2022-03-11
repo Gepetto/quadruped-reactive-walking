@@ -47,15 +47,16 @@ SEARCH_FOR_BOOST()
 # Main Library
 set(${PROJECT_NAME}_HEADERS
   include/bindings/python.hpp
-  include/qrw/Heightmap.hpp
+  include/qrw/Solo3D/Heightmap.hpp
+  include/qrw/Solo3D/FootTrajectoryGeneratorBezier.hpp
+  include/qrw/Solo3D/FootstepPlannerQP.hpp
+  include/qrw/Solo3D/StatePlanner3D.hpp
+  include/qrw/Solo3D/Surface.hpp
   include/qrw/MPC.hpp
   include/qrw/Gait.hpp
   include/qrw/FootTrajectoryGenerator.hpp
-  include/qrw/FootTrajectoryGeneratorBezier.hpp
   include/qrw/FootstepPlanner.hpp
-  include/qrw/FootstepPlannerQP.hpp
   include/qrw/StatePlanner.hpp
-  include/qrw/StatePlanner3D.hpp
   include/qrw/Types.h
   include/qrw/InvKin.hpp
   include/qrw/QPWBC.hpp
@@ -69,22 +70,20 @@ set(${PROJECT_NAME}_HEADERS
   include/qrw/MpcWrapper.hpp
   include/qrw/FakeRobot.hpp
   include/other/st_to_cc.hpp
-  include/qrw/FootTrajectoryGeneratorBezier.hpp
-  include/qrw/FootstepPlannerQP.hpp
-  include/qrw/Surface.hpp
   )
 
 set(${PROJECT_NAME}_SOURCES
   src/st_to_cc.cpp
-  src/Heightmap.cpp
+  src/Solo3D/Heightmap.cpp
+  src/Solo3D/FootTrajectoryGeneratorBezier.cpp
+  src/Solo3D/FootstepPlannerQP.cpp
+  src/Solo3D/StatePlanner3D.cpp
+  src/Solo3D/Surface.cpp
   src/MPC.cpp
   src/Gait.cpp
   src/FootTrajectoryGenerator.cpp
-  src/FootTrajectoryGeneratorBezier.cpp
   src/FootstepPlanner.cpp
-  src/FootstepPlannerQP.cpp
   src/StatePlanner.cpp
-  src/StatePlanner3D.cpp
   src/InvKin.cpp
   src/QPWBC.cpp
   src/WbcWrapper.cpp
@@ -95,9 +94,6 @@ set(${PROJECT_NAME}_SOURCES
   src/Filter.cpp
   src/Controller.cpp
   src/MpcWrapper.cpp
-  src/FootTrajectoryGeneratorBezier.cpp
-  src/FootstepPlannerQP.cpp
-  src/Surface.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
@@ -154,9 +150,8 @@ endif()
 
 target_compile_options(${PROJECT_NAME} PUBLIC -DNDEBUG -O3)
 
-target_compile_definitions(${PROJECT_NAME} PUBLIC CONFIG_SOLO12_YAML="${PROJECT_SOURCE_DIR}/scripts/config_solo12.yaml")
-target_compile_definitions(${PROJECT_NAME} PUBLIC WALK_PARAMETERS_YAML="${PROJECT_SOURCE_DIR}/src/walk_parameters.yaml")
-
+target_compile_definitions(${PROJECT_NAME} PUBLIC CONFIG_SOLO12_YAML="${PROJECT_SOURCE_DIR}/config/config_solo12.yaml")
+target_compile_definitions(${PROJECT_NAME} PUBLIC WALK_PARAMETERS_YAML="${PROJECT_SOURCE_DIR}/config/walk_parameters.yaml")
 
 # MQTT Interface
 add_subdirectory (paho.mqtt.c)

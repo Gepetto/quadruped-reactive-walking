@@ -10,7 +10,7 @@ from solo_rbprm.solo_abstract import Robot as SoloAbstract
 
 from hpp.corbaserver.affordance.affordance import AffordanceTool
 from hpp.corbaserver.rbprm.tools.surfaces_from_path import getAllSurfacesDict
-from solo3D.tools.utils import getAllSurfacesDict_inner
+from solo3D.utils import getAllSurfacesDict_inner
 from hpp.corbaserver.problem_solver import ProblemSolver
 from hpp.gepetto import ViewerFactory
 

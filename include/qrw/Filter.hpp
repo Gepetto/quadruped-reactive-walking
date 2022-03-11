@@ -10,12 +10,8 @@
 #ifndef FILTER_H_INCLUDED
 #define FILTER_H_INCLUDED
 
-#include <cmath>
 #include <deque>
-#include <fstream>
-#include <iostream>
 
-#include "pinocchio/math/rpy.hpp"
 #include "qrw/Params.hpp"
 
 class Filter {

@@ -1,4 +1,4 @@
-#include "qrw/Heightmap.hpp"
+#include "qrw/Solo3D/Heightmap.hpp"
 
 Heightmap::Heightmap()
     : z_(),

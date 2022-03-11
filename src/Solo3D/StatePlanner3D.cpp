@@ -1,4 +1,9 @@
-#include "qrw/StatePlanner3D.hpp"
+#include "qrw/Solo3D/StatePlanner3D.hpp"
+
+#include "pinocchio/math/rpy.hpp"
+#include "pinocchio/parsers/urdf.hpp"
+#include "pinocchio/algorithm/compute-all-terms.hpp"
+#include "pinocchio/algorithm/frames.hpp"
 
 StatePlanner3D::StatePlanner3D()
     : nStates_(0),
