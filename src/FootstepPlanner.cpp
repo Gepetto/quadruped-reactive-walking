@@ -1,11 +1,11 @@
+#include "qrw/FootstepPlanner.hpp"
+
 #include <example-robot-data/path.hpp>
 
-#include "pinocchio/math/rpy.hpp"
-#include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/algorithm/compute-all-terms.hpp"
 #include "pinocchio/algorithm/frames.hpp"
-
-#include "qrw/FootstepPlanner.hpp"
+#include "pinocchio/math/rpy.hpp"
+#include "pinocchio/parsers/urdf.hpp"
 
 FootstepPlanner::FootstepPlanner()
     : gait_(NULL),
@@ -52,8 +52,7 @@ void FootstepPlanner::initialize(Params& params, Gait& gaitIn) {
   Rz(2, 2) = 1.0;
 
   // Path to the robot URDF
-  const std::string filename =
-      std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
+  const std::string filename = std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
 
   // Build model from urdf (base is not free flyer)
   pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
@@ -141,14 +140,14 @@ void FootstepPlanner::computeFootsteps(int k, Vector6 const& b_v, Vector6 const&
   for (int i = 1; i < gait.rows(); i++) {
     // Feet that were in stance phase and are still in stance phase do not move
     for (int j = 0; j < 4; j++) {
-      if (gait(i - 1, j) * gait(i, j) > 0) {
+      if (gait(i - 1, j) > 0 && gait(i, j) > 0) {
         footsteps_[i].col(j) = footsteps_[i - 1].col(j);
       }
     }
 
     // Feet that were in swing phase and are now in stance phase need to be updated
     for (int j = 0; j < 4; j++) {
-      if ((1 - gait(i - 1, j)) * gait(i, j) > 0) {
+      if (gait(i - 1, j) == 0 && gait(i, j) > 0) {
         // Offset to the future position
         q_dxdy << dx(i - 1, 0), dy(i - 1, 0), 0.0;
 
@@ -168,8 +167,7 @@ void FootstepPlanner::computeFootsteps(int k, Vector6 const& b_v, Vector6 const&
 
 void FootstepPlanner::computeNextFootstep(int i, int j, Vector6 const& b_v, Vector6 const& b_vref) {
   nextFootstep_ = Matrix34::Zero();
-
-  double t_stance = gait_->getPhaseDuration(i, j, 1.0);  // 1.0 for stance phase
+  double t_stance = gait_->getPhaseDuration(i, j);
 
   // Disable heuristic terms if gait is going to switch to static so that feet land at vertical of shoulders
   if (!gait_->getIsStatic()) {

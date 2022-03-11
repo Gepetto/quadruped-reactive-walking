@@ -1,11 +1,10 @@
 #include "qrw/Controller.hpp"
 
+#include "pinocchio/algorithm/compute-all-terms.hpp"
 #include "pinocchio/algorithm/crba.hpp"
-#include "pinocchio/math/rpy.hpp"
+#include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/math/rpy.hpp"
 #include "pinocchio/parsers/urdf.hpp"
-#include "pinocchio/algorithm/compute-all-terms.hpp"
-#include "pinocchio/algorithm/frames.hpp"
 
 Controller::Controller()
     : P(Vector12::Zero()),
@@ -73,7 +72,7 @@ void Controller::compute(FakeRobot* robot) {
   estimator.updateReferenceState(joystick.getVRef());
 
   // Update gait
-  gait.updateGait(k, k_mpc, joystick.getJoystickCode());
+  gait.update(k, k_mpc, joystick.getJoystickCode());
 
   // Quantities go through a 1st order low pass filter with fc = 15 Hz (avoid >25Hz foldback)
   q_filt_mpc.head(6) = filter_mpc_q.filter(estimator.getQReference().head(6), true);
@@ -136,7 +135,7 @@ void Controller::compute(FakeRobot* robot) {
 
     // Update velocity vector for wbc
     dq_wbc.head(6) = estimator.getVEstimate().head(6);  // Velocities in base frame (not horizontal frame!)
-    dq_wbc.tail(12) = wbcWrapper.get_vdes();        // with reference angular velocities of previous loop
+    dq_wbc.tail(12) = wbcWrapper.get_vdes();            // with reference angular velocities of previous loop
 
     // Desired position, orientation and velocities of the base
     xgoals.tail(6) = vref_filt_mpc;  // Velocities (in horizontal frame!)
@@ -252,13 +251,14 @@ void Controller::security_check() {
 
   if (((estimator.getQEstimate().tail(12).cwiseAbs()).array() > q_security_.array()).any()) {
     std::cout << "Position limit error "
-              << ((estimator.getQEstimate().tail(12).cwiseAbs()).array() > q_security_.array()).transpose() << std::endl;
+              << ((estimator.getQEstimate().tail(12).cwiseAbs()).array() > q_security_.array()).transpose()
+              << std::endl;
     error_flag = 1;
   } else if (((estimator.getVSecurity().cwiseAbs()).array() > 100.0).any()) {
     std::cout << "Velocity limit error " << ((estimator.getVSecurity().cwiseAbs()).array() > 100.0).transpose()
               << std::endl;
     error_flag = 2;
-  } else if (((tau_ff.cwiseAbs()).array() > 8.0).any()) {  
+  } else if (((tau_ff.cwiseAbs()).array() > 8.0).any()) {
     std::cout << "Feedforward limit error " << ((tau_ff.cwiseAbs()).array() > 8.0).transpose() << std::endl;
     error_flag = 3;
   } else {

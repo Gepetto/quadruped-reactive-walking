@@ -24,7 +24,7 @@ robot:
     q_init: [0.0, 0.7, -1.4, 0.0, 0.7, -1.4, 0.0, -0.7, 1.4, 0.0, -0.7, 1.4]  # Initial articular positions
     dt_wbc: 0.001  # Time step of the whole body control
     dt_mpc: 0.02  # Time step of the model predictive control
-    type_MPC: 3  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
+    type_MPC: 0  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
 #     Kp_main: [0.0, 0.0, 0.0]  # Proportional gains for the PD+
     Kp_main: [3.0, 3.0, 3.0]  # Proportional gains for the PD+
 #     Kd_main: [0., 0., 0.]  # Derivative gains for the PD+

@@ -72,7 +72,7 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
 
 * If `predefined_vel = True` the robot follows the reference velocity pattern velID. Velocity patterns are defined in `Joystick.py`, you can modify them or add new ones. Each profile defines forward, lateral and yaw velocities that should be reached at the associated loop iterations (in `self.k_switch`). There is an automatic interpolation between milestones to have a smooth reference velocity command.
 
-* You can define a new gait in `src/Planner.cpp` using `create_trot` or `create_walk` as models. Create a new function (like `create_bounding` for a bounding gait) and call it inside the Planner constructor before `create_gait_f()`.
+* You can define a new gait in `src/Planner.cpp` using `createTrot` or `createWalk` as models. Create a new function (like `createBounding` for a bounding gait) and call it inside the Planner constructor before `create_gait_f()`.
 
 * You can modify the swinging feet apex height in `include/quadruped-reactive-control/Planner.hpp` with `maxHeight_` or the lock time before touchdown with `lockTime_` (to lock the target location on the ground before touchdown).
 

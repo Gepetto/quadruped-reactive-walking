@@ -84,7 +84,7 @@ class PybEnvironment3D():
         ''' Update the target trajectory for current and next phases. Hide the unnecessary spheres.
         '''
 
-        gait = self.gait.getCurrentGait()
+        gait = self.gait.get_gait_matrix()
         fsteps = self.footStepPlanner.getFootsteps()
 
         for j in range(4):

@@ -43,19 +43,44 @@ class Gait {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Compute the remaining and total duration of a swing phase or a stance phase based
+  /// \brief Compute the total duration of a swing phase or a stance phase based
   ///        on the content of the gait matrix
   ///
   /// \param[in] i Considered phase (row of the gait matrix)
   /// \param[in] j Considered foot (col of the gait matrix)
-  /// \param[in] value 0.0 for swing phase detection, 1.0 for stance phase detection
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  double getPhaseDuration(int i, int j, double value);
+  double getPhaseDuration(int i, int j);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Compute the duration of a swing phase or a stance phase since its start based
+  ///        on the content of the gait matrix
+  /// \details We suppose that the phase starts after the start of past gait matrix
+  ///
+  /// \param[in] i Considered phase (row of the gait matrix)
+  /// \param[in] j Considered foot (col of the gait matrix)
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  double getElapsedTime(int i, int j);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Compute the remaining duration of a swing phase or a stance phase based
+  ///        on the content of the gait matrix
+  /// \details We suppose that the end of the phase is reached before the end of desiredGait matrix
+  ///
+  /// \param[in] i Considered phase (row of the gait matrix)
+  /// \param[in] j Considered foot (col of the gait matrix)
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  double getRemainingTime(int i, int j);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
   /// \brief Handle the joystick code to trigger events (change of gait for instance)
+  /// \details We suppose that the end of the phase is reached before the end of the desiredGait
+  ///          matrix and the phase starts after the start of past gait matrix
   ///
   /// \param[in] k Numero of the current loop
   /// \param[in] k_mpc Number of loop per mpc time step
@@ -77,7 +102,7 @@ class Gait {
   /// \param[in] joystickCode Integer to trigger events with the joystick
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void updateGait(int const k, int const k_mpc, int const joystickCode);
+  void update(int const k, int const k_mpc, int const joystickCode);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -86,38 +111,34 @@ class Gait {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void rollGait();
 
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ///
-  /// \brief Update the gait matrix externally (directly set the gait matrix)
-  ///
-  /// \param[in] gaitMatrix Gait matrix that should be used for the incoming timesteps
-  ///
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  bool setGait(MatrixN const& gaitMatrix);
-
   MatrixN getPastGait() { return pastGait_; }
   MatrixN getCurrentGait() { return currentGait_; }
   double getCurrentGaitCoeff(int i, int j) { return currentGait_(i, j); }
   MatrixN getDesiredGait() { return desiredGait_; }
-  double getRemainingTime() { return remainingTime_; }
-  bool getIsStatic() { return is_static_; }
-  VectorN getQStatic() { return q_static_; }
+  bool getIsStatic() { return isStatic_; }
   bool isNewPhase() { return newPhase_; }
 
  private:
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
+  /// \brief Create a static gait with all legs in stance phase
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void createStatic();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
   /// \brief  Create a slow walking gait, raising and moving only one foot at a time
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void create_walk();
+  void createWalk();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
   /// \brief Create a trot gait with diagonaly opposed legs moving at the same time
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void create_trot();
+  void createTrot();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -125,55 +146,46 @@ class Gait {
   ///        4-stance phases
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void create_walking_trot();
+  void createWalkingTrot();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
   /// \brief Create a pacing gait with legs on the same side (left or right) moving at the same time
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void create_pacing();
+  void createPacing();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
   /// \brief Create a bounding gait with legs on the same side (front or hind) moving at the same time
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void create_bounding();
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ///
-  /// \brief Create a static gait with all legs in stance phase
-  ///
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  void create_static();
+  void createBounding();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
   /// \brief Create a transverse gallop gait
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void create_transverse_gallop();
+  void createTransverseGallop();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
   /// \brief Create a custom gallop gait
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void create_custom_gallop();
+  void createCustomGallop();
 
   MatrixN pastGait_;     // Past gait
   MatrixN currentGait_;  // Current and future gait
   MatrixN desiredGait_;  // Future desired gait
 
   double dt_;  // Time step of the contact sequence (time step of the MPC)
+  int nRows_;  // number of rows in the gait matrix
 
-  double remainingTime_;  // Remaining time till the end of the current stance/swing phase
-
-  bool newPhase_;       // Flag to indicate that the contact status has changed
-  bool is_static_;      // Flag to indicate that all feet are in an infinite stance phase
-  int switch_to_gait_;  // Memory to store joystick code if the user wants to change the gait pattern
-  VectorN q_static_;    // Configuration vector used during static phases (4 feet in stance)
+  bool newPhase_;     // Flag to indicate that the contact status has changed
+  bool isStatic_;     // Flag to indicate that all feet are in an infinite stance phase
+  int switchToGait_;  // Memory to store joystick code if the user wants to change the gait pattern
 };
 
 #endif  // GAIT_H_INCLUDED

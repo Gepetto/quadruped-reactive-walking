@@ -257,7 +257,7 @@ class Controller:
         """
         t_start = time.time()
 
-        self.joystick.update_v_ref(self.k, self.velID, self.gait.getIsStatic())
+        self.joystick.update_v_ref(self.k, self.velID, self.gait.is_static())
 
         q_perfect = np.zeros(6)
         b_baseVel_perfect = np.zeros(3)
@@ -290,7 +290,7 @@ class Controller:
             self.last_b_vel = b_baseVel_perfect
             self.n_nan = 0
 
-        self.estimator.run(self.gait.getCurrentGait(),
+        self.estimator.run(self.gait.matrix,
                            self.footTrajectoryGenerator.getFootPosition(),
                            device.imu.linear_acceleration,
                            device.imu.gyroscope,
@@ -331,9 +331,9 @@ class Controller:
         t_filter = time.time()
         self.t_filter = t_filter - t_start
 
-        self.gait.updateGait(self.k, self.k_mpc, self.joystick.getJoystickCode())
+        self.gait.update(self.k, self.k_mpc, self.joystick.getJoystickCode())
 
-        self.update_mip = self.k % self.k_mpc == 0 and self.gait.isNewPhase()
+        self.update_mip = self.k % self.k_mpc == 0 and self.gait.is_new_step()
         if self.solo3D:
             if self.update_mip:
                 self.statePlanner.updateSurface(self.q_filter[:6, :1], self.vref_filt_mpc[:6, :1])
@@ -352,11 +352,11 @@ class Controller:
 
         xref = self.statePlanner.getReferenceStates()
         fsteps = self.footstepPlanner.getFootsteps()
-        cgait = self.gait.getCurrentGait()
+        gait_matrix = self.gait.matrix
 
         if self.update_mip and self.solo3D:
             configs = self.statePlanner.getConfigurations().transpose()
-            self.surfacePlanner.run(configs, cgait, self.o_targetFootstep, self.vref_filt_mpc[:3, 0].copy())
+            self.surfacePlanner.run(configs, gait_matrix, self.o_targetFootstep, self.vref_filt_mpc[:3, 0].copy())
             self.surfacePlanner.initialized = True
             if not self.enable_multiprocessing_mip and self.SIMULATION:
                 self.pybEnvironment3D.update_target_SL1M(self.surfacePlanner.all_feet_pos_syn)
@@ -370,14 +370,14 @@ class Controller:
                 if self.type_MPC == 3:
                     # Compute the target foostep in local frame, to stop the optimisation around it when t_lock overpass
                     l_targetFootstep = oRh.transpose() @ (self.o_targetFootstep - oTh)
-                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, l_targetFootstep, oRh, oTh,
+                    self.mpc_wrapper.solve(self.k, xref, fsteps, gait_matrix, l_targetFootstep, oRh, oTh,
                                            self.footTrajectoryGenerator.getFootPosition(),
                                            self.footTrajectoryGenerator.getFootVelocity(),
                                            self.footTrajectoryGenerator.getFootAcceleration(),
                                            self.footTrajectoryGenerator.getFootJerk(),
                                            self.footTrajectoryGenerator.getTswing() - self.footTrajectoryGenerator.getT0s())
                 else:
-                    self.mpc_wrapper.solve(self.k, xref, fsteps, cgait, np.zeros((3, 4)))
+                    self.mpc_wrapper.solve(self.k, xref, fsteps, gait_matrix, np.zeros((3, 4)))
             except ValueError:
                 print("MPC Problem")
         self.x_f_mpc, self.mpc_cost = self.mpc_wrapper.get_latest_result()
@@ -388,9 +388,9 @@ class Controller:
         # If the MPC optimizes footsteps positions then we use them
         if self.k > 100 and self.type_MPC == 3:
             for foot in range(4):
-                if cgait[0, foot] == 0:
+                if gait_matrix[0, foot] == 0:
                     id = 0
-                    while cgait[id, foot] == 0:
+                    while gait_matrix[id, foot] == 0:
                         id += 1
                     self.o_targetFootstep[:2, foot] = self.x_f_mpc[24 + 2*foot:24+2*foot+2, id+1]
 
@@ -401,12 +401,12 @@ class Controller:
             self.footTrajectoryGenerator.update(self.k, self.o_targetFootstep)
 
         if not self.error and not self.joystick.getStop():
-            if self.DEMONSTRATION and self.gait.getIsStatic():
+            if self.DEMONSTRATION and self.gait.is_static():
                 hRb = np.eye(3)
 
             # Desired position, orientation and velocities of the base
             self.xgoals[:6, 0] = np.zeros((6,))
-            if self.DEMONSTRATION and self.joystick.getL1() and self.gait.getIsStatic():
+            if self.DEMONSTRATION and self.joystick.getL1() and self.gait.is_static():
                 self.p_ref[:, 0] = self.joystick.getPRef()
                 self.xgoals[[3, 4], 0] = self.p_ref[[3, 4], 0]
                 self.h_ref = self.p_ref[2, 0]
@@ -416,7 +416,7 @@ class Controller:
                 self.h_ref = self.h_ref_mem
 
             # If the four feet are in contact then we do not listen to MPC (default contact forces instead)
-            if self.DEMONSTRATION and self.gait.getIsStatic():
+            if self.DEMONSTRATION and self.gait.is_static():
                 self.x_f_mpc[12:24, 0] = [0.0, 0.0, 9.81 * 2.5 / 4.0] * 4
 
             # Update configuration vector for wbc with filtered roll and pitch and reference angular positions of previous loop
@@ -447,7 +447,7 @@ class Controller:
 
             # Run InvKin + WBC QP
             self.wbcWrapper.compute(self.q_wbc, self.dq_wbc,
-                                    (self.x_f_mpc[12:24, 0:1]).copy(), np.array([cgait[0, :]]),
+                                    (self.x_f_mpc[12:24, 0:1]).copy(), np.array([gait_matrix[0, :]]),
                                     self.feet_p_cmd,
                                     self.feet_v_cmd,
                                     self.feet_a_cmd,
@@ -484,7 +484,7 @@ class Controller:
             if self.SIMULATION:
                 self.pybEnvironment3D.update(self.k)
 
-        self.pyb_debug(device, fsteps, cgait, xref)
+        self.pyb_debug(device, fsteps, gait_matrix, xref)
 
         self.t_loop = time.time() - t_start
         self.k += 1
@@ -499,7 +499,7 @@ class Controller:
             pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
                                            cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])
 
-    def pyb_debug(self, device, fsteps, cgait, xref):
+    def pyb_debug(self, device, fsteps, gait_matrix, xref):
 
         if self.k > 1 and self.enable_pyb_GUI:
             # Display desired feet positions in WBC as green spheres
@@ -517,12 +517,12 @@ class Controller:
             for i in range(4):
                 j = 0
                 cpt = 1
-                status = cgait[0, i]
-                while cpt < cgait.shape[0] and j < device.pyb_sim.ftps_Ids.shape[1]:
-                    while cpt < cgait.shape[0] and cgait[cpt, i] == status:
+                status = gait_matrix[0, i]
+                while cpt < gait_matrix.shape[0] and j < device.pyb_sim.ftps_Ids.shape[1]:
+                    while cpt < gait_matrix.shape[0] and gait_matrix[cpt, i] == status:
                         cpt += 1
-                    if cpt < cgait.shape[0]:
-                        status = cgait[cpt, i]
+                    if cpt < gait_matrix.shape[0]:
+                        status = gait_matrix[cpt, i]
                         if status:
                             pos = oRh_pyb @ fsteps[cpt, (3*i):(3*(i+1))].reshape((-1, 1)) + oTh_pyb - np.array([[0.0], [0.0], [oTh_pyb[2, 0]]])
                             pyb.resetBasePositionAndOrientation(

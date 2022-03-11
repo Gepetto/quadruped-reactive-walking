@@ -31,10 +31,7 @@ struct FootTrajectoryGeneratorBezierVisitor
                                                    bp::return_value_policy<bp::return_by_value>()))
 
         .def("update", &FootTrajectoryGeneratorBezier::update, bp::args("k", "targetFootstep", "surfaces", "q"),
-             "Compute target location of footsteps from Python.\n")
-        .def("updateDebug", &FootTrajectoryGeneratorBezier::updateDebug,
-             bp::args("k", "targetFootstep", "surface", "currentPosition"),
-             "Compute target location of footsteps from Python, debug version.\n");
+             "Compute target location of footsteps from Python.\n");
   }
 
   static void expose() {
