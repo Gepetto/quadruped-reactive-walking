@@ -1,7 +1,7 @@
 #include "qrw/Controller.hpp"
 
-#include "pinocchio/math/rpy.hpp"
 #include "pinocchio/algorithm/crba.hpp"
+#include "pinocchio/math/rpy.hpp"
 
 Controller::Controller()
     : P(Vector12::Zero()),
@@ -61,27 +61,26 @@ void Controller::compute(FakeRobot* robot) {
   joystick.update_v_ref(k, params_->velID, gait.getIsStatic());
 
   // Process state estimator
-  estimator.run_filter(gait.getCurrentGait(), footTrajectoryGenerator.getFootPosition(),
-                       robot->imu->GetLinearAcceleration(), robot->imu->GetGyroscope(), robot->imu->GetAttitudeEuler(),
-                       robot->joints->GetPositions(), robot->joints->GetVelocities(), Vector3::Zero(),
-                       Vector3::Zero());
+  estimator.run(gait.getCurrentGait(), footTrajectoryGenerator.getFootPosition(), robot->imu->GetLinearAcceleration(),
+                robot->imu->GetGyroscope(), robot->imu->GetAttitudeEuler(), robot->joints->GetPositions(),
+                robot->joints->GetVelocities(), Vector3::Zero(), Vector3::Zero());
 
   // Update state vectors of the robot (q and v) + transformation matrices between world and horizontal frames
-  estimator.updateState(joystick.getVRef(), gait);
+  estimator.updateReferenceState(joystick.getVRef());
 
   // Update gait
   gait.updateGait(k, k_mpc, joystick.getJoystickCode());
 
   // Quantities go through a 1st order low pass filter with fc = 15 Hz (avoid >25Hz foldback)
-  q_filt_mpc.head(6) = filter_mpc_q.filter(estimator.getQUpdated().head(6), true);
-  q_filt_mpc.tail(12) = estimator.getQUpdated().tail(12);
+  q_filt_mpc.head(6) = filter_mpc_q.filter(estimator.getQReference().head(6), true);
+  q_filt_mpc.tail(12) = estimator.getQReference().tail(12);
   h_v_filt_mpc = filter_mpc_v.filter(estimator.getHV().head(6), false);
-  vref_filt_mpc = filter_mpc_vref.filter(estimator.getVRef().head(6), false);
+  vref_filt_mpc = filter_mpc_vref.filter(estimator.getBaseVelRef().head(6), false);
 
   // Compute target footstep based on current and reference velocities
   o_targetFootstep = footstepPlanner.updateFootsteps(
-      (k % k_mpc == 0) && (k != 0), static_cast<int>(k_mpc - (k % k_mpc)), estimator.getQUpdated().head(18),
-      estimator.getHVWindowed().head(6), estimator.getVRef().head(6));
+      (k % k_mpc == 0) && (k != 0), static_cast<int>(k_mpc - (k % k_mpc)), estimator.getQReference().head(18),
+      estimator.getHVFiltered().head(6), estimator.getBaseVelRef().head(6));
 
   // Run state planner (outputs the reference trajectory of the base)
   statePlanner.computeReferenceStates(q_filt_mpc.head(6), h_v_filt_mpc, vref_filt_mpc);
@@ -132,7 +131,7 @@ void Controller::compute(FakeRobot* robot) {
     q_wbc.tail(12) = wbcWrapper.get_qdes();  // with reference angular positions of previous loop
 
     // Update velocity vector for wbc
-    dq_wbc.head(6) = estimator.getVFilt().head(6);  // Velocities in base frame (not horizontal frame!)
+    dq_wbc.head(6) = estimator.getVEstimate().head(6);  // Velocities in base frame (not horizontal frame!)
     dq_wbc.tail(12) = wbcWrapper.get_vdes();        // with reference angular velocities of previous loop
 
     // Desired position, orientation and velocities of the base
@@ -245,16 +244,32 @@ void Controller::init_robot(Params& params) {
 }
 
 void Controller::security_check() {
+  Vector12 q_security_ = (Vector3(1.2, 2.1, 3.14)).replicate<4, 1>();
+
+  if (((estimator.getQEstimate().tail(12).cwiseAbs()).array() > q_security_.array()).any()) {
+    std::cout << "Position limit error "
+              << ((estimator.getQEstimate().tail(12).cwiseAbs()).array() > q_security_.array()).transpose() << std::endl;
+    error_flag = 1;
+  } else if (((estimator.getVSecurity().cwiseAbs()).array() > 100.0).any()) {
+    std::cout << "Velocity limit error " << ((estimator.getVSecurity().cwiseAbs()).array() > 100.0).transpose()
+              << std::endl;
+    error_flag = 2;
+  } else if (((tau_ff.cwiseAbs()).array() > 8.0).any()) {  
+    std::cout << "Feedforward limit error " << ((tau_ff.cwiseAbs()).array() > 8.0).transpose() << std::endl;
+    error_flag = 3;
+  } else {
+    error_flag = 0;
+  }
+
   if (error_flag == 0 && !error) {
-    error_flag = estimator.security_check(tau_ff);  // Check position, velocity and feedforward torque limits
     if (error_flag != 0) {
       error = true;
       switch (error_flag) {
         case 1:  // Out of position limits
-          error_value = estimator.getQFilt().tail(12) * 180 / 3.1415;
+          error_value = estimator.getQEstimate().tail(12) * 180 / 3.1415;
           break;
         case 2:  // Out of velocity limits
-          error_value = estimator.getVSecu();
+          error_value = estimator.getVSecurity();
           break;
         default:  // Out of torques limits
           error_value = tau_ff;

@@ -12,11 +12,6 @@
 #include <odri_control_interface/robot.hpp>
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include "qrw/FakeRobot.hpp"
-#include <cmath>
-#include <fstream>
-#include <iostream>
-#include <string>
-#include "qrw/Types.h"
 #include "qrw/Params.hpp"
 #include "qrw/Joystick.hpp"
 #include "qrw/Estimator.hpp"
