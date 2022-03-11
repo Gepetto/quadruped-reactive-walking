@@ -62,6 +62,7 @@ set(${PROJECT_NAME}_HEADERS
   include/qrw/WbcWrapper.hpp
   include/qrw/Params.hpp
   include/qrw/Estimator.hpp
+  include/qrw/ComplementaryFilter.hpp
   include/qrw/Joystick.hpp
   include/qrw/Filter.hpp
   include/qrw/Controller.hpp
@@ -89,6 +90,7 @@ set(${PROJECT_NAME}_SOURCES
   src/WbcWrapper.cpp
   src/Params.cpp
   src/Estimator.cpp
+  src/ComplementaryFilter.cpp
   src/Joystick.cpp
   src/Filter.cpp
   src/Controller.cpp

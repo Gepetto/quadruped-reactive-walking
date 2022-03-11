@@ -85,6 +85,8 @@ class Controller:
         #                        Parameters definition                         #
         ########################################################################
 
+        self.q_security = np.array([1.2, 2.1, 3.14, 1.2, 2.1, 3.14, 1.2, 2.1, 3.14, 1.2, 2.1, 3.14])
+
         # Init joint torques to correct shape
         self.jointTorques = np.zeros((12, 1))
 
@@ -288,32 +290,32 @@ class Controller:
             self.last_b_vel = b_baseVel_perfect
             self.n_nan = 0
 
-        self.estimator.run_filter(self.gait.getCurrentGait(),
-                                  self.footTrajectoryGenerator.getFootPosition(),
-                                  device.imu.linear_acceleration,
-                                  device.imu.gyroscope,
-                                  device.imu.attitude_euler,
-                                  device.joints.positions,
-                                  device.joints.velocities,
-                                  q_perfect, b_baseVel_perfect)
+        self.estimator.run(self.gait.getCurrentGait(),
+                           self.footTrajectoryGenerator.getFootPosition(),
+                           device.imu.linear_acceleration,
+                           device.imu.gyroscope,
+                           device.imu.attitude_euler,
+                           device.joints.positions,
+                           device.joints.velocities,
+                           q_perfect, b_baseVel_perfect)
 
         # Update state vectors of the robot (q and v) + transformation matrices between world and horizontal frames
-        self.estimator.updateState(self.joystick.getVRef(), self.gait)
-        oRh = self.estimator.getoRh()
-        hRb = self.estimator.gethRb()
-        oTh = self.estimator.getoTh().reshape((3, 1))
-        self.a_ref[:6, 0] = self.estimator.getARef()
-        self.v_ref[:6, 0] = self.estimator.getVRef()
-        self.h_v[:6, 0] = self.estimator.getHV()
-        self.h_v_windowed[:6, 0] = self.estimator.getHVWindowed()
+        self.estimator.update_reference_state(self.joystick.getVRef())
+        oRh = self.estimator.get_oRh()
+        hRb = self.estimator.get_hRb()
+        oTh = self.estimator.get_oTh().reshape((3, 1))
+        self.a_ref[:6, 0] = self.estimator.get_base_acc_ref()
+        self.v_ref[:6, 0] = self.estimator.get_base_vel_ref()
+        self.h_v[:6, 0] = self.estimator.get_h_v()
+        self.h_v_windowed[:6, 0] = self.estimator.get_h_v_filtered()
         if self.solo3D:
-            self.q[:3, 0] = self.estimator.getQFilt()[:3]
-            self.q[6:, 0] = self.estimator.getQFilt()[7:]
-            self.q[3:6] = quaternionToRPY(self.estimator.getQFilt()[3:7])
+            self.q[:3, 0] = self.estimator.get_q_estimate()[:3]
+            self.q[6:, 0] = self.estimator.get_q_estimate()[7:]
+            self.q[3:6] = quaternionToRPY(self.estimator.get_q_estimate()[3:7])
         else:
-            self.q[:, 0] = self.estimator.getQUpdated()
-        self.v[:, 0] = self.estimator.getVUpdated()
-        self.yaw_estim = self.estimator.getYawEstim()
+            self.q[:, 0] = self.estimator.get_q_reference()
+        self.v[:, 0] = self.estimator.get_v_reference()
+        self.yaw_estim = self.q[5, 0]
 
         # Quantities go through a 1st order low pass filter with fc = 15 Hz (avoid >25Hz foldback)
         self.q_filter[:6, 0] = self.filter_mpc_q.filter(self.q[:6, 0], True)
@@ -422,7 +424,7 @@ class Controller:
             self.q_wbc[6:, 0] = self.wbcWrapper.qdes[:]
 
             # Update velocity vector for wbc
-            self.dq_wbc[:6, 0] = self.estimator.getVFilt()[:6]  #  Velocities in base frame (not horizontal frame!)
+            self.dq_wbc[:6, 0] = self.estimator.get_v_estimate()[:6]  #  Velocities in base frame (not horizontal frame!)
             self.dq_wbc[6:, 0] = self.wbcWrapper.vdes[:]  # with reference angular velocities of previous loop
 
             # Feet command position, velocity and acceleration in base frame
@@ -567,19 +569,23 @@ class Controller:
         """
         Check if the command is fine and set the command to zero in case of error
         """
+
         if not (self.error or self.joystick.getStop()):
-            error_flag = self.estimator.security_check(self.wbcWrapper.tau_ff)
-            if (error_flag != 0):
+            if (np.abs(self.estimator.get_q_estimate()[7:]) > self.q_security).any():
+                print("-- POSITION LIMIT ERROR --")
+                print(self.estimator.get_q_estimate()[7:])
+                print(np.abs(self.estimator.get_q_estimate()[7:]) > self.q_security)
                 self.error = True
-                if (error_flag == 1):
-                    print("-- POSITION LIMIT ERROR --")
-                    print(self.estimator.getQFilt()[7:])
-                elif (error_flag == 2):
-                    print("-- VELOCITY TOO HIGH ERROR --")
-                    print(self.estimator.getVSecu())
-                else:
-                    print("-- FEEDFORWARD TORQUES TOO HIGH ERROR --")
-                    print(self.wbcWrapper.tau_ff)
+            elif (np.abs(self.estimator.get_v_security()) > 100.).any():
+                print("-- VELOCITY TOO HIGH ERROR --")
+                print(self.estimator.get_v_security())
+                print(np.abs(self.estimator.get_v_security()) > 100.)
+                self.error = True
+            elif (np.abs(self.wbcWrapper.tau_ff) > 8.0).any():
+                print("-- FEEDFORWARD TORQUES TOO HIGH ERROR --")
+                print(self.wbcWrapper.tau_ff)
+                print(np.abs(self.wbcWrapper.tau_ff) > 8.0)
+                self.error = True
 
     def clamp(self, num, min_value=None, max_value=None):
         clamped = False
