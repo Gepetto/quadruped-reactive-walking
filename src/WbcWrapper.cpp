@@ -10,7 +10,7 @@
 WbcWrapper::WbcWrapper()
     : M_(Eigen::Matrix<double, 18, 18>::Zero()),
       Jc_(Eigen::Matrix<double, 12, 6>::Zero()),
-      k_since_contact_(Eigen::Matrix<double, 1, 4>::Zero()),
+      k_since_contact_(RowVector4::Zero()),
       bdes_(Vector7::Zero()),
       qdes_(Vector12::Zero()),
       vdes_(Vector12::Zero()),

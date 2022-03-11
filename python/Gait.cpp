@@ -8,20 +8,19 @@ struct GaitVisitor : public bp::def_visitor<GaitVisitor<Gait>> {
   void visit(PyClassGait& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
-        .def("getPastGait", &Gait::getPastGait, "Get currentGait_ matrix.\n")
-        .def("getCurrentGait", &Gait::getCurrentGait, "Get currentGait_ matrix.\n")
-        .def("getDesiredGait", &Gait::getDesiredGait, "Get currentGait_ matrix.\n")
-        .def("isNewPhase", &Gait::isNewPhase, "Get newPhase_ boolean.\n")
-        .def("getIsStatic", &Gait::getIsStatic, "Get is_static_ boolean.\n")
+        .def("get_past_gait", &Gait::getPastGait, "Get past gait matrix.\n")
+        .def("get_gait_matrix", &Gait::getCurrentGait, "Get gait matrix.\n")
+        .def("get_desired_gait", &Gait::getDesiredGait, "Get desired gait matrix.\n")
+        .def("is_new_step", &Gait::isNewPhase, "True if new phase of the gait.\n")
+        .def("is_static", &Gait::getIsStatic, "True if static gait.\n")
 
         .def("initialize", &Gait::initialize, bp::args("params"), "Initialize Gait from Python.\n")
 
-        // Update current gait matrix from Python
-        .def("updateGait", &Gait::updateGait, bp::args("k", "k_mpc", "joystickCode"),
+        .def("update", &Gait::update, bp::args("k", "k_mpc", "joystickCode"),
              "Update current gait matrix from Python.\n")
 
-        // Set current gait matrix from Python
-        .def("setGait", &Gait::setGait, bp::args("gaitMatrix"), "Set current gait matrix from Python.\n");
+        .add_property("matrix",
+                      bp::make_function(&Gait::getCurrentGait, bp::return_value_policy<bp::return_by_value>()));
   }
 
   static void expose() { bp::class_<Gait>("Gait", bp::no_init).def(GaitVisitor<Gait>()); }

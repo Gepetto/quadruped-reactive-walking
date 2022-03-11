@@ -329,7 +329,7 @@ void FootstepPlannerQP::computeNextFootstep(int i, int j, Vector6 const& b_v, Ve
                                             bool feedback_term) {
   footstep.setZero();  // set to 0 the vector to fill
 
-  double t_stance = gait_->getPhaseDuration(i, j, 1.0);  // 1.0 for stance phase
+  double t_stance = gait_->getPhaseDuration(i, j);  // 1.0 for stance phase
 
   // Add symmetry term
   footstep = t_stance * 0.5 * b_v.head(3);
@@ -411,8 +411,8 @@ void FootstepPlannerQP::update_remaining_time(int k) {
     // For each foot in swing phase get remaining duration of the swing phase
     for (int foot = 0; foot < (int)feet_.size(); foot++) {
       int i = feet_[foot];
-      t_swing[i] = gait_->getPhaseDuration(0, feet_[foot], 0.0);  // 0.0 for swing phase
-      double value = t_swing[i] - (gait_->getRemainingTime() * k_mpc - ((k + 1) % k_mpc)) * dt_wbc - dt_wbc;
+      t_swing[i] = gait_->getPhaseDuration(0, feet_[foot]);
+      double value = gait_->getElapsedTime(0, feet_[foot]) - dt_wbc;
       t0s[i] = std::max(0.0, value);
     }
   } else {

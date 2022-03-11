@@ -1,12 +1,12 @@
-#include <example-robot-data/path.hpp>
-
-#include "pinocchio/math/rpy.hpp"
-#include "pinocchio/parsers/urdf.hpp"
-#include "pinocchio/algorithm/compute-all-terms.hpp"
-#include "pinocchio/algorithm/frames.hpp"
 #include "qrw/Solo3D/FootTrajectoryGeneratorBezier.hpp"
 
 #include <chrono>
+#include <example-robot-data/path.hpp>
+
+#include "pinocchio/algorithm/compute-all-terms.hpp"
+#include "pinocchio/algorithm/frames.hpp"
+#include "pinocchio/math/rpy.hpp"
+#include "pinocchio/parsers/urdf.hpp"
 
 using namespace std::chrono;
 
@@ -88,8 +88,7 @@ void FootTrajectoryGeneratorBezier::initialize(Params& params, Gait& gaitIn, Sur
   z_margin_ = z_margin_in;
 
   // Path to the robot URDF
-  const std::string filename =
-      std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
+  const std::string filename = std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
 
   // Build model from urdf (base is not free flyer)
   pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
@@ -516,8 +515,8 @@ void FootTrajectoryGeneratorBezier::update(int k, MatrixN const& targetFootstep,
     // For each foot in swing phase get remaining duration of the swing phase
     for (int j = 0; j < (int)feet.size(); j++) {
       int i = feet[j];
-      t_swing[i] = gait_->getPhaseDuration(0, feet[j], 0.0);  // 0.0 for swing phase
-      double value = t_swing[i] - (gait_->getRemainingTime() * k_mpc - ((k + 1) % k_mpc)) * dt_wbc - dt_wbc;
+      t_swing[i] = gait_->getPhaseDuration(0, feet[j]);
+      double value = gait_->getElapsedTime(0, feet[j]) - dt_wbc;
       t0s[i] = std::max(0.0, value);
     }
   } else {
@@ -546,56 +545,6 @@ void FootTrajectoryGeneratorBezier::update(int k, MatrixN const& targetFootstep,
   // Update desired position, velocities and accelerations for flying feet
   for (int i = 0; i < (int)feet.size(); i++) {
     // position_.col(feet[i]) = position_FK_.col(feet[i]);
-    updateFootPosition(k, feet[i], targetFootstep.col(feet[i]));
-  }
-  return;
-}
-
-void FootTrajectoryGeneratorBezier::updateDebug(int k, MatrixN const& targetFootstep,
-                                                SurfaceVector const& surfacesSelected,
-                                                MatrixN const& currentPosition) {
-  if ((k % k_mpc) == 0) {
-    // Indexes of feet in swing phase
-    feet.clear();
-    for (int i = 0; i < 4; i++) {
-      if (gait_->getCurrentGait()(0, i) == 0) feet.push_back(i);
-    }
-    // If no foot in swing phase
-    if (feet.size() == 0) return;
-
-    // For each foot in swing phase get remaining duration of the swing phase
-    for (int j = 0; j < (int)feet.size(); j++) {
-      int i = feet[j];
-      t_swing[i] = gait_->getPhaseDuration(0, feet[j], 0.0);  // 0.0 for swing phase
-      double value = t_swing[i] - (gait_->getRemainingTime() * k_mpc - ((k + 1) % k_mpc)) * dt_wbc - dt_wbc;
-      t0s[i] = std::max(0.0, value);
-    }
-  } else {
-    // If no foot in swing phase
-    if (feet.size() == 0) return;
-
-    // Increment of one time step for feet in swing phase
-    for (int i = 0; i < (int)feet.size(); i++) {
-      double value = t0s[feet[i]] + dt_wbc;
-      t0s[feet[i]] = std::max(0.0, value);
-    }
-  }
-  // Update new surface and past if t0 == 0 (new swing phase)
-  if (((k % k_mpc) == 0) and (surfacesSelected.size() != 0)) {
-    for (int i_foot = 0; i_foot < (int)feet.size(); i_foot++) {
-      if (t0s[i_foot] <= 10e-5) {
-        pastSurface_[i_foot] = newSurface_[i_foot];
-        newSurface_[i_foot] = surfacesSelected[i_foot];
-      }
-    }
-  }
-
-  // Update feet position using estimated state, by FK
-  // update_position_FK(q);
-
-  // Update desired position, velocities and accelerations for flying feet
-  for (int i = 0; i < (int)feet.size(); i++) {
-    position_.col(feet[i]) = currentPosition.col(feet[i]);
     updateFootPosition(k, feet[i], targetFootstep.col(feet[i]));
   }
   return;

@@ -78,8 +78,6 @@ class FootTrajectoryGeneratorBezier {
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void update(int k, MatrixN const& targetFootstep, SurfaceVector const& surfacesSelected, VectorN const& q);
-  void updateDebug(int k, MatrixN const& targetFootstep, SurfaceVector const& surfacesSelected,
-                   MatrixN const& currentPosition);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///

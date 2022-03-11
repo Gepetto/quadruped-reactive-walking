@@ -184,12 +184,12 @@ class LoggerControl():
         self.planner_xref[self.i] = statePlanner.getReferenceStates()
         self.planner_fsteps[self.i] = footstepPlanner.getFootsteps()
         self.planner_target_fsteps[self.i] = footstepPlanner.getTargetFootsteps()
-        self.planner_gait[self.i] = gait.getCurrentGait()
+        self.planner_gait[self.i] = gait.get_gait_matrix()
         self.planner_goals[self.i] = footTrajectoryGenerator.getFootPosition()
         self.planner_vgoals[self.i] = footTrajectoryGenerator.getFootVelocity()
         self.planner_agoals[self.i] = footTrajectoryGenerator.getFootAcceleration()
         self.planner_jgoals[self.i] = footTrajectoryGenerator.getFootJerk()
-        self.planner_is_static[self.i] = gait.getIsStatic()
+        self.planner_is_static[self.i] = gait.is_static()
         self.planner_h_ref[self.i] = controller.h_ref
 
         # Logging from model predictive control
