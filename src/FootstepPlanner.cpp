@@ -1,5 +1,10 @@
 #include <example-robot-data/path.hpp>
 
+#include "pinocchio/math/rpy.hpp"
+#include "pinocchio/parsers/urdf.hpp"
+#include "pinocchio/algorithm/compute-all-terms.hpp"
+#include "pinocchio/algorithm/frames.hpp"
+
 #include "qrw/FootstepPlanner.hpp"
 
 FootstepPlanner::FootstepPlanner()

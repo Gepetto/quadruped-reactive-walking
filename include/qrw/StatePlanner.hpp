@@ -10,9 +10,7 @@
 #ifndef STATEPLANNER_H_INCLUDED
 #define STATEPLANNER_H_INCLUDED
 
-#include "pinocchio/math/rpy.hpp"
 #include "qrw/Params.hpp"
-#include "qrw/Types.h"
 
 class StatePlanner {
  public:

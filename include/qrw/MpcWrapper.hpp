@@ -10,11 +10,6 @@
 #define MPCWRAPPER_H_INCLUDED
 
 #include "pinocchio/math/rpy.hpp"
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include <chrono>
-#include <thread>
-#include <mutex>
 #include "qrw/Types.h"
 #include "qrw/MPC.hpp"
 

@@ -1,4 +1,4 @@
-#include "qrw/FootTrajectoryGeneratorBezier.hpp"
+#include "qrw/Solo3D/FootTrajectoryGeneratorBezier.hpp"
 
 #include "bindings/python.hpp"
 

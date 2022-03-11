@@ -9,15 +9,10 @@
 #ifndef JOYSTICK_H_INCLUDED
 #define JOYSTICK_H_INCLUDED
 
-#include <fcntl.h>
-#include <linux/joystick.h>
-#include <stdio.h>
-#include <unistd.h>
-
 #include <chrono>
+#include <linux/joystick.h>
 
 #include "qrw/Params.hpp"
-#include "qrw/Types.h"
 
 struct gamepad_struct {
   double v_x = 0.0;    // Up/down status of left pad
@@ -57,11 +52,7 @@ class Joystick {
   /// \brief Destructor.
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  ~Joystick() {
-    if (js != -1) {
-      close(js);
-    }
-  }
+  ~Joystick();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -146,7 +137,7 @@ class Joystick {
   double dt_wbc = 0.0;  // Time step of the WBC
   int k_mpc = 0;        // Number of WBC time step for one MPC time step
 
-  VectorNi k_switch;   // Key frames for the polynomial velocity interpolation
+  VectorNi k_switch;  // Key frames for the polynomial velocity interpolation
   Matrix6N v_switch;  // Target velocity for the key frames
 
   // How much the gamepad velocity and position is filtered to avoid sharp changes
@@ -155,8 +146,8 @@ class Joystick {
   double gp_alpha_vel_heavy_filter = 0.002;  // Low pass filter coefficient for v_ref_heavy_filter_
 
   // Maximum velocity values
-  double vXScale = 0.3;   // Lateral
-  double vYScale = 0.5;   // Forward
+  double vXScale = 0.3;    // Lateral
+  double vYScale = 0.5;    // Forward
   double vYawScale = 1.0;  // Rotation
 
   // Maximum position values

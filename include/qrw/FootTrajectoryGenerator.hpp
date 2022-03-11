@@ -12,7 +12,6 @@
 
 #include "qrw/Gait.hpp"
 #include "qrw/Params.hpp"
-#include "qrw/Types.h"
 
 class FootTrajectoryGenerator {
  public:

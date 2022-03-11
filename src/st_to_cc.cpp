@@ -1,8 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
 #include <time.h>
-#include <string.h>
+#include <math.h>
 
 #include "other/st_to_cc.hpp"
 

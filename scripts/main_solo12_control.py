@@ -1,22 +1,20 @@
-# coding: utf8
-
-import os
-import threading
-from Controller import Controller
 import numpy as np
-import argparse
-from LoggerSensors import LoggerSensors
-from LoggerControl import LoggerControl
-import quadruped_reactive_walking as qrw
+import threading
 import time
+
+from Controller import Controller
+from tools.LoggerSensors import LoggerSensors
+from tools.LoggerControl import LoggerControl
+
+import quadruped_reactive_walking as qrw
 
 params = qrw.Params()  # Object that holds all controller parameters
 
 if params.SIMULATION:
-    from PyBulletSimulator import PyBulletSimulator
+    from tools.PyBulletSimulator import PyBulletSimulator
 else:
     import libodri_control_interface_pywrap as oci
-    from solopython.utils.qualisysClient import QualisysClient
+    from tools.qualisysClient import QualisysClient
 
 
 def get_input():
@@ -84,44 +82,6 @@ def check_position_error(device, controller):
     return False
 
 
-def clone_movements(name_interface_clone, q_init, cloneP, cloneD, cloneQdes, cloneDQdes, cloneRunning, cloneResult):
-
-    print("-- Launching clone interface --")
-
-    print(name_interface_clone, params.dt_wbc)
-    clone = Solo12(name_interface_clone, dt=params.dt_wbc)
-    clone.Init(calibrateEncoders=True, q_init=q_init)
-
-    while cloneRunning.value and not clone.hardware.IsTimeout():
-        if cloneResult.value:
-            clone.SetDesiredJointPDgains(cloneP[:], cloneD[:])
-            clone.SetDesiredJointPosition(cloneQdes[:])
-            clone.SetDesiredJointVelocity(cloneDQdes[:])
-            clone.SetDesiredJointTorque([0.0] * 12)
-
-            clone.SendCommand(WaitEndOfCycle=True)
-
-            cloneResult.value = False
-    return 0
-
-
-def launch_clone_process(name_interface_clone, q_init):
-    print("PASS")
-    from multiprocessing import Process, Array, Value
-    cloneP = Array('d', [0] * 12)
-    cloneD = Array('d', [0] * 12)
-    cloneQdes = Array('d', [0] * 12)
-    cloneDQdes = Array('d', [0] * 12)
-    cloneRunning = Value('b', True)
-    cloneResult = Value('b', True)
-    clone = Process(target=clone_movements, args=(name_interface_clone, q_init, cloneP,
-                                                  cloneD, cloneQdes, cloneDQdes, cloneRunning, cloneResult))
-    clone.start()
-    print(cloneResult.value)
-
-    return cloneResult
-
-
 def damp_control(device, nb_motors):
     """
     Damp the control during 2.5 seconds
@@ -153,13 +113,13 @@ def damp_control(device, nb_motors):
         t += params.dt_wbc
 
 
-def control_loop(name_interface_clone=None, des_vel_analysis=None):
+def control_loop(des_vel_analysis=None):
     """
     Main function that calibrates the robot, get it into a default waiting position then launch
     the main control loop once the user has pressed the Enter key
 
     Args:
-        name_interface_clone (string): name of the interface that will mimic the movements of the first
+        des_vel_analysis (string)
     """
     if not params.SIMULATION:
         params.enable_pyb_GUI = False
@@ -186,9 +146,6 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         device = oci.robot_from_yaml_file(params.config_file)
         qc = QualisysClient(ip="140.93.16.160", body_id=0)
 
-    if name_interface_clone is not None:
-        cloneResult = launch_clone_process(name_interface_clone, q_init)
-
     if params.LOGGING or params.PLOTTING:
         loggerSensors = LoggerSensors(device, qualisys=qc, logSize=params.N_SIMULATION-3)
         loggerControl = LoggerControl(params, logSize=params.N_SIMULATION-3)
@@ -205,7 +162,8 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
         put_on_the_floor(device, q_init)
 
     # CONTROL LOOP ***************************************************
-    t = 0.0  # Time variable to keep track of time
+    
+    t = 0.0
     t_max = (params.N_SIMULATION-2) * params.dt_wbc
 
     t_log_whole = np.zeros((params.N_SIMULATION))
@@ -267,9 +225,6 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
     finished = (t >= t_max)
     damp_control(device, 12)
 
-    if not params.SIMULATION and name_interface_clone is not None:
-        cloneResult.value = False  # Stop clone interface running in parallel process
-
     if params.enable_multiprocessing:
         print("Stopping parallel process MPC")
         controller.mpc_wrapper.stop_parallel_loop()
@@ -302,14 +257,7 @@ def control_loop(name_interface_clone=None, des_vel_analysis=None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Playback trajectory to show the extent of solo12 workspace.')
-    parser.add_argument('-c',
-                        '--clone',
-                        required=False,
-                        help='Name of the clone interface that will reproduce the movement of the first one \
-                              (use ifconfig in a terminal), for instance "enp1s0"')
-
     #  os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
-    f, v = control_loop(parser.parse_args().clone)  # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
+    f, v = control_loop()  # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print(f, v)
     quit()

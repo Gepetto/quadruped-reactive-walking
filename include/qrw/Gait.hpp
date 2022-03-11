@@ -13,7 +13,6 @@
 #define GAIT_H_INCLUDED
 
 #include "qrw/Params.hpp"
-#include "qrw/Types.h"
 
 // Order of feet/legs: FL, FR, HL, HR
 

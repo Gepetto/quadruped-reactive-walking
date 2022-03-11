@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-from solo3D.tools.heightmap_tools import Heightmap
-from solo3D.tools.utils import getAllSurfacesDict_inner
+from solo3D.heightmap_tools import Heightmap
+from solo3D.utils import getAllSurfacesDict_inner
 
 from solo_rbprm.solo_abstract import Robot
 

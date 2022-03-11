@@ -1,4 +1,4 @@
-#include "qrw/FootstepPlannerQP.hpp"
+#include "qrw/Solo3D/FootstepPlannerQP.hpp"
 
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 #include "bindings/python.hpp"

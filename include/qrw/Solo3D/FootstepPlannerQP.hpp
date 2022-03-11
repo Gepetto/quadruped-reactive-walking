@@ -14,16 +14,11 @@
 #include <vector>
 
 #include "eiquadprog/eiquadprog-fast.hpp"
-#include "pinocchio/algorithm/compute-all-terms.hpp"
-#include "pinocchio/algorithm/frames.hpp"
-#include "pinocchio/math/rpy.hpp"
 #include "pinocchio/multibody/data.hpp"
 #include "pinocchio/multibody/model.hpp"
-#include "pinocchio/parsers/urdf.hpp"
 #include "qrw/Gait.hpp"
 #include "qrw/Params.hpp"
-#include "qrw/Surface.hpp"
-#include "qrw/Types.h"
+#include "qrw/Solo3D/Surface.hpp"
 
 // Order of feet/legs: FL, FR, HL, HR
 

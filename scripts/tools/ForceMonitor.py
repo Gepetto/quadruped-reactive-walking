@@ -1,8 +1,4 @@
-# coding: utf8
-
-import numpy as np
 import pybullet as pyb
-
 
 class ForceMonitor:
 

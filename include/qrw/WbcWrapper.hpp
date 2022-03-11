@@ -12,8 +12,8 @@
 #define WBC_WRAPPER_H_INCLUDED
 
 #include "qrw/InvKin.hpp"
-#include "qrw/Params.hpp"
 #include "qrw/QPWBC.hpp"
+#include "qrw/Params.hpp"
 
 class WbcWrapper {
  public:

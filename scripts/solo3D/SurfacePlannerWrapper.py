@@ -15,7 +15,6 @@ N_SURFACE_MAX = 10
 N_POTENTIAL_SURFACE = 7
 N_FEET = 4
 
-
 class SurfaceDataCtype(ctypes.Structure):
     ''' ctype data structure for the shared memory between processes, for surfaces
     Ax <= b

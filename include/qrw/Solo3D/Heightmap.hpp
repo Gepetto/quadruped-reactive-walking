@@ -9,15 +9,8 @@
 #ifndef HEIGHTMAP_H_INCLUDED
 #define HEIGHTMAP_H_INCLUDED
 
-#include <stdio.h>
-
-#include <Eigen/Dense>
-#include <fstream>
-#include <iostream>
-
 #include "eiquadprog/eiquadprog-fast.hpp"
 #include "qrw/Params.hpp"
-#include "qrw/Types.h"
 
 using namespace std;
 

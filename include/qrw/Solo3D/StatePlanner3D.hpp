@@ -10,11 +10,8 @@
 #ifndef STATEPLANNER3D_H_INCLUDED
 #define STATEPLANNER3D_H_INCLUDED
 
-#include "pinocchio/math/rpy.hpp"
-#include "pinocchio/spatial/se3.hpp"
-#include "qrw/Heightmap.hpp"
+#include "qrw/Solo3D/Heightmap.hpp"
 #include "qrw/Params.hpp"
-#include "qrw/Types.h"
 
 class StatePlanner3D {
  public:
