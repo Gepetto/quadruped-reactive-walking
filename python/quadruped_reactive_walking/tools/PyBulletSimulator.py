@@ -2,14 +2,15 @@ import time as time
 import sys
 
 import numpy as np
-import pybullet as pyb  # Pybullet server
+import pybullet as pyb
 import pybullet_data
 import pinocchio as pin
 from example_robot_data.path import EXAMPLE_ROBOT_DATA_MODEL_DIR
 
 
 class pybullet_simulator:
-    """Wrapper for the PyBullet simulator to initialize the simulation, interact with it
+    """
+    Wrapper for the PyBullet simulator to initialize the simulation, interact with it
     and use various utility functions
 
     Args:
@@ -21,7 +22,6 @@ class pybullet_simulator:
     """
 
     def __init__(self, q_init, envID, use_flat_plane, enable_pyb_GUI, dt=0.001):
-
         self.applied_force = np.zeros(3)
 
         # Start the client for PyBullet
@@ -100,11 +100,8 @@ class pybullet_simulator:
             pyb.changeVisualShape(self.planeId, -1, rgbaColor=[1, 1, 1, 1])
 
         if envID == 1:
-
             # Add stairs with platform and bridge
-            self.stairsId = pyb.loadURDF("bauzil_stairs.urdf")  # ,
-            """basePosition=[-1.25, 3.5, -0.1],
-                                 baseOrientation=pyb.getQuaternionFromEuler([0.0, 0.0, 3.1415]))"""
+            self.stairsId = pyb.loadURDF("bauzil_stairs.urdf")
             pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)
 
             # Create the red steps to act as small perturbations
@@ -275,7 +272,8 @@ class pybullet_simulator:
 
         # Create a blue line for debug purpose
         self.lineId_blue = []
-        """cubeStartPos = [0.0, 0.45, 0.0]
+        """
+        cubeStartPos = [0.0, 0.45, 0.0]
         cubeStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0])
         self.cubeId = pyb.loadURDF("cube_small.urdf",
                                    cubeStartPos, cubeStartOrientation)
@@ -370,7 +368,8 @@ class pybullet_simulator:
         )
 
     def check_pyb_env(self, k, envID, qmes12):
-        """Check the state of the robot to trigger events and update camera
+        """
+        Check the state of the robot to trigger events and update camera
 
         Args:
             k (int): Number of inv dynamics iterations since the start of the simulation
@@ -391,33 +390,6 @@ class pybullet_simulator:
                 pyb.resetBaseVelocity(self.sphereId2, linearVelocity=[-2.5, 0.0, 2.0])
                 self.flag_sphere2 = False
 
-            # Create the red steps to act as small perturbations
-            """if k == 10:
-                pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
-
-                mesh_scale = [2.0, 2.0, 0.3]
-                visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                                      fileName="cube.obj",
-                                                      halfExtents=[0.5, 0.5, 0.1],
-                                                      rgbaColor=[0.0, 0.0, 1.0, 1.0],
-                                                      specularColor=[0.4, .4, 0],
-                                                      visualFramePosition=[0.0, 0.0, 0.0],
-                                                      meshScale=mesh_scale)
-
-                collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
-                                                            fileName="cube.obj",
-                                                            collisionFramePosition=[0.0, 0.0, 0.0],
-                                                            meshScale=mesh_scale)
-
-                tmpId = pyb.createMultiBody(baseMass=0.0,
-                                            baseInertialFramePosition=[0, 0, 0],
-                                            baseCollisionShapeIndex=collisionShapeId,
-                                            baseVisualShapeIndex=visualShapeId,
-                                            basePosition=[0.0, 0.0, 0.15],
-                                            useMaximalCoordinates=True)
-                pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
-
-                pyb.resetBasePositionAndOrientation(self.robotId, [0, 0, 0.5], [0, 0, 0, 1])"""
             if k == 10:
                 pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
 
@@ -464,10 +436,10 @@ class pybullet_simulator:
             cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0],
         )
 
-        return 0
-
     def retrieve_pyb_data(self):
-        """Retrieve the position and orientation of the base in world frame as well as its linear and angular velocities"""
+        """
+        Retrieve the position and orientation of the base in world frame as well as its linear and angular velocities
+        """
 
         # Retrieve data from the simulation
         self.jointStates = pyb.getJointStates(
@@ -493,20 +465,10 @@ class pybullet_simulator:
                 np.array([[state[1] for state in self.jointStates]]).T,
             )
         )
-        """robotVirtualOrientation = pyb.getQuaternionFromEuler([0, 0, np.pi / 4])
-        self.qmes12[3:7, 0] = robotVirtualOrientation"""
-
-        # Add uncertainty to feedback from PyBullet to mimic imperfect measurements
-        """tmp = np.array([pyb.getQuaternionFromEuler(pin.rpy.matrixToRpy(
-            pin.Quaternion(self.qmes12[3:7, 0:1]).toRotationMatrix())
-            + np.random.normal(0, 0.03, (3,)))])
-        self.qmes12[3:7, 0] = tmp[0, :]
-        self.vmes12[0:6, 0] += np.random.normal(0, 0.01, (6,))"""
-
-        return 0
 
     def apply_external_force(self, k, start, duration, F, loc):
-        """Apply an external force/momentum to the robot
+        """
+        Apply an external force/momentum to the robot
         4-th order polynomial: zero force and force velocity at start and end
         (bell-like force trajectory)
 
@@ -519,9 +481,6 @@ class pybullet_simulator:
         """
 
         if (k < start) or (k > (start + duration)):
-            return 0.0
-        """if k == start:
-            print("Applying [", F[0], ", ", F[1], ", ", F[2], "]")"""
 
         ev = k - start
         t1 = duration
@@ -534,10 +493,9 @@ class pybullet_simulator:
 
         pyb.applyExternalForce(self.robotId, -1, alpha * F, loc, pyb.LINK_FRAME)
 
-        return 0.0
-
     def get_to_default_position(self, qtarget):
-        """Controler that tries to get the robot back to a default angular positions
+        """
+        Controler that tries to get the robot back to a default angular positions
         of its 12 actuators using polynomials to generate trajectories and a PD controller
         to make the actuators follow them
 
@@ -609,10 +567,11 @@ class pybullet_simulator:
 
 
 class Hardware:
-    """Dummy class that simulates the Hardware class used to communicate with the real masterboard"""
+    """
+    Dummy class that simulates the Hardware class used to communicate with the real masterboard
+    """
 
     def __init__(self):
-
         self.is_timeout = False
 
         self.roll = 0.0
@@ -620,12 +579,10 @@ class Hardware:
         self.yaw = 0.0
 
     def IsTimeout(self):
-
         return self.is_timeout
 
     def Stop(self):
-
-        return 0
+        pass
 
     def imu_data_attitude(self, i):
         if i == 0:
@@ -637,7 +594,9 @@ class Hardware:
 
 
 class IMU:
-    """Dummy class that simulates the IMU class used to communicate with the real masterboard"""
+    """
+    Dummy class that simulates the IMU class used to communicate with the real masterboard
+    """
 
     def __init__(self):
         self.linear_acceleration = np.zeros((3,))
@@ -648,7 +607,9 @@ class IMU:
 
 
 class Powerboard:
-    """Dummy class that simulates the Powerboard class used to communicate with the real masterboard"""
+    """
+    Dummy class that simulates the Powerboard class used to communicate with the real masterboard
+    """
 
     def __init__(self):
         self.current = 0.0
@@ -657,7 +618,9 @@ class Powerboard:
 
 
 class Joints:
-    """Dummy class that simulates the Joints class used to communicate with the real masterboard"""
+    """
+    Dummy class that simulates the Joints class used to communicate with the real masterboard
+    """
 
     def __init__(self, parent_class):
         self.parent = parent_class
@@ -666,15 +629,13 @@ class Joints:
         self.measured_torques = np.zeros((12,))
 
     def set_torques(self, torques):
-        """Set desired joint torques
+        """
+        Set desired joint torques
 
         Args:
             torques (12 x 0): desired articular feedforward torques
         """
-        # Save desired torques in a storage array
         self.parent.tau_ff = torques.copy()
-
-        return
 
     def set_position_gains(self, P):
         """Set desired P gains for articular low level control
@@ -693,7 +654,8 @@ class Joints:
         self.parent.D = D
 
     def set_desired_positions(self, q_des):
-        """Set desired joint positions
+        """
+        Set desired joint positions
 
         Args:
             q_des (12 x 0 array): desired articular positions
@@ -701,7 +663,8 @@ class Joints:
         self.parent.q_des = q_des
 
     def set_desired_velocities(self, v_des):
-        """Set desired joint velocities
+        """
+        Set desired joint velocities
 
         Args:
             v_des (12 x 0 array): desired articular velocities
@@ -710,7 +673,9 @@ class Joints:
 
 
 class RobotInterface:
-    """Dummy class that simulates the robot_interface class used to communicate with the real masterboard"""
+    """
+    Dummy class that simulates the robot_interface class used to communicate with the real masterboard
+    """
 
     def __init__(self):
         pass
@@ -720,12 +685,12 @@ class RobotInterface:
 
 
 class PyBulletSimulator:
-    """Class that wraps a PyBullet simulation environment to seamlessly switch between the real robot or
+    """
+    Class that wraps a PyBullet simulation environment to seamlessly switch between the real robot or
     simulation by having the same interface in both cases (calling the same functions/variables)
     """
 
     def __init__(self):
-
         self.cpt = 0
         self.nb_motors = 12
         self.jointTorques = np.zeros(self.nb_motors)
@@ -749,7 +714,8 @@ class PyBulletSimulator:
         self.tau_ff = np.zeros(12)
 
     def Init(self, calibrateEncoders, q_init, envID, use_flat_plane, enable_pyb_GUI, dt):
-        """Initialize the PyBullet simultor with a given environment and a given state of the robot
+        """
+        Initialize the PyBullet simultor with a given environment and a given state of the robot
 
         Args:
             calibrateEncoders (bool): dummy variable, not used for simulation but used for real robot
@@ -759,14 +725,17 @@ class PyBulletSimulator:
             enable_pyb_GUI (bool): to display PyBullet GUI or not
             dt (float): time step of the simulation
         """
-        self.pyb_sim = pybullet_simulator(q_init, envID, use_flat_plane, enable_pyb_GUI, dt)
+        self.pyb_sim = pybullet_simulator(
+            q_init, envID, use_flat_plane, enable_pyb_GUI, dt
+        )
         self.q_init = q_init
         self.joints.positions[:] = q_init
         self.dt = dt
         self.time_loop = time.time()
 
     def cross3(self, left, right):
-        """Numpy is inefficient for this
+        """
+        Numpy is inefficient for this
 
         Args:
             left (3x0 array): left term of the cross product
@@ -781,7 +750,9 @@ class PyBulletSimulator:
         )
 
     def parse_sensor_data(self):
-        """Retrieve data about the robot from the simulation to mimic what the masterboard does"""
+        """
+        Retrieve data about the robot from the simulation to mimic what the masterboard does
+        """
 
         # Position and velocity of actuators
         jointStates = pyb.getJointStates(
@@ -836,7 +807,8 @@ class PyBulletSimulator:
         )
 
     def send_command_and_wait_end_of_cycle(self, WaitEndOfCycle=True):
-        """Send control commands to the robot
+        """
+        Send control commands to the robot
 
         Args:
             WaitEndOfCycle (bool): wait to have simulation time = real time
@@ -865,16 +837,8 @@ class PyBulletSimulator:
             forces=self.jointTorques,
         )
 
-        # Apply arbitrary external forces to the robot base in the simulation
-        # self.pyb_sim.apply_external_force(self.cpt, 3000, 1000, np.array([0.0, +0.0, -20.0]), np.array([+0.0, +0.1, 0.0]))
-        # self.pyb_sim.apply_external_force(self.cpt, 1000, 1000, np.array([0.0, +8.0, 0.0]), np.zeros((3,)))
-        # self.pyb_sim.apply_external_force(self.cpt, 4250, 500, np.array([+5.0, 0.0, 0.0]), np.zeros((3,)))
-        # self.pyb_sim.apply_external_force(self.cpt, 5250, 500, np.array([0.0, +5.0, 0.0]), np.zeros((3,)))
-
-        # Compute one step of simulation
         pyb.stepSimulation()
 
-        # Wait to have simulation time = real time
         if WaitEndOfCycle:
             while (time.time() - self.time_loop) < self.dt:
                 pass
@@ -882,13 +846,11 @@ class PyBulletSimulator:
 
         self.time_loop = time.time()
 
-        return
-
     def Print(self):
-        """Print simulation parameters in the console"""
-
+        """
+        Print simulation parameters in the console
+        """
         np.set_printoptions(precision=2)
-        # print(chr(27) + "[2J")
         print("#######")
         print("q_mes = ", self.joints.positions)
         print("v_mes = ", self.joints.velocities)
@@ -899,7 +861,7 @@ class PyBulletSimulator:
         sys.stdout.flush()
 
     def Stop(self):
-        """Stop the simulation environment"""
-
-        # Disconnect the PyBullet server (also close the GUI)
+        """
+        Stop the simulation environment
+        """
         pyb.disconnect()
