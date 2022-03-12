@@ -70,19 +70,20 @@ class Controller:
         self.q_security = np.array([1.2, 2.1, 3.14] * 4)
         self.solo = init_robot(q_init, params)
 
-        # Create Joystick object
+        self.h_ref = params.h_ref
+        self.q_init = np.hstack((np.zeros(6), q_init.copy()))
+        self.q_init[2] = params.h_ref
+
         self.joystick = qrw.Joystick()
         self.joystick.initialize(params)
 
         # Enable/Disable hybrid control
         self.enable_hybrid_control = True
 
-        self.h_ref = params.h_ref
         self.h_ref_mem = params.h_ref
         self.q = np.zeros((18, 1))  # Orientation part is in roll pitch yaw
         self.q[:6, 0] = np.array([0.0, 0.0, self.h_ref, 0.0, 0.0, 0.0])
         self.q[6:, 0] = q_init
-        self.q_init = q_init.copy()
         self.v = np.zeros((18, 1))
         self.b_v = np.zeros((18, 1))
         self.o_v_filt = np.zeros((18, 1))
@@ -704,12 +705,12 @@ class Controller:
             if self.clamp(self.result.q_des[3 * i + 1], -hip_max, hip_max):
                 print("Clamping hip n " + str(i))
                 self.error = set_error
-            if self.q_init[3 * i + 2] >= 0.0 and self.clamp(
+            if self.q_init[6 + 3 * i + 2] >= 0.0 and self.clamp(
                 self.result.q_des[3 * i + 2], knee_min
             ):
                 print("Clamping knee n " + str(i))
                 self.error = set_error
-            elif self.q_init[3 * i + 2] <= 0.0 and self.clamp(
+            elif self.q_init[6 + 3 * i + 2] <= 0.0 and self.clamp(
                 self.result.q_des[3 * i + 2], max_value=-knee_min
             ):
                 print("Clamping knee n " + str(i))
