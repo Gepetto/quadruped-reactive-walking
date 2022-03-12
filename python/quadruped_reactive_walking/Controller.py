@@ -67,23 +67,7 @@ class Controller:
         self.enable_corba_viewer = params.enable_corba_viewer
         self.q_display = np.zeros(19)
 
-        self.q_security = np.array(
-            [1.2, 2.1, 3.14, 1.2, 2.1, 3.14, 1.2, 2.1, 3.14, 1.2, 2.1, 3.14]
-        )
-
-        # Init joint torques to correct shape
-        self.jointTorques = np.zeros((12, 1))
-
-        # List to store the IDs of debug lines
-        self.ID_deb_lines = []
-
-        # Disable perfect estimator if we are not in simulation
-        if not params.SIMULATION:
-            params.perfectEstimator = (
-                False  # Cannot use perfect estimator if we are running on real robot
-            )
-
-        # Initialisation of the solo model/data and of the Gepetto viewer
+        self.q_security = np.array([1.2, 2.1, 3.14] * 4)
         self.solo = init_robot(q_init, params)
 
         # Create Joystick object
