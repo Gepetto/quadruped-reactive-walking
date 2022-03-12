@@ -69,11 +69,10 @@ class Joystick {
   /// reading the status of the gamepad
   ///
   /// \param[in] k Numero of the current loop
-  /// \param[in] velID Identifier of the current velocity profile to be able to handle different scenarios
   /// \param[in] gait_is_static If the Gait is in or is switching to a static gait
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void update_v_ref(int k, int velID, bool gait_is_static);
+  void update_v_ref(int k, bool gait_is_static);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -100,10 +99,9 @@ class Joystick {
   /// \brief Update the status of the joystick using polynomial interpolation
   ///
   /// \param[in] k Numero of the current loop
-  /// \param[in] velID Identifier of the current velocity profile to be able to handle different scenarios
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void update_v_ref_predefined(int k, int velID);
+  void update_v_ref_predefined(int k);
 
   Vector6 getPRef() { return p_ref_; }
   Vector6 getVRef() { return v_ref_; }

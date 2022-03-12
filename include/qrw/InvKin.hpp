@@ -10,9 +10,8 @@
 #ifndef INVKIN_H_INCLUDED
 #define INVKIN_H_INCLUDED
 
-#include "pinocchio/multibody/model.hpp"
 #include "pinocchio/multibody/data.hpp"
-
+#include "pinocchio/multibody/model.hpp"
 #include "qrw/Params.hpp"
 
 class InvKin {
@@ -66,8 +65,8 @@ class InvKin {
   /// \param[in] x_cmd Desired position, orientation and velocity of the base
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void run(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals,
-                  MatrixN const& vgoals, MatrixN const& agoals, MatrixN const& x_cmd);
+  void run(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals, MatrixN const& vgoals,
+           MatrixN const& agoals, MatrixN const& x_cmd);
 
   VectorN get_q_step() { return q_step_; }
   VectorN get_dq_cmd() { return dq_cmd_; }
@@ -94,9 +93,9 @@ class InvKin {
   Matrix43 vfeet_ref;  // Feet velocity references to get command velocities for actuators
   Matrix43 afeet;      // Feet acceleration references to get command accelerations for actuators
 
-  int foot_ids_[4] = {0, 0, 0, 0};          // Feet frame IDs
+  int foot_ids_[4] = {0, 0, 0, 0};           // Feet frame IDs
   int foot_joints_ids_[4] = {4, 7, 10, 13};  // Feet joints IDs
-  int base_id_ = 0;                         // Base ID
+  int base_id_ = 0;                          // Base ID
 
   Matrix43 posf_;                        // Current feet positions
   Matrix43 vf_;                          // Current feet linear velocities
@@ -150,8 +149,8 @@ class InvKin {
 ///
 ////////////////////////////////////////////////////////////////////////////////////////////////
 template <typename _Matrix_Type_>
-Eigen::MatrixXd pseudoInverse(const _Matrix_Type_& a, double epsilon = std::numeric_limits<double>::epsilon()) {
-  Eigen::JacobiSVD<Eigen::MatrixXd> svd(a, Eigen::ComputeThinU | Eigen::ComputeThinV);
+MatrixN pseudoInverse(const _Matrix_Type_& a, double epsilon = std::numeric_limits<double>::epsilon()) {
+  Eigen::JacobiSVD<MatrixN> svd(a, Eigen::ComputeThinU | Eigen::ComputeThinV);
   double tolerance =
       epsilon * static_cast<double>(std::max(a.cols(), a.rows())) * svd.singularValues().array().abs()(0);
   return svd.matrixV() *

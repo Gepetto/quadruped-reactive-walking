@@ -54,12 +54,10 @@ FootTrajectoryGeneratorBezier::FootTrajectoryGeneratorBezier()
   }
 }
 
-void FootTrajectoryGeneratorBezier::initialize(Params& params, Gait& gaitIn, Surface initialSurface_in,
-                                               double x_margin_max_in, double t_margin_in, double z_margin_in,
-                                               int N_samples_in, int N_samples_ineq_in, int degree_in) {
-  N_samples = N_samples_in;
-  N_samples_ineq = N_samples_ineq_in;
-  degree = degree_in;
+void FootTrajectoryGeneratorBezier::initialize(Params& params, Gait& gaitIn, Surface initialSurface_in) {
+  N_samples = params.bezier_N_sample;
+  N_samples_ineq = params.bezier_N_sample_ineq;
+  degree = params.bezier_degree;
   res_size = dim * (degree + 1 - 6);
   useBezier = params.use_bezier;
 
@@ -83,9 +81,9 @@ void FootTrajectoryGeneratorBezier::initialize(Params& params, Gait& gaitIn, Sur
     newSurface_.push_back(initialSurface_in);
     pastSurface_.push_back(initialSurface_in);
   }
-  x_margin_max_ = x_margin_max_in;
-  t_margin_ = t_margin_in;  // 1 % of the curve after critical point
-  z_margin_ = z_margin_in;
+  x_margin_max_ = params.bezier_x_margin_max;
+  t_margin_ = params.bezier_t_margin;
+  z_margin_ = params.bezier_z_margin;
 
   // Path to the robot URDF
   const std::string filename = std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
@@ -660,24 +658,21 @@ void FootTrajectoryGeneratorBezier::get_intersect_segment(Vector2 a1, Vector2 a2
   intersectionPoint_(1) = cross_ll[1] / cross_ll[2];
 }
 
-Eigen::MatrixXd FootTrajectoryGeneratorBezier::getFootPositionBaseFrame(const Eigen::Matrix<double, 3, 3>& R,
-                                                                        const Eigen::Matrix<double, 3, 1>& T) {
+MatrixN FootTrajectoryGeneratorBezier::getFootPositionBaseFrame(const Matrix3& R, const Vector3& T) {
   position_base_ =
       R * (position_ - T.replicate<1, 4>());  // Value saved because it is used to get velocity and acceleration
   return position_base_;
 }
 
-Eigen::MatrixXd FootTrajectoryGeneratorBezier::getFootVelocityBaseFrame(const Eigen::Matrix<double, 3, 3>& R,
-                                                                        const Eigen::Matrix<double, 3, 1>& v_ref,
-                                                                        const Eigen::Matrix<double, 3, 1>& w_ref) {
+MatrixN FootTrajectoryGeneratorBezier::getFootVelocityBaseFrame(const Matrix3& R, const Vector3& v_ref,
+                                                                const Vector3& w_ref) {
   velocity_base_ = R * velocity_ - v_ref.replicate<1, 4>() +
                    position_base_.colwise().cross(w_ref);  // Value saved because it is used to get acceleration
   return velocity_base_;
 }
 
-Eigen::MatrixXd FootTrajectoryGeneratorBezier::getFootAccelerationBaseFrame(const Eigen::Matrix<double, 3, 3>& R,
-                                                                            const Eigen::Matrix<double, 3, 1>& w_ref,
-                                                                            const Eigen::Matrix<double, 3, 1>& a_ref) {
+MatrixN FootTrajectoryGeneratorBezier::getFootAccelerationBaseFrame(const Matrix3& R, const Vector3& w_ref,
+                                                                    const Vector3& a_ref) {
   return R * acceleration_ - (position_base_.colwise().cross(w_ref)).colwise().cross(w_ref) +
          2 * velocity_base_.colwise().cross(w_ref) - a_ref.replicate<1, 4>();
 }

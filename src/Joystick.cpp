@@ -54,9 +54,9 @@ void Joystick::handle_v_switch(int k) {
   }
 }
 
-void Joystick::update_v_ref(int k, int velID, bool gait_is_static) {
+void Joystick::update_v_ref(int k, bool gait_is_static) {
   if (predefined) {
-    update_v_ref_predefined(k, velID);
+    update_v_ref_predefined(k);
   } else {
     update_v_ref_gamepad(k, gait_is_static);
   }
@@ -205,8 +205,7 @@ void Joystick::update_v_ref_gamepad(int k, bool gait_is_static) {
   p_ref_ = gp_alpha_pos * p_gp_ + (1 - gp_alpha_pos) * p_ref_;
 }
 
-void Joystick::update_v_ref_predefined(int k, int velID) {
-  // Initialization of velocity profile during first call
+void Joystick::update_v_ref_predefined(int k) {
   if (k == 0) {
     v_switch = params_->v_switch;
     k_switch = (params_->t_switch / dt_wbc).cast<int>();

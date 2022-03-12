@@ -63,9 +63,9 @@ class dummyDevice:
         self.hardware = dummyHardware()
         self.imu = dummyIMU()
         self.joints = dummyJoints()
-        self.dummyPos = np.zeros(3)
-        self.dummyPos[2] = 0.1944
-        self.b_baseVel = np.zeros(3)
+        self.base_position = np.zeros(3)
+        self.base_position[2] = 0.1944
+        self.b_base_velocity = np.zeros(3)
 
 
 class Controller:
@@ -214,7 +214,6 @@ class Controller:
         # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
         self.envID = params.envID
-        self.velID = params.velID
         self.dt_wbc = params.dt_wbc
         self.dt_mpc = params.dt_mpc
         self.k_mpc = int(params.dt_mpc / params.dt_wbc)
@@ -279,14 +278,14 @@ class Controller:
         """
         t_start = time.time()
 
-        self.joystick.update_v_ref(self.k, self.velID, self.gait.is_static())
+        self.joystick.update_v_ref(self.k, self.gait.is_static())
 
         q_perfect = np.zeros(6)
         b_baseVel_perfect = np.zeros(3)
         if self.solo3D and qc == None:
-            q_perfect[:3] = device.dummyPos
+            q_perfect[:3] = device.base_position
             q_perfect[3:] = device.imu.attitude_euler
-            b_baseVel_perfect = device.b_baseVel
+            b_baseVel_perfect = device.b_base_velocity
         elif self.solo3D and qc != None:
             if self.k <= 1:
                 self.initial_pos = [0.0, 0.0, -0.046]
@@ -609,7 +608,7 @@ class Controller:
 
         if self.k > 1 and self.enable_pyb_GUI:
             # Display desired feet positions in WBC as green spheres
-            oTh_pyb = device.dummyPos.reshape((-1, 1))
+            oTh_pyb = device.base_position.reshape((-1, 1))
             oRh_pyb = pin.rpy.rpyToMatrix(0.0, 0.0, device.imu.attitude_euler[2])
             for i in range(4):
                 if not self.solo3D:

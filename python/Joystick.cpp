@@ -10,8 +10,7 @@ struct JoystickVisitor : public bp::def_visitor<JoystickVisitor<Joystick>> {
 
         .def("initialize", &Joystick::initialize, bp::args("params"), "Initialize Joystick from Python.\n")
 
-        .def("update_v_ref", &Joystick::update_v_ref, bp::args("k", "velID", "gait_is_static", "h_v"),
-             "Update joystick values.")
+        .def("update_v_ref", &Joystick::update_v_ref, bp::args("k", "gait_is_static"), "Update joystick values.")
 
         .def("get_p_ref", &Joystick::getPRef, "Get Reference Position")
         .def("get_v_ref", &Joystick::getVRef, "Get Reference Velocity")

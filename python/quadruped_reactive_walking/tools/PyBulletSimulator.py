@@ -369,13 +369,12 @@ class pybullet_simulator:
             cameraTargetPosition=[0.0, 0.0, robotStartPos[2] - 0.2],
         )
 
-    def check_pyb_env(self, k, envID, velID, qmes12):
+    def check_pyb_env(self, k, envID, qmes12):
         """Check the state of the robot to trigger events and update camera
 
         Args:
             k (int): Number of inv dynamics iterations since the start of the simulation
             envID (int): Identifier of the current environment to be able to handle different scenarios
-            velID (int): Identifier of the current velocity profile to be able to handle different scenarios
             qmes12 (19x1 array): the position/orientation of the trunk and angular position of actuators
 
         """
@@ -452,22 +451,6 @@ class pybullet_simulator:
                 pyb.resetBasePositionAndOrientation(
                     self.robotId, [0, 0, 0.25], [0, 0, 0, 1]
                 )
-
-        # Apply perturbations by directly applying external forces on the robot trunk
-        if velID == 4:
-            self.apply_external_force(
-                k, 4250, 500, np.array([0.0, 0.0, -3.0]), np.zeros((3,))
-            )
-            self.apply_external_force(
-                k, 5250, 500, np.array([0.0, +3.0, 0.0]), np.zeros((3,))
-            )
-        """if velID == 0:
-            self.apply_external_force(k, 1000, 1000, np.array([0.0, 0.0, -6.0]), np.zeros((3,)))
-            self.apply_external_force(k, 2000, 1000, np.array([0.0, +12.0, 0.0]), np.zeros((3,)))"""
-
-        # Update the PyBullet camera on the robot position to do as if it was attached to the robot
-        """pyb.resetDebugVisualizerCamera(cameraDistance=0.75, cameraYaw=+50, cameraPitch=-35,
-                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])"""
 
         # Get the orientation of the robot to change the orientation of the camera with the rotation of the robot
         oMb_tmp = pin.SE3(pin.Quaternion(qmes12[3:7]), np.array([0.0, 0.0, 0.0]))
@@ -765,15 +748,7 @@ class PyBulletSimulator:
         self.v_des = np.zeros(12)
         self.tau_ff = np.zeros(12)
 
-    def Init(
-        self,
-        calibrateEncoders=False,
-        q_init=None,
-        envID=0,
-        use_flat_plane=True,
-        enable_pyb_GUI=False,
-        dt=0.002,
-    ):
+    def Init(self, calibrateEncoders, q_init, envID, use_flat_plane, enable_pyb_GUI, dt):
         """Initialize the PyBullet simultor with a given environment and a given state of the robot
 
         Args:
@@ -784,17 +759,11 @@ class PyBulletSimulator:
             enable_pyb_GUI (bool): to display PyBullet GUI or not
             dt (float): time step of the simulation
         """
-
-        # Initialisation of the PyBullet simulator
-        self.pyb_sim = pybullet_simulator(
-            q_init, envID, use_flat_plane, enable_pyb_GUI, dt
-        )
+        self.pyb_sim = pybullet_simulator(q_init, envID, use_flat_plane, enable_pyb_GUI, dt)
         self.q_init = q_init
         self.joints.positions[:] = q_init
         self.dt = dt
         self.time_loop = time.time()
-
-        return
 
     def cross3(self, left, right):
         """Numpy is inefficient for this
@@ -828,7 +797,7 @@ class PyBulletSimulator:
         self.baseState = pyb.getBasePositionAndOrientation(self.pyb_sim.robotId)
         self.dummyHeight = np.array(self.baseState[0])
         self.dummyHeight[2] = 0.20
-        self.dummyPos = np.array(self.baseState[0])
+        self.base_position = np.array(self.baseState[0])
 
         # Linear and angular velocity of the trunk (PyBullet world frame)
         self.baseVel = pyb.getBaseVelocity(self.pyb_sim.robotId)
@@ -849,7 +818,7 @@ class PyBulletSimulator:
 
         # Linear Acceleration of the base
         self.o_baseVel = np.array([self.baseVel[0]]).transpose()
-        self.b_baseVel = (self.oMb.rotation.transpose() @ self.o_baseVel).ravel()
+        self.b_base_velocity = (self.oMb.rotation.transpose() @ self.o_baseVel).ravel()
 
         self.o_imuVel = self.o_baseVel + self.oMb.rotation @ self.cross3(
             np.array([0.1163, 0.0, 0.02]), self.imu.gyroscope[:]
@@ -865,8 +834,6 @@ class PyBulletSimulator:
                 self.oMb.rotation.transpose() @ np.array([[0.0], [0.0], [-9.81]])
             ).ravel()
         )
-
-        return
 
     def send_command_and_wait_end_of_cycle(self, WaitEndOfCycle=True):
         """Send control commands to the robot

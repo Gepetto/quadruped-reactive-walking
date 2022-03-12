@@ -68,7 +68,7 @@ class FootTrajectoryGenerator {
   /// \param[in] T Translation to apply between output frame and the ideal world
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  Eigen::MatrixXd getFootPositionBaseFrame(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &T);
+  MatrixN getFootPositionBaseFrame(const Matrix3 &R, const Vector3 &T);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -79,9 +79,7 @@ class FootTrajectoryGenerator {
   /// \param[in] w_ref Reference angular velocity (if required for change of frame)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  Eigen::MatrixXd getFootVelocityBaseFrame(const Eigen::Matrix<double, 3, 3> &R,
-                                           const Eigen::Matrix<double, 3, 1> &v_ref,
-                                           const Eigen::Matrix<double, 3, 1> &w_ref);
+  MatrixN getFootVelocityBaseFrame(const Matrix3 &R, const Vector3 &v_ref, const Vector3 &w_ref);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -92,9 +90,7 @@ class FootTrajectoryGenerator {
   /// \param[in] w_ref Reference angular velocity (if required for change of frame)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  Eigen::MatrixXd getFootAccelerationBaseFrame(const Eigen::Matrix<double, 3, 3> &R,
-                                               const Eigen::Matrix<double, 3, 1> &w_ref,
-                                               const Eigen::Matrix<double, 3, 1> &a_ref);
+  MatrixN getFootAccelerationBaseFrame(const Matrix3 &R, const Vector3 &w_ref, const Vector3 &a_ref);
 
   MatrixN getTargetPosition() { return targetFootstep_; }  // Get the foot goal position
   MatrixN getFootPosition() { return position_; }          // Get the next foot position

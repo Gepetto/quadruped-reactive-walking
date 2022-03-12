@@ -61,7 +61,7 @@ void Controller::initialize(Params& params) {
 // void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
 void Controller::compute(FakeRobot* robot) {
   // Update the reference velocity coming from the gamepad
-  joystick.update_v_ref(k, params_->velID, gait.getIsStatic());
+  joystick.update_v_ref(k, gait.getIsStatic());
 
   // Process state estimator
   estimator.run(gait.getCurrentGait(), footTrajectoryGenerator.getFootPosition(), robot->imu->GetLinearAcceleration(),
