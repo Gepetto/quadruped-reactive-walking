@@ -60,6 +60,7 @@ class Controller:
         self.SIMULATION = params.SIMULATION
         self.solo3D = params.solo3D
         self.dt_mpc = params.dt_mpc
+        self.dt_wbc = params.dt_wbc
         self.k_mpc = int(params.dt_mpc / params.dt_wbc)
         self.type_MPC = params.type_MPC
         self.enable_pyb_GUI = params.enable_pyb_GUI
@@ -119,10 +120,6 @@ class Controller:
         # Wrapper that makes the link with the solver that you want to use for the MPC
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q)
         self.o_targetFootstep = np.zeros((3, 4))  # Store result for MPC_planner
-
-        self.DEMONSTRATION = params.DEMONSTRATION
-        self.solo3D = params.solo3D
-        self.SIMULATION = params.SIMULATION
 
         if params.solo3D:
             from solo3D.SurfacePlannerWrapper import Surface_planner_wrapper
@@ -192,20 +189,7 @@ class Controller:
         # import ForceMonitor
         # myForceMonitor = ForceMonitor.ForceMonitor(pyb_sim.robotId, pyb_sim.planeId)
 
-        self.envID = params.envID
-        self.dt_wbc = params.dt_wbc
-        self.dt_mpc = params.dt_mpc
-        self.k_mpc = int(params.dt_mpc / params.dt_wbc)
         self.t = t
-        self.N_SIMULATION = params.N_SIMULATION
-        self.type_MPC = params.type_MPC
-        self.use_flat_plane = params.use_flat_plane
-        self.predefined_vel = params.predefined_vel
-        self.enable_pyb_GUI = params.enable_pyb_GUI
-        self.enable_corba_viewer = params.enable_corba_viewer
-        self.Kp_main = params.Kp_main
-        self.Kd_main = params.Kd_main
-        self.Kff_main = params.Kff_main
 
         self.k = 0
 
@@ -526,10 +510,7 @@ class Controller:
                 self.feet_a_cmd,
                 self.xgoals,
             )
-            # Quantities sent to the control board
-            self.result.P = np.array(self.Kp_main.tolist() * 4)
-            self.result.D = np.array(self.Kd_main.tolist() * 4)
-            self.result.FF = self.Kff_main * np.ones(12)
+
             self.result.q_des[:] = self.wbcWrapper.qdes[:]
             self.result.v_des[:] = self.wbcWrapper.vdes[:]
             self.result.tau_ff[:] = self.wbcWrapper.tau_ff
