@@ -10,62 +10,40 @@ from .tools.utils_mpc import init_robot
 
 
 class Result:
-    """Object to store the result of the control loop
+    """
+    Object to store the result of the control loop
     It contains what is sent to the robot (gains, desired positions and velocities,
-    feedforward torques)"""
+    feedforward torques)
+    """
 
-    def __init__(self):
-
-        self.P = 0.0
-        self.D = 0.0
+    def __init__(self, params):
+        self.P = np.array(params.Kp_main.tolist() * 4)
+        self.D = np.array(params.Kd_main.tolist() * 4)
+        self.FF = params.Kff_main * np.ones(12)
         self.q_des = np.zeros(12)
         self.v_des = np.zeros(12)
         self.tau_ff = np.zeros(12)
 
 
-class dummyHardware:
-    """Fake hardware for initialisation purpose"""
-
+class DummyDevice:
     def __init__(self):
-
-        pass
-
-    def imu_data_attitude(self, i):
-
-        return 0.0
-
-
-class dummyIMU:
-    """Fake IMU for initialisation purpose"""
-
-    def __init__(self):
-
-        self.linear_acceleration = np.zeros(3)
-        self.gyroscope = np.zeros(3)
-        self.attitude_euler = np.zeros(3)
-        self.attitude_quaternion = np.zeros(4)
-
-
-class dummyJoints:
-    """Fake joints for initialisation purpose"""
-
-    def __init__(self):
-
-        self.positions = np.zeros(12)
-        self.velocities = np.zeros(12)
-
-
-class dummyDevice:
-    """Fake device for initialisation purpose"""
-
-    def __init__(self):
-
-        self.hardware = dummyHardware()
-        self.imu = dummyIMU()
-        self.joints = dummyJoints()
+        self.imu = self.IMU()
+        self.joints = self.Joints()
         self.base_position = np.zeros(3)
         self.base_position[2] = 0.1944
         self.b_base_velocity = np.zeros(3)
+
+    class IMU:
+        def __init__(self):
+            self.linear_acceleration = np.zeros(3)
+            self.gyroscope = np.zeros(3)
+            self.attitude_euler = np.zeros(3)
+            self.attitude_quaternion = np.zeros(4)
+
+    class Joints:
+        def __init__(self):
+            self.positions = np.zeros(12)
+            self.velocities = np.zeros(12)
 
 
 class Controller:
@@ -78,10 +56,15 @@ class Controller:
             q_init (array): initial position of actuators
             t (float): time of the simulation
         """
-
-        ########################################################################
-        #                        Parameters definition                         #
-        ########################################################################
+        self.DEMONSTRATION = params.DEMONSTRATION
+        self.SIMULATION = params.SIMULATION
+        self.solo3D = params.solo3D
+        self.dt_mpc = params.dt_mpc
+        self.k_mpc = int(params.dt_mpc / params.dt_wbc)
+        self.type_MPC = params.type_MPC
+        self.enable_pyb_GUI = params.enable_pyb_GUI
+        self.enable_corba_viewer = params.enable_corba_viewer
+        self.q_display = np.zeros(19)
 
         self.q_security = np.array(
             [1.2, 2.1, 3.14, 1.2, 2.1, 3.14, 1.2, 2.1, 3.14, 1.2, 2.1, 3.14]
@@ -140,10 +123,6 @@ class Controller:
         self.DEMONSTRATION = params.DEMONSTRATION
         self.solo3D = params.solo3D
         self.SIMULATION = params.SIMULATION
-
-        self.last_q_perfect = np.zeros(6)
-        self.last_b_vel = np.zeros(3)
-        self.n_nan = 0
 
         if params.solo3D:
             from solo3D.SurfacePlannerWrapper import Surface_planner_wrapper
@@ -245,8 +224,6 @@ class Controller:
         self.feet_v_cmd = np.zeros((3, 4))
         self.feet_p_cmd = np.zeros((3, 4))
 
-        self.error = False  # True if something wrong happens in the controller
-
         self.q_filter = np.zeros((18, 1))
         self.h_v_filt_mpc = np.zeros((6, 1))
         self.vref_filt_mpc = np.zeros((6, 1))
@@ -262,13 +239,15 @@ class Controller:
         self.p_ref = np.zeros((6, 1))
         self.treshold_static = False
 
-        # Interface with the PD+ on the control board
-        self.result = Result()
+        self.error = False
+        self.last_q_perfect = np.zeros(6)
+        self.last_b_vel = np.zeros(3)
+        self.n_nan = 0
+        self.result = Result(params)
 
-        # Run the control loop once with a dummy device for initialization
-        dDevice = dummyDevice()
-        dDevice.joints.positions = q_init
-        self.compute(dDevice)
+        device = DummyDevice()
+        device.joints.positions = q_init
+        self.compute(device)
 
     def compute(self, device, qc=None):
         """Run one iteration of the main control loop
