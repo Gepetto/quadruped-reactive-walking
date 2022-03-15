@@ -17,13 +17,11 @@ struct InvKinVisitor : public bp::def_visitor<InvKinVisitor<InvKin>> {
         .def("get_foot_id", &InvKin::get_foot_id, bp::args("i"), "Get food frame id.\n")
 
         // Run InvKin from Python
-        .def("run_InvKin", &InvKin::run_InvKin, bp::args("contacts", "pgoals", "vgoals", "agoals", "x_cmd"),
+        .def("run", &InvKin::run, bp::args("contacts", "pgoals", "vgoals", "agoals", "x_cmd"),
              "Run InvKin from Python.\n");
   }
 
-  static void expose() {
-    bp::class_<InvKin>("InvKin", bp::no_init).def(InvKinVisitor<InvKin>());
-  }
+  static void expose() { bp::class_<InvKin>("InvKin", bp::no_init).def(InvKinVisitor<InvKin>()); }
 };
 
 void exposeInvKin() { InvKinVisitor<InvKin>::expose(); }

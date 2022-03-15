@@ -8,13 +8,9 @@ struct StatePlannerVisitor : public bp::def_visitor<StatePlannerVisitor<StatePla
   void visit(PyClassStatePlanner& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
-        .def("getReferenceStates", &StatePlanner::getReferenceStates, "Get xref matrix.\n")
-        .def("getNumberStates", &StatePlanner::getNumberStates, "Get number of steps in prediction horizon.\n")
-
+        .def("get_reference_states", &StatePlanner::getReferenceStates, "Get xref matrix.\n")
         .def("initialize", &StatePlanner::initialize, bp::args("params"), "Initialize StatePlanner from Python.\n")
-
-        // Run StatePlanner from Python
-        .def("computeReferenceStates", &StatePlanner::computeReferenceStates, bp::args("q", "v", "b_vref"),
+        .def("compute_reference_states", &StatePlanner::computeReferenceStates, bp::args("q", "v", "b_vref"),
              "Run StatePlanner from Python.\n");
   }
 

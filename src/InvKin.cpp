@@ -316,7 +316,7 @@ void InvKin::refreshAndCompute(RowVector4 const& contacts, Matrix43 const& pgoal
   */
 }
 
-void InvKin::run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals,
+void InvKin::run(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals,
                         MatrixN const& vgoals, MatrixN const& agoals, MatrixN const& x_cmd) {
   // std::cout << "run invkin q: " << q << std::endl;
 

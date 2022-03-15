@@ -490,7 +490,6 @@ int FootstepPlannerQP::surfaceInequalities(int i_start, Surface const& surface, 
 
 MatrixN FootstepPlannerQP::getFootsteps() { return vectorToMatrix(b_footsteps_); }
 MatrixN FootstepPlannerQP::getTargetFootsteps() { return targetFootstep_; }
-MatrixN FootstepPlannerQP::getRz() { return Rz; }
 
 MatrixN FootstepPlannerQP::vectorToMatrix(std::vector<Matrix34> const& array) {
   MatrixN M = MatrixN::Zero(array.size(), 12);

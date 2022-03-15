@@ -74,7 +74,6 @@ class StatePlanner3D {
   void computeConfigurations(VectorN const& q, Vector6 const& vref);
 
   MatrixN getReferenceStates() { return referenceStates_; }
-  int getNumberStates() { return nStates_; }
   MatrixN getConfigurations() { return configs_; }
   VectorN getFit() { return fit_; }
 

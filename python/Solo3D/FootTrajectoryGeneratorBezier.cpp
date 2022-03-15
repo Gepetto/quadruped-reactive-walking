@@ -9,17 +9,18 @@ struct FootTrajectoryGeneratorBezierVisitor
   void visit(PyClassFootTrajectoryGeneratorBezier& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
-        .def("getFootPosition", &FootTrajectoryGeneratorBezier::getFootPosition, "Get position_ matrix.\n")
-        .def("getFootVelocity", &FootTrajectoryGeneratorBezier::getFootVelocity, "Get velocity_ matrix.\n")
-        .def("getFootAcceleration", &FootTrajectoryGeneratorBezier::getFootAcceleration, "Get acceleration_ matrix.\n")
-        .def("getFootJerk", &FootTrajectoryGeneratorBezier::getFootJerk, "Get jerk_ matrix.\n")
-        .def("evaluateBezier", &FootTrajectoryGeneratorBezier::evaluateBezier, "Evaluate Bezier curve by foot.\n")
-        .def("evaluatePoly", &FootTrajectoryGeneratorBezier::evaluatePoly, "Evaluate Bezier curve by foot.\n")
-        .def("getFootPositionBaseFrame", &FootTrajectoryGeneratorBezier::getFootPositionBaseFrame, bp::args("R", "T"),
-             "Get position_ matrix in base frame.\n")
-        .def("getFootVelocityBaseFrame", &FootTrajectoryGeneratorBezier::getFootVelocityBaseFrame,
+        .def("get_foot_position", &FootTrajectoryGeneratorBezier::getFootPosition, "Get position_ matrix.\n")
+        .def("get_foot_velocity", &FootTrajectoryGeneratorBezier::getFootVelocity, "Get velocity_ matrix.\n")
+        .def("get_foot_acceleration", &FootTrajectoryGeneratorBezier::getFootAcceleration,
+             "Get acceleration_ matrix.\n")
+        .def("get_foot_jerk", &FootTrajectoryGeneratorBezier::getFootJerk, "Get jerk_ matrix.\n")
+        .def("evaluate_bezier", &FootTrajectoryGeneratorBezier::evaluateBezier, "Evaluate Bezier curve by foot.\n")
+        .def("evaluate_polynom", &FootTrajectoryGeneratorBezier::evaluatePoly, "Evaluate Bezier curve by foot.\n")
+        .def("get_foot_position_base_frame", &FootTrajectoryGeneratorBezier::getFootPositionBaseFrame,
+             bp::args("R", "T"), "Get position_ matrix in base frame.\n")
+        .def("get_foot_velocity_base_frame", &FootTrajectoryGeneratorBezier::getFootVelocityBaseFrame,
              bp::args("R", "v_ref", "w_ref"), "Get velocity_ matrix in base frame.\n")
-        .def("getFootAccelerationBaseFrame", &FootTrajectoryGeneratorBezier::getFootAccelerationBaseFrame,
+        .def("get_foot_acceleration_base_frame", &FootTrajectoryGeneratorBezier::getFootAccelerationBaseFrame,
              bp::args("R", "w_ref", "a_ref"), "Get acceleration_ matrix in base frame.\n")
 
         .def("initialize", &FootTrajectoryGeneratorBezier::initialize, bp::args("params", "gaitIn"),

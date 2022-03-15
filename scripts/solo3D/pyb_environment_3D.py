@@ -85,7 +85,7 @@ class PybEnvironment3D():
         '''
 
         gait = self.gait.get_gait_matrix()
-        fsteps = self.footStepPlanner.getFootsteps()
+        fsteps = self.footStepPlanner.get_footsteps()
 
         for j in range(4):
             # Count the position of the plotted trajectory in the temporal horizon
@@ -106,9 +106,9 @@ class PybEnvironment3D():
 
                             for id_t, t in enumerate(t_vector):
                                 # Bezier trajectory
-                                pos = self.footTrajectoryGenerator.evaluateBezier(j, 0, t)
+                                pos = self.footTrajectoryGenerator.evaluate_bezier(j, 0, t)
                                 # Polynomial Curve 5th order
-                                # pos = self.footTrajectoryGenerator.evaluatePoly(j, 0, t)
+                                # pos = self.footTrajectoryGenerator.evaluate_polynom(j, 0, t)
                                 pyb.resetBasePositionAndOrientation(int(self.trajectory_Ids[c, j, id_t]),
                                                                     posObj=pos,
                                                                     ornObj=np.array([0.0, 0.0, 0.0, 1.0]))

@@ -7,8 +7,7 @@ struct FilterVisitor : public bp::def_visitor<FilterVisitor<Filter>> {
   void visit(PyClassFilter& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
         .def("initialize", &Filter::initialize, bp::args("params"), "Initialize Filter from Python.\n")
-        .def("filter", &Filter::filter, bp::args("x", "check_modulo"), "Run Filter from Python.\n")
-        .def("getFilt", &Filter::getFilt, "Get filtered quantity.\n");
+        .def("filter", &Filter::filter, bp::args("x", "check_modulo"), "Run Filter from Python.\n");
   }
 
   static void expose() { bp::class_<Filter>("Filter", bp::no_init).def(FilterVisitor<Filter>()); }

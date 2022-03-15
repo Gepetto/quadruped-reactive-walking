@@ -255,7 +255,6 @@ void FootstepPlanner::updateNewContact(Vector18 const& q) {
 
 MatrixN FootstepPlanner::getFootsteps() { return vectorToMatrix(footsteps_); }
 MatrixN FootstepPlanner::getTargetFootsteps() { return targetFootstep_; }
-MatrixN FootstepPlanner::getRz() { return Rz; }
 
 MatrixN FootstepPlanner::vectorToMatrix(std::vector<Matrix34> const& array) {
   MatrixN M = MatrixN::Zero(array.size(), 12);

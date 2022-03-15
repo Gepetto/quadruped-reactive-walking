@@ -291,7 +291,7 @@ class Controller:
             self.n_nan = 0
 
         self.estimator.run(self.gait.matrix,
-                           self.footTrajectoryGenerator.getFootPosition(),
+                           self.footTrajectoryGenerator.get_foot_position(),
                            device.imu.linear_acceleration,
                            device.imu.gyroscope,
                            device.imu.attitude_euler,
@@ -300,7 +300,7 @@ class Controller:
                            q_perfect, b_baseVel_perfect)
 
         # Update state vectors of the robot (q and v) + transformation matrices between world and horizontal frames
-        self.estimator.update_reference_state(self.joystick.getVRef())
+        self.estimator.update_reference_state(self.joystick.get_v_ref())
         oRh = self.estimator.get_oRh()
         hRb = self.estimator.get_hRb()
         oTh = self.estimator.get_oTh().reshape((3, 1))
@@ -331,31 +331,31 @@ class Controller:
         t_filter = time.time()
         self.t_filter = t_filter - t_start
 
-        self.gait.update(self.k, self.k_mpc, self.joystick.getJoystickCode())
+        self.gait.update(self.k, self.k_mpc, self.joystick.get_joystick_code())
 
         self.update_mip = self.k % self.k_mpc == 0 and self.gait.is_new_step()
         if self.solo3D:
             if self.update_mip:
-                self.statePlanner.updateSurface(self.q_filter[:6, :1], self.vref_filt_mpc[:6, :1])
+                self.statePlanner.update_surface(self.q_filter[:6, :1], self.vref_filt_mpc[:6, :1])
                 if self.surfacePlanner.initialized:
                     self.error = self.surfacePlanner.get_latest_results()
 
-            self.footstepPlanner.updateSurfaces(self.surfacePlanner.potential_surfaces, self.surfacePlanner.selected_surfaces,
+            self.footstepPlanner.update_surfaces(self.surfacePlanner.potential_surfaces, self.surfacePlanner.selected_surfaces,
                                                 self.surfacePlanner.mip_success, self.surfacePlanner.mip_iteration)
 
-        self.o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
+        self.o_targetFootstep = self.footstepPlanner.update_footsteps(self.k % self.k_mpc == 0 and self.k != 0,
                                                                      int(self.k_mpc - self.k % self.k_mpc),
                                                                      self.q_filter[:, 0], self.h_v_windowed[:6, :1].copy(),
                                                                      self.v_ref[:6, :1])
 
-        self.statePlanner.computeReferenceStates(self.q_filter[:6, :1], self.h_v_filt_mpc[:6, :1].copy(), self.vref_filt_mpc[:6, :1])
+        self.statePlanner.compute_reference_states(self.q_filter[:6, :1], self.h_v_filt_mpc[:6, :1].copy(), self.vref_filt_mpc[:6, :1])
 
-        xref = self.statePlanner.getReferenceStates()
-        fsteps = self.footstepPlanner.getFootsteps()
+        xref = self.statePlanner.get_reference_states()
+        fsteps = self.footstepPlanner.get_footsteps()
         gait_matrix = self.gait.matrix
 
         if self.update_mip and self.solo3D:
-            configs = self.statePlanner.getConfigurations().transpose()
+            configs = self.statePlanner.get_configurations().transpose()
             self.surfacePlanner.run(configs, gait_matrix, self.o_targetFootstep, self.vref_filt_mpc[:3, 0].copy())
             self.surfacePlanner.initialized = True
             if not self.enable_multiprocessing_mip and self.SIMULATION:
@@ -371,11 +371,11 @@ class Controller:
                     # Compute the target foostep in local frame, to stop the optimisation around it when t_lock overpass
                     l_targetFootstep = oRh.transpose() @ (self.o_targetFootstep - oTh)
                     self.mpc_wrapper.solve(self.k, xref, fsteps, gait_matrix, l_targetFootstep, oRh, oTh,
-                                           self.footTrajectoryGenerator.getFootPosition(),
-                                           self.footTrajectoryGenerator.getFootVelocity(),
-                                           self.footTrajectoryGenerator.getFootAcceleration(),
-                                           self.footTrajectoryGenerator.getFootJerk(),
-                                           self.footTrajectoryGenerator.getTswing() - self.footTrajectoryGenerator.getT0s())
+                                           self.footTrajectoryGenerator.get_foot_position(),
+                                           self.footTrajectoryGenerator.get_foot_velocity(),
+                                           self.footTrajectoryGenerator.get_foot_acceleration(),
+                                           self.footTrajectoryGenerator.get_foot_jerk(),
+                                           self.footTrajectoryGenerator.get_phase_durations() - self.footTrajectoryGenerator.get_elapsed_durations())
                 else:
                     self.mpc_wrapper.solve(self.k, xref, fsteps, gait_matrix, np.zeros((3, 4)))
             except ValueError:
@@ -400,14 +400,14 @@ class Controller:
         else:
             self.footTrajectoryGenerator.update(self.k, self.o_targetFootstep)
 
-        if not self.error and not self.joystick.getStop():
+        if not self.error and not self.joystick.get_stop():
             if self.DEMONSTRATION and self.gait.is_static():
                 hRb = np.eye(3)
 
             # Desired position, orientation and velocities of the base
             self.xgoals[:6, 0] = np.zeros((6,))
-            if self.DEMONSTRATION and self.joystick.getL1() and self.gait.is_static():
-                self.p_ref[:, 0] = self.joystick.getPRef()
+            if self.DEMONSTRATION and self.joystick.get_l1() and self.gait.is_static():
+                self.p_ref[:, 0] = self.joystick.get_p_ref()
                 self.xgoals[[3, 4], 0] = self.p_ref[[3, 4], 0]
                 self.h_ref = self.p_ref[2, 0]
                 hRb = pin.rpy.rpyToMatrix(0.0, 0.0, self.p_ref[5, 0])
@@ -429,18 +429,18 @@ class Controller:
 
             # Feet command position, velocity and acceleration in base frame
             if self.solo3D:  # Use estimated base frame
-                self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(
+                self.feet_a_cmd = self.footTrajectoryGenerator.get_foot_acceleration_base_frame(
                     oRh_3d.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
-                self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(
+                self.feet_v_cmd = self.footTrajectoryGenerator.get_foot_velocity_base_frame(
                     oRh_3d.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
-                self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(
+                self.feet_p_cmd = self.footTrajectoryGenerator.get_foot_position_base_frame(
                     oRh_3d.transpose(), oTh_3d + np.array([[0.0], [0.0], [xref[2, 1]]]))
             else:  # Use ideal base frame
-                self.feet_a_cmd = self.footTrajectoryGenerator.getFootAccelerationBaseFrame(
+                self.feet_a_cmd = self.footTrajectoryGenerator.get_foot_acceleration_base_frame(
                     hRb @ oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
-                self.feet_v_cmd = self.footTrajectoryGenerator.getFootVelocityBaseFrame(
+                self.feet_v_cmd = self.footTrajectoryGenerator.get_foot_velocity_base_frame(
                     hRb @ oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1)))
-                self.feet_p_cmd = self.footTrajectoryGenerator.getFootPositionBaseFrame(
+                self.feet_p_cmd = self.footTrajectoryGenerator.get_foot_position_base_frame(
                     hRb @ oRh.transpose(), oTh + np.array([[0.0], [0.0], [self.h_ref]]))
 
             self.xgoals[6:, 0] = self.vref_filt_mpc[:, 0]  # Velocities (in horizontal frame!)
@@ -474,7 +474,7 @@ class Controller:
         self.t_wbc = time.time() - t_mpc
 
         self.security_check()
-        if self.error or self.joystick.getStop():
+        if self.error or self.joystick.get_stop():
             self.set_null_control()
 
         # Update PyBullet camera
@@ -570,7 +570,7 @@ class Controller:
         Check if the command is fine and set the command to zero in case of error
         """
 
-        if not (self.error or self.joystick.getStop()):
+        if not (self.error or self.joystick.get_stop()):
             if (np.abs(self.estimator.get_q_estimate()[7:]) > self.q_security).any():
                 print("-- POSITION LIMIT ERROR --")
                 print(self.estimator.get_q_estimate()[7:])

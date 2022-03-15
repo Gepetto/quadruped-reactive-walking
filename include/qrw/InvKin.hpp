@@ -66,7 +66,7 @@ class InvKin {
   /// \param[in] x_cmd Desired position, orientation and velocity of the base
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void run_InvKin(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals,
+  void run(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals,
                   MatrixN const& vgoals, MatrixN const& agoals, MatrixN const& x_cmd);
 
   VectorN get_q_step() { return q_step_; }

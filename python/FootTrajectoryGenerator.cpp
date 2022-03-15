@@ -9,18 +9,18 @@ struct FootTrajectoryGeneratorVisitor
   void visit(PyClassFootTrajectoryGenerator& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
-        .def("getFootPositionBaseFrame", &FootTrajectoryGenerator::getFootPositionBaseFrame, bp::args("R", "T"),
+        .def("get_foot_position_base_frame", &FootTrajectoryGenerator::getFootPositionBaseFrame, bp::args("R", "T"),
              "Get position_ matrix in base frame.\n")
-        .def("getFootVelocityBaseFrame", &FootTrajectoryGenerator::getFootVelocityBaseFrame,
+        .def("get_foot_velocity_base_frame", &FootTrajectoryGenerator::getFootVelocityBaseFrame,
              bp::args("R", "v_ref", "w_ref"), "Get velocity_ matrix in base frame.\n")
-        .def("getFootAccelerationBaseFrame", &FootTrajectoryGenerator::getFootAccelerationBaseFrame,
+        .def("get_foot_acceleration_base_frame", &FootTrajectoryGenerator::getFootAccelerationBaseFrame,
              bp::args("R", "w_ref", "a_ref"), "Get acceleration_ matrix in base frame.\n")
 
-        .def("getTargetPosition", &FootTrajectoryGenerator::getTargetPosition, "Get targetFootstep_ matrix.\n")
-        .def("getFootPosition", &FootTrajectoryGenerator::getFootPosition, "Get position_ matrix.\n")
-        .def("getFootVelocity", &FootTrajectoryGenerator::getFootVelocity, "Get velocity_ matrix.\n")
-        .def("getFootAcceleration", &FootTrajectoryGenerator::getFootAcceleration, "Get acceleration_ matrix.\n")
-        .def("getFootJerk", &FootTrajectoryGenerator::getFootJerk, "Get jerk_ matrix.\n")
+        .def("get_target_position", &FootTrajectoryGenerator::getTargetPosition, "Get targetFootstep_ matrix.\n")
+        .def("get_foot_position", &FootTrajectoryGenerator::getFootPosition, "Get position_ matrix.\n")
+        .def("get_foot_velocity", &FootTrajectoryGenerator::getFootVelocity, "Get velocity_ matrix.\n")
+        .def("get_foot_acceleration", &FootTrajectoryGenerator::getFootAcceleration, "Get acceleration_ matrix.\n")
+        .def("get_foot_jerk", &FootTrajectoryGenerator::getFootJerk, "Get jerk_ matrix.\n")
 
         .def("initialize", &FootTrajectoryGenerator::initialize, bp::args("params", "gaitIn"),
              "Initialize FootTrajectoryGenerator from Python.\n")
@@ -28,8 +28,8 @@ struct FootTrajectoryGeneratorVisitor
         .def("update", &FootTrajectoryGenerator::update, bp::args("k", "targetFootstep"),
              "Compute target location of footsteps from Python.\n")
 
-        .def("getT0s", &FootTrajectoryGenerator::getT0s, "Get the current timings of the flying feet.\n")
-        .def("getTswing", &FootTrajectoryGenerator::getTswing, "Get the flying period of the feet.\n");
+        .def("get_elapsed_durations", &FootTrajectoryGenerator::getT0s, "Get the current timings of the flying feet.\n")
+        .def("get_phase_durations", &FootTrajectoryGenerator::getTswing, "Get the flying period of the feet.\n");
   }
 
   static void expose() {
