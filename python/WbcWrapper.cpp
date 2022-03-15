@@ -38,7 +38,6 @@ struct WbcWrapperVisitor : public bp::def_visitor<WbcWrapperVisitor<WbcWrapper>>
         .def_readonly("Mddq_out", &WbcWrapper::get_Mddq_out)
         .def_readonly("JcTf_out", &WbcWrapper::get_JcTf_out)
 
-        // Run WbcWrapper from Python
         .def("compute", &WbcWrapper::compute,
              bp::args("q", "dq", "f_cmd", "contacts", "pgoals", "vgoals", "agoals", "xgoals"),
              "Run WbcWrapper from Python.\n");

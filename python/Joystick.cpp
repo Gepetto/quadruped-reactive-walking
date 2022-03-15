@@ -12,17 +12,18 @@ struct JoystickVisitor : public bp::def_visitor<JoystickVisitor<Joystick>> {
 
         .def("update_v_ref", &Joystick::update_v_ref, bp::args("k", "velID", "gait_is_static", "h_v"),
              "Update joystick values.")
-        .def("getPRef", &Joystick::getPRef, "Get Reference Position")
-        .def("getVRef", &Joystick::getVRef, "Get Reference Velocity")
-        .def("getJoystickCode", &Joystick::getJoystickCode, "Get Joystick Code")
-        .def("getStart", &Joystick::getStart, "Get Joystick Start")
-        .def("getStop", &Joystick::getStop, "Get Joystick Stop")
-        .def("getCross", &Joystick::getCross, "Get Joystick Cross status")
-        .def("getCircle", &Joystick::getCircle, "Get Joystick Circle status")
-        .def("getTriangle", &Joystick::getTriangle, "Get Joystick Triangle status")
-        .def("getSquare", &Joystick::getSquare, "Get Joystick Square status")
-        .def("getL1", &Joystick::getL1, "Get Joystick L1 status")
-        .def("getR1", &Joystick::getR1, "Get Joystick R1 status");
+
+        .def("get_p_ref", &Joystick::getPRef, "Get Reference Position")
+        .def("get_v_ref", &Joystick::getVRef, "Get Reference Velocity")
+        .def("get_joystick_code", &Joystick::getJoystickCode, "Get Joystick Code")
+        .def("get_start", &Joystick::getStart, "Get Joystick Start")
+        .def("get_stop", &Joystick::getStop, "Get Joystick Stop")
+        .def("get_cross", &Joystick::getCross, "Get Joystick Cross status")
+        .def("get_circle", &Joystick::getCircle, "Get Joystick Circle status")
+        .def("get_triangle", &Joystick::getTriangle, "Get Joystick Triangle status")
+        .def("get_square", &Joystick::getSquare, "Get Joystick Square status")
+        .def("get_l1", &Joystick::getL1, "Get Joystick L1 status")
+        .def("get_r1", &Joystick::getR1, "Get Joystick R1 status");
   }
 
   static void expose() { bp::class_<Joystick>("Joystick", bp::no_init).def(JoystickVisitor<Joystick>()); }

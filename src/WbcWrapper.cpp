@@ -97,7 +97,7 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   data_.M.triangularView<Eigen::StrictlyLower>() = data_.M.transpose().triangularView<Eigen::StrictlyLower>();
 
   // Compute Inverse Kinematics
-  invkin_->run_InvKin(q_wbc_, dq_wbc_, contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose(), xgoals);
+  invkin_->run(q_wbc_, dq_wbc_, contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose(), xgoals);
   ddq_cmd_ = invkin_->get_ddq_cmd();
 
   // TODO: Check if we can save time by switching MatrixXd to defined sized vector since they are

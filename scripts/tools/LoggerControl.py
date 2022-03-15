@@ -136,7 +136,7 @@ class LoggerControl():
                 return
 
         # Logging from joystick
-        self.joy_v_ref[self.i] = joystick.getVRef()
+        self.joy_v_ref[self.i] = joystick.get_v_ref()
 
         # Logging from estimator
         self.esti_feet_status[self.i] = estimator.get_feet_status()
@@ -181,14 +181,14 @@ class LoggerControl():
         self.loop_vref_filt_mpc[self.i] = controller.vref_filt_mpc[:, 0]
 
         # Logging from the planner
-        self.planner_xref[self.i] = statePlanner.getReferenceStates()
-        self.planner_fsteps[self.i] = footstepPlanner.getFootsteps()
-        self.planner_target_fsteps[self.i] = footstepPlanner.getTargetFootsteps()
+        self.planner_xref[self.i] = statePlanner.get_reference_states()
+        self.planner_fsteps[self.i] = footstepPlanner.get_footsteps()
+        self.planner_target_fsteps[self.i] = footstepPlanner.get_target_footsteps()
         self.planner_gait[self.i] = gait.get_gait_matrix()
-        self.planner_goals[self.i] = footTrajectoryGenerator.getFootPosition()
-        self.planner_vgoals[self.i] = footTrajectoryGenerator.getFootVelocity()
-        self.planner_agoals[self.i] = footTrajectoryGenerator.getFootAcceleration()
-        self.planner_jgoals[self.i] = footTrajectoryGenerator.getFootJerk()
+        self.planner_goals[self.i] = footTrajectoryGenerator.get_foot_position()
+        self.planner_vgoals[self.i] = footTrajectoryGenerator.get_foot_velocity()
+        self.planner_agoals[self.i] = footTrajectoryGenerator.get_foot_acceleration()
+        self.planner_jgoals[self.i] = footTrajectoryGenerator.get_foot_jerk()
         self.planner_is_static[self.i] = gait.is_static()
         self.planner_h_ref[self.i] = controller.h_ref
 
@@ -223,7 +223,7 @@ class LoggerControl():
         # solo3d
         if self.solo3d:
             self.update_mip[self.i] = controller.update_mip
-            self.configs[self.i] = statePlanner.getConfigurations()
+            self.configs[self.i] = statePlanner.get_configurations()
             self.initial_contacts[self.i] = controller.o_targetFootstep
             self.t_mip[self.i] = controller.surfacePlanner.t_mip
         self.i += 1

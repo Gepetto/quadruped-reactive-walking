@@ -9,17 +9,16 @@ struct FootstepPlannerQPVisitor : public bp::def_visitor<FootstepPlannerQPVisito
   void visit(PyClassFootstepPlannerQP& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
-        .def("getFootsteps", &FootstepPlannerQP::getFootsteps, "Get footsteps_ matrix.\n")
-        .def("getTargetFootsteps", &FootstepPlannerQP::getTargetFootsteps, "Get footsteps_ matrix.\n")
-        .def("getRz", &FootstepPlannerQP::getRz, "Get rotation along z matrix.\n")
+        .def("get_footsteps", &FootstepPlannerQP::getFootsteps, "Get footsteps_ matrix.\n")
+        .def("get_target_footsteps", &FootstepPlannerQP::getTargetFootsteps, "Get footsteps_ matrix.\n")
 
         .def("initialize", &FootstepPlannerQP::initialize, bp::args("params", "gaitIn"),
              "Initialize FootstepPlanner from Python.\n")
 
         // Compute target location of footsteps from Python
-        .def("updateFootsteps", &FootstepPlannerQP::updateFootsteps, bp::args("refresh", "k", "q", "b_v", "b_vref"),
+        .def("update_footsteps", &FootstepPlannerQP::updateFootsteps, bp::args("refresh", "k", "q", "b_v", "b_vref"),
              "Update and compute location of footsteps from Python.\n")
-        .def("updateSurfaces", &FootstepPlannerQP::updateSurfaces,
+        .def("update_surfaces", &FootstepPlannerQP::updateSurfaces,
              bp::args("potential_surfaces", "selected_surfaces", "status", "iterations"),
              "Update the surfaces from surface planner.\n");
   }
