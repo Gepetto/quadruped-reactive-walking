@@ -31,8 +31,53 @@ install(TARGETS ${PY_NAME} DESTINATION ${${PY_NAME}_INSTALL_DIR})
 
 set(${PY_NAME}_PYTHON
   __init__.py
+  Controller.py
+  main_solo12_control.py
+  main_solo12_replay.py
+  MPC_Wrapper.py
+  )
+
+set(${PY_NAME}_CROCODDYL_PYTHON
+  __init__.py
+  MPC_crocoddyl.py
+  MPC_crocoddyl_2.py
+  MPC_crocoddyl_planner.py
+  )
+
+set(${PY_NAME}_SOLO3D_PYTHON
+  __init__.py
+  heightmap_generator.py
+  heightmap_tools.py
+  pyb_environment_3D.py
+  SurfacePlanner.py
+  SurfacePlannerWrapper.py
+  utils.py
+  )
+
+set(${PY_NAME}_TOOLS_PYTHON
+  ForceMonitor.py
+  gamepadClient.py
+  __init__.py
+  LoggerControl.py
+  LoggerSensors.py
+  place_com_with_invkin.py
+  PyBulletSimulator.py
+  qualisysClient.py
+  utils_mpc.py
   )
 
 foreach(python ${${PY_NAME}_PYTHON})
   PYTHON_INSTALL_ON_SITE(${PY_NAME} ${python})
+endforeach()
+
+foreach(python ${${PY_NAME}_CROCODDYL_PYTHON})
+  PYTHON_INSTALL_ON_SITE(${PY_NAME}/Crocoddyl ${python})
+endforeach()
+
+foreach(python ${${PY_NAME}_SOLO3D_PYTHON})
+  PYTHON_INSTALL_ON_SITE(${PY_NAME}/solo3D ${python})
+endforeach()
+
+foreach(python ${${PY_NAME}_tools_PYTHON})
+  PYTHON_INSTALL_ON_SITE(${PY_NAME}/tools ${python})
 endforeach()

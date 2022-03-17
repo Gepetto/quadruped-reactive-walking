@@ -1,10 +1,11 @@
 import os
 import threading
-import numpy as np
-import argparse
-from tools.LoggerSensors import LoggerSensors
-import quadruped_reactive_walking as qrw
 import time
+
+import numpy as np
+
+from . import quadruped_reactive_walking as qrw
+from .tools.LoggerSensors import LoggerSensors
 
 params = qrw.Params()  # Object that holds all controller parameters
 
@@ -29,7 +30,7 @@ def put_on_the_floor(device, q_init):
     """
     print("PUT ON THE FLOOR.")
 
-    Kp_pos = 3.
+    Kp_pos = 3.0
     Kd_pos = 0.3
 
     device.joints.set_position_gains(Kp_pos * np.ones(12))
@@ -75,9 +76,9 @@ def damp_control(device, nb_motors):
         # Send command to the robot
         device.send_command_and_wait_end_of_cycle(params.dt_wbc)
         if (t % 1) < 5e-5:
-            print('IMU attitude:', device.imu.attitude_euler)
-            print('joint pos   :', device.joints.positions)
-            print('joint vel   :', device.joints.velocities)
+            print("IMU attitude:", device.imu.attitude_euler)
+            print("joint pos   :", device.joints.positions)
+            print("joint vel   :", device.joints.velocities)
             device.robot_interface.PrintStats()
 
         t += params.dt_wbc
@@ -94,9 +95,9 @@ def control_loop(des_vel_analysis=None):
     # replay = np.load("/home/odri/git/abonnefoy/Motion/Logs/push_up_position.npz")
     replay = np.load("/home/odri/git/abonnefoy/Motion/Logs/full_push_up.npz")
 
-    replay_q = replay['q'][7:, 1:].transpose().copy()
-    replay_v = replay['v'][6:, 1:].transpose().copy()
-    replay_tau = replay['tau'].transpose().copy()
+    replay_q = replay["q"][7:, 1:].transpose().copy()
+    replay_v = replay["v"][6:, 1:].transpose().copy()
+    replay_tau = replay["tau"].transpose().copy()
     params.N_SIMULATION = replay_q.shape[0]
     N = replay_q.shape[0]
     replay_P = 6.0 * np.ones((N, 12))  # replay["P"]
@@ -125,12 +126,20 @@ def control_loop(des_vel_analysis=None):
         qc = QualisysClient(ip="140.93.16.160", body_id=0)
 
     if params.LOGGING or params.PLOTTING:
-        loggerSensors = LoggerSensors(device, qualisys=qc, logSize=params.N_SIMULATION-3)
+        loggerSensors = LoggerSensors(
+            device, qualisys=qc, logSize=params.N_SIMULATION - 3
+        )
 
     # Initiate communication with the device and calibrate encoders
     if params.SIMULATION:
-        device.Init(calibrateEncoders=True, q_init=q_init, envID=params.envID,
-                    use_flat_plane=params.use_flat_plane, enable_pyb_GUI=params.enable_pyb_GUI, dt=params.dt_wbc)
+        device.Init(
+            calibrateEncoders=True,
+            q_init=q_init,
+            envID=params.envID,
+            use_flat_plane=params.use_flat_plane,
+            enable_pyb_GUI=params.enable_pyb_GUI,
+            dt=params.dt_wbc,
+        )
     else:
         # Initialize the communication and the session.
         device.initialize(q_init[:])
@@ -143,22 +152,27 @@ def control_loop(des_vel_analysis=None):
 
     # CONTROL LOOP ***************************************************
     t = 0.0
-    t_max = (params.N_SIMULATION-2) * params.dt_wbc
+    t_max = (params.N_SIMULATION - 2) * params.dt_wbc
 
     k_log_whole = 0
     T_whole = time.time()
     dT_whole = 0.0
     np.set_printoptions(precision=2, linewidth=300)
-    while ((not device.is_timeout) and (t < t_max)):
+    while (not device.is_timeout) and (t < t_max):
 
         # Update sensor data (IMU, encoders, Motion capture)
         device.parse_sensor_data()
 
         # Check that the initial position of actuators is not too far from the
         # desired position of actuators to avoid breaking the robot
-        if (t <= 10 * params.dt_wbc):
-            if np.max(np.abs(replay_q[k_log_whole, :] - device.joints.positions)) > 0.15:
-                print("DIFFERENCE: ", replay_q[k_log_whole, :] - device.joints.positions)
+        if t <= 10 * params.dt_wbc:
+            if (
+                np.max(np.abs(replay_q[k_log_whole, :] - device.joints.positions))
+                > 0.15
+            ):
+                print(
+                    "DIFFERENCE: ", replay_q[k_log_whole, :] - device.joints.positions
+                )
                 print("q_des: ", replay_q[k_log_whole, :])
                 print("q_mes: ", device.joints.positions)
                 break
@@ -186,15 +200,17 @@ def control_loop(des_vel_analysis=None):
 
     # ****************************************************************
 
-    finished = (t >= t_max)
+    finished = t >= t_max
     damp_control(device, 12)
-    
+
     device.joints.set_torques(np.zeros(12))
     device.send_command_and_wait_end_of_cycle(params.dt_wbc)
 
     if device.is_timeout:
         print("Masterboard timeout detected.")
-        print("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.")
+        print(
+            "Either the masterboard has been shut down or there has been a connection issue with the cable/wifi."
+        )
 
     if params.LOGGING:
         loggerSensors.saveAll()
@@ -207,7 +223,9 @@ def control_loop(des_vel_analysis=None):
 
 
 if __name__ == "__main__":
-    os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
+    os.nice(
+        -20
+    )  #  Set the process to highest priority (from -20 highest to +20 lowest)
     f, v = control_loop()  # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print("End of script")
     print(f, v)

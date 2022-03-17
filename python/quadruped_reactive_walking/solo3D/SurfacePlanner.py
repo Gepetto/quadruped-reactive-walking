@@ -1,26 +1,27 @@
+import copy
+import os
+
 import pinocchio as pin
 import numpy as np
-import os
-import copy
-
 from sl1m.problem_definition import Problem
 from sl1m.generic_solver import solve_MIP
-
 from solo_rbprm.solo_abstract import Robot as SoloAbstract
-
 from hpp.corbaserver.affordance.affordance import AffordanceTool
 from hpp.corbaserver.rbprm.tools.surfaces_from_path import getAllSurfacesDict
-from solo3D.utils import getAllSurfacesDict_inner
 from hpp.corbaserver.problem_solver import ProblemSolver
 from hpp.gepetto import ViewerFactory
 
+from .utils import getAllSurfacesDict_inner
+
 # --------------------------------- PROBLEM DEFINITION ---------------------------------------------------------------
 
-paths = [os.environ["INSTALL_HPP_DIR"] + "/solo-rbprm/com_inequalities/feet_quasi_flat/",
-         os.environ["INSTALL_HPP_DIR"] + "/solo-rbprm/relative_effector_positions/"]
-limbs = ['FLleg', 'FRleg', 'HLleg', 'HRleg']
-others = ['FL_FOOT', 'FR_FOOT', 'HL_FOOT', 'HR_FOOT']
-rom_names = ['solo_LFleg_rom', 'solo_RFleg_rom', 'solo_LHleg_rom', 'solo_RHleg_rom']
+paths = [
+    os.environ["INSTALL_HPP_DIR"] + "/solo-rbprm/com_inequalities/feet_quasi_flat/",
+    os.environ["INSTALL_HPP_DIR"] + "/solo-rbprm/relative_effector_positions/",
+]
+limbs = ["FLleg", "FRleg", "HLleg", "HRleg"]
+others = ["FL_FOOT", "FR_FOOT", "HL_FOOT", "HR_FOOT"]
+rom_names = ["solo_LFleg_rom", "solo_RFleg_rom", "solo_LHleg_rom", "solo_RHleg_rom"]
 
 
 class SurfacePlanner:
@@ -35,24 +36,32 @@ class SurfacePlanner:
         self.plot = False
 
         self.use_heuristique = params.use_heuristic
-        self.step_duration = params.T_gait/2
+        self.step_duration = params.T_gait / 2
         self.shoulders = np.reshape(params.footsteps_under_shoulders, (3, 4), order="F")
 
         self.solo_abstract = SoloAbstract()
-        self.solo_abstract.setJointBounds("root_joint", [-5., 5., -5., 5., 0.241, 1.5])
+        self.solo_abstract.setJointBounds(
+            "root_joint", [-5.0, 5.0, -5.0, 5.0, 0.241, 1.5]
+        )
         self.solo_abstract.boundSO3([-3.14, 3.14, -0.01, 0.01, -0.01, 0.01])
         self.solo_abstract.setFilter(rom_names)
         for limb in rom_names:
-            self.solo_abstract.setAffordanceFilter(limb, ['Support'])
+            self.solo_abstract.setAffordanceFilter(limb, ["Support"])
         self.ps = ProblemSolver(self.solo_abstract)
         self.vf = ViewerFactory(self.ps)
         self.afftool = AffordanceTool()
-        self.afftool.setAffordanceConfig('Support', [0.5, 0.03, 0.00005])
+        self.afftool.setAffordanceConfig("Support", [0.5, 0.03, 0.00005])
 
-        self.afftool.loadObstacleModel(os.environ["SOLO3D_ENV_DIR"] + params.environment_URDF, "environment", self.vf)
+        self.afftool.loadObstacleModel(
+            os.environ["SOLO3D_ENV_DIR"] + params.environment_URDF,
+            "environment",
+            self.vf,
+        )
         self.ps.selectPathValidation("RbprmPathValidation", 0.05)
 
-        self.all_surfaces = getAllSurfacesDict_inner(getAllSurfacesDict(self.afftool), margin=0.02)
+        self.all_surfaces = getAllSurfacesDict_inner(
+            getAllSurfacesDict(self.afftool), margin=0.02
+        )
 
         self.potential_surfaces = []
 
@@ -99,11 +108,17 @@ class SurfacePlanner:
         for phase in self.pb.phaseData:
             for foot in range(4):
                 if foot in phase.moving:
-                    rpy = pin.rpy.matrixToRpy(pin.Quaternion(configs[phase.id][3:7].copy()).toRotationMatrix())
-                    hRb = pin.rpy.rpyToMatrix(np.array([rpy[0], rpy[1], 0.]))
-                    wRh = pin.rpy.rpyToMatrix(np.array([0., 0., rpy[2]]))
-                    heuristic = wRh @ (0.5 * self.step_duration * copy.deepcopy(h_v_ref)) + wRh @ hRb @ copy.deepcopy(self.shoulders[:, foot])
-                    effector_positions[foot].append(np.array(configs[phase.id][:2] + heuristic[:2]))
+                    rpy = pin.rpy.matrixToRpy(
+                        pin.Quaternion(configs[phase.id][3:7].copy()).toRotationMatrix()
+                    )
+                    hRb = pin.rpy.rpyToMatrix(np.array([rpy[0], rpy[1], 0.0]))
+                    wRh = pin.rpy.rpyToMatrix(np.array([0.0, 0.0, rpy[2]]))
+                    heuristic = wRh @ (
+                        0.5 * self.step_duration * copy.deepcopy(h_v_ref)
+                    ) + wRh @ hRb @ copy.deepcopy(self.shoulders[:, foot])
+                    effector_positions[foot].append(
+                        np.array(configs[phase.id][:2] + heuristic[:2])
+                    )
                 else:
                     effector_positions[foot].append(None)
 
@@ -111,14 +126,16 @@ class SurfacePlanner:
 
     def compute_shoulder_positions(self, configs):
         """
-        Compute the shoulder positions 
+        Compute the shoulder positions
         :param configs the list of configurations
         """
         shoulder_positions = np.zeros((4, self.pb.n_phases, 3))
         for phase in self.pb.phaseData:
             for foot in phase.moving:
                 R = pin.Quaternion(configs[phase.id][3:7]).toRotationMatrix()
-                shoulder_positions[foot][phase.id] = R @ self.shoulders[:, foot] + configs[phase.id][:3]
+                shoulder_positions[foot][phase.id] = (
+                    R @ self.shoulders[:, foot] + configs[phase.id][:3]
+                )
         return shoulder_positions
 
     def get_potential_surfaces(self, configs, gait):
@@ -132,14 +149,20 @@ class SurfacePlanner:
         empty_list = False
         for id, config in enumerate(configs):
             stance_feet = np.nonzero(gait[id % len(gait)] == 1)[0]
-            previous_swing_feet = np.nonzero(gait[(id-1) % len(gait)] == 0)[0]
-            moving_feet = stance_feet[np.in1d(stance_feet, previous_swing_feet, assume_unique=True)]
+            previous_swing_feet = np.nonzero(gait[(id - 1) % len(gait)] == 0)[0]
+            moving_feet = stance_feet[
+                np.in1d(stance_feet, previous_swing_feet, assume_unique=True)
+            ]
             roms = np.array(rom_names)[moving_feet]
 
             foot_surfaces = []
             for rom in roms:
                 surfaces = []
-                surfaces_names = self.solo_abstract.clientRbprm.rbprm.getCollidingObstacleAtConfig(config.tolist(), rom)
+                surfaces_names = (
+                    self.solo_abstract.clientRbprm.rbprm.getCollidingObstacleAtConfig(
+                        config.tolist(), rom
+                    )
+                )
                 for name in surfaces_names:
                     surfaces.append(self.all_surfaces[name][0])
 
@@ -210,34 +233,62 @@ class SurfacePlanner:
             vertices, inequalities, _ = self.retrieve_surfaces(surfaces)
             return vertices, inequalities, None, None, False
 
-        self.pb.generate_problem(R, surfaces, gait, initial_contacts, c0=None, com=False)
+        self.pb.generate_problem(
+            R, surfaces, gait, initial_contacts, c0=None, com=False
+        )
 
         shoulder_positions = self.compute_shoulder_positions(configs)
         if self.use_heuristique:
             effector_positions = self.compute_effector_positions(configs, h_v_ref)
-            costs = {"effector_positions_xy": [1., effector_positions], "effector_positions_3D": [0.1, shoulder_positions]}
+            costs = {
+                "effector_positions_xy": [1.0, effector_positions],
+                "effector_positions_3D": [0.1, shoulder_positions],
+            }
         else:
             step_length = self.compute_step_length(h_v_ref[:2])
-            costs = {"step_length": [1.0, step_length], "effector_positions_3D": [0.1, shoulder_positions]}
+            costs = {
+                "step_length": [1.0, step_length],
+                "effector_positions_3D": [0.1, shoulder_positions],
+            }
         result = solve_MIP(self.pb, costs=costs, com=False)
 
         if result.success:
             if self.plot:
                 import matplotlib.pyplot as plt
                 import sl1m.tools.plot_tools as plot
-                ax = plot.draw_whole_scene(self.all_surfaces)
-                plot.plot_planner_result(result.all_feet_pos, effector_positions=effector_positions, coms=configs, ax=ax, show=True)
 
-            vertices, inequalities, indices = self.retrieve_surfaces(surfaces, result.surface_indices)
+                ax = plot.draw_whole_scene(self.all_surfaces)
+                plot.plot_planner_result(
+                    result.all_feet_pos,
+                    effector_positions=effector_positions,
+                    coms=configs,
+                    ax=ax,
+                    show=True,
+                )
+
+            vertices, inequalities, indices = self.retrieve_surfaces(
+                surfaces, result.surface_indices
+            )
             return vertices, inequalities, indices, result.all_feet_pos, True
 
         if self.plot:
             import matplotlib.pyplot as plt
             import sl1m.tools.plot_tools as plot
+
             ax = plot.draw_whole_scene(self.all_surfaces)
             plot.plot_initial_contacts(initial_contacts, ax=ax)
-            ax.scatter([c[0] for c in configs], [c[1] for c in configs], [c[2] for c in configs], marker='o', linewidth=5)
-            ax.plot([c[0] for c in configs], [c[1] for c in configs], [c[2] for c in configs])
+            ax.scatter(
+                [c[0] for c in configs],
+                [c[1] for c in configs],
+                [c[2] for c in configs],
+                marker="o",
+                linewidth=5,
+            )
+            ax.plot(
+                [c[0] for c in configs],
+                [c[1] for c in configs],
+                [c[2] for c in configs],
+            )
             plt.show()
 
         print("The MIP problem did NOT converge")
