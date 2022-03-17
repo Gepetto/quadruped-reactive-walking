@@ -481,6 +481,7 @@ class pybullet_simulator:
         """
 
         if (k < start) or (k > (start + duration)):
+            return
 
         ev = k - start
         t1 = duration
