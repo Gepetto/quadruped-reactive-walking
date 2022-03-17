@@ -78,6 +78,6 @@ foreach(python ${${PY_NAME}_SOLO3D_PYTHON})
   PYTHON_INSTALL_ON_SITE(${PY_NAME}/solo3D ${python})
 endforeach()
 
-foreach(python ${${PY_NAME}_tools_PYTHON})
+foreach(python ${${PY_NAME}_TOOLS_PYTHON})
   PYTHON_INSTALL_ON_SITE(${PY_NAME}/tools ${python})
 endforeach()

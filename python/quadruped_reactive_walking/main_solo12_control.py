@@ -11,10 +11,10 @@ from .tools.LoggerSensors import LoggerSensors
 params = qrw.Params()  # Object that holds all controller parameters
 
 if params.SIMULATION:
-    from tools.PyBulletSimulator import PyBulletSimulator
+    from .tools.PyBulletSimulator import PyBulletSimulator
 else:
     import libodri_control_interface_pywrap as oci
-    from tools.qualisysClient import QualisysClient
+    from .tools.qualisysClient import QualisysClient
 
 
 def get_input():
