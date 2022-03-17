@@ -1,13 +1,13 @@
-import numpy as np
-from multiprocessing import Process, Value, Array
-from time import time
-from enum import Enum
 import ctypes
 from ctypes import Structure
+from enum import Enum
+from multiprocessing import Process, Value, Array
+from time import time
 
-import Crocoddyl.MPC_crocoddyl as MPC_crocoddyl
-import Crocoddyl.MPC_crocoddyl_planner as MPC_crocoddyl_planner
-import quadruped_reactive_walking as qrw
+import numpy as np
+
+from . import quadruped_reactive_walking as qrw
+from .Crocoddyl import MPC_crocoddyl, MPC_crocoddyl_planner
 
 
 class MPC_type(Enum):
@@ -19,29 +19,35 @@ class MPC_type(Enum):
 
 
 class DataInCtype(Structure):
-    ''' Ctype data structure for the shared memory between processes.
-    '''
-    params = qrw.Params()                  # Object that holds all controller parameters
-    mpc_type = MPC_type(params.type_MPC)    # MPC type
+    """Ctype data structure for the shared memory between processes."""
+
+    params = qrw.Params()  # Object that holds all controller parameters
+    mpc_type = MPC_type(params.type_MPC)  # MPC type
     n_steps = np.int(params.gait.shape[0])  # Colomn size for xref (12 x n_steps)
-    N_gait = int(params.gait.shape[0])      # Row size for fsteps  (N_gait x 12), from utils_mpc.py
+    N_gait = int(
+        params.gait.shape[0]
+    )  # Row size for fsteps  (N_gait x 12), from utils_mpc.py
 
     if mpc_type == MPC_type.CROCODDYL_PLANNER:
-        _fields_ = [('k',  ctypes.c_int64),
-                    ('xref',   ctypes.c_double * 12 * (n_steps+1)),
-                    ('fsteps', ctypes.c_double * 12 * N_gait),
-                    ('l_fsteps_target', ctypes.c_double * 3 * 4),
-                    ('oRh', ctypes.c_double * 3 * 3),
-                    ('oTh', ctypes.c_double * 3 * 1),
-                    ('position', ctypes.c_double * 3 * 4),
-                    ('velocity', ctypes.c_double * 3 * 4),
-                    ('acceleration', ctypes.c_double * 3 * 4),
-                    ('jerk', ctypes.c_double * 3 * 4),
-                    ('dt_flying', ctypes.c_double * 4)]
+        _fields_ = [
+            ("k", ctypes.c_int64),
+            ("xref", ctypes.c_double * 12 * (n_steps + 1)),
+            ("fsteps", ctypes.c_double * 12 * N_gait),
+            ("l_fsteps_target", ctypes.c_double * 3 * 4),
+            ("oRh", ctypes.c_double * 3 * 3),
+            ("oTh", ctypes.c_double * 3 * 1),
+            ("position", ctypes.c_double * 3 * 4),
+            ("velocity", ctypes.c_double * 3 * 4),
+            ("acceleration", ctypes.c_double * 3 * 4),
+            ("jerk", ctypes.c_double * 3 * 4),
+            ("dt_flying", ctypes.c_double * 4),
+        ]
     else:
-        _fields_ = [('k',  ctypes.c_int64),
-                    ('xref',   ctypes.c_double * 12 * (n_steps+1)),
-                    ('fsteps', ctypes.c_double * 12 * N_gait)]
+        _fields_ = [
+            ("k", ctypes.c_int64),
+            ("xref", ctypes.c_double * 12 * (n_steps + 1)),
+            ("fsteps", ctypes.c_double * 12 * N_gait),
+        ]
 
 
 class Dummy:
@@ -80,7 +86,7 @@ class MPC_Wrapper:
         self.t_mpc_solving_duration = 0.0
 
         # Number of WBC steps for 1 step of the MPC
-        self.k_mpc = int(params.dt_mpc/params.dt_wbc)
+        self.k_mpc = int(params.dt_mpc / params.dt_wbc)
 
         self.dt = params.dt_mpc
         self.n_steps = np.int(params.gait.shape[0])
@@ -93,44 +99,74 @@ class MPC_Wrapper:
         self.mpc_type = MPC_type(params.type_MPC)
         self.multiprocessing = params.enable_multiprocessing
         if self.multiprocessing:  # Setup variables in the shared memory
-            self.newData = Value('b', False)
-            self.newResult = Value('b', False)
-            self.cost = Value('d', 0.)
+            self.newData = Value("b", False)
+            self.newResult = Value("b", False)
+            self.cost = Value("d", 0.0)
             self.dataIn = Value(DataInCtype)
             if self.mpc_type == MPC_type.CROCODDYL_PLANNER:
-                self.dataOut = Array('d', [0] * 32 * (np.int(self.n_steps)))
+                self.dataOut = Array("d", [0] * 32 * (np.int(self.n_steps)))
             else:
-                self.dataOut = Array('d', [0] * 24 * (np.int(self.n_steps)))
+                self.dataOut = Array("d", [0] * 24 * (np.int(self.n_steps)))
             self.fsteps_future = np.zeros((self.N_gait, 12))
-            self.running = Value('b', True)
+            self.running = Value("b", True)
         else:
             # Create the new version of the MPC solver object
             if self.mpc_type == MPC_type.OSQP:  # OSQP MPC
-                self.mpc = qrw.MPC(params)  # self.dt, self.n_steps, self.T_gait, self.N_gait)
+                self.mpc = qrw.MPC(
+                    params
+                )  # self.dt, self.n_steps, self.T_gait, self.N_gait)
             elif self.mpc_type == MPC_type.CROCODDYL_LINEAR:  # Crocoddyl MPC Linear
-                self.mpc = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=True)
-            elif self.mpc_type == MPC_type.CROCODDYL_NON_LINEAR:  # Crocoddyl MPC Non-Linear
-                self.mpc = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=False)
-            elif self.mpc_type == MPC_type.CROCODDYL_PLANNER:  # Crocoddyl MPC Non-Linear with footsteps optimization
-                self.mpc = MPC_crocoddyl_planner.MPC_crocoddyl_planner(params, mu=0.9, inner=False)
+                self.mpc = MPC_crocoddyl.MPC_crocoddyl(
+                    params, mu=0.9, inner=False, linearModel=True
+                )
+            elif (
+                self.mpc_type == MPC_type.CROCODDYL_NON_LINEAR
+            ):  # Crocoddyl MPC Non-Linear
+                self.mpc = MPC_crocoddyl.MPC_crocoddyl(
+                    params, mu=0.9, inner=False, linearModel=False
+                )
+            elif (
+                self.mpc_type == MPC_type.CROCODDYL_PLANNER
+            ):  # Crocoddyl MPC Non-Linear with footsteps optimization
+                self.mpc = MPC_crocoddyl_planner.MPC_crocoddyl_planner(
+                    params, mu=0.9, inner=False
+                )
             else:
                 print("Unknown MPC type, using crocoddyl linear")
                 self.type = MPC_type.CROCODDYL_LINEAR
-                self.mpc = MPC_crocoddyl.MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=True)
+                self.mpc = MPC_crocoddyl.MPC_crocoddyl(
+                    params, mu=0.9, inner=False, linearModel=True
+                )
 
         # Setup initial result for the first iteration of the main control loop
         x_init = np.zeros(12)
         x_init[0:6] = q_init[0:6, 0].copy()
-        if self.mpc_type == MPC_type.CROCODDYL_PLANNER:  # Need more space to store optimized footsteps
+        if (
+            self.mpc_type == MPC_type.CROCODDYL_PLANNER
+        ):  # Need more space to store optimized footsteps
             self.last_available_result = np.zeros((32, (np.int(self.n_steps))))
         else:
             self.last_available_result = np.zeros((24, (np.int(self.n_steps))))
-        self.last_available_result[:24, 0] = np.hstack((x_init, np.array([0.0, 0.0, 8.0] * 4)))
-        self.last_cost = 0.
+        self.last_available_result[:24, 0] = np.hstack(
+            (x_init, np.array([0.0, 0.0, 8.0] * 4))
+        )
+        self.last_cost = 0.0
 
-    def solve(self, k, xref, fsteps, gait, l_fsteps_target, oRh=np.eye(3), oTh=np.zeros((3, 1)),
-              position=np.zeros((3, 4)), velocity=np.zeros((3, 4)), acceleration=np.zeros((3, 4)), jerk=np.zeros((3, 4)),
-              dt_flying=np.zeros(4)):
+    def solve(
+        self,
+        k,
+        xref,
+        fsteps,
+        gait,
+        l_fsteps_target,
+        oRh=np.eye(3),
+        oTh=np.zeros((3, 1)),
+        position=np.zeros((3, 4)),
+        velocity=np.zeros((3, 4)),
+        acceleration=np.zeros((3, 4)),
+        jerk=np.zeros((3, 4)),
+        dt_flying=np.zeros(4),
+    ):
         """Call either the asynchronous MPC or the synchronous MPC depending on the value of multiprocessing during
         the creation of the wrapper
 
@@ -145,13 +181,41 @@ class MPC_Wrapper:
         self.t_mpc_solving_start = time()
 
         if self.multiprocessing:  # Run in parallel process
-            self.run_MPC_asynchronous(k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying)
+            self.run_MPC_asynchronous(
+                k,
+                xref,
+                fsteps,
+                l_fsteps_target,
+                oRh,
+                oTh,
+                position,
+                velocity,
+                acceleration,
+                jerk,
+                dt_flying,
+            )
         else:  # Run in the same process than main loop
-            self.run_MPC_synchronous(k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying)
+            self.run_MPC_synchronous(
+                k,
+                xref,
+                fsteps,
+                l_fsteps_target,
+                oRh,
+                oTh,
+                position,
+                velocity,
+                acceleration,
+                jerk,
+                dt_flying,
+            )
 
         if not np.allclose(gait[0, :], self.gait_past):  # If gait status has changed
-            if np.allclose(gait[0, :], self.gait_next):  # If we're still doing what was planned the last time MPC was solved
-                self.last_available_result[12:24, 0] = self.last_available_result[12:24, 1].copy()
+            if np.allclose(
+                gait[0, :], self.gait_next
+            ):  # If we're still doing what was planned the last time MPC was solved
+                self.last_available_result[12:24, 0] = self.last_available_result[
+                    12:24, 1
+                ].copy()
             else:  # Otherwise use a default contact force command till we get the actual result of the MPC for this new sequence
                 F = 9.81 * self.mass / np.sum(gait[0, :])
                 self.last_available_result[12:24:3, 0] = 0.0
@@ -170,7 +234,7 @@ class MPC_Wrapper:
         If a new result is available, return the new result. Otherwise return the old result again.
         """
 
-        if (self.not_first_iter):
+        if self.not_first_iter:
             if self.multiprocessing:
                 if self.newResult.value:
                     self.newResult.value = False
@@ -189,7 +253,20 @@ class MPC_Wrapper:
             self.not_first_iter = True
             return self.last_available_result, self.last_cost
 
-    def run_MPC_synchronous(self, k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying):
+    def run_MPC_synchronous(
+        self,
+        k,
+        xref,
+        fsteps,
+        l_fsteps_target,
+        oRh,
+        oTh,
+        position,
+        velocity,
+        acceleration,
+        jerk,
+        dt_flying,
+    ):
         """Run the MPC (synchronous version) to get the desired contact forces for the feet currently in stance phase
 
         Args:
@@ -205,9 +282,23 @@ class MPC_Wrapper:
         if self.mpc_type == MPC_type.OSQP:
             # OSQP MPC
             self.mpc.run(np.int(k), xref.copy(), fsteps.copy())
-        elif self.mpc_type == MPC_type.CROCODDYL_PLANNER:  # Add goal position to stop the optimisation
+        elif (
+            self.mpc_type == MPC_type.CROCODDYL_PLANNER
+        ):  # Add goal position to stop the optimisation
             # Crocoddyl MPC
-            self.mpc.solve(k, xref.copy(), fsteps.copy(), l_fsteps_target, position, velocity, acceleration, jerk, oRh, oTh,  dt_flying)
+            self.mpc.solve(
+                k,
+                xref.copy(),
+                fsteps.copy(),
+                l_fsteps_target,
+                position,
+                velocity,
+                acceleration,
+                jerk,
+                oRh,
+                oTh,
+                dt_flying,
+            )
         else:
             # Crocoddyl MPC
             self.mpc.solve(k, xref.copy(), fsteps.copy())
@@ -221,7 +312,20 @@ class MPC_Wrapper:
         if self.mpc_type == MPC_type.OSQP:
             self.last_cost = self.mpc.retrieve_cost()
 
-    def run_MPC_asynchronous(self, k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying):
+    def run_MPC_asynchronous(
+        self,
+        k,
+        xref,
+        fsteps,
+        l_fsteps_target,
+        oRh,
+        oTh,
+        position,
+        velocity,
+        acceleration,
+        jerk,
+        dt_flying,
+    ):
         """Run the MPC (asynchronous version) to get the desired contact forces for the feet currently in stance phase
 
         Args:
@@ -233,13 +337,33 @@ class MPC_Wrapper:
         """
 
         # If this is the first iteration, creation of the parallel process
-        if (k == 0):
-            p = Process(target=self.create_MPC_asynchronous, args=(
-                self.newData, self.newResult, self.dataIn, self.dataOut, self.running))
+        if k == 0:
+            p = Process(
+                target=self.create_MPC_asynchronous,
+                args=(
+                    self.newData,
+                    self.newResult,
+                    self.dataIn,
+                    self.dataOut,
+                    self.running,
+                ),
+            )
             p.start()
 
         # Stacking data to send them to the parallel process
-        self.compress_dataIn(k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying)
+        self.compress_dataIn(
+            k,
+            xref,
+            fsteps,
+            l_fsteps_target,
+            oRh,
+            oTh,
+            position,
+            velocity,
+            acceleration,
+            jerk,
+            dt_flying,
+        )
         self.newData.value = True
 
         return 0
@@ -268,30 +392,66 @@ class MPC_Wrapper:
                 if self.mpc_type != MPC_type.CROCODDYL_PLANNER:
                     k, xref, fsteps = self.decompress_dataIn(dataIn)
                 else:
-                    k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying = self.decompress_dataIn(dataIn)
+                    (
+                        k,
+                        xref,
+                        fsteps,
+                        l_fsteps_target,
+                        oRh,
+                        oTh,
+                        position,
+                        velocity,
+                        acceleration,
+                        jerk,
+                        dt_flying,
+                    ) = self.decompress_dataIn(dataIn)
 
                 # Create the MPC object of the parallel process during the first iteration
                 if k == 0:
                     # loop_mpc = MPC.MPC(self.dt, self.n_steps, self.T_gait)
                     if self.mpc_type == MPC_type.OSQP:
                         loop_mpc = qrw.MPC(self.params)
-                    elif self.mpc_type == MPC_type.CROCODDYL_LINEAR:  # Crocoddyl MPC Linear
-                        loop_mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=True)
-                    elif self.mpc_type == MPC_type.CROCODDYL_NON_LINEAR:  # Crocoddyl MPC Non-Linear
-                        loop_mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=False)
-                    elif self.mpc_type == MPC_type.CROCODDYL_PLANNER:  # Crocoddyl MPC Non-Linear with footsteps optimization
-                        loop_mpc = MPC_crocoddyl_planner.MPC_crocoddyl_planner(self.params, mu=0.9, inner=False)
+                    elif (
+                        self.mpc_type == MPC_type.CROCODDYL_LINEAR
+                    ):  # Crocoddyl MPC Linear
+                        loop_mpc = MPC_crocoddyl.MPC_crocoddyl(
+                            self.params, mu=0.9, inner=False, linearModel=True
+                        )
+                    elif (
+                        self.mpc_type == MPC_type.CROCODDYL_NON_LINEAR
+                    ):  # Crocoddyl MPC Non-Linear
+                        loop_mpc = MPC_crocoddyl.MPC_crocoddyl(
+                            self.params, mu=0.9, inner=False, linearModel=False
+                        )
+                    elif (
+                        self.mpc_type == MPC_type.CROCODDYL_PLANNER
+                    ):  # Crocoddyl MPC Non-Linear with footsteps optimization
+                        loop_mpc = MPC_crocoddyl_planner.MPC_crocoddyl_planner(
+                            self.params, mu=0.9, inner=False
+                        )
                     else:  # Using linear model
-                        loop_mpc = MPC_crocoddyl.MPC_crocoddyl(self.params, mu=0.9, inner=False, linearModel=True)
+                        loop_mpc = MPC_crocoddyl.MPC_crocoddyl(
+                            self.params, mu=0.9, inner=False, linearModel=True
+                        )
 
                 # Run the asynchronous MPC with the data that as been retrieved
                 if self.mpc_type == MPC_type.OSQP:
                     fsteps[np.isnan(fsteps)] = 0.0
                     loop_mpc.run(np.int(k), xref, fsteps)
                 elif self.mpc_type == MPC_type.CROCODDYL_PLANNER:
-                    loop_mpc.solve(k, xref.copy(), fsteps.copy(), l_fsteps_target.copy(),
-                                   position.copy(), velocity.copy(), acceleration.copy(), jerk.copy(),
-                                   oRh.copy(), oTh.copy(), dt_flying.copy())
+                    loop_mpc.solve(
+                        k,
+                        xref.copy(),
+                        fsteps.copy(),
+                        l_fsteps_target.copy(),
+                        position.copy(),
+                        velocity.copy(),
+                        acceleration.copy(),
+                        jerk.copy(),
+                        oRh.copy(),
+                        oTh.copy(),
+                        dt_flying.copy(),
+                    )
                 else:
                     loop_mpc.solve(k, xref.copy(), fsteps.copy())
 
@@ -300,9 +460,11 @@ class MPC_Wrapper:
                 # print((loop_mpc.get_latest_result()).shape)
 
                 if self.mpc_type == MPC_type.CROCODDYL_PLANNER:
-                    self.dataOut[:] = loop_mpc.get_latest_result(oRh, oTh).ravel(order='F')
+                    self.dataOut[:] = loop_mpc.get_latest_result(oRh, oTh).ravel(
+                        order="F"
+                    )
                 else:
-                    self.dataOut[:] = loop_mpc.get_latest_result().ravel(order='F')
+                    self.dataOut[:] = loop_mpc.get_latest_result().ravel(order="F")
 
                 if self.mpc_type == MPC_type.OSQP:
                     self.cost.value = loop_mpc.retrieve_cost()
@@ -312,7 +474,20 @@ class MPC_Wrapper:
 
         return 0
 
-    def compress_dataIn(self, k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying):
+    def compress_dataIn(
+        self,
+        k,
+        xref,
+        fsteps,
+        l_fsteps_target,
+        oRh,
+        oTh,
+        position,
+        velocity,
+        acceleration,
+        jerk,
+        dt_flying,
+    ):
         """Compress data in a C-type structure that belongs to the shared memory to send data from the main control
         loop to the asynchronous MPC
 
@@ -329,21 +504,33 @@ class MPC_Wrapper:
         with self.dataIn.get_lock():
             if self.mpc_type == MPC_type.CROCODDYL_PLANNER:
                 self.dataIn.k = k
-                np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps+1))[:, :] = xref
-                np.frombuffer(self.dataIn.fsteps).reshape((self.N_gait, 12))[:, :] = fsteps
-                np.frombuffer(self.dataIn.l_fsteps_target).reshape((3, 4))[:, :] = l_fsteps_target
+                np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps + 1))[
+                    :, :
+                ] = xref
+                np.frombuffer(self.dataIn.fsteps).reshape((self.N_gait, 12))[
+                    :, :
+                ] = fsteps
+                np.frombuffer(self.dataIn.l_fsteps_target).reshape((3, 4))[
+                    :, :
+                ] = l_fsteps_target
                 np.frombuffer(self.dataIn.oRh).reshape((3, 3))[:, :] = oRh
                 np.frombuffer(self.dataIn.oTh).reshape((3, 1))[:, :] = oTh
                 np.frombuffer(self.dataIn.position).reshape((3, 4))[:, :] = position
                 np.frombuffer(self.dataIn.velocity).reshape((3, 4))[:, :] = velocity
-                np.frombuffer(self.dataIn.acceleration).reshape((3, 4))[:, :] = acceleration
+                np.frombuffer(self.dataIn.acceleration).reshape((3, 4))[
+                    :, :
+                ] = acceleration
                 np.frombuffer(self.dataIn.jerk).reshape((3, 4))[:, :] = jerk
                 np.frombuffer(self.dataIn.dt_flying).reshape(4)[:] = dt_flying
 
             else:
                 self.dataIn.k = k
-                np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps+1))[:, :] = xref
-                np.frombuffer(self.dataIn.fsteps).reshape((self.N_gait, 12))[:, :] = fsteps
+                np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps + 1))[
+                    :, :
+                ] = xref
+                np.frombuffer(self.dataIn.fsteps).reshape((self.N_gait, 12))[
+                    :, :
+                ] = fsteps
 
     def decompress_dataIn(self, dataIn):
         """Decompress data from a C-type structure that belongs to the shared memory to retrieve data from the main control
@@ -356,9 +543,11 @@ class MPC_Wrapper:
         with dataIn.get_lock():
             if self.mpc_type == MPC_type.CROCODDYL_PLANNER:
                 k = self.dataIn.k
-                xref = np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps+1))
+                xref = np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps + 1))
                 fsteps = np.frombuffer(self.dataIn.fsteps).reshape((self.N_gait, 12))
-                l_fsteps_target = np.frombuffer(self.dataIn.l_fsteps_target).reshape((3, 4))
+                l_fsteps_target = np.frombuffer(self.dataIn.l_fsteps_target).reshape(
+                    (3, 4)
+                )
                 oRh = np.frombuffer(self.dataIn.oRh).reshape((3, 3))
                 oTh = np.frombuffer(self.dataIn.oTh).reshape((3, 1))
                 position = np.frombuffer(self.dataIn.position).reshape((3, 4))
@@ -367,23 +556,36 @@ class MPC_Wrapper:
                 jerk = np.frombuffer(self.dataIn.jerk).reshape((3, 4))
                 dt_flying = np.frombuffer(self.dataIn.dt_flying).reshape(4)
 
-                return k, xref, fsteps, l_fsteps_target, oRh, oTh, position, velocity, acceleration, jerk, dt_flying
+                return (
+                    k,
+                    xref,
+                    fsteps,
+                    l_fsteps_target,
+                    oRh,
+                    oTh,
+                    position,
+                    velocity,
+                    acceleration,
+                    jerk,
+                    dt_flying,
+                )
 
             else:
                 k = self.dataIn.k
-                xref = np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps+1))
+                xref = np.frombuffer(self.dataIn.xref).reshape((12, self.n_steps + 1))
                 fsteps = np.frombuffer(self.dataIn.fsteps).reshape((self.N_gait, 12))
 
                 return k, xref, fsteps
 
     def convert_dataOut(self):
-        """Return the result of the asynchronous MPC (desired contact forces) that is stored in the shared memory
-        """
+        """Return the result of the asynchronous MPC (desired contact forces) that is stored in the shared memory"""
 
-        if self.mpc_type == MPC_type.CROCODDYL_PLANNER:  # Need more space to store optimized footsteps
-            return np.array(self.dataOut[:]).reshape((32, -1), order='F')
+        if (
+            self.mpc_type == MPC_type.CROCODDYL_PLANNER
+        ):  # Need more space to store optimized footsteps
+            return np.array(self.dataOut[:]).reshape((32, -1), order="F")
         else:
-            return np.array(self.dataOut[:]).reshape((24, -1), order='F')
+            return np.array(self.dataOut[:]).reshape((24, -1), order="F")
 
     def roll_asynchronous(self, fsteps):
         """Move one step further in the gait cycle. Since the output of the asynchronous MPC is retrieved by
@@ -405,23 +607,29 @@ class MPC_Wrapper:
         self.fsteps_future = fsteps.copy()
 
         # Index of the first empty line
-        index = next((idx for idx, val in np.ndenumerate(self.fsteps_future[:, 0]) if val == 0.0), 0.0)[0]
+        index = next(
+            (
+                idx
+                for idx, val in np.ndenumerate(self.fsteps_future[:, 0])
+                if val == 0.0
+            ),
+            0.0,
+        )[0]
 
         # Create a new phase if needed or increase the last one by 1 step
-        self.fsteps_future[index-1, 0] += 1.0
+        self.fsteps_future[index - 1, 0] += 1.0
 
         # Decrease the current phase by 1 step and delete it if it has ended
         if self.fsteps_future[0, 0] > 1.0:
             self.fsteps_future[0, 0] -= 1.0
         else:
             self.fsteps_future = np.roll(self.fsteps_future, -1, axis=0)
-            self.fsteps_future[-1, :] = np.zeros((13, ))
+            self.fsteps_future[-1, :] = np.zeros((13,))
 
         return 0
 
     def stop_parallel_loop(self):
-        """Stop the infinite loop in the parallel process to properly close the simulation
-        """
+        """Stop the infinite loop in the parallel process to properly close the simulation"""
 
         self.running.value = False
 

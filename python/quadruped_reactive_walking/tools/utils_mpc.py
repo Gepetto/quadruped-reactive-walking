@@ -1,5 +1,5 @@
+from example_robot_data import load
 import numpy as np
-from example_robot_data.robots_loader import Solo12Loader
 import pinocchio as pin
 
 
@@ -12,8 +12,7 @@ def init_robot(q_init, params):
     """
     # Load robot model and data
     # Initialisation of the Gepetto viewer
-    Solo12Loader.free_flyer = True
-    solo = Solo12Loader().robot
+    solo = load("solo12")
     q = solo.q0.reshape((-1, 1))
 
     # Initialisation of the position of footsteps to be under the shoulder
@@ -31,8 +30,8 @@ def init_robot(q_init, params):
 
     if params.enable_corba_viewer:
         solo.initViewer(loadModel=True)
-        if ('viewer' in solo.viz.__dict__):
-            solo.viewer.gui.addFloor('world/floor')
+        if "viewer" in solo.viz.__dict__:
+            solo.viewer.gui.addFloor("world/floor")
             solo.viewer.gui.setRefreshIsSynchronous(False)
         solo.display(q)
 
@@ -43,15 +42,19 @@ def init_robot(q_init, params):
 
     # Initialisation of the position of footsteps
     fsteps_init = np.zeros((3, 4))
-    indexes = [solo.model.getFrameId('FL_FOOT'),
-               solo.model.getFrameId('FR_FOOT'),
-               solo.model.getFrameId('HL_FOOT'),
-               solo.model.getFrameId('HR_FOOT')]
+    indexes = [
+        solo.model.getFrameId("FL_FOOT"),
+        solo.model.getFrameId("FR_FOOT"),
+        solo.model.getFrameId("HL_FOOT"),
+        solo.model.getFrameId("HR_FOOT"),
+    ]
     for i in range(4):
         fsteps_init[:, i] = solo.data.oMf[indexes[i]].translation
     h_init = 0.0
     for i in range(4):
-        h_tmp = (solo.data.oMf[1].translation - solo.data.oMf[indexes[i]].translation)[2]
+        h_tmp = (solo.data.oMf[1].translation - solo.data.oMf[indexes[i]].translation)[
+            2
+        ]
         if h_tmp > h_init:
             h_init = h_tmp
 
@@ -66,15 +69,21 @@ def init_robot(q_init, params):
 
     # Saving data
     params.h_ref = h_init
-    params.mass = solo.data.mass[0]  # Mass of the whole urdf model (also = to Ycrb[1].mass)
-    params.I_mat = solo.data.Ycrb[1].inertia.ravel().tolist()  # Composite rigid body inertia in q_init position
+    params.mass = solo.data.mass[
+        0
+    ]  # Mass of the whole urdf model (also = to Ycrb[1].mass)
+    params.I_mat = (
+        solo.data.Ycrb[1].inertia.ravel().tolist()
+    )  # Composite rigid body inertia in q_init position
     params.CoM_offset = (solo.data.com[0][:3] - q[0:3, 0]).tolist()
     params.CoM_offset[1] = 0.0
 
     for i in range(4):
         for j in range(3):
-            params.shoulders[3*i+j] = shoulders_init[j, i]
-            params.footsteps_init[3*i+j] = fsteps_init[j, i]
-            params.footsteps_under_shoulders[3*i+j] = fsteps_init[j, i]  #  Use initial feet pos as reference
+            params.shoulders[3 * i + j] = shoulders_init[j, i]
+            params.footsteps_init[3 * i + j] = fsteps_init[j, i]
+            params.footsteps_under_shoulders[3 * i + j] = fsteps_init[
+                j, i
+            ]  #  Use initial feet pos as reference
 
     return solo

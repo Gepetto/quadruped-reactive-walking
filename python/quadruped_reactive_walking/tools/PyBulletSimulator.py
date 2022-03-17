@@ -1,8 +1,9 @@
+import time as time
+import sys
+
 import numpy as np
 import pybullet as pyb  # Pybullet server
 import pybullet_data
-import time as time
-import sys
 import pinocchio as pin
 from example_robot_data.path import EXAMPLE_ROBOT_DATA_MODEL_DIR
 
@@ -37,8 +38,8 @@ class pybullet_simulator:
         # Load horizontal plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
 
-        # Roll and Pitch angle of the ground
-        p_roll = 0.0 / 57.3  # Roll angle of ground
+        # Roll and Pitch angle of the ground
+        p_roll = 0.0 / 57.3  # Roll angle of ground
         p_pitch = 0.0 / 57.3  # Pitch angle of ground
 
         # Either use a flat ground or a rough terrain
@@ -47,35 +48,53 @@ class pybullet_simulator:
             self.planeIdbis = pyb.loadURDF("plane.urdf")  # Flat plane
 
             # Tune position and orientation of plane
-            pyb.resetBasePositionAndOrientation(self.planeId, [0, 0, 0.0], pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs())
-            pyb.resetBasePositionAndOrientation(self.planeIdbis, [200.0, 0, -100.0 * np.sin(p_pitch)], pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs())
+            pyb.resetBasePositionAndOrientation(
+                self.planeId,
+                [0, 0, 0.0],
+                pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs(),
+            )
+            pyb.resetBasePositionAndOrientation(
+                self.planeIdbis,
+                [200.0, 0, -100.0 * np.sin(p_pitch)],
+                pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs(),
+            )
         else:
             import random
+
             random.seed(41)
             # p.configureDebugVisualizer(p.COV_ENABLE_RENDERING,0)
             heightPerturbationRange = 0.05
 
-            numHeightfieldRows = 256*2
-            numHeightfieldColumns = 256*2
-            heightfieldData = [0]*numHeightfieldRows*numHeightfieldColumns
+            numHeightfieldRows = 256 * 2
+            numHeightfieldColumns = 256 * 2
+            heightfieldData = [0] * numHeightfieldRows * numHeightfieldColumns
             height_prev = 0.0
-            for j in range(int(numHeightfieldColumns/2)):
-                for i in range(int(numHeightfieldRows/2)):
+            for j in range(int(numHeightfieldColumns / 2)):
+                for i in range(int(numHeightfieldRows / 2)):
                     # uniform distribution
                     height = random.uniform(0, heightPerturbationRange)
                     # height = 0.25*np.sin(2*np.pi*(i-128)/46)  # sinus pattern
-                    heightfieldData[2*i+2*j * numHeightfieldRows] = (height + height_prev) * 0.5
-                    heightfieldData[2*i+1+2*j*numHeightfieldRows] = height
-                    heightfieldData[2*i+(2*j+1) * numHeightfieldRows] = (height + height_prev) * 0.5
-                    heightfieldData[2*i+1+(2*j+1)*numHeightfieldRows] = height
+                    heightfieldData[2 * i + 2 * j * numHeightfieldRows] = (
+                        height + height_prev
+                    ) * 0.5
+                    heightfieldData[2 * i + 1 + 2 * j * numHeightfieldRows] = height
+                    heightfieldData[2 * i + (2 * j + 1) * numHeightfieldRows] = (
+                        height + height_prev
+                    ) * 0.5
+                    heightfieldData[
+                        2 * i + 1 + (2 * j + 1) * numHeightfieldRows
+                    ] = height
                     height_prev = height
 
             # Create the collision shape based on the height field
-            terrainShape = pyb.createCollisionShape(shapeType=pyb.GEOM_HEIGHTFIELD, meshScale=[.05, .05, 1],
-                                                    heightfieldTextureScaling=(numHeightfieldRows-1)/2,
-                                                    heightfieldData=heightfieldData,
-                                                    numHeightfieldRows=numHeightfieldRows,
-                                                    numHeightfieldColumns=numHeightfieldColumns)
+            terrainShape = pyb.createCollisionShape(
+                shapeType=pyb.GEOM_HEIGHTFIELD,
+                meshScale=[0.05, 0.05, 1],
+                heightfieldTextureScaling=(numHeightfieldRows - 1) / 2,
+                heightfieldData=heightfieldData,
+                numHeightfieldRows=numHeightfieldRows,
+                numHeightfieldColumns=numHeightfieldColumns,
+            )
             self.planeId = pyb.createMultiBody(0, terrainShape)
             pyb.resetBasePositionAndOrientation(self.planeId, [0, 0, 0], [0, 0, 0, 1])
             pyb.changeVisualShape(self.planeId, -1, rgbaColor=[1, 1, 1, 1])
@@ -90,95 +109,119 @@ class pybullet_simulator:
 
             # Create the red steps to act as small perturbations
             mesh_scale = [1.0, 0.1, 0.02]
-            visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                                  fileName="cube.obj",
-                                                  halfExtents=[0.5, 0.5, 0.1],
-                                                  rgbaColor=[1.0, 0.0, 0.0, 1.0],
-                                                  specularColor=[0.4, .4, 0],
-                                                  visualFramePosition=[0.0, 0.0, 0.0],
-                                                  meshScale=mesh_scale)
+            visualShapeId = pyb.createVisualShape(
+                shapeType=pyb.GEOM_MESH,
+                fileName="cube.obj",
+                halfExtents=[0.5, 0.5, 0.1],
+                rgbaColor=[1.0, 0.0, 0.0, 1.0],
+                specularColor=[0.4, 0.4, 0],
+                visualFramePosition=[0.0, 0.0, 0.0],
+                meshScale=mesh_scale,
+            )
 
-            collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
-                                                        fileName="cube.obj",
-                                                        collisionFramePosition=[0.0, 0.0, 0.0],
-                                                        meshScale=mesh_scale)
+            collisionShapeId = pyb.createCollisionShape(
+                shapeType=pyb.GEOM_MESH,
+                fileName="cube.obj",
+                collisionFramePosition=[0.0, 0.0, 0.0],
+                meshScale=mesh_scale,
+            )
             for i in range(4):
-                tmpId = pyb.createMultiBody(baseMass=0.0,
-                                            baseInertialFramePosition=[0, 0, 0],
-                                            baseCollisionShapeIndex=collisionShapeId,
-                                            baseVisualShapeIndex=visualShapeId,
-                                            basePosition=[0.0, 0.5+0.2*i, 0.01],
-                                            useMaximalCoordinates=True)
+                tmpId = pyb.createMultiBody(
+                    baseMass=0.0,
+                    baseInertialFramePosition=[0, 0, 0],
+                    baseCollisionShapeIndex=collisionShapeId,
+                    baseVisualShapeIndex=visualShapeId,
+                    basePosition=[0.0, 0.5 + 0.2 * i, 0.01],
+                    useMaximalCoordinates=True,
+                )
                 pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
-            tmpId = pyb.createMultiBody(baseMass=0.0,
-                                        baseInertialFramePosition=[0, 0, 0],
-                                        baseCollisionShapeIndex=collisionShapeId,
-                                        baseVisualShapeIndex=visualShapeId,
-                                        basePosition=[0.5, 0.5+0.2*4, 0.01],
-                                        useMaximalCoordinates=True)
+            tmpId = pyb.createMultiBody(
+                baseMass=0.0,
+                baseInertialFramePosition=[0, 0, 0],
+                baseCollisionShapeIndex=collisionShapeId,
+                baseVisualShapeIndex=visualShapeId,
+                basePosition=[0.5, 0.5 + 0.2 * 4, 0.01],
+                useMaximalCoordinates=True,
+            )
             pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
-            tmpId = pyb.createMultiBody(baseMass=0.0,
-                                        baseInertialFramePosition=[0, 0, 0],
-                                        baseCollisionShapeIndex=collisionShapeId,
-                                        baseVisualShapeIndex=visualShapeId,
-                                        basePosition=[0.5, 0.5+0.2*5, 0.01],
-                                        useMaximalCoordinates=True)
+            tmpId = pyb.createMultiBody(
+                baseMass=0.0,
+                baseInertialFramePosition=[0, 0, 0],
+                baseCollisionShapeIndex=collisionShapeId,
+                baseVisualShapeIndex=visualShapeId,
+                basePosition=[0.5, 0.5 + 0.2 * 5, 0.01],
+                useMaximalCoordinates=True,
+            )
             pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
             # Create the green steps to act as bigger perturbations
             mesh_scale = [0.2, 0.1, 0.01]
-            visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                                  fileName="cube.obj",
-                                                  halfExtents=[0.5, 0.5, 0.1],
-                                                  rgbaColor=[0.0, 1.0, 0.0, 1.0],
-                                                  specularColor=[0.4, .4, 0],
-                                                  visualFramePosition=[0.0, 0.0, 0.0],
-                                                  meshScale=mesh_scale)
+            visualShapeId = pyb.createVisualShape(
+                shapeType=pyb.GEOM_MESH,
+                fileName="cube.obj",
+                halfExtents=[0.5, 0.5, 0.1],
+                rgbaColor=[0.0, 1.0, 0.0, 1.0],
+                specularColor=[0.4, 0.4, 0],
+                visualFramePosition=[0.0, 0.0, 0.0],
+                meshScale=mesh_scale,
+            )
 
-            collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
-                                                        fileName="cube.obj",
-                                                        collisionFramePosition=[0.0, 0.0, 0.0],
-                                                        meshScale=mesh_scale)
+            collisionShapeId = pyb.createCollisionShape(
+                shapeType=pyb.GEOM_MESH,
+                fileName="cube.obj",
+                collisionFramePosition=[0.0, 0.0, 0.0],
+                meshScale=mesh_scale,
+            )
 
             for i in range(3):
-                tmpId = pyb.createMultiBody(baseMass=0.0,
-                                            baseInertialFramePosition=[0, 0, 0],
-                                            baseCollisionShapeIndex=collisionShapeId,
-                                            baseVisualShapeIndex=visualShapeId,
-                                            basePosition=[0.15 * (-1)**i, 0.9+0.2*i, 0.025],
-                                            useMaximalCoordinates=True)
+                tmpId = pyb.createMultiBody(
+                    baseMass=0.0,
+                    baseInertialFramePosition=[0, 0, 0],
+                    baseCollisionShapeIndex=collisionShapeId,
+                    baseVisualShapeIndex=visualShapeId,
+                    basePosition=[0.15 * (-1) ** i, 0.9 + 0.2 * i, 0.025],
+                    useMaximalCoordinates=True,
+                )
                 pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
 
             # Create sphere obstacles that will be thrown toward the quadruped
             mesh_scale = [0.1, 0.1, 0.1]
-            visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                                  fileName="sphere_smooth.obj",
-                                                  halfExtents=[0.5, 0.5, 0.1],
-                                                  rgbaColor=[1.0, 0.0, 0.0, 1.0],
-                                                  specularColor=[0.4, .4, 0],
-                                                  visualFramePosition=[0.0, 0.0, 0.0],
-                                                  meshScale=mesh_scale)
+            visualShapeId = pyb.createVisualShape(
+                shapeType=pyb.GEOM_MESH,
+                fileName="sphere_smooth.obj",
+                halfExtents=[0.5, 0.5, 0.1],
+                rgbaColor=[1.0, 0.0, 0.0, 1.0],
+                specularColor=[0.4, 0.4, 0],
+                visualFramePosition=[0.0, 0.0, 0.0],
+                meshScale=mesh_scale,
+            )
 
-            collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
-                                                        fileName="sphere_smooth.obj",
-                                                        collisionFramePosition=[0.0, 0.0, 0.0],
-                                                        meshScale=mesh_scale)
+            collisionShapeId = pyb.createCollisionShape(
+                shapeType=pyb.GEOM_MESH,
+                fileName="sphere_smooth.obj",
+                collisionFramePosition=[0.0, 0.0, 0.0],
+                meshScale=mesh_scale,
+            )
 
-            self.sphereId1 = pyb.createMultiBody(baseMass=0.4,
-                                                 baseInertialFramePosition=[0, 0, 0],
-                                                 baseCollisionShapeIndex=collisionShapeId,
-                                                 baseVisualShapeIndex=visualShapeId,
-                                                 basePosition=[-0.6, 0.9, 0.1],
-                                                 useMaximalCoordinates=True)
+            self.sphereId1 = pyb.createMultiBody(
+                baseMass=0.4,
+                baseInertialFramePosition=[0, 0, 0],
+                baseCollisionShapeIndex=collisionShapeId,
+                baseVisualShapeIndex=visualShapeId,
+                basePosition=[-0.6, 0.9, 0.1],
+                useMaximalCoordinates=True,
+            )
 
-            self.sphereId2 = pyb.createMultiBody(baseMass=0.4,
-                                                 baseInertialFramePosition=[0, 0, 0],
-                                                 baseCollisionShapeIndex=collisionShapeId,
-                                                 baseVisualShapeIndex=visualShapeId,
-                                                 basePosition=[0.6, 1.1, 0.1],
-                                                 useMaximalCoordinates=True)
+            self.sphereId2 = pyb.createMultiBody(
+                baseMass=0.4,
+                baseInertialFramePosition=[0, 0, 0],
+                baseCollisionShapeIndex=collisionShapeId,
+                baseVisualShapeIndex=visualShapeId,
+                basePosition=[0.6, 1.1, 0.1],
+                useMaximalCoordinates=True,
+            )
 
             # Flag to launch the two spheres in the environment toward the robot
             self.flag_sphere1 = True
@@ -186,45 +229,52 @@ class pybullet_simulator:
 
         # Create blue spheres without collision box for debug purpose
         mesh_scale = [0.015, 0.015, 0.015]
-        visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                              fileName="sphere_smooth.obj",
-                                              halfExtents=[0.5, 0.5, 0.1],
-                                              rgbaColor=[0.0, 0.0, 1.0, 1.0],
-                                              specularColor=[0.4, .4, 0],
-                                              visualFramePosition=[0.0, 0.0, 0.0],
-                                              meshScale=mesh_scale)
+        visualShapeId = pyb.createVisualShape(
+            shapeType=pyb.GEOM_MESH,
+            fileName="sphere_smooth.obj",
+            halfExtents=[0.5, 0.5, 0.1],
+            rgbaColor=[0.0, 0.0, 1.0, 1.0],
+            specularColor=[0.4, 0.4, 0],
+            visualFramePosition=[0.0, 0.0, 0.0],
+            meshScale=mesh_scale,
+        )
 
         self.ftps_Ids = np.zeros((4, 5), dtype=np.int)
         for i in range(4):
             for j in range(5):
-                self.ftps_Ids[i, j] = pyb.createMultiBody(baseMass=0.0,
-                                                          baseInertialFramePosition=[0, 0, 0],
-                                                          baseVisualShapeIndex=visualShapeId,
-                                                          basePosition=[0.0, 0.0, -0.1],
-                                                          useMaximalCoordinates=True)
+                self.ftps_Ids[i, j] = pyb.createMultiBody(
+                    baseMass=0.0,
+                    baseInertialFramePosition=[0, 0, 0],
+                    baseVisualShapeIndex=visualShapeId,
+                    basePosition=[0.0, 0.0, -0.1],
+                    useMaximalCoordinates=True,
+                )
 
         # Create green spheres without collision box for debug purpose
-        visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                              fileName="sphere_smooth.obj",
-                                              halfExtents=[0.5, 0.5, 0.1],
-                                              rgbaColor=[0.0, 1.0, 0.0, 1.0],
-                                              specularColor=[0.4, .4, 0],
-                                              visualFramePosition=[0.0, 0.0, 0.0],
-                                              meshScale=mesh_scale)
+        visualShapeId = pyb.createVisualShape(
+            shapeType=pyb.GEOM_MESH,
+            fileName="sphere_smooth.obj",
+            halfExtents=[0.5, 0.5, 0.1],
+            rgbaColor=[0.0, 1.0, 0.0, 1.0],
+            specularColor=[0.4, 0.4, 0],
+            visualFramePosition=[0.0, 0.0, 0.0],
+            meshScale=mesh_scale,
+        )
         self.ftps_Ids_deb = [0] * 4
         for i in range(4):
-            self.ftps_Ids_deb[i] = pyb.createMultiBody(baseMass=0.0,
-                                                       baseInertialFramePosition=[0, 0, 0],
-                                                       baseVisualShapeIndex=visualShapeId,
-                                                       basePosition=[0.0, 0.0, -0.1],
-                                                       useMaximalCoordinates=True)
+            self.ftps_Ids_deb[i] = pyb.createMultiBody(
+                baseMass=0.0,
+                baseInertialFramePosition=[0, 0, 0],
+                baseVisualShapeIndex=visualShapeId,
+                basePosition=[0.0, 0.0, -0.1],
+                useMaximalCoordinates=True,
+            )
 
         # Create a red line for debug purpose
         self.lineId_red = []
 
         # Create a blue line for debug purpose
         self.lineId_blue = []
-
         """cubeStartPos = [0.0, 0.45, 0.0]
         cubeStartOrientation = pyb.getQuaternionFromEuler([0, 0, 0])
         self.cubeId = pyb.loadURDF("cube_small.urdf",
@@ -238,24 +288,35 @@ class pybullet_simulator:
         # Load Quadruped robot
         robotStartPos = [0, 0, 0.0]
         robotStartOrientation = pyb.getQuaternionFromEuler([0.0, 0.0, 0.0])  # -np.pi/2
-        pyb.setAdditionalSearchPath(EXAMPLE_ROBOT_DATA_MODEL_DIR + "/solo_description/robots")
+        pyb.setAdditionalSearchPath(
+            EXAMPLE_ROBOT_DATA_MODEL_DIR + "/solo_description/robots"
+        )
         self.robotId = pyb.loadURDF("solo12.urdf", robotStartPos, robotStartOrientation)
 
         # Disable default motor control for revolute joints
         self.revoluteJointIndices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
-        pyb.setJointMotorControlArray(self.robotId, jointIndices=self.revoluteJointIndices,
-                                      controlMode=pyb.VELOCITY_CONTROL,
-                                      targetVelocities=[0.0 for m in self.revoluteJointIndices],
-                                      forces=[0.0 for m in self.revoluteJointIndices])
+        pyb.setJointMotorControlArray(
+            self.robotId,
+            jointIndices=self.revoluteJointIndices,
+            controlMode=pyb.VELOCITY_CONTROL,
+            targetVelocities=[0.0 for m in self.revoluteJointIndices],
+            forces=[0.0 for m in self.revoluteJointIndices],
+        )
 
         # Initialize the robot in a specific configuration
         self.q_init = np.array([q_init]).transpose()
-        pyb.resetJointStatesMultiDof(self.robotId, self.revoluteJointIndices, self.q_init)  # q0[7:])
+        pyb.resetJointStatesMultiDof(
+            self.robotId, self.revoluteJointIndices, self.q_init
+        )  # q0[7:])
 
         # Enable torque control for revolute joints
         jointTorques = [0.0 for m in self.revoluteJointIndices]
-        pyb.setJointMotorControlArray(self.robotId, self.revoluteJointIndices,
-                                      controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
+        pyb.setJointMotorControlArray(
+            self.robotId,
+            self.revoluteJointIndices,
+            controlMode=pyb.TORQUE_CONTROL,
+            forces=jointTorques,
+        )
 
         # Get position of feet in world frame with base at (0, 0, 0)
         feetLinksID = [3, 7, 11, 15]
@@ -272,13 +333,27 @@ class pybullet_simulator:
             i += 1
 
         # Set base at (0, 0, -z_min) so that the lowest foot is at z = 0
-        pyb.resetBasePositionAndOrientation(self.robotId, [0.0, 0.0, -z_min], pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs())
+        pyb.resetBasePositionAndOrientation(
+            self.robotId,
+            [0.0, 0.0, -z_min],
+            pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs(),
+        )
 
         # Progressively raise the base to achieve proper contact (take into account radius of the foot)
-        while (pyb.getClosestPoints(self.robotId, self.planeId, distance=0.005,
-                                    linkIndexA=feetLinksID[i_min]))[0][8] < -0.001:
+        while (
+            pyb.getClosestPoints(
+                self.robotId,
+                self.planeId,
+                distance=0.005,
+                linkIndexA=feetLinksID[i_min],
+            )
+        )[0][8] < -0.001:
             z_min -= 0.001
-            pyb.resetBasePositionAndOrientation(self.robotId, [0.0, 0.0, -z_min], pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs())
+            pyb.resetBasePositionAndOrientation(
+                self.robotId,
+                [0.0, 0.0, -z_min],
+                pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs(),
+            )
 
         # Fix the base in the world frame
         # pyb.createConstraint(self.robotId, -1, -1, -1, pyb.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [0, 0, robotStartPos[2]])
@@ -287,8 +362,12 @@ class pybullet_simulator:
         pyb.setTimeStep(dt)
 
         # Change camera position
-        pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=45, cameraPitch=-39.9,
-                                       cameraTargetPosition=[0.0, 0.0, robotStartPos[2]-0.2])
+        pyb.resetDebugVisualizerCamera(
+            cameraDistance=0.6,
+            cameraYaw=45,
+            cameraPitch=-39.9,
+            cameraTargetPosition=[0.0, 0.0, robotStartPos[2] - 0.2],
+        )
 
     def check_pyb_env(self, k, envID, velID, qmes12):
         """Check the state of the robot to trigger events and update camera
@@ -344,32 +423,44 @@ class pybullet_simulator:
                 pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
 
                 mesh_scale = [0.1, 0.1, 0.04]
-                visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
-                                                      fileName="cube.obj",
-                                                      halfExtents=[0.5, 0.5, 0.1],
-                                                      rgbaColor=[0.0, 0.0, 1.0, 1.0],
-                                                      specularColor=[0.4, .4, 0],
-                                                      visualFramePosition=[0.0, 0.0, 0.0],
-                                                      meshScale=mesh_scale)
+                visualShapeId = pyb.createVisualShape(
+                    shapeType=pyb.GEOM_MESH,
+                    fileName="cube.obj",
+                    halfExtents=[0.5, 0.5, 0.1],
+                    rgbaColor=[0.0, 0.0, 1.0, 1.0],
+                    specularColor=[0.4, 0.4, 0],
+                    visualFramePosition=[0.0, 0.0, 0.0],
+                    meshScale=mesh_scale,
+                )
 
-                collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
-                                                            fileName="cube.obj",
-                                                            collisionFramePosition=[0.0, 0.0, 0.0],
-                                                            meshScale=mesh_scale)
+                collisionShapeId = pyb.createCollisionShape(
+                    shapeType=pyb.GEOM_MESH,
+                    fileName="cube.obj",
+                    collisionFramePosition=[0.0, 0.0, 0.0],
+                    meshScale=mesh_scale,
+                )
 
-                tmpId = pyb.createMultiBody(baseMass=0.0,
-                                            baseInertialFramePosition=[0, 0, 0],
-                                            baseCollisionShapeIndex=collisionShapeId,
-                                            baseVisualShapeIndex=visualShapeId,
-                                            basePosition=[0.19, 0.15005, 0.02],
-                                            useMaximalCoordinates=True)
+                tmpId = pyb.createMultiBody(
+                    baseMass=0.0,
+                    baseInertialFramePosition=[0, 0, 0],
+                    baseCollisionShapeIndex=collisionShapeId,
+                    baseVisualShapeIndex=visualShapeId,
+                    basePosition=[0.19, 0.15005, 0.02],
+                    useMaximalCoordinates=True,
+                )
                 pyb.changeDynamics(tmpId, -1, lateralFriction=1.0)
-                pyb.resetBasePositionAndOrientation(self.robotId, [0, 0, 0.25], [0, 0, 0, 1])
+                pyb.resetBasePositionAndOrientation(
+                    self.robotId, [0, 0, 0.25], [0, 0, 0, 1]
+                )
 
         # Apply perturbations by directly applying external forces on the robot trunk
         if velID == 4:
-            self.apply_external_force(k, 4250, 500, np.array([0.0, 0.0, -3.0]), np.zeros((3,)))
-            self.apply_external_force(k, 5250, 500, np.array([0.0, +3.0, 0.0]), np.zeros((3,)))
+            self.apply_external_force(
+                k, 4250, 500, np.array([0.0, 0.0, -3.0]), np.zeros((3,))
+            )
+            self.apply_external_force(
+                k, 5250, 500, np.array([0.0, +3.0, 0.0]), np.zeros((3,))
+            )
         """if velID == 0:
             self.apply_external_force(k, 1000, 1000, np.array([0.0, 0.0, -6.0]), np.zeros((3,)))
             self.apply_external_force(k, 2000, 1000, np.array([0.0, +12.0, 0.0]), np.zeros((3,)))"""
@@ -383,26 +474,42 @@ class pybullet_simulator:
         RPY = pin.rpy.matrixToRpy(oMb_tmp.rotation)
 
         # Update the PyBullet camera on the robot position to do as if it was attached to the robot
-        pyb.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=(0.0*RPY[2]*(180/3.1415)+45), cameraPitch=-39.9,
-                                       cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0])
+        pyb.resetDebugVisualizerCamera(
+            cameraDistance=0.6,
+            cameraYaw=(0.0 * RPY[2] * (180 / 3.1415) + 45),
+            cameraPitch=-39.9,
+            cameraTargetPosition=[qmes12[0, 0], qmes12[1, 0] + 0.0, 0.0],
+        )
 
         return 0
 
     def retrieve_pyb_data(self):
-        """Retrieve the position and orientation of the base in world frame as well as its linear and angular velocities
-        """
+        """Retrieve the position and orientation of the base in world frame as well as its linear and angular velocities"""
 
         # Retrieve data from the simulation
-        self.jointStates = pyb.getJointStates(self.robotId, self.revoluteJointIndices)  # State of all joints
-        self.baseState = pyb.getBasePositionAndOrientation(self.robotId)  # Position and orientation of the trunk
+        self.jointStates = pyb.getJointStates(
+            self.robotId, self.revoluteJointIndices
+        )  # State of all joints
+        self.baseState = pyb.getBasePositionAndOrientation(
+            self.robotId
+        )  # Position and orientation of the trunk
         self.baseVel = pyb.getBaseVelocity(self.robotId)  # Velocity of the trunk
 
         # Joints configuration and velocity vector for free-flyer + 12 actuators
-        self.qmes12 = np.vstack((np.array([self.baseState[0]]).T, np.array([self.baseState[1]]).T,
-                                 np.array([[state[0] for state in self.jointStates]]).T))
-        self.vmes12 = np.vstack((np.array([self.baseVel[0]]).T, np.array([self.baseVel[1]]).T,
-                                 np.array([[state[1] for state in self.jointStates]]).T))
-
+        self.qmes12 = np.vstack(
+            (
+                np.array([self.baseState[0]]).T,
+                np.array([self.baseState[1]]).T,
+                np.array([[state[0] for state in self.jointStates]]).T,
+            )
+        )
+        self.vmes12 = np.vstack(
+            (
+                np.array([self.baseVel[0]]).T,
+                np.array([self.baseVel[1]]).T,
+                np.array([[state[1] for state in self.jointStates]]).T,
+            )
+        )
         """robotVirtualOrientation = pyb.getQuaternionFromEuler([0, 0, np.pi / 4])
         self.qmes12[3:7, 0] = robotVirtualOrientation"""
 
@@ -428,7 +535,7 @@ class pybullet_simulator:
             loc (3x array): position on the link where the force is applied
         """
 
-        if ((k < start) or (k > (start+duration))):
+        if (k < start) or (k > (start + duration)):
             return 0.0
         """if k == start:
             print("Applying [", F[0], ", ", F[1], ", ", F[2], "]")"""
@@ -436,9 +543,9 @@ class pybullet_simulator:
         ev = k - start
         t1 = duration
         A4 = 16 / (t1**4)
-        A3 = - 2 * t1 * A4
+        A3 = -2 * t1 * A4
         A2 = t1**2 * A4
-        alpha = A2*ev**2 + A3*ev**3 + A4*ev**4
+        alpha = A2 * ev**2 + A3 * ev**3 + A4 * ev**4
 
         self.applied_force[:] = alpha * F
 
@@ -470,8 +577,12 @@ class pybullet_simulator:
 
         # PD settings
         P = 1.0 * 3.0
-        D = 0.05 * np.array([[1.0, 0.3, 0.3, 1.0, 0.3, 0.3,
-                              1.0, 0.3, 0.3, 1.0, 0.3, 0.3]]).transpose()
+        D = (
+            0.05
+            * np.array(
+                [[1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3, 1.0, 0.3, 0.3]]
+            ).transpose()
+        )
 
         while True or np.max(np.abs(qtarget - qmes)) > 0.1:
 
@@ -483,12 +594,12 @@ class pybullet_simulator:
             vmes[:, 0] = [state[1] for state in jointStates]
 
             # Torque PD controller
-            if (cpt * dt_traj < t1):
+            if cpt * dt_traj < t1:
                 ev = dt_traj * cpt
                 A3 = 2 * (qmes - qtarget) / t1**3
-                A2 = (-3/2) * t1 * A3
-                qdes = qmes + A2*(ev**2) + A3*(ev**3)
-                vdes = 2*A2*ev + 3*A3*(ev**2)
+                A2 = (-3 / 2) * t1 * A3
+                qdes = qmes + A2 * (ev**2) + A3 * (ev**3)
+                vdes = 2 * A2 * ev + 3 * A3 * (ev**2)
             jointTorques = P * (qdes - qmes) + D * (vdes - vmes)
 
             # Saturation to limit the maximal torque
@@ -497,8 +608,12 @@ class pybullet_simulator:
             jointTorques[jointTorques < -t_max] = -t_max
 
             # Set control torque for all joints
-            pyb.setJointMotorControlArray(self.robotId, self.revoluteJointIndices,
-                                          controlMode=pyb.TORQUE_CONTROL, forces=jointTorques)
+            pyb.setJointMotorControlArray(
+                self.robotId,
+                self.revoluteJointIndices,
+                controlMode=pyb.TORQUE_CONTROL,
+                forces=jointTorques,
+            )
 
             # Compute one step of simulation
             pyb.stepSimulation()
@@ -510,7 +625,7 @@ class pybullet_simulator:
                 pass
 
 
-class Hardware():
+class Hardware:
     """Dummy class that simulates the Hardware class used to communicate with the real masterboard"""
 
     def __init__(self):
@@ -537,17 +652,19 @@ class Hardware():
         elif i == 2:
             return self.yaw
 
-class IMU():
+
+class IMU:
     """Dummy class that simulates the IMU class used to communicate with the real masterboard"""
 
     def __init__(self):
-        self.linear_acceleration = np.zeros((3, ))
-        self.accelerometer = np.zeros((3, ))
-        self.gyroscope = np.zeros((3, ))
-        self.attitude_euler = np.zeros((3, ))
+        self.linear_acceleration = np.zeros((3,))
+        self.accelerometer = np.zeros((3,))
+        self.gyroscope = np.zeros((3,))
+        self.attitude_euler = np.zeros((3,))
         self.attitude_quaternion = np.array([0.0, 0.0, 0.0, 1.0])
 
-class Powerboard():
+
+class Powerboard:
     """Dummy class that simulates the Powerboard class used to communicate with the real masterboard"""
 
     def __init__(self):
@@ -555,14 +672,15 @@ class Powerboard():
         self.voltage = 0.0
         self.energy = 0.0
 
-class Joints():
+
+class Joints:
     """Dummy class that simulates the Joints class used to communicate with the real masterboard"""
 
     def __init__(self, parent_class):
         self.parent = parent_class
-        self.positions = np.zeros((12, ))
-        self.velocities = np.zeros((12, ))
-        self.measured_torques = np.zeros((12, ))
+        self.positions = np.zeros((12,))
+        self.velocities = np.zeros((12,))
+        self.measured_torques = np.zeros((12,))
 
     def set_torques(self, torques):
         """Set desired joint torques
@@ -607,7 +725,8 @@ class Joints():
         """
         self.parent.v_des = v_des
 
-class RobotInterface():
+
+class RobotInterface:
     """Dummy class that simulates the robot_interface class used to communicate with the real masterboard"""
 
     def __init__(self):
@@ -616,7 +735,8 @@ class RobotInterface():
     def PrintStats(self):
         pass
 
-class PyBulletSimulator():
+
+class PyBulletSimulator:
     """Class that wraps a PyBullet simulation environment to seamlessly switch between the real robot or
     simulation by having the same interface in both cases (calling the same functions/variables)
     """
@@ -645,7 +765,15 @@ class PyBulletSimulator():
         self.v_des = np.zeros(12)
         self.tau_ff = np.zeros(12)
 
-    def Init(self, calibrateEncoders=False, q_init=None, envID=0, use_flat_plane=True, enable_pyb_GUI=False, dt=0.002):
+    def Init(
+        self,
+        calibrateEncoders=False,
+        q_init=None,
+        envID=0,
+        use_flat_plane=True,
+        enable_pyb_GUI=False,
+        dt=0.002,
+    ):
         """Initialize the PyBullet simultor with a given environment and a given state of the robot
 
         Args:
@@ -658,7 +786,9 @@ class PyBulletSimulator():
         """
 
         # Initialisation of the PyBullet simulator
-        self.pyb_sim = pybullet_simulator(q_init, envID, use_flat_plane, enable_pyb_GUI, dt)
+        self.pyb_sim = pybullet_simulator(
+            q_init, envID, use_flat_plane, enable_pyb_GUI, dt
+        )
         self.q_init = q_init
         self.joints.positions[:] = q_init
         self.dt = dt
@@ -673,16 +803,21 @@ class PyBulletSimulator():
             left (3x0 array): left term of the cross product
             right (3x0 array): right term of the cross product
         """
-        return np.array([[left[1] * right[2] - left[2] * right[1]],
-                         [left[2] * right[0] - left[0] * right[2]],
-                         [left[0] * right[1] - left[1] * right[0]]])
+        return np.array(
+            [
+                [left[1] * right[2] - left[2] * right[1]],
+                [left[2] * right[0] - left[0] * right[2]],
+                [left[0] * right[1] - left[1] * right[0]],
+            ]
+        )
 
     def parse_sensor_data(self):
-        """Retrieve data about the robot from the simulation to mimic what the masterboard does
-        """
+        """Retrieve data about the robot from the simulation to mimic what the masterboard does"""
 
         # Position and velocity of actuators
-        jointStates = pyb.getJointStates(self.pyb_sim.robotId, self.revoluteJointIndices)  # State of all joints
+        jointStates = pyb.getJointStates(
+            self.pyb_sim.robotId, self.revoluteJointIndices
+        )  # State of all joints
         self.joints.positions[:] = np.array([state[0] for state in jointStates])
         self.joints.velocities[:] = np.array([state[1] for state in jointStates])
 
@@ -701,23 +836,35 @@ class PyBulletSimulator():
 
         # Orientation of the base (quaternion)
         self.imu.attitude_quaternion[:] = np.array(self.baseState[1])
-        self.imu.attitude_euler[:] = pin.rpy.matrixToRpy(pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix())
+        self.imu.attitude_euler[:] = pin.rpy.matrixToRpy(
+            pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix()
+        )
         self.rot_oMb = pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix()
         self.oMb = pin.SE3(self.rot_oMb, np.array([self.dummyHeight]).transpose())
 
         # Angular velocities of the base
-        self.imu.gyroscope[:] = (self.oMb.rotation.transpose() @ np.array([self.baseVel[1]]).transpose()).ravel()
+        self.imu.gyroscope[:] = (
+            self.oMb.rotation.transpose() @ np.array([self.baseVel[1]]).transpose()
+        ).ravel()
 
         # Linear Acceleration of the base
         self.o_baseVel = np.array([self.baseVel[0]]).transpose()
         self.b_baseVel = (self.oMb.rotation.transpose() @ self.o_baseVel).ravel()
 
-        self.o_imuVel = self.o_baseVel + self.oMb.rotation @ self.cross3(np.array([0.1163, 0.0, 0.02]), self.imu.gyroscope[:])
+        self.o_imuVel = self.o_baseVel + self.oMb.rotation @ self.cross3(
+            np.array([0.1163, 0.0, 0.02]), self.imu.gyroscope[:]
+        )
 
-        self.imu.linear_acceleration[:] = (self.oMb.rotation.transpose() @ (self.o_imuVel - self.prev_o_imuVel)).ravel() / self.dt
+        self.imu.linear_acceleration[:] = (
+            self.oMb.rotation.transpose() @ (self.o_imuVel - self.prev_o_imuVel)
+        ).ravel() / self.dt
         self.prev_o_imuVel[:, 0:1] = self.o_imuVel
-        self.imu.accelerometer[:] = self.imu.linear_acceleration + \
-            (self.oMb.rotation.transpose() @ np.array([[0.0], [0.0], [-9.81]])).ravel()
+        self.imu.accelerometer[:] = (
+            self.imu.linear_acceleration
+            + (
+                self.oMb.rotation.transpose() @ np.array([[0.0], [0.0], [-9.81]])
+            ).ravel()
+        )
 
         return
 
@@ -729,19 +876,27 @@ class PyBulletSimulator():
         """
 
         # Position and velocity of actuators
-        jointStates = pyb.getJointStates(self.pyb_sim.robotId, self.revoluteJointIndices)  # State of all joints
+        jointStates = pyb.getJointStates(
+            self.pyb_sim.robotId, self.revoluteJointIndices
+        )  # State of all joints
         self.joints.positions[:] = np.array([state[0] for state in jointStates])
         self.joints.velocities[:] = np.array([state[1] for state in jointStates])
 
         # Compute PD torques
-        tau_pd = self.P * (self.q_des - self.joints.positions) + self.D * (self.v_des - self.joints.velocities)
+        tau_pd = self.P * (self.q_des - self.joints.positions) + self.D * (
+            self.v_des - self.joints.velocities
+        )
 
         # Save desired torques in a storage array
         self.jointTorques = tau_pd + self.tau_ff
 
         # Set control torque for all joints
-        pyb.setJointMotorControlArray(self.pyb_sim.robotId, self.pyb_sim.revoluteJointIndices,
-                                      controlMode=pyb.TORQUE_CONTROL, forces=self.jointTorques)
+        pyb.setJointMotorControlArray(
+            self.pyb_sim.robotId,
+            self.pyb_sim.revoluteJointIndices,
+            controlMode=pyb.TORQUE_CONTROL,
+            forces=self.jointTorques,
+        )
 
         # Apply arbitrary external forces to the robot base in the simulation
         # self.pyb_sim.apply_external_force(self.cpt, 3000, 1000, np.array([0.0, +0.0, -20.0]), np.array([+0.0, +0.1, 0.0]))

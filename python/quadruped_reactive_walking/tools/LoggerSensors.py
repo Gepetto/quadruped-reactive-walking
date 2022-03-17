@@ -1,10 +1,12 @@
-'''This class will log 1d array in Nd matrix from device and qualisys object'''
-import numpy as np
-from datetime import datetime as datetime
+"""This class will log 1d array in Nd matrix from device and qualisys object"""
+
+from datetime import datetime
 from time import time
 
+import numpy as np
 
-class LoggerSensors():
+
+class LoggerSensors:
     def __init__(self, device=None, qualisys=None, logSize=60e3, ringBuffer=False):
         self.ringBuffer = ringBuffer
         logSize = np.int(logSize)
@@ -37,7 +39,7 @@ class LoggerSensors():
         self.tstamps = np.zeros(logSize)
 
     def sample(self, device, qualisys=None):
-        if (self.i >= self.logSize):
+        if self.i >= self.logSize:
             if self.ringBuffer:
                 self.i = 0
             else:
@@ -76,23 +78,25 @@ class LoggerSensors():
         self.i += 1
 
     def saveAll(self, fileName="dataSensors"):
-        date_str = datetime.now().strftime('_%Y_%m_%d_%H_%M')
+        date_str = datetime.now().strftime("_%Y_%m_%d_%H_%M")
 
-        np.savez_compressed(fileName + date_str + ".npz",
-                            q_mes=self.q_mes,
-                            v_mes=self.v_mes,
-                            baseOrientation=self.baseOrientation,
-                            baseOrientationQuat=self.baseOrientationQuat,
-                            baseAngularVelocity=self.baseAngularVelocity,
-                            baseLinearAcceleration=self.baseLinearAcceleration,
-                            baseAccelerometer=self.baseAccelerometer,
-                            torquesFromCurrentMeasurment=self.torquesFromCurrentMeasurment,
-                            current=self.current,
-                            voltage=self.voltage,
-                            energy=self.energy,
-                            mocapPosition=self.mocapPosition,
-                            mocapVelocity=self.mocapVelocity,
-                            mocapAngularVelocity=self.mocapAngularVelocity,
-                            mocapOrientationMat9=self.mocapOrientationMat9,
-                            mocapOrientationQuat=self.mocapOrientationQuat,
-                            tstamps=self.tstamps)
+        np.savez_compressed(
+            fileName + date_str + ".npz",
+            q_mes=self.q_mes,
+            v_mes=self.v_mes,
+            baseOrientation=self.baseOrientation,
+            baseOrientationQuat=self.baseOrientationQuat,
+            baseAngularVelocity=self.baseAngularVelocity,
+            baseLinearAcceleration=self.baseLinearAcceleration,
+            baseAccelerometer=self.baseAccelerometer,
+            torquesFromCurrentMeasurment=self.torquesFromCurrentMeasurment,
+            current=self.current,
+            voltage=self.voltage,
+            energy=self.energy,
+            mocapPosition=self.mocapPosition,
+            mocapVelocity=self.mocapVelocity,
+            mocapAngularVelocity=self.mocapAngularVelocity,
+            mocapOrientationMat9=self.mocapOrientationMat9,
+            mocapOrientationQuat=self.mocapOrientationQuat,
+            tstamps=self.tstamps,
+        )

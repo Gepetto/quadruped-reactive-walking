@@ -1,9 +1,19 @@
-import numpy as np
-import hppfcl
-import pickle
 import ctypes
+import pickle
 
-COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+import hppfcl
+import numpy as np
+
+COLORS = [
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#e377c2",
+    "#7f7f7f",
+    "#bcbd22",
+    "#17becf",
+]
 
 
 class MapHeader(ctypes.Structure):
@@ -18,7 +28,6 @@ class MapHeader(ctypes.Structure):
 
 
 class Heightmap:
-
     def __init__(self, n_x, n_y, x_lim, y_lim):
         """
         :param n_x number of samples in x
@@ -35,7 +44,7 @@ class Heightmap:
         self.z = np.zeros((n_x, n_y))
 
     def save_pickle(self, filename):
-        filehandler = open(filename, 'wb')
+        filehandler = open(filename, "wb")
         pickle.dump(self, filehandler)
 
     def save_binary(self, filename):
@@ -57,7 +66,7 @@ class Heightmap:
     def build_from_fit(self, fit):
         """
         Build the heightmap and return it
-        For each slot in the grid create a vertical segment and check its collisions with the 
+        For each slot in the grid create a vertical segment and check its collisions with the
         affordances until one is found
         :param affordances list of affordances
         """
@@ -68,15 +77,15 @@ class Heightmap:
     def build(self, affordances):
         """
         Build the heightmap and return it
-        For each slot in the grid create a vertical segment and check its collisions with the 
+        For each slot in the grid create a vertical segment and check its collisions with the
         affordances until one is found
         :param affordances list of affordances
         """
-        last_z = 0.
+        last_z = 0.0
         for i in range(self.n_x):
             for j in range(self.n_y):
-                p1 = np.array([self.x[i], self.y[j], -1.])
-                p2 = np.array([self.x[i], self.y[j], 10.])
+                p1 = np.array([self.x[i], self.y[j], -1.0])
+                p2 = np.array([self.x[i], self.y[j], 10.0])
                 segment = np.array([p1, p2])
                 fcl_segment = convex(segment, [0, 1, 0])
 
@@ -87,7 +96,11 @@ class Heightmap:
                         for triangle_list in affordance:
                             triangle = [np.array(p) for p in triangle_list]
                             if intersect_line_triangle(segment, triangle):
-                                intersections.append(get_point_intersect_line_triangle(segment, triangle)[2])
+                                intersections.append(
+                                    get_point_intersect_line_triangle(
+                                        segment, triangle
+                                    )[2]
+                                )
 
                 if len(intersections) != 0:
                     self.z[i, j] = np.max(np.array(intersections))
@@ -95,7 +108,7 @@ class Heightmap:
                 else:
                     self.z[i, j] = last_z
 
-    def plot(self, alpha=1., ax=None):
+    def plot(self, alpha=1.0, ax=None):
         """
         Plot the heightmap
         """
@@ -105,16 +118,16 @@ class Heightmap:
             fig = plt.figure()
             ax = fig.add_subplot(111, projection="3d")
         i = 0
-        if alpha != 1.:
+        if alpha != 1.0:
             i = 1
 
-        xv, yv = np.meshgrid(self.x, self.y, sparse=False, indexing='ij')
+        xv, yv = np.meshgrid(self.x, self.y, sparse=False, indexing="ij")
         ax.plot_surface(xv, yv, self.z, color=COLORS[i], alpha=alpha)
 
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
-        ax.set_zlim([np.min(self.z), np.max(self.z) + 1.])
+        ax.set_zlim([np.min(self.z), np.max(self.z) + 1.0])
 
         return ax
 
@@ -147,7 +160,7 @@ def distance(object1, object2):
     """
     Returns the distance between object1 and object2
     """
-    guess = np.array([1., 0., 0.])
+    guess = np.array([1.0, 0.0, 0.0])
     support_hint = np.array([0, 0], dtype=np.int32)
 
     shape = hppfcl.MinkowskiDiff()

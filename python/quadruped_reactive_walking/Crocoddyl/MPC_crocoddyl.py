@@ -3,9 +3,8 @@
 import crocoddyl
 import numpy as np
 import quadruped_walkgen as quadruped_walkgen
-import pinocchio as pin
 
-np.set_printoptions(formatter={'float': lambda x: "{0:0.7f}".format(x)}, linewidth=450)
+np.set_printoptions(formatter={"float": lambda x: "{0:0.7f}".format(x)}, linewidth=450)
 
 
 class MPC_crocoddyl:
@@ -24,7 +23,9 @@ class MPC_crocoddyl:
         self.dt = params.dt_mpc  # Time step of the solver
         self.n_nodes = int(params.gait.shape[0])  # Number of nodes
         self.mass = params.mass  # Mass of the robot
-        self.gI = np.array(params.I_mat.tolist()).reshape((3, 3))  # Inertia matrix in ody frame
+        self.gI = np.array(params.I_mat.tolist()).reshape(
+            (3, 3)
+        )  # Inertia matrix in ody frame
 
         # Friction coefficient
         if inner:
@@ -59,7 +60,7 @@ class MPC_crocoddyl:
         self.min_fz = 0.2  # Minimum normal force (N)
         self.max_fz = 25  # Maximum normal force (N)
 
-        self.shoulderWeights = 0.  # Weight on the shoulder term :
+        self.shoulderWeights = 0.0  # Weight on the shoulder term :
         self.shoulder_hlim = 0.235  # shoulder maximum height
 
         # Integration scheme
@@ -81,15 +82,25 @@ class MPC_crocoddyl:
         # Action models
         self.ListAction = []
         if linearModel:
-            self.ListAction = [quadruped_walkgen.ActionModelQuadruped(self.offset_com) for _ in range(self.n_nodes)]
+            self.ListAction = [
+                quadruped_walkgen.ActionModelQuadruped(self.offset_com)
+                for _ in range(self.n_nodes)
+            ]
             self.terminalModel = quadruped_walkgen.ActionModelQuadruped(self.offset_com)
         else:
-            self.ListAction = [quadruped_walkgen.ActionModelQuadrupedNonLinear(self.offset_com) for _ in range(self.n_nodes)]
-            self.terminalModel = quadruped_walkgen.ActionModelQuadrupedNonLinear(self.offset_com)
+            self.ListAction = [
+                quadruped_walkgen.ActionModelQuadrupedNonLinear(self.offset_com)
+                for _ in range(self.n_nodes)
+            ]
+            self.terminalModel = quadruped_walkgen.ActionModelQuadrupedNonLinear(
+                self.offset_com
+            )
         self.updateActionModels()
 
         # Shooting problem
-        self.problem = crocoddyl.ShootingProblem(np.zeros(12), self.ListAction, self.terminalModel)
+        self.problem = crocoddyl.ShootingProblem(
+            np.zeros(12), self.ListAction, self.terminalModel
+        )
 
         # DDP Solver
         self.ddp = crocoddyl.SolverDDP(self.problem)
@@ -115,24 +126,30 @@ class MPC_crocoddyl:
 
         # Construction of the gait matrix representing the feet in contact with the ground
         self.index = self.n_nodes
-        self.gait[:self.index, :] = 1.0 - (self.fsteps[:self.index, 0::3] == 0.0)
-        self.gait[self.index:, :] = 0.0
+        self.gait[: self.index, :] = 1.0 - (self.fsteps[: self.index, 0::3] == 0.0)
+        self.gait[self.index :, :] = 0.0
 
         # Iterate over all phases of the gait
         # The first column of xref correspond to the current state
         for j in range(self.index):
             # Update model
-            self.ListAction[j].updateModel(np.reshape(self.fsteps[j, :], (3, 4), order='F'), xref[:, j],
-                                           self.gait[j, :])
+            self.ListAction[j].updateModel(
+                np.reshape(self.fsteps[j, :], (3, 4), order="F"),
+                xref[:, j],
+                self.gait[j, :],
+            )
 
         # Update model of the terminal model
-        self.terminalModel.updateModel(np.reshape(self.fsteps[self.index - 1, :], (3, 4), order='F'), xref[:, -1],
-                                       self.gait[self.index - 1, :])
+        self.terminalModel.updateModel(
+            np.reshape(self.fsteps[self.index - 1, :], (3, 4), order="F"),
+            xref[:, -1],
+            self.gait[self.index - 1, :],
+        )
 
         return 0
 
     def solve(self, k, xref, fsteps):
-        """ Solve the MPC problem
+        """Solve the MPC problem
 
         Args:
             k : Iteration
@@ -152,7 +169,10 @@ class MPC_crocoddyl:
         if self.warm_start and k != 0:
 
             self.u_init = self.ddp.us[1:].tolist()
-            self.u_init.append(np.repeat(self.gait[self.index - 1, :], 3) * np.array(4 * [0.5, 0.5, 5.]))
+            self.u_init.append(
+                np.repeat(self.gait[self.index - 1, :], 3)
+                * np.array(4 * [0.5, 0.5, 5.0])
+            )
 
             self.x_init = self.ddp.xs[2:].tolist()
             self.x_init.insert(0, self.xref[:, 0])
@@ -190,7 +210,7 @@ class MPC_crocoddyl:
         return np.array(self.ddp.us)[:, :].transpose()[:, :]
 
     def initializeActionModel(self, model, terminal=False):
-        """ Initialize an action model with the parameters"""
+        """Initialize an action model with the parameters"""
         # Model parameters
         model.dt = self.dt
         model.mass = self.mass
@@ -203,7 +223,7 @@ class MPC_crocoddyl:
         model.stateWeights = self.stateWeights
         if terminal:
             model.forceWeights = np.zeros(12)
-            model.frictionWeights = 0.
+            model.frictionWeights = 0.0
         else:
             model.max_fz = self.max_fz
             model.forceWeights = self.forceWeights
