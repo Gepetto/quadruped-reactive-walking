@@ -167,47 +167,9 @@ class Controller:
 
         self.joystick.update_v_ref(self.k, self.gait.is_static())
 
-
         q_perfect, b_baseVel_perfect = self.get_perfect_data(qc, device)
 
-        self.estimator.run(
-            self.gait.matrix,
-            self.footTrajectoryGenerator.get_foot_position(),
-            device.imu.linear_acceleration,
-            device.imu.gyroscope,
-            device.imu.attitude_euler,
-            device.joints.positions,
-            device.joints.velocities,
-            q_perfect,
-            b_baseVel_perfect,
-        )
-
-        # Update state vectors of the robot (q and v) + transformation matrices between world and horizontal frames
-        self.estimator.update_reference_state(self.joystick.get_v_ref())
-        oRh = self.estimator.get_oRh()
-        hRb = self.estimator.get_hRb()
-        oTh = self.estimator.get_oTh().reshape((3, 1))
-        self.v_ref = self.estimator.get_base_vel_ref()
-        self.h_v = self.estimator.get_h_v()
-        self.h_v_windowed = self.estimator.get_h_v_filtered()
-        if self.solo3D:
-            self.q[:3] = self.estimator.get_q_estimate()[:3]
-            self.q[6:] = self.estimator.get_q_estimate()[7:]
-            self.q[3:6] = quaternionToRPY(self.estimator.get_q_estimate()[3:7])
-        else:
-            self.q = self.estimator.get_q_reference()
-        self.v = self.estimator.get_v_reference()
-
-        # Quantities go through a 1st order low pass filter with fc = 15 Hz (avoid >25Hz foldback)
-        self.q_filtered = self.q.copy()
-        self.q_filtered[:6] = self.filter_q.filter(self.q[:6], True)
-        self.h_v_filtered = self.filter_h_v.filter(self.h_v, False)
-        self.vref_filtered = self.filter_vref.filter(self.v_ref, False)
-
-        if self.solo3D:
-            oTh_3d = np.zeros((3, 1))
-            oTh_3d[:2, 0] = self.q_filtered[:2]
-            oRh_3d = pin.rpy.rpyToMatrix(0.0, 0.0, self.q_filtered[5])
+        oRh, hRb, oTh = self.run_estimator(device, q_perfect, b_baseVel_perfect)
 
         t_filter = time.time()
         self.t_filter = t_filter - t_start
@@ -341,6 +303,9 @@ class Controller:
 
             # Feet command position, velocity and acceleration in base frame
             if self.solo3D:
+                oTh_3d = np.zeros((3, 1))
+                oTh_3d[:2, 0] = self.q_filtered[:2]
+                oRh_3d = pin.rpy.rpyToMatrix(0.0, 0.0, self.q_filtered[5])
                 self.feet_a_cmd = (
                     self.footTrajectoryGenerator.get_foot_acceleration_base_frame(
                         oRh_3d.transpose(), np.zeros((3, 1)), np.zeros((3, 1))
@@ -561,6 +526,8 @@ class Controller:
 
         @params qc qualisys client for motion capture
         @params device device structure holding simulation data
+        @return q_perfect 6D perfect position of the base in world frame
+        @return v_baseVel_perfect 3D perfect linear velocity of the base in base frame
         """
         q_perfect = np.zeros(6)
         b_baseVel_perfect = np.zeros(3)
@@ -574,8 +541,7 @@ class Controller:
             q_perfect[:3] = qc.getPosition() - self.initial_pos
             q_perfect[3:] = quaternionToRPY(qc.getOrientationQuat())
             b_baseVel_perfect = (
-                qc.getOrientationMat9().reshape((3, 3)).transpose()
-                @ qc.getVelocity().reshape((3, 1))
+                qc.getOrientationMat9().transpose() @ qc.getVelocity().reshape((3, 1))
             ).ravel()
 
         if np.isnan(np.sum(q_perfect)):
@@ -594,8 +560,55 @@ class Controller:
             self.last_q_perfect = q_perfect
             self.last_b_vel = b_baseVel_perfect
             self.n_nan = 0
-        
+
         return q_perfect, b_baseVel_perfect
+
+    def run_estimator(self, device, q_perfect, b_baseVel_perfect):
+        """
+        Call the estimator and retrieve the reference and estimated quantities.
+        Run a filter on q, h_v and v_ref.
+
+        @params device device structure holding simulation data
+        @params q_perfect 6D perfect position of the base in world frame
+        @params v_baseVel_perfect 3D perfect linear velocity of the base in base frame
+        """
+
+        self.estimator.run(
+            self.gait.matrix,
+            self.footTrajectoryGenerator.get_foot_position(),
+            device.imu.linear_acceleration,
+            device.imu.gyroscope,
+            device.imu.attitude_euler,
+            device.joints.positions,
+            device.joints.velocities,
+            q_perfect,
+            b_baseVel_perfect,
+        )
+
+        self.estimator.update_reference_state(self.joystick.get_v_ref())
+
+        oRh = self.estimator.get_oRh()
+        hRb = self.estimator.get_hRb()
+        oTh = self.estimator.get_oTh().reshape((3, 1))
+
+        self.v_ref = self.estimator.get_base_vel_ref()
+        self.h_v = self.estimator.get_h_v()
+        self.h_v_windowed = self.estimator.get_h_v_filtered()
+        if self.solo3D:
+            self.q[:3] = self.estimator.get_q_estimate()[:3]
+            self.q[6:] = self.estimator.get_q_estimate()[7:]
+            self.q[3:6] = quaternionToRPY(self.estimator.get_q_estimate()[3:7]).ravel()
+        else:
+            self.q = self.estimator.get_q_reference()
+        self.v = self.estimator.get_v_reference()
+
+        # Filter quantities
+        self.q_filtered = self.q.copy()
+        self.q_filtered[:6] = self.filter_q.filter(self.q[:6], True)
+        self.h_v_filtered = self.filter_h_v.filter(self.h_v, False)
+        self.vref_filtered = self.filter_vref.filter(self.v_ref, False)
+
+        return oRh, hRb, oTh
 
     def security_check(self):
         """
