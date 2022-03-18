@@ -228,6 +228,7 @@ class Controller:
             else:
                 self.xgoals[[3, 4]] = reference_state[[3, 4], 1]
                 self.h_ref = self.q_init[2]
+            self.xgoals[6:] = self.vref_filtered
 
             # If the four feet are in contact then we do not listen to MPC
             if self.DEMONSTRATION and self.gait.is_static():
@@ -239,48 +240,8 @@ class Controller:
             self.dq_wbc[:6] = self.estimator.get_v_estimate()[:6]
             self.dq_wbc[6:] = self.wbcWrapper.vdes
 
-            # Feet command position, velocity and acceleration in base frame
-            if self.solo3D:
-                oTh_3d = np.zeros((3, 1))
-                oTh_3d[:2, 0] = self.q_filtered[:2]
-                oRh_3d = pin.rpy.rpyToMatrix(0.0, 0.0, self.q_filtered[5])
-                self.feet_a_cmd = (
-                    self.footTrajectoryGenerator.get_foot_acceleration_base_frame(
-                        oRh_3d.transpose(), np.zeros((3, 1)), np.zeros((3, 1))
-                    )
-                )
-                self.feet_v_cmd = (
-                    self.footTrajectoryGenerator.get_foot_velocity_base_frame(
-                        oRh_3d.transpose(), np.zeros((3, 1)), np.zeros((3, 1))
-                    )
-                )
-                self.feet_p_cmd = (
-                    self.footTrajectoryGenerator.get_foot_position_base_frame(
-                        oRh_3d.transpose(),
-                        oTh_3d + np.array([[0.0], [0.0], [reference_state[2, 1]]]),
-                    )
-                )
-            else:  # Use ideal base frame
-                self.feet_a_cmd = (
-                    self.footTrajectoryGenerator.get_foot_acceleration_base_frame(
-                        hRb @ oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1))
-                    )
-                )
-                self.feet_v_cmd = (
-                    self.footTrajectoryGenerator.get_foot_velocity_base_frame(
-                        hRb @ oRh.transpose(), np.zeros((3, 1)), np.zeros((3, 1))
-                    )
-                )
-                self.feet_p_cmd = (
-                    self.footTrajectoryGenerator.get_foot_position_base_frame(
-                        hRb @ oRh.transpose(),
-                        oTh + np.array([[0.0], [0.0], [self.h_ref]]),
-                    )
-                )
+            self.get_feet_targets(reference_state, oRh, oTh, hRb)
 
-            self.xgoals[6:] = self.vref_filtered
-
-            # Run InvKin + WBC QP
             self.wbcWrapper.compute(
                 self.q_wbc,
                 self.dq_wbc,
@@ -464,8 +425,8 @@ class Controller:
         Retrieve perfect data from motion capture or simulator
         Check if nan and send error if more than 5 nans in a row
 
-        @params qc qualisys client for motion capture
-        @params device device structure holding simulation data
+        @param qc qualisys client for motion capture
+        @param device device structure holding simulation data
         @return q_perfect 6D perfect position of the base in world frame
         @return v_baseVel_perfect 3D perfect linear velocity of the base in base frame
         """
@@ -508,9 +469,9 @@ class Controller:
         Call the estimator and retrieve the reference and estimated quantities.
         Run a filter on q, h_v and v_ref.
 
-        @params device device structure holding simulation data
-        @params q_perfect 6D perfect position of the base in world frame
-        @params v_baseVel_perfect 3D perfect linear velocity of the base in base frame
+        @param device device structure holding simulation data
+        @param q_perfect 6D perfect position of the base in world frame
+        @param v_baseVel_perfect 3D perfect linear velocity of the base in base frame
         """
 
         self.estimator.run(
@@ -582,6 +543,15 @@ class Controller:
             )
 
     def solve_MPC(self, reference_state, footsteps, oRh, oTh):
+        """
+        Call the MPC and store result in self.mpc_result. Update target footsteps if
+        necessary
+
+        @param reference_state reference centroideal state trajectory
+        @param footsteps footsteps positions over horizon
+        @param oRh rotation between the world and horizontal frame
+        @param oTh translation between the world and horizontal frame
+        """
         if (self.k % self.k_mpc) == 0:
             try:
                 if self.type_MPC == 3:
@@ -622,6 +592,46 @@ class Controller:
                     self.o_targetFootstep[:2, foot] = self.mpc_result[
                         24 + 2 * foot : 24 + 2 * foot + 2, id + 1
                     ]
+
+    def get_feet_targets(self, reference_state, oRh, oTh, hRb):
+        """
+        Retrieve the feet positions, velocities and accelerations to send to the WBC
+        (in base frame)
+
+        @params reference_state reference centroideal state trajectory
+        @params footsteps footsteps positions over horizon
+        @params oRh rotation between the world and horizontal frame
+        @params oTh translation between the world and horizontal frame
+        """
+        if self.solo3D:
+            oTh_3d = np.zeros(3)
+            oTh_3d[:2] = self.q_filtered[:2]
+            oRh_3d = pin.rpy.rpyToMatrix(0.0, 0.0, self.q_filtered[5])
+            self.feet_a_cmd = (
+                self.footTrajectoryGenerator.get_foot_acceleration_base_frame(
+                    oRh_3d.transpose(), np.zeros(3), np.zeros(3)
+                )
+            )
+            self.feet_v_cmd = self.footTrajectoryGenerator.get_foot_velocity_base_frame(
+                oRh_3d.transpose(), np.zeros(3), np.zeros(3)
+            )
+            self.feet_p_cmd = self.footTrajectoryGenerator.get_foot_position_base_frame(
+                oRh_3d.transpose(),
+                oTh_3d + np.array([0.0, 0.0, reference_state[2, 1]]),
+            )
+        else:
+            self.feet_a_cmd = (
+                self.footTrajectoryGenerator.get_foot_acceleration_base_frame(
+                    hRb @ oRh.transpose(), np.zeros(3), np.zeros(3)
+                )
+            )
+            self.feet_v_cmd = self.footTrajectoryGenerator.get_foot_velocity_base_frame(
+                hRb @ oRh.transpose(), np.zeros(3), np.zeros(3)
+            )
+            self.feet_p_cmd = self.footTrajectoryGenerator.get_foot_position_base_frame(
+                hRb @ oRh.transpose(),
+                oTh + np.array([[0.0], [0.0], [self.h_ref]]),
+            )
 
     def security_check(self):
         """
