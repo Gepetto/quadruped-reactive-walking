@@ -116,7 +116,7 @@ class MPC_Wrapper:
                     self.type = MPC_type.OSQP
 
         x_init = np.zeros(12)
-        x_init[0:6] = q_init[0:6, 0].copy()
+        x_init[0:6] = q_init[0:6].copy()
         if self.mpc_type == MPC_type.CROCODDYL_PLANNER:
             self.last_available_result = np.zeros((32, (np.int(self.n_steps))))
 

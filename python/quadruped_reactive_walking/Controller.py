@@ -77,12 +77,8 @@ class Controller:
         self.joystick = qrw.Joystick()
         self.joystick.initialize(params)
 
-        # Enable/Disable hybrid control
-        self.enable_hybrid_control = True
-
-        self.h_ref_mem = params.h_ref
-        self.q = np.zeros((18, 1))  # Orientation part is in roll pitch yaw
-        self.q[:6, 0] = np.array([0.0, 0.0, self.h_ref, 0.0, 0.0, 0.0])
+        self.q = np.zeros((18, 1))
+        self.q[2, 0] = self.h_ref
         self.q[6:, 0] = q_init
         self.v = np.zeros((18, 1))
         self.b_v = np.zeros((18, 1))
@@ -103,14 +99,14 @@ class Controller:
         self.wbcWrapper.initialize(params)
 
         # Wrapper that makes the link with the solver that you want to use for the MPC
-        self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q)
+        self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q_init)
         self.o_targetFootstep = np.zeros((3, 4))  # Store result for MPC_planner
 
         if params.solo3D:
-            from solo3D.SurfacePlannerWrapper import Surface_planner_wrapper
+            from .solo3D.SurfacePlannerWrapper import Surface_planner_wrapper
 
             if self.SIMULATION:
-                from solo3D.pyb_environment_3D import PybEnvironment3D
+                from .solo3D.pyb_environment_3D import PybEnvironment3D
 
         self.enable_multiprocessing_mip = params.enable_multiprocessing_mip
         self.offset_perfect_estimator = 0.0
@@ -126,30 +122,9 @@ class Controller:
                 params, self.gait, self.surfacePlanner.floor_surface
             )
 
-            # Trajectory Generator Bezier
-            x_margin_max_ = 0.06  # margin inside convex surfaces [m].
-            t_margin_ = (
-                0.3  # 100*t_margin_% of the curve around critical point. range: [0, 1]
-            )
-            z_margin_ = 0.06  # 100*z_margin_% of the curve after the critical point. range: [0, 1]
-
-            N_sample = (
-                8  # Number of sample in the least square optimisation for Bezier coeffs
-            )
-            N_sample_ineq = 10  # Number of sample while browsing the curve
-            degree = 7  # Degree of the Bezier curve
-
             self.footTrajectoryGenerator = qrw.FootTrajectoryGeneratorBezier()
             self.footTrajectoryGenerator.initialize(
-                params,
-                self.gait,
-                self.surfacePlanner.floor_surface,
-                x_margin_max_,
-                t_margin_,
-                z_margin_,
-                N_sample,
-                N_sample_ineq,
-                degree,
+                params, self.gait, self.surfacePlanner.floor_surface
             )
             if self.SIMULATION:
                 self.pybEnvironment3D = PybEnvironment3D(
@@ -423,7 +398,7 @@ class Controller:
                 hRb = pin.rpy.rpyToMatrix(0.0, 0.0, self.p_ref[5, 0])
             else:
                 self.xgoals[[3, 4], 0] = xref[[3, 4], 1]
-                self.h_ref = self.h_ref_mem
+                self.h_ref = self.q_init[2]
 
             # If the four feet are in contact then we do not listen to MPC (default contact forces instead)
             if self.DEMONSTRATION and self.gait.is_static():
