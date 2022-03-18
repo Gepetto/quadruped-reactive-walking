@@ -167,39 +167,8 @@ class Controller:
 
         self.joystick.update_v_ref(self.k, self.gait.is_static())
 
-        q_perfect = np.zeros(6)
-        b_baseVel_perfect = np.zeros(3)
-        if self.solo3D and qc == None:
-            q_perfect[:3] = device.base_position
-            q_perfect[3:] = device.imu.attitude_euler
-            b_baseVel_perfect = device.b_base_velocity
-        elif self.solo3D and qc != None:
-            if self.k <= 1:
-                self.initial_pos = [0.0, 0.0, -0.046]
-                self.initial_matrix = pin.rpy.rpyToMatrix(0.0, 0.0, 0.0).transpose()
-            q_perfect[:3] = self.initial_matrix @ (qc.getPosition() - self.initial_pos)
-            q_perfect[3:] = quaternionToRPY(qc.getOrientationQuat())[:, 0]
-            b_baseVel_perfect[:] = (
-                qc.getOrientationMat9().reshape((3, 3)).transpose()
-                @ qc.getVelocity().reshape((3, 1))
-            ).ravel()
 
-        if np.isnan(np.sum(q_perfect)):
-            print("Error: nan values in perfect position of the robot")
-            q_perfect = self.last_q_perfect
-            self.n_nan += 1
-            if not np.any(self.last_q_perfect) or self.n_nan >= 5:
-                self.error = True
-        elif np.isnan(np.sum(b_baseVel_perfect)):
-            print("Error: nan values in perfect velocity of the robot")
-            b_baseVel_perfect = self.last_b_vel
-            self.n_nan += 1
-            if not np.any(self.last_b_vel) or self.n_nan >= 5:
-                self.error = True
-        else:
-            self.last_q_perfect = q_perfect
-            self.last_b_vel = b_baseVel_perfect
-            self.n_nan = 0
+        q_perfect, b_baseVel_perfect = self.get_perfect_data(qc, device)
 
         self.estimator.run(
             self.gait.matrix,
@@ -584,6 +553,49 @@ class Controller:
                         lineWidth=8,
                         replaceItemUniqueId=device.pyb_sim.lineId_blue[i],
                     )
+
+    def get_perfect_data(self, qc, device):
+        """
+        Retrieve perfect data from motion capture or simulator
+        Check if nan and send error if more than 5 nans in a row
+
+        @params qc qualisys client for motion capture
+        @params device device structure holding simulation data
+        """
+        q_perfect = np.zeros(6)
+        b_baseVel_perfect = np.zeros(3)
+        if self.solo3D and qc == None:
+            q_perfect[:3] = device.base_position
+            q_perfect[3:] = device.imu.attitude_euler
+            b_baseVel_perfect = device.b_base_velocity
+        elif self.solo3D and qc != None:
+            if self.k <= 1:
+                self.initial_pos = [0.0, 0.0, -0.046]
+            q_perfect[:3] = qc.getPosition() - self.initial_pos
+            q_perfect[3:] = quaternionToRPY(qc.getOrientationQuat())
+            b_baseVel_perfect = (
+                qc.getOrientationMat9().reshape((3, 3)).transpose()
+                @ qc.getVelocity().reshape((3, 1))
+            ).ravel()
+
+        if np.isnan(np.sum(q_perfect)):
+            print("Error: nan values in perfect position of the robot")
+            q_perfect = self.last_q_perfect
+            self.n_nan += 1
+            if not np.any(self.last_q_perfect) or self.n_nan >= 5:
+                self.error = True
+        elif np.isnan(np.sum(b_baseVel_perfect)):
+            print("Error: nan values in perfect velocity of the robot")
+            b_baseVel_perfect = self.last_b_vel
+            self.n_nan += 1
+            if not np.any(self.last_b_vel) or self.n_nan >= 5:
+                self.error = True
+        else:
+            self.last_q_perfect = q_perfect
+            self.last_b_vel = b_baseVel_perfect
+            self.n_nan = 0
+        
+        return q_perfect, b_baseVel_perfect
 
     def security_check(self):
         """
