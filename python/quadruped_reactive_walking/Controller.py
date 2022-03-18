@@ -59,8 +59,6 @@ class Controller:
         self.DEMONSTRATION = params.DEMONSTRATION
         self.SIMULATION = params.SIMULATION
         self.solo3D = params.solo3D
-        self.dt_mpc = params.dt_mpc
-        self.dt_wbc = params.dt_wbc
         self.k_mpc = int(params.dt_mpc / params.dt_wbc)
         self.type_MPC = params.type_MPC
         self.enable_pyb_GUI = params.enable_pyb_GUI
@@ -86,14 +84,6 @@ class Controller:
         self.q_init[2] = params.h_ref
         self.q_display = np.zeros(19)
 
-        self.q = np.zeros(18)
-        self.v = np.zeros(18)
-
-        self.q_wbc = np.zeros(18)
-        self.dq_wbc = np.zeros(18)
-        self.xgoals = np.zeros(12)
-        self.xgoals[2] = self.h_ref
-
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q_init)
         self.o_targetFootstep = np.zeros((3, 4))
 
@@ -101,6 +91,7 @@ class Controller:
         self.update_mip = False
         if params.solo3D:
             from .solo3D.SurfacePlannerWrapper import Surface_planner_wrapper
+
             self.surfacePlanner = Surface_planner_wrapper(params)
 
             self.statePlanner = qrw.StatePlanner3D()
@@ -144,25 +135,17 @@ class Controller:
 
         self.k = 0
 
-        self.v_ref = np.zeros(6)
-        self.h_v = np.zeros(6)
-        self.h_v_windowed = np.zeros(6)
+        self.q = np.zeros(18)
+        self.q_wbc = np.zeros(18)
+        self.dq_wbc = np.zeros(18)
+        self.xgoals = np.zeros(12)
 
-        self.feet_a_cmd = np.zeros((3, 4))
-        self.feet_v_cmd = np.zeros((3, 4))
-        self.feet_p_cmd = np.zeros((3, 4))
-
-        self.q_filtered = np.zeros(18)
-        self.h_v_filtered = np.zeros(6)
-        self.vref_filtered = np.zeros(6)
         self.filter_q = qrw.Filter()
         self.filter_q.initialize(params)
         self.filter_h_v = qrw.Filter()
         self.filter_h_v.initialize(params)
         self.filter_vref = qrw.Filter()
         self.filter_vref.initialize(params)
-
-        self.p_ref = np.zeros((6, 1))
 
         self.error = False
         self.last_q_perfect = np.zeros(6)
@@ -369,28 +352,26 @@ class Controller:
             # Desired position, orientation and velocities of the base
             self.xgoals[:6] = np.zeros(6)
             if self.DEMONSTRATION and self.joystick.get_l1() and self.gait.is_static():
-                self.p_ref[:, 0] = self.joystick.get_p_ref()
-                self.xgoals[[3, 4]] = self.p_ref[[3, 4], 0]
-                self.h_ref = self.p_ref[2, 0]
-                hRb = pin.rpy.rpyToMatrix(0.0, 0.0, self.p_ref[5, 0])
+                p_ref = self.joystick.get_p_ref()
+                self.xgoals[[3, 4]] = p_ref[[3, 4]]
+                self.h_ref = p_ref[2]
+                hRb = pin.rpy.rpyToMatrix(0.0, 0.0, self.p_ref[5])
             else:
                 self.xgoals[[3, 4]] = xref[[3, 4], 1]
                 self.h_ref = self.q_init[2]
 
-            # If the four feet are in contact then we do not listen to MPC (default contact forces instead)
+            # If the four feet are in contact then we do not listen to MPC
             if self.DEMONSTRATION and self.gait.is_static():
                 self.x_f_mpc[12:24, 0] = [0.0, 0.0, 9.81 * 2.5 / 4.0] * 4
 
-            # Update configuration vector for wbc with filtered roll and pitch and reference angular positions of previous loop
+            # Wbc uses filtered roll and pitch and reference angular positions of previous loop
             self.q_wbc[3:5] = self.q_filtered[3:5]
-            self.q_wbc[6:] = self.wbcWrapper.qdes.copy()
-
-            # Update velocity vector for wbc
+            self.q_wbc[6:] = self.wbcWrapper.qdes
             self.dq_wbc[:6] = self.estimator.get_v_estimate()[:6]
-            self.dq_wbc[6:] = self.wbcWrapper.vdes[:]
+            self.dq_wbc[6:] = self.wbcWrapper.vdes
 
             # Feet command position, velocity and acceleration in base frame
-            if self.solo3D:  # Use estimated base frame
+            if self.solo3D:
                 self.feet_a_cmd = (
                     self.footTrajectoryGenerator.get_foot_acceleration_base_frame(
                         oRh_3d.transpose(), np.zeros((3, 1)), np.zeros((3, 1))
