@@ -88,7 +88,6 @@ class Controller:
         self.o_targetFootstep = np.zeros((3, 4))
 
         self.enable_multiprocessing_mip = params.enable_multiprocessing_mip
-        self.update_mip = False
         if params.solo3D:
             from .solo3D.SurfacePlannerWrapper import Surface_planner_wrapper
 
@@ -116,7 +115,7 @@ class Controller:
                     self.footstepPlanner,
                     self.footTrajectoryGenerator,
                 )
-
+            self.update_mip = False
         else:
             self.statePlanner = qrw.StatePlanner()
             self.statePlanner.initialize(params)
@@ -175,22 +174,10 @@ class Controller:
         self.t_filter = t_filter - t_start
 
         self.gait.update(self.k, self.k_mpc, self.joystick.get_joystick_code())
+        gait_matrix = self.gait.matrix
 
-        self.update_mip = self.k % self.k_mpc == 0 and self.gait.is_new_step()
         if self.solo3D:
-            if self.update_mip:
-                self.statePlanner.update_surface(
-                    self.q_filtered[:6], self.vref_filtered
-                )
-                if self.surfacePlanner.initialized:
-                    self.error = self.surfacePlanner.get_latest_results()
-
-            self.footstepPlanner.update_surfaces(
-                self.surfacePlanner.potential_surfaces,
-                self.surfacePlanner.selected_surfaces,
-                self.surfacePlanner.mip_success,
-                self.surfacePlanner.mip_iteration,
-            )
+            self.retrieve_surfaces()
 
         self.o_targetFootstep = self.footstepPlanner.update_footsteps(
             self.k % self.k_mpc == 0 and self.k != 0,
@@ -199,73 +186,24 @@ class Controller:
             self.h_v_windowed,
             self.v_ref,
         )
+        footsteps = self.footstepPlanner.get_footsteps()
 
         self.statePlanner.compute_reference_states(
-            self.q_filtered[:6],
-            self.h_v_filtered,
-            self.vref_filtered,
+            self.q_filtered[:6], self.h_v_filtered, self.vref_filtered
         )
+        reference_state = self.statePlanner.get_reference_states()
 
-        xref = self.statePlanner.get_reference_states()
-        fsteps = self.footstepPlanner.get_footsteps()
-        gait_matrix = self.gait.matrix
-
-        if self.update_mip and self.solo3D:
-            configs = self.statePlanner.get_configurations().transpose()
-            self.surfacePlanner.run(
-                configs, gait_matrix, self.o_targetFootstep, self.vref_filtered[:3]
-            )
-            self.surfacePlanner.initialized = True
-            if not self.enable_multiprocessing_mip and self.SIMULATION:
-                self.pybEnvironment3D.update_target_SL1M(
-                    self.surfacePlanner.all_feet_pos_syn
-                )
+        if self.solo3D and self.update_mip:
+            self.call_planner()
 
         t_planner = time.time()
         self.t_planner = t_planner - t_filter
 
-        # Solve MPC
-        if (self.k % self.k_mpc) == 0:
-            try:
-                if self.type_MPC == 3:
-                    l_targetFootstep = oRh.transpose() @ (self.o_targetFootstep - oTh)
-                    self.mpc_wrapper.solve(
-                        self.k,
-                        xref,
-                        fsteps,
-                        gait_matrix,
-                        l_targetFootstep,
-                        oRh,
-                        oTh,
-                        self.footTrajectoryGenerator.get_foot_position(),
-                        self.footTrajectoryGenerator.get_foot_velocity(),
-                        self.footTrajectoryGenerator.get_foot_acceleration(),
-                        self.footTrajectoryGenerator.get_foot_jerk(),
-                        self.footTrajectoryGenerator.get_phase_durations()
-                        - self.footTrajectoryGenerator.get_elapsed_durations(),
-                    )
-                else:
-                    self.mpc_wrapper.solve(
-                        self.k, xref, fsteps, gait_matrix, np.zeros((3, 4))
-                    )
-            except ValueError:
-                print("MPC Problem")
-        self.x_f_mpc, self.mpc_cost = self.mpc_wrapper.get_latest_result()
+        self.solve_MPC(reference_state, footsteps, oRh, oTh)
 
         t_mpc = time.time()
         self.t_mpc = t_mpc - t_planner
 
-        if self.k > 100 and self.type_MPC == 3:
-            for foot in range(4):
-                if gait_matrix[0, foot] == 0:
-                    id = 0
-                    while gait_matrix[id, foot] == 0:
-                        id += 1
-                    self.o_targetFootstep[:2, foot] = self.x_f_mpc[
-                        24 + 2 * foot : 24 + 2 * foot + 2, id + 1
-                    ]
-
-        # Update pos, vel and acc references for feet
         if self.solo3D:
             self.footTrajectoryGenerator.update(
                 self.k,
@@ -288,12 +226,12 @@ class Controller:
                 self.h_ref = p_ref[2]
                 hRb = pin.rpy.rpyToMatrix(0.0, 0.0, self.p_ref[5])
             else:
-                self.xgoals[[3, 4]] = xref[[3, 4], 1]
+                self.xgoals[[3, 4]] = reference_state[[3, 4], 1]
                 self.h_ref = self.q_init[2]
 
             # If the four feet are in contact then we do not listen to MPC
             if self.DEMONSTRATION and self.gait.is_static():
-                self.x_f_mpc[12:24, 0] = [0.0, 0.0, 9.81 * 2.5 / 4.0] * 4
+                self.mpc_result[12:24, 0] = [0.0, 0.0, 9.81 * 2.5 / 4.0] * 4
 
             # Wbc uses filtered roll and pitch and reference angular positions of previous loop
             self.q_wbc[3:5] = self.q_filtered[3:5]
@@ -319,7 +257,7 @@ class Controller:
                 self.feet_p_cmd = (
                     self.footTrajectoryGenerator.get_foot_position_base_frame(
                         oRh_3d.transpose(),
-                        oTh_3d + np.array([[0.0], [0.0], [xref[2, 1]]]),
+                        oTh_3d + np.array([[0.0], [0.0], [reference_state[2, 1]]]),
                     )
                 )
             else:  # Use ideal base frame
@@ -346,7 +284,7 @@ class Controller:
             self.wbcWrapper.compute(
                 self.q_wbc,
                 self.dq_wbc,
-                (self.x_f_mpc[12:24, 0:1]).copy(),
+                (self.mpc_result[12:24, 0:1]).copy(),
                 np.array([gait_matrix[0, :]]),
                 self.feet_p_cmd,
                 self.feet_v_cmd,
@@ -375,23 +313,23 @@ class Controller:
         if self.error or self.joystick.get_stop():
             self.set_null_control()
 
-        # Update PyBullet camera
         if not self.solo3D:
-            self.pyb_camera(device, 0.0)
-        else:  # Update 3D Environment
+            self.pyb_camera(device)
+        else:
             if self.SIMULATION:
                 self.pybEnvironment3D.update(self.k)
 
-        self.pyb_debug(device, fsteps, gait_matrix, xref)
+        self.pyb_debug(device, footsteps, gait_matrix, reference_state)
 
         self.t_loop = time.time() - t_start
         self.k += 1
 
         return self.error
 
-    def pyb_camera(self, device, yaw):
+    def pyb_camera(self, device):
         """
-        Update position of PyBullet camera on the robot position to do as if it was attached to the robot
+        Update position of PyBullet camera on the robot position to do as if it was
+        attached to the robot
         """
         if self.k > 10 and self.enable_pyb_GUI:
             pyb.resetDebugVisualizerCamera(
@@ -405,7 +343,7 @@ class Controller:
                 ],
             )
 
-    def pyb_debug(self, device, fsteps, gait_matrix, xref):
+    def pyb_debug(self, device, footsteps, gait_matrix, xref):
 
         if self.k > 1 and self.enable_pyb_GUI:
             # Display desired feet positions in WBC as green spheres
@@ -438,7 +376,9 @@ class Controller:
                         if status:
                             pos = (
                                 oRh_pyb
-                                @ fsteps[cpt, (3 * i) : (3 * (i + 1))].reshape((-1, 1))
+                                @ footsteps[cpt, (3 * i) : (3 * (i + 1))].reshape(
+                                    (-1, 1)
+                                )
                                 + oTh_pyb
                                 - np.array([[0.0], [0.0], [oTh_pyb[2, 0]]])
                             )
@@ -491,29 +431,29 @@ class Controller:
                     )
 
             # Display predicted trajectory
-            x_f_mpc_rot = np.zeros((3, self.x_f_mpc.shape[1]))
-            for i in range(self.x_f_mpc.shape[1]):
-                x_f_mpc_rot[:, i : (i + 1)] = (
-                    oRh_pyb @ self.x_f_mpc[:3, i : (i + 1)]
+            mpc_result_rot = np.zeros((3, self.mpc_result.shape[1]))
+            for i in range(self.mpc_result.shape[1]):
+                mpc_result_rot[:, i : (i + 1)] = (
+                    oRh_pyb @ self.mpc_result[:3, i : (i + 1)]
                     + oTh_pyb
                     + np.array([[0.0], [0.0], [0.05 - self.h_ref]])
                 )
 
             if len(device.pyb_sim.lineId_blue) == 0:
-                for i in range(self.x_f_mpc.shape[1] - 1):
+                for i in range(self.mpc_result.shape[1] - 1):
                     device.pyb_sim.lineId_blue.append(
                         pyb.addUserDebugLine(
-                            x_f_mpc_rot[:3, i].tolist(),
-                            x_f_mpc_rot[:3, i + 1].tolist(),
+                            mpc_result_rot[:3, i].tolist(),
+                            mpc_result_rot[:3, i + 1].tolist(),
                             lineColorRGB=[0.0, 0.0, 1.0],
                             lineWidth=8,
                         )
                     )
             else:
-                for i in range(self.x_f_mpc.shape[1] - 1):
+                for i in range(self.mpc_result.shape[1] - 1):
                     device.pyb_sim.lineId_blue[i] = pyb.addUserDebugLine(
-                        x_f_mpc_rot[:3, i].tolist(),
-                        x_f_mpc_rot[:3, i + 1].tolist(),
+                        mpc_result_rot[:3, i].tolist(),
+                        mpc_result_rot[:3, i + 1].tolist(),
                         lineColorRGB=[0.0, 0.0, 1.0],
                         lineWidth=8,
                         replaceItemUniqueId=device.pyb_sim.lineId_blue[i],
@@ -609,6 +549,79 @@ class Controller:
         self.vref_filtered = self.filter_vref.filter(self.v_ref, False)
 
         return oRh, hRb, oTh
+
+    def retrieve_surfaces(self):
+        """
+        Get last surfaces computed by the planner and send them to the footstep adapter
+        """
+        self.update_mip = self.k % self.k_mpc == 0 and self.gait.is_new_step()
+        if self.update_mip:
+            self.statePlanner.update_surface(self.q_filtered[:6], self.vref_filtered)
+            if self.surfacePlanner.initialized:
+                self.error = self.surfacePlanner.get_latest_results()
+
+        self.footstepPlanner.update_surfaces(
+            self.surfacePlanner.potential_surfaces,
+            self.surfacePlanner.selected_surfaces,
+            self.surfacePlanner.mip_success,
+            self.surfacePlanner.mip_iteration,
+        )
+
+    def call_planner(self):
+        """
+        Call the planner and show the result in simulation
+        """
+        configs = self.statePlanner.get_configurations().transpose()
+        self.surfacePlanner.run(
+            configs, self.gait.matrix, self.o_targetFootstep, self.vref_filtered[:3]
+        )
+        self.surfacePlanner.initialized = True
+        if not self.enable_multiprocessing_mip and self.SIMULATION:
+            self.pybEnvironment3D.update_target_SL1M(
+                self.surfacePlanner.all_feet_pos_syn
+            )
+
+    def solve_MPC(self, reference_state, footsteps, oRh, oTh):
+        if (self.k % self.k_mpc) == 0:
+            try:
+                if self.type_MPC == 3:
+                    l_targetFootstep = oRh.transpose() @ (self.o_targetFootstep - oTh)
+                    self.mpc_wrapper.solve(
+                        self.k,
+                        reference_state,
+                        footsteps,
+                        self.gait.matrix,
+                        l_targetFootstep,
+                        oRh,
+                        oTh,
+                        self.footTrajectoryGenerator.get_foot_position(),
+                        self.footTrajectoryGenerator.get_foot_velocity(),
+                        self.footTrajectoryGenerator.get_foot_acceleration(),
+                        self.footTrajectoryGenerator.get_foot_jerk(),
+                        self.footTrajectoryGenerator.get_phase_durations()
+                        - self.footTrajectoryGenerator.get_elapsed_durations(),
+                    )
+                else:
+                    self.mpc_wrapper.solve(
+                        self.k,
+                        reference_state,
+                        footsteps,
+                        self.gait.matrix,
+                        np.zeros((3, 4)),
+                    )
+            except ValueError:
+                print("MPC Problem")
+        self.mpc_result, self.mpc_cost = self.mpc_wrapper.get_latest_result()
+
+        if self.k > 100 and self.type_MPC == 3:
+            for foot in range(4):
+                if self.gait.matrix[0, foot] == 0:
+                    id = 0
+                    while self.gait.matrix[id, foot] == 0:
+                        id += 1
+                    self.o_targetFootstep[:2, foot] = self.mpc_result[
+                        24 + 2 * foot : 24 + 2 * foot + 2, id + 1
+                    ]
 
     def security_check(self):
         """

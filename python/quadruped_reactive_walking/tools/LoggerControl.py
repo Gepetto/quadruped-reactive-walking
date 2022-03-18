@@ -296,7 +296,7 @@ class LoggerControl:
         self.planner_h_ref[self.i] = controller.h_ref
 
         # Logging from model predictive control
-        self.mpc_x_f[self.i] = controller.x_f_mpc
+        self.mpc_x_f[self.i] = controller.mpc_result
         self.mpc_solving_duration[
             self.i
         ] = controller.mpc_wrapper.t_mpc_solving_duration
