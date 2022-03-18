@@ -253,20 +253,14 @@ class Controller:
                 self.xgoals,
             )
 
-            self.result.q_des[:] = self.wbcWrapper.qdes[:]
-            self.result.v_des[:] = self.wbcWrapper.vdes[:]
-            self.result.tau_ff[:] = self.wbcWrapper.tau_ff
+            self.result.q_des = self.wbcWrapper.qdes
+            self.result.v_des = self.wbcWrapper.vdes
+            self.result.tau_ff = self.wbcWrapper.tau_ff
 
             self.clamp_result(device)
 
-            # Display robot in Gepetto corba viewer
             if self.enable_corba_viewer and (self.k % 5 == 0):
-                self.q_display[:3, 0] = self.q_wbc[:3]
-                self.q_display[3:7, 0] = pin.Quaternion(
-                    pin.rpy.rpyToMatrix(self.q_wbc[3:6])
-                ).coeffs()
-                self.q_display[7:, 0] = self.q_wbc[6:]
-                self.solo.display(self.q_display)
+                self.display_robot()
 
         self.t_wbc = time.time() - t_mpc
 
@@ -707,13 +701,24 @@ class Controller:
                 print("Clamping torque of motor n " + str(i))
                 self.error = set_error
 
+    def display_robto(self):
+        """
+        Display the robot in corba viewer
+        """
+        self.q_display[:3] = self.q_wbc[:3]
+        self.q_display[3:7] = pin.Quaternion(
+            pin.rpy.rpyToMatrix(self.q_wbc[3:6])
+        ).coeffs()
+        self.q_display[7:] = self.q_wbc[6:]
+        self.solo.display(self.q_display)
+
     def set_null_control(self):
         """
         Send default null values to the robot
         """
         self.result.P = np.zeros(12)
         self.result.D = 0.1 * np.ones(12)
+        self.result.FF = np.zeros(12)
         self.result.q_des[:] = np.zeros(12)
         self.result.v_des[:] = np.zeros(12)
-        self.result.FF = np.zeros(12)
         self.result.tau_ff[:] = np.zeros(12)
