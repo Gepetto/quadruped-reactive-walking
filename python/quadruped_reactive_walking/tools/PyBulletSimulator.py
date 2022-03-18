@@ -721,8 +721,8 @@ class PyBulletSimulator:
 
         # Position and orientation of the trunk (PyBullet world frame)
         self.baseState = pyb.getBasePositionAndOrientation(self.pyb_sim.robotId)
-        self.dummyHeight = np.array(self.baseState[0])
-        self.dummyHeight[2] = 0.20
+        self.height = np.array(self.baseState[0])
+        self.height[2] = 0.20
         self.base_position = np.array(self.baseState[0])
 
         # Linear and angular velocity of the trunk (PyBullet world frame)
@@ -735,7 +735,7 @@ class PyBulletSimulator:
             pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix()
         )
         self.rot_oMb = pin.Quaternion(self.imu.attitude_quaternion).toRotationMatrix()
-        self.oMb = pin.SE3(self.rot_oMb, np.array([self.dummyHeight]).transpose())
+        self.oMb = pin.SE3(self.rot_oMb, np.array([self.height]).transpose())
 
         # Angular velocities of the base
         self.imu.gyroscope[:] = (

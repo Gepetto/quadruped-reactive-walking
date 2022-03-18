@@ -16,12 +16,6 @@ struct FootTrajectoryGeneratorBezierVisitor
         .def("get_foot_jerk", &FootTrajectoryGeneratorBezier::getFootJerk, "Get jerk_ matrix.\n")
         .def("evaluate_bezier", &FootTrajectoryGeneratorBezier::evaluateBezier, "Evaluate Bezier curve by foot.\n")
         .def("evaluate_polynom", &FootTrajectoryGeneratorBezier::evaluatePoly, "Evaluate Bezier curve by foot.\n")
-        .def("get_foot_position_base_frame", &FootTrajectoryGeneratorBezier::getFootPositionBaseFrame,
-             bp::args("R", "T"), "Get position_ matrix in base frame.\n")
-        .def("get_foot_velocity_base_frame", &FootTrajectoryGeneratorBezier::getFootVelocityBaseFrame,
-             bp::args("R", "v_ref", "w_ref"), "Get velocity_ matrix in base frame.\n")
-        .def("get_foot_acceleration_base_frame", &FootTrajectoryGeneratorBezier::getFootAccelerationBaseFrame,
-             bp::args("R", "w_ref", "a_ref"), "Get acceleration_ matrix in base frame.\n")
 
         .def("initialize", &FootTrajectoryGeneratorBezier::initialize, bp::args("params", "gaitIn"),
              "Initialize FootTrajectoryGeneratorBezier from Python.\n")

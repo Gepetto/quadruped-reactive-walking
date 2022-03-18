@@ -60,38 +60,6 @@ class FootTrajectoryGenerator {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void update(int k, MatrixN const &targetFootstep);
 
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ///
-  /// \brief Get target positions of feet in desired frame from target positions in ideal world
-  ///
-  /// \param[in] R Rotation matrix to apply between output frame and the ideal world
-  /// \param[in] T Translation to apply between output frame and the ideal world
-  ///
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  MatrixN getFootPositionBaseFrame(const Matrix3 &R, const Vector3 &T);
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ///
-  /// \brief Get target velocities of feet in desired frame from target positions in ideal world
-  ///
-  /// \param[in] R Rotation matrix to apply between output frame and the ideal world
-  /// \param[in] v_ref Reference linear velocity (if required for change of frame)
-  /// \param[in] w_ref Reference angular velocity (if required for change of frame)
-  ///
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  MatrixN getFootVelocityBaseFrame(const Matrix3 &R, const Vector3 &v_ref, const Vector3 &w_ref);
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ///
-  /// \brief Get target accelerations of feet in desired frame from target positions in ideal world
-  ///
-  /// \param[in] R Rotation matrix to apply between output frame and the ideal world
-  /// \param[in] v_ref Reference linear velocity (if required for change of frame)
-  /// \param[in] w_ref Reference angular velocity (if required for change of frame)
-  ///
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  MatrixN getFootAccelerationBaseFrame(const Matrix3 &R, const Vector3 &w_ref, const Vector3 &a_ref);
-
   MatrixN getTargetPosition() { return targetFootstep_; }  // Get the foot goal position
   MatrixN getFootPosition() { return position_; }          // Get the next foot position
   MatrixN getFootVelocity() { return velocity_; }          // Get the next foot velocity

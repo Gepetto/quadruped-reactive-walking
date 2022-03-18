@@ -94,10 +94,6 @@ class FootTrajectoryGeneratorBezier {
   Vector3 evaluatePoly(int const& i_foot, int const& indice, double const& t);
   Vector3 evaluateBezier(int const& i_foot, int const& indice, double const& t);
 
-  MatrixN getFootPositionBaseFrame(const Matrix3& R, const Vector3& T);
-  MatrixN getFootVelocityBaseFrame(const Matrix3& R, const Vector3& v_ref, const Vector3& w_ref);
-  MatrixN getFootAccelerationBaseFrame(const Matrix3& R, const Vector3& w_ref, const Vector3& a_ref);
-
   MatrixN getTargetPosition() { return targetFootstep_; }  ///< Get the foot goal position
   MatrixN getFootPosition() { return position_; }          ///< Get the next foot position
   MatrixN getFootVelocity() { return velocity_; }          ///< Get the next foot velocity

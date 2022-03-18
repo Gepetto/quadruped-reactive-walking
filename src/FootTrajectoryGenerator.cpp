@@ -218,22 +218,3 @@ void FootTrajectoryGenerator::update(int k, MatrixN const &targetFootstep) {
   }
   return;
 }
-
-MatrixN FootTrajectoryGenerator::getFootPositionBaseFrame(const Matrix3 &R, const Vector3 &T) {
-  position_base_ =
-      R * (position_ - T.replicate<1, 4>());  // Value saved because it is used to get velocity and acceleration
-  return position_base_;
-}
-
-MatrixN FootTrajectoryGenerator::getFootVelocityBaseFrame(const Matrix3 &R, const Vector3 &v_ref,
-                                                          const Vector3 &w_ref) {
-  velocity_base_ = R * velocity_ - v_ref.replicate<1, 4>() +
-                   position_base_.colwise().cross(w_ref);  // Value saved because it is used to get acceleration
-  return velocity_base_;
-}
-
-MatrixN FootTrajectoryGenerator::getFootAccelerationBaseFrame(const Matrix3 &R, const Vector3 &w_ref,
-                                                              const Vector3 &a_ref) {
-  return R * acceleration_ - (position_base_.colwise().cross(w_ref)).colwise().cross(w_ref) +
-         2 * velocity_base_.colwise().cross(w_ref) - a_ref.replicate<1, 4>();
-}
