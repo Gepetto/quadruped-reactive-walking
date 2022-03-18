@@ -109,7 +109,7 @@ class LoggerControl:
             [logSize, 18]
         )  # estimated velocity of the robot in the ideal world (h frame)
         self.loop_h_v = np.zeros(
-            [logSize, 18]
+            [logSize, 6]
         )  # estimated velocity in horizontal frame
         self.loop_h_v_windowed = np.zeros(
             [logSize, 6]
@@ -269,19 +269,19 @@ class LoggerControl:
         self.esti_LP_filt_x[self.i] = estimator.get_filter_pos_FiltX()
 
         # Logging from the main loop
-        self.loop_o_q[self.i] = controller.q[:, 0]
-        self.loop_o_v[self.i] = controller.v[:, 0]
-        self.loop_h_v[self.i] = controller.h_v[:, 0]
-        self.loop_h_v_windowed[self.i] = controller.h_v_windowed[:, 0]
+        self.loop_o_q[self.i] = controller.q
+        self.loop_o_v[self.i] = controller.v
+        self.loop_h_v[self.i] = controller.h_v
+        self.loop_h_v_windowed[self.i] = controller.h_v_windowed
         self.loop_t_filter[self.i] = controller.t_filter
         self.loop_t_planner[self.i] = controller.t_planner
         self.loop_t_mpc[self.i] = controller.t_mpc
         self.loop_t_wbc[self.i] = controller.t_wbc
         self.loop_t_loop[self.i] = controller.t_loop
         self.loop_t_loop_if[self.i] = dT_whole
-        self.loop_q_filt_mpc[self.i] = controller.q_filter[:6, 0]
-        self.loop_h_v_filt_mpc[self.i] = controller.h_v_filt_mpc[:, 0]
-        self.loop_vref_filt_mpc[self.i] = controller.vref_filt_mpc[:, 0]
+        self.loop_q_filt_mpc[self.i] = controller.q_filtered[:6]
+        self.loop_h_v_filt_mpc[self.i] = controller.h_v_filtered
+        self.loop_vref_filt_mpc[self.i] = controller.vref_filtered
 
         # Logging from the planner
         self.planner_xref[self.i] = statePlanner.get_reference_states()

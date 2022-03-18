@@ -65,29 +65,12 @@ class Controller:
         self.type_MPC = params.type_MPC
         self.enable_pyb_GUI = params.enable_pyb_GUI
         self.enable_corba_viewer = params.enable_corba_viewer
-        self.q_display = np.zeros(19)
 
         self.q_security = np.array([1.2, 2.1, 3.14] * 4)
         self.solo = init_robot(q_init, params)
 
-        self.h_ref = params.h_ref
-        self.q_init = np.hstack((np.zeros(6), q_init.copy()))
-        self.q_init[2] = params.h_ref
-
         self.joystick = qrw.Joystick()
         self.joystick.initialize(params)
-
-        self.q = np.zeros((18, 1))
-        self.q[2, 0] = self.h_ref
-        self.q[6:, 0] = q_init
-        self.v = np.zeros((18, 1))
-        self.b_v = np.zeros((18, 1))
-        self.o_v_filt = np.zeros((18, 1))
-
-        self.q_wbc = np.zeros((18, 1))
-        self.dq_wbc = np.zeros((18, 1))
-        self.xgoals = np.zeros((12, 1))
-        self.xgoals[2, 0] = self.h_ref
 
         self.gait = qrw.Gait()
         self.gait.initialize(params)
@@ -98,20 +81,26 @@ class Controller:
         self.wbcWrapper = qrw.WbcWrapper()
         self.wbcWrapper.initialize(params)
 
-        # Wrapper that makes the link with the solver that you want to use for the MPC
+        self.h_ref = params.h_ref
+        self.q_init = np.hstack((np.zeros(6), q_init.copy()))
+        self.q_init[2] = params.h_ref
+        self.q_display = np.zeros(19)
+
+        self.q = np.zeros(18)
+        self.v = np.zeros(18)
+
+        self.q_wbc = np.zeros(18)
+        self.dq_wbc = np.zeros(18)
+        self.xgoals = np.zeros(12)
+        self.xgoals[2] = self.h_ref
+
         self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q_init)
-        self.o_targetFootstep = np.zeros((3, 4))  # Store result for MPC_planner
-
-        if params.solo3D:
-            from .solo3D.SurfacePlannerWrapper import Surface_planner_wrapper
-
-            if self.SIMULATION:
-                from .solo3D.pyb_environment_3D import PybEnvironment3D
+        self.o_targetFootstep = np.zeros((3, 4))
 
         self.enable_multiprocessing_mip = params.enable_multiprocessing_mip
-        self.offset_perfect_estimator = 0.0
         self.update_mip = False
-        if self.solo3D:
+        if params.solo3D:
+            from .solo3D.SurfacePlannerWrapper import Surface_planner_wrapper
             self.surfacePlanner = Surface_planner_wrapper(params)
 
             self.statePlanner = qrw.StatePlanner3D()
@@ -127,6 +116,8 @@ class Controller:
                 params, self.gait, self.surfacePlanner.floor_surface
             )
             if self.SIMULATION:
+                from .solo3D.pyb_environment_3D import PybEnvironment3D
+
                 self.pybEnvironment3D = PybEnvironment3D(
                     params,
                     self.gait,
@@ -153,32 +144,25 @@ class Controller:
 
         self.k = 0
 
-        self.q_display = np.zeros((19, 1))
-        self.v_ref = np.zeros((18, 1))
-        self.a_ref = np.zeros((18, 1))
-        self.h_v = np.zeros((18, 1))
-        self.h_v_windowed = np.zeros((6, 1))
-        self.yaw_estim = 0.0
-        self.RPY_filt = np.zeros(3)
+        self.v_ref = np.zeros(6)
+        self.h_v = np.zeros(6)
+        self.h_v_windowed = np.zeros(6)
 
         self.feet_a_cmd = np.zeros((3, 4))
         self.feet_v_cmd = np.zeros((3, 4))
         self.feet_p_cmd = np.zeros((3, 4))
 
-        self.q_filter = np.zeros((18, 1))
-        self.h_v_filt_mpc = np.zeros((6, 1))
-        self.vref_filt_mpc = np.zeros((6, 1))
-        self.filter_mpc_q = qrw.Filter()
-        self.filter_mpc_q.initialize(params)
-        self.filter_mpc_v = qrw.Filter()
-        self.filter_mpc_v.initialize(params)
-        self.filter_mpc_vref = qrw.Filter()
-        self.filter_mpc_vref.initialize(params)
-
-        self.nle = np.zeros((6, 1))
+        self.q_filtered = np.zeros(18)
+        self.h_v_filtered = np.zeros(6)
+        self.vref_filtered = np.zeros(6)
+        self.filter_q = qrw.Filter()
+        self.filter_q.initialize(params)
+        self.filter_h_v = qrw.Filter()
+        self.filter_h_v.initialize(params)
+        self.filter_vref = qrw.Filter()
+        self.filter_vref.initialize(params)
 
         self.p_ref = np.zeros((6, 1))
-        self.treshold_static = False
 
         self.error = False
         self.last_q_perfect = np.zeros(6)
@@ -251,29 +235,27 @@ class Controller:
         oRh = self.estimator.get_oRh()
         hRb = self.estimator.get_hRb()
         oTh = self.estimator.get_oTh().reshape((3, 1))
-        self.a_ref[:6, 0] = self.estimator.get_base_acc_ref()
-        self.v_ref[:6, 0] = self.estimator.get_base_vel_ref()
-        self.h_v[:6, 0] = self.estimator.get_h_v()
-        self.h_v_windowed[:6, 0] = self.estimator.get_h_v_filtered()
+        self.v_ref = self.estimator.get_base_vel_ref()
+        self.h_v = self.estimator.get_h_v()
+        self.h_v_windowed = self.estimator.get_h_v_filtered()
         if self.solo3D:
-            self.q[:3, 0] = self.estimator.get_q_estimate()[:3]
-            self.q[6:, 0] = self.estimator.get_q_estimate()[7:]
+            self.q[:3] = self.estimator.get_q_estimate()[:3]
+            self.q[6:] = self.estimator.get_q_estimate()[7:]
             self.q[3:6] = quaternionToRPY(self.estimator.get_q_estimate()[3:7])
         else:
-            self.q[:, 0] = self.estimator.get_q_reference()
-        self.v[:, 0] = self.estimator.get_v_reference()
-        self.yaw_estim = self.q[5, 0]
+            self.q = self.estimator.get_q_reference()
+        self.v = self.estimator.get_v_reference()
 
         # Quantities go through a 1st order low pass filter with fc = 15 Hz (avoid >25Hz foldback)
-        self.q_filter[:6, 0] = self.filter_mpc_q.filter(self.q[:6, 0], True)
-        self.q_filter[6:, 0] = self.q[6:, 0].copy()
-        self.h_v_filt_mpc[:, 0] = self.filter_mpc_v.filter(self.h_v[:6, 0], False)
-        self.vref_filt_mpc[:, 0] = self.filter_mpc_vref.filter(self.v_ref[:6, 0], False)
+        self.q_filtered = self.q.copy()
+        self.q_filtered[:6] = self.filter_q.filter(self.q[:6], True)
+        self.h_v_filtered = self.filter_h_v.filter(self.h_v, False)
+        self.vref_filtered = self.filter_vref.filter(self.v_ref, False)
 
         if self.solo3D:
             oTh_3d = np.zeros((3, 1))
-            oTh_3d[:2, 0] = self.q_filter[:2, 0]
-            oRh_3d = pin.rpy.rpyToMatrix(0.0, 0.0, self.q_filter[5, 0])
+            oTh_3d[:2, 0] = self.q_filtered[:2]
+            oRh_3d = pin.rpy.rpyToMatrix(0.0, 0.0, self.q_filtered[5])
 
         t_filter = time.time()
         self.t_filter = t_filter - t_start
@@ -284,7 +266,7 @@ class Controller:
         if self.solo3D:
             if self.update_mip:
                 self.statePlanner.update_surface(
-                    self.q_filter[:6, :1], self.vref_filt_mpc[:6, :1]
+                    self.q_filtered[:6], self.vref_filtered
                 )
                 if self.surfacePlanner.initialized:
                     self.error = self.surfacePlanner.get_latest_results()
@@ -299,15 +281,15 @@ class Controller:
         self.o_targetFootstep = self.footstepPlanner.update_footsteps(
             self.k % self.k_mpc == 0 and self.k != 0,
             int(self.k_mpc - self.k % self.k_mpc),
-            self.q_filter[:, 0],
-            self.h_v_windowed[:6, :1].copy(),
-            self.v_ref[:6, :1],
+            self.q_filtered,
+            self.h_v_windowed,
+            self.v_ref,
         )
 
         self.statePlanner.compute_reference_states(
-            self.q_filter[:6, :1],
-            self.h_v_filt_mpc[:6, :1].copy(),
-            self.vref_filt_mpc[:6, :1],
+            self.q_filtered[:6],
+            self.h_v_filtered,
+            self.vref_filtered,
         )
 
         xref = self.statePlanner.get_reference_states()
@@ -317,10 +299,7 @@ class Controller:
         if self.update_mip and self.solo3D:
             configs = self.statePlanner.get_configurations().transpose()
             self.surfacePlanner.run(
-                configs,
-                gait_matrix,
-                self.o_targetFootstep,
-                self.vref_filt_mpc[:3, 0].copy(),
+                configs, gait_matrix, self.o_targetFootstep, self.vref_filtered[:3]
             )
             self.surfacePlanner.initialized = True
             if not self.enable_multiprocessing_mip and self.SIMULATION:
@@ -335,7 +314,6 @@ class Controller:
         if (self.k % self.k_mpc) == 0:
             try:
                 if self.type_MPC == 3:
-                    # Compute the target foostep in local frame, to stop the optimisation around it when t_lock overpass
                     l_targetFootstep = oRh.transpose() @ (self.o_targetFootstep - oTh)
                     self.mpc_wrapper.solve(
                         self.k,
@@ -363,7 +341,6 @@ class Controller:
         t_mpc = time.time()
         self.t_mpc = t_mpc - t_planner
 
-        # If the MPC optimizes footsteps positions then we use them
         if self.k > 100 and self.type_MPC == 3:
             for foot in range(4):
                 if gait_matrix[0, foot] == 0:
@@ -380,7 +357,7 @@ class Controller:
                 self.k,
                 self.o_targetFootstep,
                 self.surfacePlanner.selected_surfaces,
-                self.q_filter,
+                self.q_filtered,
             )
         else:
             self.footTrajectoryGenerator.update(self.k, self.o_targetFootstep)
@@ -390,14 +367,14 @@ class Controller:
                 hRb = np.eye(3)
 
             # Desired position, orientation and velocities of the base
-            self.xgoals[:6, 0] = np.zeros((6,))
+            self.xgoals[:6] = np.zeros(6)
             if self.DEMONSTRATION and self.joystick.get_l1() and self.gait.is_static():
                 self.p_ref[:, 0] = self.joystick.get_p_ref()
-                self.xgoals[[3, 4], 0] = self.p_ref[[3, 4], 0]
+                self.xgoals[[3, 4]] = self.p_ref[[3, 4], 0]
                 self.h_ref = self.p_ref[2, 0]
                 hRb = pin.rpy.rpyToMatrix(0.0, 0.0, self.p_ref[5, 0])
             else:
-                self.xgoals[[3, 4], 0] = xref[[3, 4], 1]
+                self.xgoals[[3, 4]] = xref[[3, 4], 1]
                 self.h_ref = self.q_init[2]
 
             # If the four feet are in contact then we do not listen to MPC (default contact forces instead)
@@ -405,16 +382,12 @@ class Controller:
                 self.x_f_mpc[12:24, 0] = [0.0, 0.0, 9.81 * 2.5 / 4.0] * 4
 
             # Update configuration vector for wbc with filtered roll and pitch and reference angular positions of previous loop
-            self.q_wbc[3:5, 0] = self.q_filter[3:5, 0]
-            self.q_wbc[6:, 0] = self.wbcWrapper.qdes[:]
+            self.q_wbc[3:5] = self.q_filtered[3:5]
+            self.q_wbc[6:] = self.wbcWrapper.qdes.copy()
 
             # Update velocity vector for wbc
-            self.dq_wbc[:6, 0] = self.estimator.get_v_estimate()[
-                :6
-            ]  #  Velocities in base frame (not horizontal frame!)
-            self.dq_wbc[6:, 0] = self.wbcWrapper.vdes[
-                :
-            ]  # with reference angular velocities of previous loop
+            self.dq_wbc[:6] = self.estimator.get_v_estimate()[:6]
+            self.dq_wbc[6:] = self.wbcWrapper.vdes[:]
 
             # Feet command position, velocity and acceleration in base frame
             if self.solo3D:  # Use estimated base frame
@@ -452,9 +425,7 @@ class Controller:
                     )
                 )
 
-            self.xgoals[6:, 0] = self.vref_filt_mpc[
-                :, 0
-            ]  # Velocities (in horizontal frame!)
+            self.xgoals[6:] = self.vref_filtered
 
             # Run InvKin + WBC QP
             self.wbcWrapper.compute(
@@ -474,15 +445,13 @@ class Controller:
 
             self.clamp_result(device)
 
-            self.nle[:3, 0] = self.wbcWrapper.nle[:3]
-
             # Display robot in Gepetto corba viewer
             if self.enable_corba_viewer and (self.k % 5 == 0):
-                self.q_display[:3, 0] = self.q_wbc[:3, 0]
+                self.q_display[:3, 0] = self.q_wbc[:3]
                 self.q_display[3:7, 0] = pin.Quaternion(
-                    pin.rpy.rpyToMatrix(self.q_wbc[3:6, 0])
+                    pin.rpy.rpyToMatrix(self.q_wbc[3:6])
                 ).coeffs()
-                self.q_display[7:, 0] = self.q_wbc[6:, 0]
+                self.q_display[7:, 0] = self.q_wbc[6:]
                 self.solo.display(self.q_display)
 
         self.t_wbc = time.time() - t_mpc
