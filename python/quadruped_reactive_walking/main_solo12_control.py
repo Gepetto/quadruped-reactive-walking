@@ -53,11 +53,9 @@ def put_on_the_floor(device, q_init):
         device.send_command_and_wait_end_of_cycle(params.dt_wbc)
 
     # Slow increase till 1/4th of mass is supported by each foot
-    duration_increase = 2.0  # in seconds
+    duration_increase = 2.0
     steps = int(duration_increase / params.dt_wbc)
-    tau_ff = np.array(
-        [0.0, 0.022, 0.5, 0.0, 0.022, 0.5, 0.0, -0.022, -0.5, 0.0, -0.022, -0.5]
-    )
+    tau_ff = np.array([0.0, 0.022, 0.5] * 2 + [0.0, -0.022, -0.5] * 2)
     # tau_ff = np.array([0.0, 0.022, 0.5, 0.0, 0.022, 0.5, 0.0, 0.025, 0.575, 0.0, 0.025, 0.575])
 
     for i in range(steps):
@@ -95,7 +93,7 @@ def damp_control(device, nb_motors):
     t = 0.0
     t_max = 2.5
     while (not device.is_timeout) and (t < t_max):
-        device.parse_sensor_data()  # Retrieve data from IMU and Motion capture
+        device.parse_sensor_data()
 
         # Set desired quantities for the actuators
         device.joints.set_position_gains(np.zeros(nb_motors))
@@ -162,16 +160,15 @@ def control_loop(des_vel_analysis=None):
 
     if params.SIMULATION:
         device.Init(
-            calibrateEncoders=True,
-            q_init=q_init,
-            envID=params.envID,
-            use_flat_plane=params.use_flat_plane,
-            enable_pyb_GUI=params.enable_pyb_GUI,
-            dt=params.dt_wbc,
+            q_init,
+            params.envID,
+            params.use_flat_plane,
+            params.enable_pyb_GUI,
+            params.dt_wbc,
         )
         # import ForceMonitor
         # myForceMonitor = ForceMonitor.ForceMonitor(device.pyb_sim.robotId, device.pyb_sim.planeId)
-    else:  # Initialize the communication and the session.
+    else:
         device.initialize(q_init[:])
         device.joints.set_zero_commands()
         device.parse_sensor_data()
@@ -286,7 +283,7 @@ def control_loop(des_vel_analysis=None):
 
 
 if __name__ == "__main__":
-    #  os.nice(-20)  #  Set the process to highest priority (from -20 highest to +20 lowest)
+    #  os.nice(-20)
     f, v = control_loop()  # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print(f, v)
     quit()

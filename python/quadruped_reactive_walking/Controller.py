@@ -178,9 +178,6 @@ class Controller:
 
         self.k = 0
 
-        self.qmes12 = np.zeros((19, 1))
-        self.vmes12 = np.zeros((18, 1))
-
         self.q_display = np.zeros((19, 1))
         self.v_ref = np.zeros((18, 1))
         self.a_ref = np.zeros((18, 1))
