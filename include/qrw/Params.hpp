@@ -155,9 +155,9 @@ class Params {
   float bezier_x_margin_max;  //  margin inside convex surfaces [m].
   float bezier_t_margin;      //  100*t_margin_% of the curve around critical point. range: [0, 1]
   float bezier_z_margin;      //  100*z_margin_% of the curve after the critical point. range: [0, 1]
-  int bezier_N_sample;         //  Number of sample in the least square optimisation for Bezier coeffs
-  int bezier_N_sample_ineq;    //  Number of sample while browsing the curve
-  int bezier_degree;           //  Degree of the Bezier curve
+  int bezier_N_sample;        //  Number of sample in the least square optimisation for Bezier coeffs
+  int bezier_N_sample_ineq;   //  Number of sample while browsing the curve
+  int bezier_degree;          //  Degree of the Bezier curve
 
   // Not defined in yaml
   MatrixN gait;                                   // Initial gait matrix (Eigen)
