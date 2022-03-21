@@ -80,7 +80,7 @@ class Params {
   int envID;                    // Identifier of the environment to choose in which one the simulation will happen
   bool use_flat_plane;          // If True the ground is flat, otherwise it has bumps
   bool predefined_vel;          // If we are using a predefined reference velocity (True) or a joystick (False)
-  int N_SIMULATION;              // Number of simulated wbc time steps
+  int N_SIMULATION;             // Number of simulated wbc time steps
   bool enable_pyb_GUI;          // Enable/disable PyBullet GUI
   bool enable_corba_viewer;     // Enable/disable Corba Viewer
   bool enable_multiprocessing;  // Enable/disable running the MPC in another process in parallel of the main loop
