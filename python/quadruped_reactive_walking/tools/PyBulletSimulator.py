@@ -98,8 +98,6 @@ class pybullet_simulator:
 
         if envID == 1:
             # Add stairs with platform and bridge
-            self.stairsId = pyb.loadURDF("bauzil_stairs.urdf")
-            pyb.changeDynamics(self.stairsId, -1, lateralFriction=1.0)
 
             # Create the red steps to act as small perturbations
             mesh_scale = [1.0, 0.1, 0.02]
