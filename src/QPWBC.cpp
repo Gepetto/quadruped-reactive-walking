@@ -1,6 +1,7 @@
+#include "qrw/QPWBC.hpp"
+
 #include <limits>
 
-#include "qrw/QPWBC.hpp"
 #include "qrw/InvKin.hpp"
 
 QPWBC::QPWBC() {
@@ -385,16 +386,16 @@ int QPWBC::retrieve_result(const Eigen::Matrix<double, 6, 1> &ddq_cmd, const Eig
 /*
 Getters
 */
-Eigen::MatrixXd QPWBC::get_f_res() { return f_res; }
-Eigen::MatrixXd QPWBC::get_ddq_res() { return ddq_res; }
-Eigen::MatrixXd QPWBC::get_H() {
-  Eigen::MatrixXd Hxd = Eigen::MatrixXd::Zero(12, 12);
+MatrixN QPWBC::get_f_res() { return f_res; }
+MatrixN QPWBC::get_ddq_res() { return ddq_res; }
+MatrixN QPWBC::get_H() {
+  MatrixN Hxd = MatrixN::Zero(12, 12);
   Hxd = H;
   return Hxd;
 }
 
-int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &ddq_cmd,
-               const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA, const Eigen::MatrixXd &k_contact) {
+int QPWBC::run(const MatrixN &M, const MatrixN &Jc, const MatrixN &ddq_cmd, const MatrixN &f_cmd, const MatrixN &RNEA,
+               const MatrixN &k_contact) {
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + 2 x^T.Q with constraints M.X == N and L.X <= K
   /*
@@ -446,7 +447,7 @@ int QPWBC::run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen:
   // Extract relevant information from the output of the QP solver
   retrieve_result(ddq_cmd, f_cmd);
 
-  /*Eigen::MatrixXd df = Eigen::MatrixXd::Zero(12, 1);
+  /*MatrixN df = MatrixN::Zero(12, 1);
   df(0, 0) = 0.01;
   df(1, 0) = 0.01;
   df(2, 0) = 0.01;
@@ -536,8 +537,7 @@ void QPWBC::save_dns_matrix(double *M, int size, std::string filename) {
   myfile.close();
 }
 
-void QPWBC::compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd,
-                             const Eigen::MatrixXd &RNEA) {
+void QPWBC::compute_matrices(const MatrixN &M, const MatrixN &Jc, const MatrixN &f_cmd, const MatrixN &RNEA) {
   Y = M.block(0, 0, 6, 6);
   X = Jc.block(0, 0, 12, 6).transpose();
   Yinv = pseudoInverse(Y);

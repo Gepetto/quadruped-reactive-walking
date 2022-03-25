@@ -60,42 +60,6 @@ class FootTrajectoryGenerator {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void update(int k, MatrixN const &targetFootstep);
 
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ///
-  /// \brief Get target positions of feet in desired frame from target positions in ideal world
-  ///
-  /// \param[in] R Rotation matrix to apply between output frame and the ideal world
-  /// \param[in] T Translation to apply between output frame and the ideal world
-  ///
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  Eigen::MatrixXd getFootPositionBaseFrame(const Eigen::Matrix<double, 3, 3> &R, const Eigen::Matrix<double, 3, 1> &T);
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ///
-  /// \brief Get target velocities of feet in desired frame from target positions in ideal world
-  ///
-  /// \param[in] R Rotation matrix to apply between output frame and the ideal world
-  /// \param[in] v_ref Reference linear velocity (if required for change of frame)
-  /// \param[in] w_ref Reference angular velocity (if required for change of frame)
-  ///
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  Eigen::MatrixXd getFootVelocityBaseFrame(const Eigen::Matrix<double, 3, 3> &R,
-                                           const Eigen::Matrix<double, 3, 1> &v_ref,
-                                           const Eigen::Matrix<double, 3, 1> &w_ref);
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  ///
-  /// \brief Get target accelerations of feet in desired frame from target positions in ideal world
-  ///
-  /// \param[in] R Rotation matrix to apply between output frame and the ideal world
-  /// \param[in] v_ref Reference linear velocity (if required for change of frame)
-  /// \param[in] w_ref Reference angular velocity (if required for change of frame)
-  ///
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  Eigen::MatrixXd getFootAccelerationBaseFrame(const Eigen::Matrix<double, 3, 3> &R,
-                                               const Eigen::Matrix<double, 3, 1> &w_ref,
-                                               const Eigen::Matrix<double, 3, 1> &a_ref);
-
   MatrixN getTargetPosition() { return targetFootstep_; }  // Get the foot goal position
   MatrixN getFootPosition() { return position_; }          // Get the next foot position
   MatrixN getFootVelocity() { return velocity_; }          // Get the next foot velocity

@@ -61,7 +61,7 @@ class PybEnvironment3D:
                 cameraTargetPosition=[0.6, 0.14, -0.22],
             )
             # pyb.resetDebugVisualizerCamera(cameraDistance=1., cameraYaw=357, cameraPitch=-28,
-            #                                cameraTargetPosition=[device.dummyHeight[0], device.dummyHeight[1], 0.0])
+            #                                cameraTargetPosition=[device.height[0], device.height[1], 0.0])
 
         return 0
 

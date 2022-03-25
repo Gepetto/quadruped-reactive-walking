@@ -12,7 +12,6 @@ Params::Params()
       envID(0),
       use_flat_plane(false),
       predefined_vel(false),
-      velID(0),
       N_SIMULATION(0),
       enable_pyb_GUI(false),
       enable_corba_viewer(false),
@@ -104,9 +103,6 @@ void Params::initialize(const std::string& file_path) {
 
   assert_yaml_parsing(robot_node, "robot", "envID");
   envID = robot_node["envID"].as<int>();
-
-  assert_yaml_parsing(robot_node, "robot", "velID");
-  velID = robot_node["velID"].as<int>();
 
   assert_yaml_parsing(robot_node, "robot", "q_init");
   q_init = robot_node["q_init"].as<std::vector<double> >();
@@ -257,6 +253,26 @@ void Params::initialize(const std::string& file_path) {
 
   assert_yaml_parsing(robot_node, "robot", "use_heuristic");
   use_sl1m = robot_node["use_heuristic"].as<bool>();
+
+  assert_yaml_parsing(robot_node, "robot", "bezier_x_margin_max");
+  bezier_x_margin_max = robot_node["bezier_x_margin_max"].as<float>();
+
+  assert_yaml_parsing(robot_node, "robot", "bezier_t_margin");
+  bezier_t_margin = robot_node["bezier_t_margin"].as<float>();
+
+  assert_yaml_parsing(robot_node, "robot", "bezier_z_margin");
+  bezier_z_margin = robot_node["bezier_z_margin"].as<float>();
+
+  assert_yaml_parsing(robot_node, "robot", "bezier_N_sample");
+  bezier_N_sample = robot_node["bezier_N_sample"].as<int>();
+
+  assert_yaml_parsing(robot_node, "robot", "bezier_N_sample_ineq");
+  bezier_N_sample_ineq = robot_node["bezier_N_sample_ineq"].as<int>();
+
+  assert_yaml_parsing(robot_node, "robot", "bezier_degree");
+  bezier_degree = robot_node["bezier_degree"].as<int>();
+
+  if (!SIMULATION) perfect_estimator = false;
 }
 
 void Params::convert_gait_vec() {
@@ -329,4 +345,3 @@ void Params::convert_v_switch() {
     }
   }
 }
-

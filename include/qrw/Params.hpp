@@ -12,6 +12,7 @@
 #define PARAMS_H_INCLUDED
 
 #include <yaml-cpp/yaml.h>
+
 #include <fstream>
 #include <vector>
 
@@ -79,7 +80,6 @@ class Params {
   int envID;                    // Identifier of the environment to choose in which one the simulation will happen
   bool use_flat_plane;          // If True the ground is flat, otherwise it has bumps
   bool predefined_vel;          // If we are using a predefined reference velocity (True) or a joystick (False)
-  int velID;                    // Identifier of the reference velocity profile for interpolation
   int N_SIMULATION;             // Number of simulated wbc time steps
   bool enable_pyb_GUI;          // Enable/disable PyBullet GUI
   bool enable_corba_viewer;     // Enable/disable Corba Viewer
@@ -149,11 +149,18 @@ class Params {
   int number_steps;                   // Number of steps to optimize with the MIP
   std::vector<double> max_velocity;   // Maximum velocity of the base
   bool use_bezier;                    // Use Bezier to plan trajectories, otherwise use simple 6d polynomial curve.
-  bool use_sl1m;       // Use SL1M to select the surfaces, otherwise use Raibert heuristic projection in 2D.
-  bool use_heuristic;  // Use heuristic as SL1M cost.
+  bool use_sl1m;                      // Use SL1M to select the surfaces.
+  bool use_heuristic;                 // Use heuristic as SL1M cost.
+
+  float bezier_x_margin_max;  //  margin inside convex surfaces [m].
+  float bezier_t_margin;      //  100*t_margin_% of the curve around critical point. range: [0, 1]
+  float bezier_z_margin;      //  100*z_margin_% of the curve after the critical point. range: [0, 1]
+  int bezier_N_sample;        //  Number of sample in the least square optimisation for Bezier coeffs
+  int bezier_N_sample_ineq;   //  Number of sample while browsing the curve
+  int bezier_degree;          //  Degree of the Bezier curve
 
   // Not defined in yaml
-  MatrixN gait;                           // Initial gait matrix (Eigen)
+  MatrixN gait;                                   // Initial gait matrix (Eigen)
   double T_gait;                                  // Period of the gait
   double mass;                                    // Mass of the robot
   std::vector<double> I_mat;                      // Inertia matrix

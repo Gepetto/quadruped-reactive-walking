@@ -130,24 +130,20 @@ def control_loop(des_vel_analysis=None):
             device, qualisys=qc, logSize=params.N_SIMULATION - 3
         )
 
-    # Initiate communication with the device and calibrate encoders
     if params.SIMULATION:
         device.Init(
-            calibrateEncoders=True,
-            q_init=q_init,
-            envID=params.envID,
-            use_flat_plane=params.use_flat_plane,
-            enable_pyb_GUI=params.enable_pyb_GUI,
-            dt=params.dt_wbc,
+            q_init,
+            params.envID,
+            params.use_flat_plane,
+            params.enable_pyb_GUI,
+            params.dt_wbc,
         )
     else:
-        # Initialize the communication and the session.
         device.initialize(q_init[:])
         device.joints.set_zero_commands()
 
         device.parse_sensor_data()
 
-        # Wait for Enter input before starting the control loop
         put_on_the_floor(device, q_init)
 
     # CONTROL LOOP ***************************************************
@@ -223,9 +219,7 @@ def control_loop(des_vel_analysis=None):
 
 
 if __name__ == "__main__":
-    os.nice(
-        -20
-    )  #  Set the process to highest priority (from -20 highest to +20 lowest)
+    os.nice(-20)
     f, v = control_loop()  # , np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0]))
     print("End of script")
     print(f, v)

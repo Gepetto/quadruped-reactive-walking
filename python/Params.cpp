@@ -19,7 +19,6 @@ struct ParamsVisitor : public bp::def_visitor<ParamsVisitor<Params>> {
         .def_readwrite("PLOTTING", &Params::PLOTTING)
         .def_readwrite("dt_wbc", &Params::dt_wbc)
         .def_readwrite("envID", &Params::envID)
-        .def_readwrite("velID", &Params::velID)
         .def_readwrite("q_init", &Params::q_init)
         .def_readwrite("dt_mpc", &Params::dt_mpc)
         .def_readwrite("N_periods", &Params::N_periods)

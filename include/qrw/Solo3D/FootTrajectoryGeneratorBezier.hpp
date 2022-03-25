@@ -45,8 +45,7 @@ class FootTrajectoryGeneratorBezier {
   /// \param[in] target desired target location at the end of the swing phase
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void initialize(Params& params, Gait& gait, Surface initialSurface_in, double x_margin_max_in, double t_margin_in,
-                  double z_margin_in, int N_samples_in, int N_samples_ineq_in, int degree_in);
+  void initialize(Params& params, Gait& gait, Surface initialSurface_in);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -94,14 +93,6 @@ class FootTrajectoryGeneratorBezier {
                          double const& h);
   Vector3 evaluatePoly(int const& i_foot, int const& indice, double const& t);
   Vector3 evaluateBezier(int const& i_foot, int const& indice, double const& t);
-
-  Eigen::MatrixXd getFootPositionBaseFrame(const Eigen::Matrix<double, 3, 3>& R, const Eigen::Matrix<double, 3, 1>& T);
-  Eigen::MatrixXd getFootVelocityBaseFrame(const Eigen::Matrix<double, 3, 3>& R,
-                                           const Eigen::Matrix<double, 3, 1>& v_ref,
-                                           const Eigen::Matrix<double, 3, 1>& w_ref);
-  Eigen::MatrixXd getFootAccelerationBaseFrame(const Eigen::Matrix<double, 3, 3>& R,
-                                               const Eigen::Matrix<double, 3, 1>& w_ref,
-                                               const Eigen::Matrix<double, 3, 1>& a_ref);
 
   MatrixN getTargetPosition() { return targetFootstep_; }  ///< Get the foot goal position
   MatrixN getFootPosition() { return position_; }          ///< Get the next foot position

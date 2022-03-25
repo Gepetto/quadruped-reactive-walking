@@ -61,7 +61,7 @@ void Controller::initialize(Params& params) {
 // void Controller::compute(std::shared_ptr<odri_control_interface::Robot> robot) {
 void Controller::compute(FakeRobot* robot) {
   // Update the reference velocity coming from the gamepad
-  joystick.update_v_ref(k, params_->velID, gait.getIsStatic());
+  joystick.update_v_ref(k, gait.getIsStatic());
 
   // Process state estimator
   estimator.run(gait.getCurrentGait(), footTrajectoryGenerator.getFootPosition(), robot->imu->GetLinearAcceleration(),
@@ -142,12 +142,9 @@ void Controller::compute(FakeRobot* robot) {
 
     // Run InvKin + WBC QP
     wbcWrapper.compute(q_wbc, dq_wbc, f_mpc, gait.getCurrentGait().row(0),
-                       footTrajectoryGenerator.getFootPositionBaseFrame(
-                           hRb * estimator.getoRh().transpose(), estimator.getoTh() + Vector3(0.0, 0.0, h_ref_)),
-                       footTrajectoryGenerator.getFootVelocityBaseFrame(hRb * estimator.getoRh().transpose(),
-                                                                        Vector3::Zero(), Vector3::Zero()),
-                       footTrajectoryGenerator.getFootAccelerationBaseFrame(hRb * estimator.getoRh().transpose(),
-                                                                            Vector3::Zero(), Vector3::Zero()),
+                       hRb * estimator.getoRh().transpose() * (footTrajectoryGenerator.getFootPosition() -  estimator.getoTh() - Vector3(0.0, 0.0, h_ref_)),
+                       hRb * estimator.getoRh().transpose() * footTrajectoryGenerator.getFootVelocity(),
+                       hRb * estimator.getoRh().transpose() * footTrajectoryGenerator.getFootAcceleration(),
                        xgoals);
 
     // Quantities sent to the control board

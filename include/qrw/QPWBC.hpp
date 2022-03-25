@@ -53,13 +53,13 @@ class QPWBC {
   /// \param[in] k_contact Number of time step during which feet have been in the current stance phase
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int run(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &ddq_cmd,
-          const Eigen::MatrixXd &f_cmd, const Eigen::MatrixXd &RNEA, const Eigen::MatrixXd &k_contact);
+  int run(const MatrixN &M, const MatrixN &Jc, const MatrixN &ddq_cmd, const MatrixN &f_cmd, const MatrixN &RNEA,
+          const MatrixN &k_contact);
 
   // Getters
-  Eigen::MatrixXd get_f_res();    // Return the f_res matrix
-  Eigen::MatrixXd get_ddq_res();  // Return the ddq_res matrix
-  Eigen::MatrixXd get_H();        // Return the H matrix
+  MatrixN get_f_res();    // Return the f_res matrix
+  MatrixN get_ddq_res();  // Return the ddq_res matrix
+  MatrixN get_H();        // Return the H matrix
 
  private:
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -170,8 +170,7 @@ class QPWBC {
   /// \param[in] RNEA joint torques according to the current state of the system and the desired joint accelerations
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void compute_matrices(const Eigen::MatrixXd &M, const Eigen::MatrixXd &Jc, const Eigen::MatrixXd &f_cmd,
-                        const Eigen::MatrixXd &RNEA);
+  void compute_matrices(const MatrixN &M, const MatrixN &Jc, const MatrixN &f_cmd, const MatrixN &RNEA);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -238,8 +237,8 @@ class QPWBC {
 
   // Results
   // Eigen::Matrix<double, 12, 1> lambdas = Eigen::Matrix<double, 12, 1>::Zero();
-  Eigen::MatrixXd f_res = Eigen::MatrixXd::Zero(12, 1);
-  Eigen::MatrixXd ddq_res = Eigen::MatrixXd::Zero(6, 1);
+  MatrixN f_res = MatrixN::Zero(12, 1);
+  MatrixN ddq_res = MatrixN::Zero(6, 1);
 
   // Matrix ML
   const static int size_nz_ML = (20 + 6) * 18;

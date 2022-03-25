@@ -11,7 +11,6 @@ robot:
     envID: 0  # Identifier of the environment to choose in which one the simulation will happen
     use_flat_plane: true  # If True the ground is flat, otherwise it has bumps
     predefined_vel: true  # If we are using a predefined reference velocity (True) or a joystick (False)
-    velID: 10  # Identifier of the reference velocity profile to choose which one will be sent to the robot
     N_SIMULATION: 180000  # Number of simulated wbc time steps
     enable_corba_viewer: false  # Enable/disable Corba Viewer
     enable_multiprocessing: true  # Enable/disable running the MPC in another process in parallel of the main loop
@@ -24,7 +23,7 @@ robot:
     q_init: [0.0, 0.7, -1.4, 0.0, 0.7, -1.4, 0.0, -0.7, 1.4, 0.0, -0.7, 1.4]  # Initial articular positions
     dt_wbc: 0.001  # Time step of the whole body control
     dt_mpc: 0.02  # Time step of the model predictive control
-    type_MPC: 0  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
+    type_MPC: 3  # Which MPC solver you want to use: 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
 #     Kp_main: [0.0, 0.0, 0.0]  # Proportional gains for the PD+
     Kp_main: [3.0, 3.0, 3.0]  # Proportional gains for the PD+
 #     Kd_main: [0., 0., 0.]  # Derivative gains for the PD+
@@ -93,3 +92,9 @@ robot:
     use_bezier: false # Use Bezier to plan trajectories, otherwise use simple 6d polynomial curve.
     use_sl1m: true # Use SL1M to select the surfaces, otherwise use Raibert heuristic projection in 2D.
     use_heuristic: true # Use heuristic as SL1M cost.
+    bezier_x_margin_max: 0.06 # margin inside convex surfaces [m].
+    bezier_t_margin: 0.3 # 100*t_margin_% of the curve around critical point. range: [0, 1]
+    bezier_z_margin: 0.06 # 100*z_margin_% of the curve after the critical point. range: [0, 1]
+    bezier_N_sample: 8 # Number of sample in the least square optimisation for Bezier coeffs
+    bezier_N_sample_ineq: 10 # Number of sample while browsing the curve
+    bezier_degree: 7 # Degree of the Bezier curve

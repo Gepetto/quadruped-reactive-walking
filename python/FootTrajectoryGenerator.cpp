@@ -9,13 +9,6 @@ struct FootTrajectoryGeneratorVisitor
   void visit(PyClassFootTrajectoryGenerator& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
-        .def("get_foot_position_base_frame", &FootTrajectoryGenerator::getFootPositionBaseFrame, bp::args("R", "T"),
-             "Get position_ matrix in base frame.\n")
-        .def("get_foot_velocity_base_frame", &FootTrajectoryGenerator::getFootVelocityBaseFrame,
-             bp::args("R", "v_ref", "w_ref"), "Get velocity_ matrix in base frame.\n")
-        .def("get_foot_acceleration_base_frame", &FootTrajectoryGenerator::getFootAccelerationBaseFrame,
-             bp::args("R", "w_ref", "a_ref"), "Get acceleration_ matrix in base frame.\n")
-
         .def("get_target_position", &FootTrajectoryGenerator::getTargetPosition, "Get targetFootstep_ matrix.\n")
         .def("get_foot_position", &FootTrajectoryGenerator::getFootPosition, "Get position_ matrix.\n")
         .def("get_foot_velocity", &FootTrajectoryGenerator::getFootVelocity, "Get velocity_ matrix.\n")
