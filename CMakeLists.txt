@@ -10,6 +10,7 @@ set(PROJECT_URL https://gitlab.laas.fr/${PROJECT_NAMESPACE}/${PROJECT_NAME})
 option(BUILD_PYTHON_INTERFACE "Build the python binding" ON)
 option(INSTALL_PYTHON_INTERFACE_ONLY "Install *ONLY* the python bindings" OFF)
 option(SUFFIX_SO_VERSION "Suffix library name with its version" ON)
+option(BUILD_WITH_MQTT_SUPPORT "Add support for MQTT interface" OFF)
 
 # Project configuration
 if(NOT INSTALL_PYTHON_INTERFACE_ONLY)
@@ -153,15 +154,20 @@ target_compile_options(${PROJECT_NAME} PUBLIC -DNDEBUG -O3)
 target_compile_definitions(${PROJECT_NAME} PUBLIC CONFIG_SOLO12_YAML="${PROJECT_SOURCE_DIR}/config/config_solo12.yaml")
 target_compile_definitions(${PROJECT_NAME} PUBLIC WALK_PARAMETERS_YAML="${PROJECT_SOURCE_DIR}/config/walk_parameters.yaml")
 
-# MQTT Interface
-add_subdirectory (paho.mqtt.c)
-add_library(mqtt-interface SHARED include/qrw/mqtt-interface.hpp src/mqtt-interface.cpp)
-target_link_libraries(mqtt-interface PRIVATE paho-mqtt3c paho-mqtt3a)
-target_include_directories(mqtt-interface PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>)
-
 # Main Executable
 add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/control_solo12.cpp)
-target_link_libraries(${PROJECT_NAMESPACE}-${PROJECT_NAME} ${PROJECT_NAME} mqtt-interface)
+target_link_libraries(${PROJECT_NAMESPACE}-${PROJECT_NAME} ${PROJECT_NAME})
+
+# MQTT Interface
+if(BUILD_WITH_MQTT_SUPPORT)
+  add_subdirectory (paho.mqtt.c)
+  add_library(mqtt-interface SHARED include/qrw/mqtt-interface.hpp src/mqtt-interface.cpp)
+  target_link_libraries(mqtt-interface PRIVATE paho-mqtt3c paho-mqtt3a)
+  target_include_directories(mqtt-interface PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>)
+
+  target_link_libraries(${PROJECT_NAMESPACE}-${PROJECT_NAME} mqtt-interface)
+  target_compile_definitions(${PROJECT_NAMESPACE}-${PROJECT_NAME} PRIVATE -DQRW_WITH_MQTT)
+endif()
 
 # Python Bindings
 if(BUILD_PYTHON_INTERFACE)
