@@ -380,24 +380,18 @@ class LoggerControl:
         t_range = np.array([k * self.dt for k in range(self.tstamps.shape[0])])
 
         plt.figure()
-        plt.plot(t_range, self.t_mip, "+", color="gold")
+        if self.solo3d:
+            plt.plot(t_range, self.t_mip, "+", color="gold")
         plt.plot(t_range, self.loop_t_filter, "r+")
         plt.plot(t_range, self.loop_t_planner, "g+")
         plt.plot(t_range, self.loop_t_mpc, "b+")
         plt.plot(t_range, self.loop_t_wbc, "+", color="violet")
         plt.plot(t_range, self.loop_t_loop, "k+")
         plt.plot(t_range, self.loop_t_loop_if, "+", color="rebeccapurple")
-        plt.legend(
-            [
-                "SurfacePlanner",
-                "Estimator",
-                "Planner",
-                "MPC",
-                "WBC",
-                "Control loop",
-                "Whole loop",
-            ]
-        )
+        lgd = ["Estimator", "Planner", "MPC", "WBC", "Control loop", "Whole loop"]
+        if self.solo3d:
+            lgd = ["SurfacePlanner"] + lgd
+        plt.legend(lgd)
         plt.xlabel("Time [s]")
         plt.ylabel("Time [s]")
         self.custom_suptitle("Computation time of each block")
@@ -986,7 +980,8 @@ class LoggerControl:
 
         self.plotTimes()
         self.plotMpcTime()
-        self.plotSurfacePlannerTime()
+        if self.solo3d:
+            self.plotSurfacePlannerTime()
         self.plotStepTime()
         self.plotMPCCost()
 
