@@ -124,11 +124,11 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // Compute the inverse dynamics, aka the joint torques according to the current state of the system,
   // the desired joint accelerations and the external forces, using the Recursive Newton Euler Algorithm.
   // Result is stored in data_.tau
-  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
-  Vector12 f_compensation = Vector12::Zero();
+  /*pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
+  Vector12 f_compensation = Vector12::Zero();*/
 
   // FORCE COMPENSATION TERM
-  /*Vector18 ddq_test = Vector18::Zero();
+  Vector18 ddq_test = Vector18::Zero();
   ddq_test.head(6) = ddq_cmd_.head(6);
   pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_test);
   Vector6 RNEA_without_joints = data_.tau.head(6);
