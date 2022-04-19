@@ -390,7 +390,7 @@ class LoggerControl:
         plt.plot(t_range, self.loop_t_loop_if, "+", color="rebeccapurple")
         lgd = ["Estimator", "Planner", "MPC", "WBC", "Control loop", "Whole loop"]
         if self.solo3d:
-            lgd = ["SurfacePlanner"] + lgd
+            lgd.append("SurfacePlanner")
         plt.legend(lgd)
         plt.xlabel("Time [s]")
         plt.ylabel("Time [s]")
