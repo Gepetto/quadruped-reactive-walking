@@ -57,6 +57,7 @@ Params::Params()
       Q2(0.0),
       Fz_max(0.0),
       Fz_min(0.0),
+      enable_comp_forces(false),
 
       T_gait(0.0),         // Period of the gait
       mass(0.0),           // Mass of the robot
@@ -220,6 +221,9 @@ void Params::initialize(const std::string& file_path) {
 
   assert_yaml_parsing(robot_node, "robot", "Fz_min");
   Fz_min = robot_node["Fz_min"].as<double>();
+
+  assert_yaml_parsing(robot_node, "robot", "enable_comp_forces");
+  enable_comp_forces = robot_node["enable_comp_forces"].as<bool>();
 
   assert_yaml_parsing(robot_node, "robot", "solo3D");
   solo3D = robot_node["solo3D"].as<bool>();

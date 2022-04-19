@@ -51,6 +51,7 @@ struct ParamsVisitor : public bp::def_visitor<ParamsVisitor<Params>> {
         .def_readwrite("vert_time", &Params::vert_time)
         .def_readwrite("footsteps_init", &Params::footsteps_init)
         .def_readwrite("footsteps_under_shoulders", &Params::footsteps_under_shoulders)
+        .def_readwrite("enable_comp_forces", &Params::enable_comp_forces)
         .def_readwrite("solo3D", &Params::solo3D)
         .def_readwrite("enable_multiprocessing_mip", &Params::enable_multiprocessing_mip)
         .def_readwrite("environment_URDF", &Params::environment_URDF)
