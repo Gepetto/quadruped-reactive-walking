@@ -1,6 +1,6 @@
 import threading
 import time
-
+from pathlib import Path
 import numpy as np
 
 from . import quadruped_reactive_walking as qrw
@@ -270,7 +270,9 @@ def control_loop(des_vel_analysis=None):
         )
 
     if params.LOGGING:
-        loggerControl.saveAll(loggerSensors, "/home/odri/git/fanny/logs/data")
+        log_path = Path("/tmp") / "logs"
+        log_path.mkdir(parents=True)
+        loggerControl.saveAll(loggerSensors, str(log_path / "data"))
 
     if params.PLOTTING:
         loggerControl.plotAllGraphs(loggerSensors)
