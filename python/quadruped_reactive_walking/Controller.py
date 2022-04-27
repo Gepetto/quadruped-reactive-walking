@@ -598,7 +598,7 @@ class Controller:
         """
         if self.solo3D:
             T = -np.array([0.0, 0.0, reference_state[2, 1]]).reshape((3, 1))
-            T[:2] = -self.q_filtered[:2]
+            T[:2] = -self.q_filtered[:2].reshape((-1, 1))
             R = pin.rpy.rpyToMatrix(0.0, 0.0, self.q_filtered[5]).transpose()
         else:
             T = -oTh - np.array([0.0, 0.0, self.h_ref]).reshape((3, 1))
