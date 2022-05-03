@@ -514,7 +514,7 @@ void FootTrajectoryGeneratorBezier::update(int k, MatrixN const& targetFootstep,
     for (int j = 0; j < (int)feet.size(); j++) {
       int i = feet[j];
       t_swing[i] = gait_->getPhaseDuration(0, feet[j]);
-      double value = gait_->getElapsedTime(0, feet[j]) - dt_wbc;
+      double value = gait_->getElapsedTime(0, feet[j]);
       t0s[i] = std::max(0.0, value);
     }
   } else {

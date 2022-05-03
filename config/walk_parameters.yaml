@@ -79,6 +79,7 @@ robot:
     Q2: 10.0  # Weights for the "delta contact forces" optimization variables
     Fz_max: 35.0  # Maximum vertical contact force [N]
     Fz_min: 0.0  # Minimal vertical contact force [N]
+    enable_comp_forces: false  # Enable the use of compensation forces in the QP problem
 
     # Parameters fro solo3D simulation
     solo3D: false  # Activation of the 3D environment, and corresponding planner blocks

@@ -134,10 +134,11 @@ class Params {
   std::vector<double> w_tasks;  // Tasks weights: [feet/base, vx, vy, vz, roll+wroll, pitch+wpitch, wyaw, contacts]
 
   // Parameters of WBC QP problem
-  double Q1;      // Weights for the "delta articular accelerations" optimization variables
-  double Q2;      // Weights for the "delta contact forces" optimization variables
-  double Fz_max;  // Maximum vertical contact force [N]
-  double Fz_min;  // Minimal vertical contact force [N]
+  double Q1;                // Weights for the "delta articular accelerations" optimization variables
+  double Q2;                // Weights for the "delta contact forces" optimization variables
+  double Fz_max;            // Maximum vertical contact force [N]
+  double Fz_min;            // Minimal vertical contact force [N]
+  bool enable_comp_forces;  // Enable the use of compensation forces in the QP problem
 
   // Parameters of MIP
   bool solo3D;                        // Enable the 3D environment with corresponding planner blocks

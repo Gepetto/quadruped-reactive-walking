@@ -412,7 +412,7 @@ void FootstepPlannerQP::update_remaining_time(int k) {
     for (int foot = 0; foot < (int)feet_.size(); foot++) {
       int i = feet_[foot];
       t_swing[i] = gait_->getPhaseDuration(0, feet_[foot]);
-      double value = gait_->getElapsedTime(0, feet_[foot]) - dt_wbc;
+      double value = gait_->getElapsedTime(0, feet_[foot]);
       t0s[i] = std::max(0.0, value);
     }
   } else {

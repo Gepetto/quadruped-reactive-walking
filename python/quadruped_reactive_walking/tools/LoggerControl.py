@@ -1,6 +1,7 @@
 """This class will log 1d array in Nd matrix from device and qualisys object"""
 from datetime import datetime
 from time import time
+from pathlib import Path
 
 import numpy as np
 import pinocchio as pin
@@ -329,7 +330,7 @@ class LoggerControl:
         if self.solo3d:
             self.update_mip[self.i] = controller.update_mip
             self.configs[self.i] = statePlanner.get_configurations()
-            self.initial_contacts[self.i] = controller.o_targetFootstep
+            self.initial_contacts[self.i] = controller.next_footstep
             self.t_mip[self.i] = controller.surfacePlanner.t_mip
         self.i += 1
 
@@ -380,24 +381,18 @@ class LoggerControl:
         t_range = np.array([k * self.dt for k in range(self.tstamps.shape[0])])
 
         plt.figure()
-        plt.plot(t_range, self.t_mip, "+", color="gold")
+        if self.solo3d:
+            plt.plot(t_range, self.t_mip, "+", color="gold")
         plt.plot(t_range, self.loop_t_filter, "r+")
         plt.plot(t_range, self.loop_t_planner, "g+")
         plt.plot(t_range, self.loop_t_mpc, "b+")
         plt.plot(t_range, self.loop_t_wbc, "+", color="violet")
         plt.plot(t_range, self.loop_t_loop, "k+")
         plt.plot(t_range, self.loop_t_loop_if, "+", color="rebeccapurple")
-        plt.legend(
-            [
-                "SurfacePlanner",
-                "Estimator",
-                "Planner",
-                "MPC",
-                "WBC",
-                "Control loop",
-                "Whole loop",
-            ]
-        )
+        lgd = ["Estimator", "Planner", "MPC", "WBC", "Control loop", "Whole loop"]
+        if self.solo3d:
+            lgd.append("SurfacePlanner")
+        plt.legend(lgd)
         plt.xlabel("Time [s]")
         plt.ylabel("Time [s]")
         self.custom_suptitle("Computation time of each block")
@@ -986,7 +981,8 @@ class LoggerControl:
 
         self.plotTimes()
         self.plotMpcTime()
-        self.plotSurfacePlannerTime()
+        if self.solo3d:
+            self.plotSurfacePlannerTime()
         self.plotStepTime()
         self.plotMPCCost()
 
@@ -1467,18 +1463,21 @@ class LoggerControl:
 
 
 if __name__ == "__main__":
-
-    import LoggerSensors
     import sys
     import os
+    import argparse
     import quadruped_reactive_walking as qrw
+    from quadruped_reactive_walking.tools import LoggerSensors
 
     sys.path.insert(0, os.getcwd())
 
-    file_name = "/home/odri/git/fanny/logs/data_2022_02_16_13_33_0.npz"
+    parser = argparse.ArgumentParser(description='Process logs.')
+    parser.add_argument('--file', type=str,
+                        help='A valid log file path')
+    args = parser.parse_args()
 
     params = qrw.Params()
-    logger = LoggerControl(params, loading=True, fileName=file_name)
+    logger = LoggerControl(params, loading=True, fileName=args.file)
 
     loggerSensors = LoggerSensors.LoggerSensors(logSize=logger.logSize)
 

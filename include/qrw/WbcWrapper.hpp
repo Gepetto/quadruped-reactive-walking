@@ -116,6 +116,7 @@ class WbcWrapper {
 
   int k_log_;                          // Counter for logging purpose
   int indexes_[4] = {10, 18, 26, 34};  // Indexes of feet frames in this order: [FL, FR, HL, HR]
+  bool enable_comp_forces_;            // Enable compensation forces for the QP problem
 };
 
 #endif  // WBC_WRAPPER_H_INCLUDED

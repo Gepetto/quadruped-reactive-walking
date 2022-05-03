@@ -194,7 +194,7 @@ void FootTrajectoryGenerator::update(int k, MatrixN const &targetFootstep) {
     for (int i = 0; i < 4; i++) {
       if (feet(0, i) == 0) {
         t_swing[i] = gait_->getPhaseDuration(0, i);
-        double value = gait_->getElapsedTime(0, i) - dt_wbc;
+        double value = gait_->getElapsedTime(0, i);
         t0s[i] = std::max(0.0, value);
       }
     }

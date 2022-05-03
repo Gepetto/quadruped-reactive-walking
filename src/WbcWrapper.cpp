@@ -24,11 +24,15 @@ WbcWrapper::WbcWrapper()
       log_feet_pos_target(Matrix34::Zero()),
       log_feet_vel_target(Matrix34::Zero()),
       log_feet_acc_target(Matrix34::Zero()),
-      k_log_(0) {}
+      k_log_(0),
+      enable_comp_forces_(false) {}
 
 void WbcWrapper::initialize(Params &params) {
   // Params store parameters
   params_ = &params;
+
+  // Set if compensation forces should be used or not
+  enable_comp_forces_ = params_->enable_comp_forces;
 
   // Path to the robot URDF
   const std::string filename = std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
@@ -124,19 +128,21 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // Compute the inverse dynamics, aka the joint torques according to the current state of the system,
   // the desired joint accelerations and the external forces, using the Recursive Newton Euler Algorithm.
   // Result is stored in data_.tau
-  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
-  Vector12 f_compensation = Vector12::Zero();
-
-  // FORCE COMPENSATION TERM
-  /*Vector18 ddq_test = Vector18::Zero();
-  ddq_test.head(6) = ddq_cmd_.head(6);
-  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_test);
-  Vector6 RNEA_without_joints = data_.tau.head(6);
-  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
-  Vector6 RNEA_NLE = data_.tau.head(6);
-  RNEA_NLE(2, 0) -= 9.81 * data_.mass[0];
-  pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
-  Vector12 f_compensation = pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);
+  Vector12 f_compensation;
+  if (!enable_comp_forces_) {
+    pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
+    f_compensation = Vector12::Zero();
+  } else {
+    Vector18 ddq_test = Vector18::Zero();
+    ddq_test.head(6) = ddq_cmd_.head(6);
+    pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_test);
+    Vector6 RNEA_without_joints = data_.tau.head(6);
+    pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, VectorN::Zero(model_.nv));
+    Vector6 RNEA_NLE = data_.tau.head(6);
+    RNEA_NLE(2, 0) -= 9.81 * data_.mass[0];
+    pinocchio::rnea(model_, data_, q_wbc_, dq_wbc_, ddq_cmd_);
+    f_compensation = pseudoInverse(Jc_.transpose()) * (data_.tau.head(6) - RNEA_without_joints + RNEA_NLE);
+  }
 
   /*std::cout << "M inertia" << std::endl;
   std::cout << data_.M << std::endl;*/
