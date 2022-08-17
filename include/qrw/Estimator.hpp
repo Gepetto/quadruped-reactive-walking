@@ -211,6 +211,7 @@ class Estimator {
   bool perfectEstimator_;  // Enable perfect estimator (directly from the PyBullet simulation)
   bool solo3D_;            // Perfect estimator including yaw angle
   double dt_;              // Time step of the estimator
+  double dt_mpc_;          // Time step of the mpc
   bool initialized_;       // Is intiialized after the first update of the IMU
   Vector4 feetFrames_;     // Frame indexes of the four feet
   double footRadius_;      // radius of a foot

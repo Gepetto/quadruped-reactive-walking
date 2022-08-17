@@ -11,6 +11,7 @@ Estimator::Estimator()
     : perfectEstimator_(false),
       solo3D_(false),
       dt_(0.0),
+      dt_mpc_(0.0),
       initialized_(false),
       feetFrames_(Vector4::Zero()),
       footRadius_(0.155),
@@ -56,6 +57,7 @@ Estimator::Estimator()
 
 void Estimator::initialize(Params& params) {
   dt_ = params.dt_wbc;
+  dt_mpc_ = params.dt_mpc;
   perfectEstimator_ = params.perfect_estimator;
   solo3D_ = params.solo3D;
 
@@ -110,13 +112,15 @@ void Estimator::run(MatrixN const& gait, MatrixN const& feetTargets, VectorN con
 
 void Estimator::updateReferenceState(VectorN const& vRef) {
   // Update reference acceleration and velocities
-  Matrix3 Rz = pinocchio::rpy::rpyToMatrix(0., 0., -baseVelRef_[5] * dt_);
-  baseAccRef_.head(3) = (vRef.head(3) - Rz * baseVelRef_.head(3)) / dt_;
-  baseAccRef_.tail(3) = (vRef.tail(3) - Rz * baseVelRef_.tail(3)) / dt_;
+  Matrix3 Rz = pinocchio::rpy::rpyToMatrix(0., 0., -vRef[5] * dt_);
+  baseAccRef_.head(3) = (vRef.head(3) - Rz * vRef.head(3)) / dt_;
+  baseAccRef_.tail(3) = (vRef.tail(3) - Rz * vRef.tail(3)) / dt_;
   baseVelRef_ = vRef;
 
   // Update position and velocity state vectors
+  qRef_[5] += baseVelRef_[5] * dt_;
   Rz = pinocchio::rpy::rpyToMatrix(0., 0., qRef_[5]);
+
   vRef_.head(2) = Rz.topLeftCorner(2, 2) * baseVelRef_.head(2);
   vRef_[5] = baseVelRef_[5];
   vRef_.tail(12) = vActuators_;
@@ -124,7 +128,6 @@ void Estimator::updateReferenceState(VectorN const& vRef) {
   qRef_.head(2) += vRef_.head(2) * dt_;
   qRef_[2] = qEstimate_[2];
   qRef_.segment(3, 2) = IMURpy_.head(2);
-  qRef_[5] += baseVelRef_[5] * dt_;
   qRef_.tail(12) = qActuators_;
 
   // Transformation matrices
@@ -189,7 +192,7 @@ void Estimator::updateForwardKinematics() {
   Vector3 baseVelocityEstimate = Vector3::Zero();
   Vector3 basePositionEstimate = Vector3::Zero();
   for (int foot = 0; foot < 4; foot++) {
-    if (feetStatus_(foot) == 1. && feetStancePhaseDuration_[foot] >= 16) {
+    if (feetStatus_(foot) == 1. && feetStancePhaseDuration_[foot] >= 40) {
       baseVelocityEstimate += computeBaseVelocityFromFoot(foot);
       basePositionEstimate += computeBasePositionFromFoot(foot);
       nContactFeet++;
@@ -198,7 +201,9 @@ void Estimator::updateForwardKinematics() {
 
   if (nContactFeet > 0) {
     baseVelocityFK_ = baseVelocityEstimate / nContactFeet;
-    basePositionFK_ = basePositionEstimate / nContactFeet;
+    const double coeff = 0.0005;
+    basePositionFK_ = basePositionFK_.cwiseProduct(Vector3(0.0, 0.0, 1.0 - coeff)) +
+                      (basePositionEstimate / nContactFeet).cwiseProduct(Vector3(1.0, 1.0, coeff));
   }
 }
 
@@ -223,7 +228,7 @@ void Estimator::computeFeetPositionBarycenter() {
   int nContactFeet = 0;
   Vector3 feetPositions = Vector3::Zero();
   for (int j = 0; j < 4; j++) {
-    if (feetStatus_(j) == 1.) {
+    if (feetStatus_(j) == 1. && feetStancePhaseDuration_[j] >= 40) {
       feetPositions += feetTargets_.col(j);
       nContactFeet++;
     }
@@ -232,13 +237,14 @@ void Estimator::computeFeetPositionBarycenter() {
 }
 
 double Estimator::computeAlphaVelocity() {
-  double a = std::ceil(feetStancePhaseDuration_.maxCoeff() * 0.1) - 1;
+  double a = std::ceil(feetStancePhaseDuration_.maxCoeff() * (dt_wbc / dt_mpc)) - 1;
   double b = static_cast<double>(phaseRemainingDuration_);
   double c = ((a + b) - 2) * 0.5;
-  if (a <= 0 || b <= 1)
+  const double n = 2;  // Nb of steps of margin around contact switch
+  if (a <= (n - 1) || b <= n || std::abs(c - (a - n)) <= n)
     return alphaVelMax_;
   else
-    return alphaVelMin_ + (alphaVelMax_ - alphaVelMin_) * std::abs(c - (a - 1)) / c;
+    return alphaVelMin_ + (alphaVelMax_ - alphaVelMin_) * std::abs(c - (a - n)) / c;
 }
 
 void Estimator::estimateVelocity(Vector3 const& b_perfectVelocity) {
@@ -261,8 +267,14 @@ void Estimator::estimateVelocity(Vector3 const& b_perfectVelocity) {
 void Estimator::estimatePosition(Vector3 const& perfectPosition) {
   Matrix3 oRb = IMUQuat_.toRotationMatrix();
 
-  Vector3 basePosition = solo3D_ ? perfectPosition : (basePositionFK_ + feetPositionBarycenter_);
-  qEstimate_.head(3) = positionFilter_.compute(basePosition, oRb * b_baseVelocity_, alphaPos_);
+  Vector3 basePosition = solo3D_ ? perfectPosition : basePositionFK_;
+  if (feetStancePhaseDuration_.isZero()) {
+    // Pure velocity integration (no foot in contact for forward kinematics)
+    qEstimate_.head(3) = positionFilter_.compute(Vector3::Zero(), oRb * b_baseVelocity_, Vector3::Ones());
+  } else {
+    // Mixing position estimation and velocity integration
+    qEstimate_.head(3) = positionFilter_.compute(basePosition, oRb * b_baseVelocity_, alphaPos_);
+  }
 
   if (perfectEstimator_ || solo3D_) qEstimate_(2) = perfectPosition(2);
   qEstimate_.segment(3, 4) = IMUQuat_.coeffs();
