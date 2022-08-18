@@ -59,9 +59,11 @@ class FootstepPlanner {
   ///  stacked)
   ///  \param[in] b_vref Desired velocity vector of the flying base in horizontal frame (linear and angular
   ///  stacked)
+  ///  \param[in] ftgPositions Target foot positions outputted by the foot trajectory generator (in world frame)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  MatrixN updateFootsteps(bool refresh, int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref);
+  MatrixN updateFootsteps(bool refresh, int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref,
+                          MatrixN const& ftgPositions);
 
   MatrixN getFootsteps();
   MatrixN getTargetFootsteps();
@@ -151,13 +153,15 @@ class FootstepPlanner {
   int n_steps;  // T_mpc / time step of the MPC
 
   // Constant sized matrices
-  Matrix34 footsteps_under_shoulders_;  // Positions of footsteps to be "under the shoulder"
-  Matrix34 footsteps_offset_;           // Hardcoded offset to add to footsteps positions
-  Matrix34 currentFootstep_;            // Feet matrix
-  Matrix34 nextFootstep_;               // Temporary matrix to perform computations
-  Matrix34 targetFootstep_;             // In horizontal frame
-  Matrix34 o_targetFootstep_;           // targetFootstep_ in world frame
-  std::vector<Matrix34> footsteps_;     // Desired footsteps locations for each step of the horizon
+  Matrix34 footsteps_under_shoulders_;       // Positions of footsteps to be "under the shoulder"
+  Matrix34 footsteps_offset_;                // Hardcoded offset to add to footsteps positions
+  Matrix34 currentFootstep_;                 // Feet matrix
+  Matrix34 nextFootstep_;                    // Temporary matrix to perform computations
+  Matrix34 targetFootstep_;                  // In horizontal frame
+  Matrix34 o_targetFootstep_;                // targetFootstep_ in world frame
+  std::vector<Matrix34> footsteps_;          // Desired footsteps locations for each step of the horizon
+  Eigen::Matrix<int, 1, 4> previousGait_;    // Last gait status used to update footsteps
+  Eigen::Matrix<int, 1, 4> previousHeight_;  // Height of the last contact phase for each foot
 
   MatrixN Rz;      // Rotation matrix along z axis
   VectorN dt_cum;  // Cumulated time vector

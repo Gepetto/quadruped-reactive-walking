@@ -10,9 +10,11 @@
 FootstepPlanner::FootstepPlanner()
     : gait_(NULL),
       g(9.81),
-      L(0.155),
+      L(0.25),
       nextFootstep_(Matrix34::Zero()),
       footsteps_(),
+      previousGait_(Eigen::Matrix<int, 1, 4>::Zero()),
+      previousHeight_(Eigen::Matrix<int, 1, 4>::Zero()),
       Rz(MatrixN::Zero(3, 3)),
       dt_cum(),
       yaws(),
@@ -73,14 +75,45 @@ void FootstepPlanner::initialize(Params& params, Gait& gaitIn) {
 }
 
 MatrixN FootstepPlanner::updateFootsteps(bool refresh, int k, VectorN const& q, Vector6 const& b_v,
-                                         Vector6 const& b_vref) {
+                                         Vector6 const& b_vref, MatrixN const& ftgPositions) {
   if (q.rows() != 18) {
     throw std::runtime_error("q should be a vector of size 18 (pos+RPY+mot)");
   }
 
   // Update location of feet in stance phase (for those which just entered stance phase)
   if (refresh && gait_->isNewPhase()) {
-    updateNewContact(q);
+    // updateNewContact(q);
+
+    // Remove translation and yaw rotation to get position in local frame
+    q_FK_.head(3) << 0.0, 0.0, q(2, 0);
+    q_FK_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q(3, 0), q(4, 0), 0.0)).coeffs();
+    q_FK_.tail(12) = q.tail(12);
+
+    // Update model and data of the robot
+    pinocchio::forwardKinematics(model_, data_, q_FK_);
+    pinocchio::updateFramePlacements(model_, data_);
+
+    // Retrieve gait status
+    Matrix14 currentGait = gait_->getCurrentGait().row(0);
+
+    // Rotation from world to horizontal
+    double c = std::cos(q[5]);
+    double s = std::sin(q[5]);
+    Rz.topLeftCorner<2, 2>() << c, s, -s, c;
+
+    // Refresh position with estimated position if foot is in stance phase
+    for (int i = 0; i < 4; i++) {
+      if (currentGait(0, i) - previousGait_(0, i) >
+          0) {  // New contact when currentGait[i] = 1 and previousGait_[i] = 0
+        currentFootstep_.col(i) = Rz * (ftgPositions.col(i).head(3) - Vector3(q[0], q[1], 0.0));
+        currentFootstep_(2, i) = data_.oMf[foot_ids_[i]].translation()(2, 0);
+        previousHeight_(0, i) = currentFootstep_(2, i);
+        // std::cout << "= New contact at " << currentFootstep_.col(i).transpose() << " for foot " << i << std::endl;
+      }
+    }
+
+    // Keep gait status in memory
+    previousGait_ = currentGait;
   }
 
   // Feet in contact with the ground are moving in base frame (they don't move in world frame)
@@ -194,7 +227,7 @@ void FootstepPlanner::computeNextFootstep(int i, int j, Vector6 const& b_v, Vect
   nextFootstep_.col(j) += footsteps_offset_.col(j);
 
   // Remove Z component (working on flat ground)
-  nextFootstep_.row(2) = Vector4::Zero().transpose();
+  nextFootstep_.row(2) = previousHeight_;
 }
 
 void FootstepPlanner::updateTargetFootsteps() {
@@ -203,7 +236,7 @@ void FootstepPlanner::updateTargetFootsteps() {
     while (footsteps_[index](0, i) == 0.0) {
       index++;
     }
-    targetFootstep_.col(i) << footsteps_[index](0, i), footsteps_[index](1, i), 0.0;
+    targetFootstep_.col(i) = footsteps_[index].col(i);
   }
 }
 
@@ -221,6 +254,7 @@ MatrixN FootstepPlanner::computeTargetFootstep(int k, Vector6 const& q, Vector6 
   Rz.topLeftCorner<2, 2>() << c, -s, s, c;
   for (int i = 0; i < 4; i++) {
     o_targetFootstep_.block(0, i, 2, 1) = Rz.topLeftCorner<2, 2>() * targetFootstep_.block(0, i, 2, 1) + q.head(2);
+    o_targetFootstep_(2, i) = targetFootstep_(2, i);
   }
 
   return o_targetFootstep_;
