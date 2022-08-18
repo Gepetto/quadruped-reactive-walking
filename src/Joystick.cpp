@@ -33,10 +33,12 @@ void Joystick::initialize(Params& params) {
   lock_time_L1_ = std::chrono::system_clock::now();
 
   // Gamepad initialisation
-  device = "/dev/input/js0";
-  js = open(device, O_RDONLY | O_NONBLOCK);
-  if (js == -1) {
-    perror("Could not open joystick");
+  if (!predefined) {
+    device = "/dev/input/js0";
+    js = open(device, O_RDONLY | O_NONBLOCK);
+    if (js == -1) {
+      perror("Could not open joystick");
+    }
   }
 }
 
@@ -56,7 +58,11 @@ void Joystick::handle_v_switch(int k) {
 
 void Joystick::update_v_ref(int k, bool gait_is_static) {
   if (predefined) {
-    update_v_ref_predefined(k);
+    if (analysis) {
+      handle_v_switch(k);
+    } else {
+      update_v_ref_predefined(k);
+    }
   } else {
     update_v_ref_gamepad(k, gait_is_static);
   }
@@ -211,4 +217,53 @@ void Joystick::update_v_ref_predefined(int k) {
     k_switch = (params_->t_switch / dt_wbc).cast<int>();
   }
   handle_v_switch(k);  // Polynomial interpolation to generate the velocity profile
+}
+
+void Joystick::update_for_analysis(Vector6 des_vel_analysis, int N_analysis, int N_steady) {
+  analysis = true;
+  double v_step = 0.05;                   // m/s
+  double v_max = des_vel_analysis(0, 0);  // m/s
+  int n_steps = static_cast<int>(std::round(v_max / v_step));
+  int N_start = static_cast<int>(std::round(1.0 / dt_wbc));  // Wait 1s before starting
+  int N_slope = static_cast<int>(std::round(1.0 / dt_wbc));  // Acceleration between steps last 1s
+  int N_still = static_cast<int>(std::round(3.0 / dt_wbc));  // Steady velocity phases last 5s
+
+  // Set dimensions of arrays
+  k_switch = Eigen::Matrix<int, 1, Eigen::Dynamic>::Zero(1, 2 * (n_steps + 1));
+  v_switch = MatrixN::Zero(6, 2 * (n_steps + 1));
+
+  // Fill them
+  k_switch(0, 0) = 0;
+  k_switch(0, 1) = N_start;
+  for (int i = 1; i <= n_steps; i++) {
+    k_switch(0, 2 * i) = k_switch(0, 2 * i - 1) + N_slope;
+    k_switch(0, 2 * i + 1) = k_switch(0, 2 * i) + N_still;
+    v_switch(0, 2 * i) = std::cos(des_vel_analysis(3, 0)) * i * v_step;
+    v_switch(0, 2 * i + 1) = std::cos(des_vel_analysis(3, 0)) * i * v_step;
+    if (des_vel_analysis(1, 0) != 0.0) {
+      v_switch(1, 2 * i) = std::sin(des_vel_analysis(3, 0)) * i * v_step;
+      v_switch(1, 2 * i + 1) = std::sin(des_vel_analysis(3, 0)) * i * v_step;
+    } else {
+      v_switch(5, 2 * i) = std::sin(des_vel_analysis(3, 0)) * i * v_step;
+      v_switch(5, 2 * i + 1) = std::sin(des_vel_analysis(3, 0)) * i * v_step;
+    }
+  }
+}
+
+Vector6 Joystick::getLastReachedVelocity(int k) {
+  int i = 1;
+  while ((i < k_switch.cols()) && k_switch(0, i) <= k) {
+    i++;
+  }
+  Vector6 v_reached;
+  if ((v_switch.col(i - 1)).isApprox(v_switch.col(i))) {
+    if (i - 2 >= 0) {
+      v_reached = v_switch.col(i - 2);
+    } else {
+      v_reached = Vector6::Zero();
+    }
+  } else {
+    v_reached = v_switch.col(i - 1);
+  }
+  return v_reached;
 }

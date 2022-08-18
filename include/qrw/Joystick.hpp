@@ -103,8 +103,29 @@ class Joystick {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void update_v_ref_predefined(int k);
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Update the velocity profile to test the behavior up to a desired velocity
+  ///
+  /// \param[in] des_vel_analysis Desired velocity that the robot should reach
+  /// \param[in] N_analysis Number of controller steps for the increase in velocity (slope)
+  /// \param[in] N_steady Number of controller steps at target velocity to be considered stable
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void update_for_analysis(Vector6 des_vel_analysis, int N_analysis, int N_steady);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Get the last velocity that was reached in the current velocity profile
+  ///
+  /// \param[in] k Numero of the current loop
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  Vector6 getLastReachedVelocity(int k);
+
   Vector6 getPRef() { return p_ref_; }
   Vector6 getVRef() { return v_ref_; }
+  int getProfileDuration() { return k_switch(0, k_switch.cols() - 1); }
   int getJoystickCode() { return joystick_code_; }
   bool getStop() { return stop_; }
   bool getStart() { return start_; }
@@ -130,6 +151,7 @@ class Joystick {
   bool stop_ = false;       // Flag to stop the controller
   bool start_ = false;      // Flag to start the controller
   bool predefined = false;  // Flag to perform polynomial interpolation or read the gamepad
+  bool analysis = false;    // Flag to perform a performance analysis up to a given velocity
 
   double dt_mpc = 0.0;  // Time step of the MPC
   double dt_wbc = 0.0;  // Time step of the WBC
