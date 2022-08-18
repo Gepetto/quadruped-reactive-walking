@@ -417,8 +417,16 @@ int QPWBC::run(const MatrixN &M, const MatrixN &Jc, const MatrixN &ddq_cmd, cons
   Eigen::Matrix<double, 20, 1> Gf = G * f_cmd;
 
   for (int i = 0; i < G.rows(); i++) {
-    v_NK_low[i] = -Gf(i, 0) + params_->Fz_min;
-    v_NK_up[i] = -Gf(i, 0) + params_->Fz_max;
+    v_NK_low[i] = -Gf(i, 0);
+    v_NK_up[i] = std::numeric_limits<double>::infinity();
+  }
+  for (int i = 0; i < 4; i++) {
+    if (k_contact(0, i) > 0) {
+      v_NK_low[5 * i + 4] += params_->Fz_min;
+      v_NK_up[5 * i + 4] = -Gf(5 * i + 4, 0) + params_->Fz_max;
+    } else {
+      v_NK_up[5 * i + 4] = -Gf(5 * i + 4, 0) + 0.0;
+    }
   }
 
   // Limit max force when contact is activated

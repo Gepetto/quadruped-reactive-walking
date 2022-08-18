@@ -209,7 +209,7 @@ class QPWBC {
   Eigen::Matrix<double, 12, 12> Q2 = Eigen::Matrix<double, 12, 12>::Identity();
 
   // Friction coefficient
-  const double mu = 0.9;
+  const double mu = 0.5;
 
   // Minimum and maximum normal contact force
   double Fz_max = 0.0;

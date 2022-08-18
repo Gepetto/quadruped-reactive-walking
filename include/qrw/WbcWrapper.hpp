@@ -60,6 +60,8 @@ class WbcWrapper {
   VectorN get_vdes() { return vdes_; }
   VectorN get_tau_ff() { return tau_ff_; }
   VectorN get_ddq_cmd() { return ddq_cmd_; }
+  VectorN get_dq_cmd() { return dq_cmd_; }
+  VectorN get_q_cmd() { return q_cmd_; }
   VectorN get_f_with_delta() { return f_with_delta_; }
   VectorN get_ddq_with_delta() { return ddq_with_delta_; }
   VectorN get_nle() { return nle_; }
@@ -97,7 +99,9 @@ class WbcWrapper {
 
   Vector19 q_wbc_;           // Configuration vector for the whole body control
   Vector18 dq_wbc_;          // Velocity vector for the whole body control
-  Vector18 ddq_cmd_;         // Actuator accelerations computed by Inverse Kinematics
+  Vector18 ddq_cmd_;         // Command ccelerations computed by Inverse Kinematics
+  Vector18 dq_cmd_;          // Command velocities computed by Inverse Kinematics
+  Vector19 q_cmd_;           // Command positions computed by Inverse Kinematics
   Vector12 f_with_delta_;    // Contact forces with deltas found by QP solver
   Vector18 ddq_with_delta_;  // Actuator accelerations with deltas found by QP solver
 

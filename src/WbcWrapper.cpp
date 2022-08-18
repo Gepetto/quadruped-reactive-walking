@@ -18,6 +18,8 @@ WbcWrapper::WbcWrapper()
       q_wbc_(Vector19::Zero()),
       dq_wbc_(Vector18::Zero()),
       ddq_cmd_(Vector18::Zero()),
+      dq_cmd_(Vector18::Zero()),
+      q_cmd_(Vector19::Zero()),
       f_with_delta_(Vector12::Zero()),
       ddq_with_delta_(Vector18::Zero()),
       nle_(Vector6::Zero()),
@@ -103,6 +105,8 @@ void WbcWrapper::compute(VectorN const &q, VectorN const &dq, VectorN const &f_c
   // Compute Inverse Kinematics
   invkin_->run(q_wbc_, dq_wbc_, contacts, pgoals.transpose(), vgoals.transpose(), agoals.transpose(), xgoals);
   ddq_cmd_ = invkin_->get_ddq_cmd();
+  dq_cmd_ = invkin_->get_dq_cmd();
+  q_cmd_ = invkin_->get_q_cmd();
 
   // TODO: Check if we can save time by switching MatrixXd to defined sized vector since they are
   // not called from python anymore
