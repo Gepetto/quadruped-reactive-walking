@@ -60,6 +60,16 @@ class FootTrajectoryGenerator {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void update(int k, MatrixN const &targetFootstep);
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Compute the whole swing trajectory from the current position to the target on the ground
+  ///        Mainly for debug purpose to plot the desired feet trajectory in the air
+  ///
+  /// \param[in] j Foot id
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  MatrixN getTrajectoryToTarget(int const j);
+
   MatrixN getTargetPosition() { return targetFootstep_; }  // Get the foot goal position
   MatrixN getFootPosition() { return position_; }          // Get the next foot position
   MatrixN getFootVelocity() { return velocity_; }          // Get the next foot velocity
@@ -79,8 +89,9 @@ class FootTrajectoryGenerator {
   Eigen::Matrix<int, 1, 4> feet;  // Column indexes of feet currently in swing phase
   Vector4 t0s;                    // Elapsed time since the start of the swing phase movement
   Vector4 t_swing;                // Swing phase duration for each foot
+  Vector4 stepHeight_;            // Height of incoming landing point
 
-  Matrix34 targetFootstep_;  // Target for the X component
+  Matrix34 targetFootstep_;  // Target for the X Y Z components
 
   Matrix64 Ax;  // Coefficients for the X component
   Matrix64 Ay;  // Coefficients for the Y component
