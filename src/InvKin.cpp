@@ -1,20 +1,10 @@
 #include "qrw/InvKin.hpp"
 
-#include <example-robot-data/path.hpp>
-
-#include "pinocchio/algorithm/compute-all-terms.hpp"
-#include "pinocchio/algorithm/frames.hpp"
-#include "pinocchio/algorithm/jacobian.hpp"
-#include "pinocchio/algorithm/joint-configuration.hpp"
-#include "pinocchio/math/rpy.hpp"
-#include "pinocchio/parsers/urdf.hpp"
-#include "pinocchio/spatial/explog.hpp"
-
 InvKin::InvKin()
     : invJ(Matrix12::Zero()),
-      acc(Eigen::Matrix<double, 1, 30>::Zero()),
-      x_err(Eigen::Matrix<double, 1, 30>::Zero()),
-      dx_r(Eigen::Matrix<double, 1, 30>::Zero()),
+      acc(Eigen::Matrix<double, 1, 18>::Zero()),
+      x_err(Eigen::Matrix<double, 1, 18>::Zero()),
+      dx_r(Eigen::Matrix<double, 1, 18>::Zero()),
       pfeet_err(Matrix43::Zero()),
       vfeet_ref(Matrix43::Zero()),
       afeet(Matrix43::Zero()),
@@ -40,8 +30,7 @@ InvKin::InvKin()
       awbasis(Vector3::Zero()),
       afeet_contacts_(Matrix43::Zero()),
       Jb_(Eigen::Matrix<double, 6, 18>::Zero()),
-      J_(Eigen::Matrix<double, 30, 18>::Zero()),
-      invJ_(Eigen::Matrix<double, 18, 30>::Zero()),
+      invJ_(Eigen::Matrix<double, 18, 18>::Zero()),
       ddq_cmd_(Vector18::Zero()),
       dq_cmd_(Vector18::Zero()),
       q_cmd_(Vector19::Zero()),
@@ -101,28 +90,14 @@ void InvKin::refreshAndCompute(RowVector4 const& contacts, Matrix43 const& pgoal
   // Compute tasks accelerations and Jacobians
   /////
 
-  // Accelerations references for the base / feet position task
+  // Accelerations references for the feet position task
   for (int i = 0; i < 4; i++) {
     // Feet acceleration
     pfeet_err.row(i) = pgoals.row(i) - posf_.row(i);
     vfeet_ref.row(i) = vgoals.row(i);
-    afeet.row(i) = +params_->Kp_flyingfeet * pfeet_err.row(i) +
-                   params_->Kd_flyingfeet * (vfeet_ref.row(i) - vf_.row(i)) + agoals.row(i);
-
-    // std::cout << "1: " << afeet.row(i) << std::endl;
+    afeet.row(i) = +params_->Kp_flyingfeet * pfeet_err.row(i);
+    afeet.row(i) += params_->Kd_flyingfeet * (vfeet_ref.row(i) - vf_.row(i)) + agoals.row(i);
     afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));
-    // std::cout << "2: " << afeet.row(i) << std::endl;
-
-    // Subtract base acceleration
-    afeet.row(i) -= (params_->Kd_flyingfeet * (vb_ref_ - vb_) - (ab_.head(3) + wb_.cross(vb_))).transpose();
-    // std::cout << "3: " << afeet.row(i) << std::endl;
-    /*std::cout << vb_ref_.transpose() << std::endl;
-    std::cout << vb_.transpose() << std::endl;
-    std::cout << wb_.transpose() << std::endl;
-    std::cout << ab_.head(3).transpose() << std::endl;
-    std::cout << (vb_ref_ - vb_).transpose() << std::endl;
-    std::cout << (wb_.cross(vb_)).transpose() << std::endl;*/
-    // std::cout << "---" << std::endl;
   }
 
   // Jacobian for the base / feet position task
@@ -132,11 +107,8 @@ void InvKin::refreshAndCompute(RowVector4 const& contacts, Matrix43 const& pgoal
 
   // Acceleration references for the base linear velocity task
   posb_err_ = Vector3::Zero();  // No tracking in x, y, z
-  abasis = Kd_base_position.cwiseProduct(vb_ref_ - vb_);
+  abasis = Kp_base_position.cwiseProduct(posb_err_) + Kd_base_position.cwiseProduct(vb_ref_ - vb_);
   abasis -= ab_.head(3) + wb_.cross(vb_);
-
-  // Jacobian for the base linear velocity task
-  J_.block(0, 0, 3, 18) = Jb_.block(0, 0, 3, 18);
 
   // Acceleration references for the base orientation task
   rotb_err_ = -rotb_ref_ * pinocchio::log3(rotb_ref_.transpose() * rotb_);
@@ -144,52 +116,6 @@ void InvKin::refreshAndCompute(RowVector4 const& contacts, Matrix43 const& pgoal
   awbasis = Kp_base_orientation.cwiseProduct(rotb_err_) +
             Kd_base_orientation.cwiseProduct(wb_ref_ - wb_);  // Roll, Pitch, Yaw
   awbasis -= ab_.tail(3);
-
-  // Jacobian for the base orientation task
-  J_.block(3, 0, 3, 18) = Jb_.block(3, 0, 3, 18);
-
-  // Acceleration references for the non-moving contact task
-  /*int cpt = 0;
-  for (int i = 0; i < 4; i++) {
-    if (contacts(0, i) == 1.0) {
-      afeet_contacts_.row(cpt) = + params_->Kp_flyingfeet * pfeet_err.row(i)
-                                 + params_->Kd_flyingfeet * (vfeet_ref.row(i) - vf_.row(i))
-                                 + agoals.row(i);
-      afeet_contacts_.row(cpt) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));
-      cpt++;
-    }
-  }
-  for (int i = cpt; i < 4; i++) {  // Set to 0s the lines that are not used
-    afeet_contacts_.row(i).setZero();
-  }*/
-  for (int i = 0; i < 4; i++) {
-    if (contacts(0, i) == 1.0) {
-      afeet_contacts_.row(i) = +params_->Kp_flyingfeet * pfeet_err.row(i) +
-                               params_->Kd_flyingfeet * (vfeet_ref.row(i) - vf_.row(i)) + agoals.row(i);
-      afeet_contacts_.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));
-    } else {
-      afeet_contacts_.row(i).setZero();
-    }
-  }
-
-  // Jacobian for the non-moving contact task
-  for (int i = 0; i < 4; i++) {
-    if (contacts(0, i) == 1.0) {  // Store Jacobian of feet in contact
-      J_.block(18 + 3 * i, 0, 3, 18) = Jf_.block(3 * i, 0, 3, 18);
-    } else {
-      J_.block(18 + 3 * i, 0, 3, 18).setZero();
-    }
-  }
-  /*cpt = 0;
-  for (int i = 0; i < 4; i++) {
-    if (contacts(0, i) == 1.0) {  // Store Jacobian of feet in contact
-      J_.block(18 + 3 * cpt, 0, 3, 18) = Jf_.block(3*i, 0, 3, 18);
-      cpt++;
-    }
-  }
-  for (int i = cpt; i < 4; i++) {  // Set to 0s the lines that are not used
-    J_.block(18 + 3 * i, 0, 3, 18).setZero();
-  }*/
 
   /////
   // Fill acceleration reference vector
@@ -203,10 +129,6 @@ void InvKin::refreshAndCompute(RowVector4 const& contacts, Matrix43 const& pgoal
   acc.block(0, 0, 1, 3) = abasis.transpose();
   // Base angular task
   acc.block(0, 3, 1, 3) = awbasis.transpose();
-  // Non-moving contact task
-  for (int i = 0; i < 4; i++) {
-    acc.block(0, 18 + 3 * i, 1, 3) = afeet_contacts_.row(i);
-  }
 
   /////
   // Fill velocity reference vector
@@ -214,16 +136,12 @@ void InvKin::refreshAndCompute(RowVector4 const& contacts, Matrix43 const& pgoal
 
   // Feet / base tracking task
   for (int i = 0; i < 4; i++) {
-    dx_r.block(0, 6 + 3 * i, 1, 3) = vfeet_ref.row(i) - vb_ref_.transpose();
+    dx_r.block(0, 6 + 3 * i, 1, 3) = vfeet_ref.row(i);
   }
   // Base linear task
   dx_r.block(0, 0, 1, 3) = vb_ref_.transpose();
   // Base angular task
   dx_r.block(0, 3, 1, 3) = wb_ref_.transpose();
-  // Non-moving contact task
-  for (int i = 0; i < 4; i++) {
-    dx_r.block(0, 18 + 3 * i, 1, 3) = vfeet_ref.row(i);
-  }
 
   /////
   // Fill position reference vector
@@ -231,55 +149,54 @@ void InvKin::refreshAndCompute(RowVector4 const& contacts, Matrix43 const& pgoal
 
   // Feet / base tracking task
   for (int i = 0; i < 4; i++) {
-    x_err.block(0, 6 + 3 * i, 1, 3) = pfeet_err.row(i) - posb_err_.transpose();
+    x_err.block(0, 6 + 3 * i, 1, 3) = pfeet_err.row(i);
   }
   // Base linear task
   x_err.block(0, 0, 1, 3) = posb_err_.transpose();
   // Base angular task
   x_err.block(0, 3, 1, 3) = rotb_err_.transpose();
-  // Non-moving contact task
-  for (int i = 0; i < 4; i++) {
-    x_err.block(0, 18 + 3 * i, 1, 3) = pfeet_err.row(i);
-  }
 
   /////
   // Apply tasks weights
   /////
 
-  // Product with tasks weights for Jacobian
-  J_.block(6, 0, 12, 18) *= w_tasks(0, 0);
-  for (int i = 0; i < 6; i++) {
-    J_.row(i) *= w_tasks(1 + i, 0);
+  if (contacts.isZero()) {
+    w_tasks.tail(7).setZero();
+  } else {
+    w_tasks.tail(7).setOnes();
   }
-  J_.block(18, 0, 12, 18) *= w_tasks(7, 0);
 
   // Product with tasks weights for acc references
   acc.block(6, 0, 1, 12) *= w_tasks(0, 0);
   for (int i = 0; i < 6; i++) {
     acc(0, i) *= w_tasks(1 + i, 0);
   }
-  acc.tail(12) *= w_tasks(7, 0);
 
   // Product with tasks weights for vel references
   dx_r.block(6, 0, 1, 12) *= w_tasks(0, 0);
   for (int i = 0; i < 6; i++) {
     dx_r(0, i) *= w_tasks(1 + i, 0);
   }
-  dx_r.tail(12) *= w_tasks(7, 0);
 
   // Product with tasks weights for pos references
   x_err.block(6, 0, 1, 12) *= w_tasks(0, 0);
   for (int i = 0; i < 6; i++) {
     x_err(0, i) *= w_tasks(1 + i, 0);
   }
-  x_err.tail(12) *= w_tasks(7, 0);
 
   /////
   // Jacobian inversion
   /////
 
-  // Using damped pseudo inverse
-  invJ_ = pseudoInverse(J_);
+  invJ_.block(0, 0, 3, 3) = Jb_.block(0, 0, 3, 3).transpose();
+  invJ_.block(3, 3, 3, 3) = Jb_.block(0, 0, 3, 3).transpose();
+  for (int i = 0; i < 4; i++) {
+    invJi_ = pseudoInverse(Jf_.block(3 * i, 6 + 3 * i, 3, 3));
+    invJ_.block(6 + 3 * i, 0, 3, 3) = -invJi_;
+    pskew_ << 0.0, -posf_(i, 2), posf_(i, 1), posf_(i, 2), 0.0, -posf_(i, 0), -posf_(i, 1), posf_(i, 0), 0.0;
+    invJ_.block(6 + 3 * i, 3, 3, 3) = invJi_ * pskew_;
+    invJ_.block(6 + 3 * i, 6 + 3 * i, 3, 3) = invJi_;
+  }
 
   /////
   // Compute command accelerations, velocities and positions
@@ -317,7 +234,7 @@ void InvKin::refreshAndCompute(RowVector4 const& contacts, Matrix43 const& pgoal
 }
 
 void InvKin::run(VectorN const& q, VectorN const& dq, MatrixN const& contacts, MatrixN const& pgoals,
-                        MatrixN const& vgoals, MatrixN const& agoals, MatrixN const& x_cmd) {
+                 MatrixN const& vgoals, MatrixN const& agoals, MatrixN const& x_cmd) {
   // std::cout << "run invkin q: " << q << std::endl;
 
   // Update model and data of the robot
