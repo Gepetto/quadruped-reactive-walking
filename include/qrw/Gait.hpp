@@ -83,11 +83,10 @@ class Gait {
   ///          matrix and the phase starts after the start of past gait matrix
   ///
   /// \param[in] k Numero of the current loop
-  /// \param[in] k_mpc Number of loop per mpc time step
   /// \param[in] code Integer to trigger events with the joystick
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  bool changeGait(int const k, int const k_mpc, int const code);
+  bool changeGait(int const k, int const code);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -98,11 +97,10 @@ class Gait {
   ///          Insert future desired gait phase at the end of the gait matrix
   ///
   /// \param[in] k Numero of the current loop
-  /// \param[in] k_mpc Number of loop per mpc time step
   /// \param[in] joystickCode Integer to trigger events with the joystick
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void update(int const k, int const k_mpc, int const joystickCode);
+  void update(int const k, int const joystickCode);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -111,12 +109,31 @@ class Gait {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void rollGait();
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Directly set the value of newPhase_ variable
+  ///
+  /// \param[in] value Value the newPhase_ variable should take
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void setNewPhase(bool const& value) { newPhase_ = value; };
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Raise a flag to indicate that the contact of the i-th foot is late
+  ///
+  /// \param[in] i Index of the late foot (0, 1, 2 or 3)
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void setLate(int i) { isLate_[i] = true; }
+
   MatrixN getPastGait() { return pastGait_; }
   MatrixN getCurrentGait() { return currentGait_; }
   double getCurrentGaitCoeff(int i, int j) { return currentGait_(i, j); }
   MatrixN getDesiredGait() { return desiredGait_; }
   bool getIsStatic() { return isStatic_; }
   bool isNewPhase() { return newPhase_; }
+  bool isLate(int i) { return isLate_[i]; }
 
  private:
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -181,11 +198,13 @@ class Gait {
   MatrixN desiredGait_;  // Future desired gait
 
   double dt_;  // Time step of the contact sequence (time step of the MPC)
+  int k_mpc_;  // Number of wbc time steps for each MPC time step
   int nRows_;  // number of rows in the gait matrix
 
   bool newPhase_;     // Flag to indicate that the contact status has changed
   bool isStatic_;     // Flag to indicate that all feet are in an infinite stance phase
   int switchToGait_;  // Memory to store joystick code if the user wants to change the gait pattern
+  bool isLate_[4] = {false, false, false, false};  // Flags to indicate late contacts
 };
 
 #endif  // GAIT_H_INCLUDED

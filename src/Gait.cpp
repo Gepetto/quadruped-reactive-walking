@@ -7,6 +7,7 @@ Gait::Gait()
       currentGait_(),
       desiredGait_(),
       dt_(0.),
+      k_mpc_(0),
       nRows_(0),
       newPhase_(false),
       isStatic_(false),
@@ -16,6 +17,7 @@ Gait::Gait()
 
 void Gait::initialize(Params& params) {
   dt_ = params.dt_mpc;
+  k_mpc_ = (int)std::round(params.dt_mpc / params.dt_wbc);
   nRows_ = params.gait.rows();
 
   pastGait_ = MatrixN::Zero(nRows_, 4);
@@ -167,16 +169,21 @@ double Gait::getElapsedTime(int i, int j) {
   return nPhase * dt_;
 }
 
-void Gait::update(int const k, int const k_mpc, int const joystickCode) {
-  changeGait(k, k_mpc, joystickCode);
-  if (k % k_mpc == 0 && k > 0) rollGait();
+void Gait::update(int const k, int const joystickCode) {
+  changeGait(k, joystickCode);
+  if (k % k_mpc == 0 && k > 0) {
+    rollGait();
+    for (int i = 0; i < 4; i++) {
+      isLate_[i] = false;  // Reset isLate status
+    }
+  }
 }
 
-bool Gait::changeGait(int const k, int const k_mpc, int const code) {
+bool Gait::changeGait(int const k, int const code) {
   if (code != 0 && switchToGait_ == 0) {
     switchToGait_ = code;
   }
-  if (switchToGait_ != 0 && ((k - k_mpc) % (k_mpc * nRows_ / 2) == 0)) {
+  if (switchToGait_ != 0 && ((k - k_mpc_) % (k_mpc_ * nRows_ / 2) == 0)) {
     isStatic_ = false;
     switch (switchToGait_) {
       /*case 1:
