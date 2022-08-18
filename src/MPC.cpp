@@ -18,12 +18,12 @@ MPC::MPC(Params &params) {
 
   // Predefined variables
   mass = params_->mass;
-  mu = 0.9f;
+  mu = 0.5f;
   cpt_ML = 0;
   cpt_P = 0;
   offset_CoM(0, 0) = params_->CoM_offset[0];
-  offset_CoM(1, 0) = params_->CoM_offset[1];
-  offset_CoM(2, 0) = params_->CoM_offset[2];  // Vertical offset between center of base and CoM
+  offset_CoM(1, 0) = params_->CoM_offset[1] * 0.0;  // No lateral offset due to symmetry
+  offset_CoM(2, 0) = params_->CoM_offset[2];        // Vertical offset between center of base and CoM
 
   // Predefined matrices
   footholds << 0.19, 0.19, -0.19, -0.19, 0.15005, -0.15005, 0.15005, -0.15005, 0.0, 0.0, 0.0, 0.0;
@@ -217,7 +217,11 @@ int MPC::create_ML() {
     // Get skew-symetric matrix for each foothold
     Matrix34 l_arms = footholds - (xref.block(0, k, 3, 1)).replicate<1, 4>();
     for (int i = 0; i < 4; i++) {
-      B.block(9, 3 * i, 3, 3) = dt * (I_inv * getSkew(l_arms.col(i)));
+      if (footholds_bis.col(i).isZero()) {  // Foot in swing
+        B.block(9, 3 * i, 3, 3).setZero();
+      } else {
+        B.block(9, 3 * i, 3, 3) = dt * (I_inv * getSkew(lever_arms.col(i)));
+      }
     }
 
     int i_iter = 24 * 4 * k;
@@ -487,10 +491,24 @@ float MPC::retrieve_cost() {
 
 int MPC::call_solver(int k) {
   // Initial guess for forces (mass evenly supported by all legs in contact)
-  warmxf.block(0, 0, 12 * (n_steps - 1), 1) = x.block(12, 0, 12 * (n_steps - 1), 1);
-  warmxf.block(12 * n_steps, 0, 12 * (n_steps - 1), 1) = x.block(12 * (n_steps + 1), 0, 12 * (n_steps - 1), 1);
-  warmxf.block(12 * (2 * n_steps - 1), 0, 12, 1) = x.block(12 * n_steps, 0, 12, 1);
-  VectorN::Map(&v_warmxf[0], warmxf.size()) = warmxf;
+  if (k == 0) {
+    warmxf.block(0, 0, 12 * (n_steps - 1), 1) = x.block(12, 0, 12 * (n_steps - 1), 1);
+    warmxf.block(12 * n_steps, 0, 12 * (n_steps - 1), 1) = x.block(12 * (n_steps + 1), 0, 12 * (n_steps - 1), 1);
+    warmxf.block(12 * (2 * n_steps - 1), 0, 12, 1) = x.block(12 * n_steps, 0, 12, 1);
+    Eigen::Matrix<double, Eigen::Dynamic, 1>::Map(&v_warmxf[0], warmxf.size()) = warmxf;
+  } else {
+    for (int i = 0; i < 12 * (n_steps - 1); i++) {
+      v_warmxf[i] = (workspce->solution->x)[i + 12];  // Shift predicted state by one time step
+      v_warmxf[i + 12 * n_steps] =
+          (workspce->solution->x)[i + 12 + 12 * n_steps];  // Shift desired forces by one time step
+    }
+    for (int i = 0; i < 12; i++) {
+      v_warmxf[i + 12 * (n_steps - 1)] =
+          (workspce->solution->x)[i + 12 * (n_steps - 1)];  // Last state is not shifted (no roll)
+      v_warmxf[i + 12 * (n_steps - 1) + 12 * n_steps] =
+          0.0;  // Last ctc force is 0.0, could be workspce->solution->x)[i + 12 * (n_steps-1) + 12 * n_steps];
+    }
+  }
 
   // Setup the solver (first iteration) then just update it
   if (k == 0)  // Setup the solver with the matrices
@@ -534,7 +552,7 @@ int MPC::call_solver(int k) {
   {
     osqp_update_A(workspce, &ML->x[0], OSQP_NULL, 0);
     osqp_update_bounds(workspce, &v_NK_low[0], &v_NK_up[0]);
-    // osqp_warm_start_x(workspce, &v_warmxf[0]);
+    osqp_warm_start_x(workspce, &v_warmxf[0]);
   }
 
   // char t_char[1] = {'M'};
