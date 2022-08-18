@@ -68,10 +68,10 @@ Params::Params()
       footsteps_init(12, 0.0),            // Fill with zeros, will be filled with values later
       footsteps_under_shoulders(12, 0.0)  // Fill with zeros, will be filled with values later
 {
-  initialize(WALK_PARAMETERS_YAML);
+  read_yaml(WALK_PARAMETERS_YAML);
 }
 
-void Params::initialize(const std::string& file_path) {
+void Params::read_yaml(const std::string& file_path) {
   // Load YAML file
   assert_file_exists(file_path);
   YAML::Node param = YAML::LoadFile(file_path);
@@ -346,6 +346,89 @@ void Params::convert_v_switch() {
   for (uint i = 0; i < 6; i++) {
     for (uint j = 0; j < n_col; j++) {
       v_switch(i, j) = v_switch_vec[n_col * i + j];
+    }
+  }
+}
+
+void Params::initialize() {
+  // Path to the robot URDF (TODO: Automatic path)
+  const std::string filename =
+      std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
+
+  // Robot model
+  pinocchio::Model model_;
+
+  // Build model from urdf (base is not free flyer)
+  pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
+
+  // Construct data from model
+  pinocchio::Data data_ = pinocchio::Data(model_);
+
+  // Update all the quantities of the model
+  VectorN q_tmp = VectorN::Zero(model_.nq);
+  q_tmp(6, 0) = 1.0;  // Quaternion (0, 0, 0, 1)
+  q_tmp.tail(12) = Vector12(q_init.data());
+
+  // Initialisation of model quantities
+  pinocchio::computeAllTerms(model_, data_, q_tmp, VectorN::Zero(model_.nv));
+  pinocchio::centerOfMass(model_, data_, q_tmp, VectorN::Zero(model_.nv));
+  pinocchio::updateFramePlacements(model_, data_);
+  pinocchio::crba(model_, data_, q_tmp);
+
+  // Initialisation of the position of footsteps
+  Matrix34 fsteps_init = Matrix34::Zero();
+  int indexes[4] = {static_cast<int>(model_.getFrameId("FL_FOOT")), static_cast<int>(model_.getFrameId("FR_FOOT")),
+                    static_cast<int>(model_.getFrameId("HL_FOOT")), static_cast<int>(model_.getFrameId("HR_FOOT"))};
+  for (int i = 0; i < 4; i++) {
+    fsteps_init.col(i) = data_.oMf[indexes[i]].translation();
+  }
+
+  // Get default height
+  double h_init = 0.0;
+  double h_tmp = 0.0;
+  for (int i = 0; i < 4; i++) {
+    h_tmp = (data_.oMf[1].translation() - data_.oMf[indexes[i]].translation())(2, 0);
+    if (h_tmp > h_init) {
+      h_init = h_tmp;
+    }
+  }
+
+  // Assumption that all feet are initially in contact on a flat ground
+  fsteps_init.row(2).setZero();
+
+  // Initialisation of the position of shoulders
+  Matrix34 shoulders_init = Matrix34::Zero();
+  int indexes_sh[4] = {4, 12, 20, 28};  //  Shoulder indexes
+  for (int i = 0; i < 4; i++) {
+    shoulders_init.col(i) = data_.oMf[indexes_sh[i]].translation();
+  }
+
+  // Saving data
+  h_ref = h_init;        // Reference height
+  mass = data_.mass[0];  // Mass
+
+  // Inertia matrix
+  Vector6 Idata = data_.Ycrb[1].inertia().data();
+  Matrix3 inertia;
+  inertia << Idata(0, 0), Idata(1, 0), Idata(3, 0), Idata(1, 0), Idata(2, 0), Idata(4, 0), Idata(3, 0), Idata(4, 0),
+      Idata(5, 0);
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      I_mat[3 * i + j] = inertia(i, j);
+    }
+  }
+
+  // Offset between center of base and CoM
+  Vector3 CoM = data_.com[0].head(3) - q_tmp.head(3);
+  CoM_offset[0] = CoM(0, 0);
+  CoM_offset[1] = CoM(1, 0);
+  CoM_offset[2] = CoM(2, 0);
+
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 3; j++) {
+      shoulders[3 * i + j] = shoulders_init(j, i);
+      footsteps_init[3 * i + j] = fsteps_init(j, i);
+      footsteps_under_shoulders[3 * i + j] = fsteps_init(j, i);  // Use initial feet pos as reference
     }
   }
 }

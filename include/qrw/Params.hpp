@@ -12,6 +12,14 @@
 #define PARAMS_H_INCLUDED
 
 #include <yaml-cpp/yaml.h>
+#include "pinocchio/multibody/model.hpp"
+#include "pinocchio/multibody/data.hpp"
+#include "pinocchio/parsers/urdf.hpp"
+#include "pinocchio/algorithm/compute-all-terms.hpp"
+#include "pinocchio/algorithm/jacobian.hpp"
+#include "pinocchio/algorithm/frames.hpp"
+#include "pinocchio/algorithm/crba.hpp"
+#include "pinocchio/math/rpy.hpp"
 
 #include <fstream>
 #include <vector>
@@ -38,10 +46,17 @@ class Params {
   ///
   /// \brief Initializer
   ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void initialize();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Read the config yaml file to retrieve control parameters
+  ///
   /// \param[in] file_path File path to the yaml file
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void initialize(const std::string& file_path);
+  void read_yaml(const std::string& file_path);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
