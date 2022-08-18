@@ -1,11 +1,5 @@
 #include "qrw/Controller.hpp"
 
-#include "pinocchio/algorithm/compute-all-terms.hpp"
-#include "pinocchio/algorithm/crba.hpp"
-#include "pinocchio/algorithm/frames.hpp"
-#include "pinocchio/math/rpy.hpp"
-#include "pinocchio/parsers/urdf.hpp"
-
 Controller::Controller()
     : P(Vector12::Zero()),
       D(Vector12::Zero()),
@@ -32,13 +26,11 @@ Controller::Controller()
 void Controller::initialize(Params& params) {
   // Params store parameters
   params_ = &params;
-
-  // Init robot parameters
-  init_robot(params);
+  params_->initialize();
 
   // Initialization of the control blocks
   joystick.initialize(params);
-  statePlanner.initialize(params);
+  statePlanner.initialize(params, gait);
   gait.initialize(params);
   footstepPlanner.initialize(params, gait);
   mpcWrapper.initialize(params);
@@ -72,7 +64,7 @@ void Controller::compute(FakeRobot* robot) {
   estimator.updateReferenceState(joystick.getVRef());
 
   // Update gait
-  gait.update(k, k_mpc, joystick.getJoystickCode());
+  gait.update(k, joystick.getJoystickCode());
 
   // Quantities go through a 1st order low pass filter with fc = 15 Hz (avoid >25Hz foldback)
   q_filt_mpc.head(6) = filter_mpc_q.filter(estimator.getQReference().head(6), true);
@@ -83,10 +75,11 @@ void Controller::compute(FakeRobot* robot) {
   // Compute target footstep based on current and reference velocities
   o_targetFootstep = footstepPlanner.updateFootsteps(
       (k % k_mpc == 0) && (k != 0), static_cast<int>(k_mpc - (k % k_mpc)), estimator.getQReference().head(18),
-      estimator.getHVFiltered().head(6), estimator.getBaseVelRef().head(6));
+      estimator.getHVFiltered().head(6), estimator.getBaseVelRef().head(6), footTrajectoryGenerator.getFootPosition()););
 
   // Run state planner (outputs the reference trajectory of the base)
-  statePlanner.computeReferenceStates(q_filt_mpc.head(6), h_v_filt_mpc, vref_filt_mpc);
+  statePlanner.computeReferenceStates(k, q_filt_mpc.head(6), h_v_filt_mpc, vref_filt_mpc,
+                                      footstepPlanner.getFootsteps().row(0));
 
   // Solve MPC problem once every k_mpc iterations of the main loop
   if (k % k_mpc == 0) {
@@ -141,11 +134,12 @@ void Controller::compute(FakeRobot* robot) {
     xgoals.tail(6) = vref_filt_mpc;  // Velocities (in horizontal frame!)
 
     // Run InvKin + WBC QP
-    wbcWrapper.compute(q_wbc, dq_wbc, f_mpc, gait.getCurrentGait().row(0),
-                       hRb * estimator.getoRh().transpose() * (footTrajectoryGenerator.getFootPosition() -  estimator.getoTh() - Vector3(0.0, 0.0, h_ref_)),
-                       hRb * estimator.getoRh().transpose() * footTrajectoryGenerator.getFootVelocity(),
-                       hRb * estimator.getoRh().transpose() * footTrajectoryGenerator.getFootAcceleration(),
-                       xgoals);
+    wbcWrapper.compute(
+        q_wbc, dq_wbc, f_mpc, gait.getCurrentGait().row(0),
+        hRb * estimator.getoRh().transpose() *
+            (footTrajectoryGenerator.getFootPosition() - estimator.getoTh() - Vector3(0.0, 0.0, h_ref_)),
+        hRb * estimator.getoRh().transpose() * footTrajectoryGenerator.getFootVelocity(),
+        hRb * estimator.getoRh().transpose() * footTrajectoryGenerator.getFootAcceleration(), xgoals);
 
     // Quantities sent to the control board
     q_des = wbcWrapper.get_qdes();
