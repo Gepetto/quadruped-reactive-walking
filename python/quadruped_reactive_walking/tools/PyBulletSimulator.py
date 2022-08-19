@@ -92,9 +92,21 @@ class pybullet_simulator:
                 numHeightfieldRows=numHeightfieldRows,
                 numHeightfieldColumns=numHeightfieldColumns,
             )
-            self.planeId = pyb.createMultiBody(0, terrainShape)
+   
+            ver, nor, ind = self.create_height_field()
+            terrainShape = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
+                                                    vertices=ver, indices=ind)
+            terrainShapeVisual = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                                       rgbaColor=[1, 1, 1, 1],
+                                                       specularColor=[0.4, .4, 0],
+                                                       vertices=ver,
+                                                       indices=ind,
+                                                       normals=nor)
+
+            self.planeId = pyb.createMultiBody(0, terrainShape, terrainShapeVisual)
             pyb.resetBasePositionAndOrientation(self.planeId, [0, 0, 0], [0, 0, 0, 1])
             pyb.changeVisualShape(self.planeId, -1, rgbaColor=[1, 1, 1, 1])
+            pyb.changeDynamics(self.planeId, -1, lateralFriction=1.0)
 
         if envID == 1:
             # Add stairs with platform and bridge
@@ -262,9 +274,11 @@ class pybullet_simulator:
                 useMaximalCoordinates=True,
             )
 
-        # Create a red and blue lines for debug purpose
+        # Create lines for debug purpose
         self.lineId_red = []
         self.lineId_blue = []
+        self.lineId_green = []
+        self.lineId_magenta = [[], [], [], []]
 
         pyb.setGravity(0, 0, -9.81)
 
@@ -518,6 +532,146 @@ class pybullet_simulator:
 
             while (time.time() - time_loop) < dt_traj:
                 pass
+
+    def create_height_field(self):
+
+        def check_right_left(h1, h2):
+            if h1 > h2:
+                return 2
+            else:
+                return 3
+
+        def check_front_back(h1, h2):
+            if h1 > h2:
+                return 4
+            else:
+                return 5
+
+        import random as random
+        random.seed(80) # 41
+        dx = 0.2
+        dy = 0.2
+        h_low = 0.0
+        h_high = 0.05
+
+        Ni = 101
+        Nj = 31
+
+        nor = [[0.0, 0.0, 1.0],
+                [0.0, 0.0, -1.0],
+                [1.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],  # -1.0, 0.0, 0.0
+                [0.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0]]  # 0.0, -1.0, 0.0
+
+        vertices = []
+        normals = []
+        indices = []
+        for j in range(Nj):
+            for i in range(Ni):
+                h = np.round(random.uniform(h_low, h_high), 2)
+                # Stable platform to spawn the robot on
+                if ((i-5.5) in [-1.5, -0.5, 0.5]) and ((j-Nj/2) in [-1.5, -0.5, 0.5]):
+                    h = 0.0
+                vertices.append([dx*(i-5.5), dy*(j-Nj/2), h])
+                vertices.append([dx*(i-5.5+1), dy*(j-Nj/2), h])
+                vertices.append([dx*(i-5.5+1), dy*(j-Nj/2+1), h])
+                vertices.append([dx*(i-5.5), dy*(j-Nj/2+1), h])
+
+        # Bottom edge vertices
+        for i in range(Ni+1):
+            vertices.append([dx*(i-5.5), dy*(-Nj/2), h_low - 0.05])
+
+        # Middle edge vertices
+        for j in range(1, Nj):
+            for i in range(Ni+1):
+                vertices.append([dx*(i-5.5), dy*(j-Nj/2), h_low - 0.05])
+
+        # Top edge vertices
+        for i in range(Ni+1):
+            vertices.append([dx*(i-5.5), dy*(Nj-Nj/2), h_low - 0.05])
+
+        for j in range(Nj):
+            for i in range(Ni):
+                # Top faces
+                indices.append([4*(i+Ni*j)+0, 4*(i+Ni*j)+1, 4*(i+Ni*j)+2])
+                normals.append(nor[0])
+                indices.append([4*(i+Ni*j)+0, 4*(i+Ni*j)+2, 4*(i+Ni*j)+3])
+                normals.append(nor[0])
+
+                # Right faces
+                if i < (Ni-1):
+                    indices.append([4*(i+Ni*j)+1, 4*((i+1)+Ni*j)+0, 4*((i+1)+Ni*j)+3])
+                    indices.append([4*(i+Ni*j)+1, 4*((i+1)+Ni*j)+3, 4*(i+Ni*j)+2])
+                    n = check_right_left(vertices[4*(i+Ni*j)+1][2], vertices[4*((i+1)+Ni*j)+0][2])
+                    normals.append(nor[n])
+                    normals.append(nor[n])
+                else:
+                    # Utmost right face
+                    indices.append([4*((Ni-1)+Ni*j)+1, 4*(Ni*Nj)+Ni+(Ni+1)*j, 4*(Ni*Nj)+Ni+(Ni+1)*(j+1)])
+                    normals.append(nor[2])
+                    indices.append([4*((Ni-1)+Ni*j)+1, 4*(Ni*Nj)+Ni+(Ni+1)*(j+1), 4*((Ni-1)+Ni*j)+2])
+                    normals.append(nor[2])
+                    # Utmost left face
+                    indices.append([4*(Ni*Nj)+0+(Ni+1)*j, 4*(0+Ni*j)+0, 4*(0+Ni*j)+3])
+                    normals.append(nor[3])
+                    indices.append([4*(Ni*Nj)+0+(Ni+1)*j, 4*(0+Ni*j)+3, 4*(Ni*Nj)+0+(Ni+1)*(j+1)])
+                    normals.append(nor[3])
+
+                # Front faces
+                if j < (Nj-1):
+                    indices.append([4*(i+Ni*j)+2, 4*(i+Ni*(j+1))+1, 4*(i+Ni*(j+1))+0])
+                    indices.append([4*(i+Ni*j)+2, 4*(i+Ni*(j+1))+0, 4*(i+Ni*j)+3])
+                    # Should be check_front_back but we see the steps better with right_left normals
+                    n = check_right_left(vertices[4*(i+Ni*j)+2][2], vertices[4*(i+Ni*(j+1))+1][2])
+                    normals.append(nor[n])
+                    normals.append(nor[n])
+                else:
+                    # Utmost front face
+                    indices.append([4*(i+Ni*j)+2, 4*(Ni*Nj)+i+(Ni+1)*(j+1)+1, 4*(Ni*Nj)+i+(Ni+1)*(j+1)+0])
+                    normals.append(nor[4])
+                    indices.append([4*(i+Ni*j)+2, 4*(Ni*Nj)+i+(Ni+1)*(j+1)+0, 4*(i+Ni*j)+3])
+                    normals.append(nor[4])
+                    # Utmost back face
+                    indices.append([4*i+0, 4*(Ni*Nj)+i, 4*(Ni*Nj)+i+1])
+                    normals.append(nor[5])
+                    indices.append([4*i+0, 4*(Ni*Nj)+i+1, 4*i+1])
+                    normals.append(nor[5])
+        # Bottom face
+        indices.append([4*(Ni*Nj)+0, 4*(Ni*Nj)+0+(Ni+1)*Nj, 4*(Ni*Nj)+Ni+(Ni+1)*Nj])
+        normals.append(nor[1])
+        indices.append([4*(Ni*Nj)+0, 4*(Ni*Nj)+Ni+(Ni+1)*Nj, 4*(Ni*Nj)+Ni])
+        normals.append(nor[1])
+
+        new_vertices = []
+        new_normals = []
+        new_indices = []
+        cpt = 0
+        indices_list = np.array(indices).ravel().tolist()
+        for i in indices_list:
+            new_vertices.append(vertices[i])
+            new_normals.append(normals[int(cpt/3)])
+            new_indices.append(cpt)
+            cpt += 1
+
+        """from IPython import embed
+        embed()"""
+
+        """xyz = np.array(vertices)
+        ind = np.array(indices)
+        ind = np.hstack((ind, ind[:, 0:1]))
+        from matplotlib import pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        for k in range(ind.shape[0]):
+            ax.plot(xyz[ind[k, :], 0], xyz[ind[k, :], 1], xyz[ind[k, :], 2])
+        plt.show(block=True)"""
+        """from IPython import embed
+        embed()"""
+
+        #return vertices, normals, np.array(indices).ravel().tolist()
+        return new_vertices, new_normals, new_indices
 
 
 class Hardware:
