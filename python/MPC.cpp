@@ -16,9 +16,7 @@ struct MPCVisitor : public bp::def_visitor<MPCVisitor<MPC>> {
         .def("retrieve_cost", &MPC::retrieve_cost, "retrieve the cost.\n");
   }
 
-  static void expose() {
-    bp::class_<MPC>("MPC", bp::no_init).def(MPCVisitor<MPC>());
-  }
+  static void expose() { bp::class_<MPC>("MPC", bp::no_init).def(MPCVisitor<MPC>()); }
 };
 
 void exposeMPC() { MPCVisitor<MPC>::expose(); }
