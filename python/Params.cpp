@@ -8,7 +8,10 @@ struct ParamsVisitor : public bp::def_visitor<ParamsVisitor<Params>> {
   void visit(PyClassParams& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
-        .def("initialize", &Params::initialize, bp::args("file_path"), "Initialize Params from Python.\n")
+        .def("read_yaml", &Params::read_yaml, bp::args("file_path"),
+             "Read yaml file to retrieve parameters from Python.\n")
+        .def("convert_gait_vec", &Params::convert_gait_vec, "Convert gait vector into matrix.\n")
+        .def("initialize", &Params::initialize, "Initialize Params from Python.\n")
 
         // Read Params from Python
         .def_readwrite("config_file", &Params::config_file)
@@ -32,6 +35,7 @@ struct ParamsVisitor : public bp::def_visitor<ParamsVisitor<Params>> {
         .def_readwrite("Kff_main", &Params::Kff_main)
         .def_readwrite("osqp_w_states", &Params::osqp_w_states)
         .def_readwrite("osqp_w_forces", &Params::osqp_w_forces)
+        .def_readwrite("gait_vec", &Params::gait_vec)
         .def_readonly("gait", &Params::get_gait)
         .def_readonly("t_switch", &Params::get_t_switch)
         .def_readonly("v_switch", &Params::get_v_switch)

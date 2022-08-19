@@ -23,6 +23,8 @@ struct WbcWrapperVisitor : public bp::def_visitor<WbcWrapperVisitor<WbcWrapper>>
         .def_readonly("vdes", &WbcWrapper::get_vdes)
         .def_readonly("tau_ff", &WbcWrapper::get_tau_ff)
         .def_readonly("ddq_cmd", &WbcWrapper::get_ddq_cmd)
+        .def_readonly("dq_cmd", &WbcWrapper::get_dq_cmd)
+        .def_readonly("q_cmd", &WbcWrapper::get_q_cmd)
         .def_readonly("f_with_delta", &WbcWrapper::get_f_with_delta)
         .def_readonly("ddq_with_delta", &WbcWrapper::get_ddq_with_delta)
         .def_readonly("nle", &WbcWrapper::get_nle)

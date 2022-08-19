@@ -21,8 +21,11 @@ struct FootTrajectoryGeneratorVisitor
         .def("update", &FootTrajectoryGenerator::update, bp::args("k", "targetFootstep"),
              "Compute target location of footsteps from Python.\n")
 
-        .def("get_elapsed_durations", &FootTrajectoryGenerator::getT0s, "Get the current timings of the flying feet.\n")
-        .def("get_phase_durations", &FootTrajectoryGenerator::getTswing, "Get the flying period of the feet.\n");
+        .def("get_elapsed_durations", &FootTrajectoryGenerator::getT0s,
+             "Get the current timings of the flying feet.\n")
+        .def("get_phase_durations", &FootTrajectoryGenerator::getTswing, "Get the flying period of the feet.\n")
+        .def("get_trajectory_to_target", &FootTrajectoryGenerator::getTrajectoryToTarget, bp::args("j"),
+             "Get the whole swing trajectory from current position to target on the ground.\n");
   }
 
   static void expose() {
