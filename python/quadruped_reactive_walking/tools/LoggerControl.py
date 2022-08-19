@@ -201,10 +201,10 @@ class LoggerControl:
         self.wbc_feet_acc_target = np.zeros(
             [logSize, 3, 4]
         )  # current feet accelerations targets for WBC
-        self.wbc_tasks_acc = np.zeros([logSize, 30])  # acceleration of tasks in InvKin
-        self.wbc_tasks_vel = np.zeros([logSize, 30])  # velocities of tasks in InvKin
+        self.wbc_tasks_acc = np.zeros([logSize, 18])  # acceleration of tasks in InvKin
+        self.wbc_tasks_vel = np.zeros([logSize, 18])  # velocities of tasks in InvKin
         self.wbc_tasks_err = np.zeros(
-            [logSize, 30]
+            [logSize, 18]
         )  # position error of tasks in InvKin
 
         # Timestamps
@@ -348,7 +348,7 @@ class LoggerControl:
 
         # Robot world to Mocap initial translationa and rotation
         mTo = np.array(
-            [loggerSensors.mocapPosition[0, 0], loggerSensors.mocapPosition[0, 1], 0.02]
+            [loggerSensors.mocapPosition[0, 0], loggerSensors.mocapPosition[0, 1], 0.0155]
         )
         mRo = pin.rpy.rpyToMatrix(0.0, 0.0, self.mocap_RPY[0, 2])
 
@@ -623,6 +623,10 @@ class LoggerControl:
         ####
         # Measured & Reference position and orientation (ideal world frame)
         ####
+
+        y_low = [-0.5, -0.6, 0.165, -0.17, -0.125, -0.13]
+        y_high = [9, 0.05, 0.25, 0.15, 0.05, 0.03]
+
         lgd = ["Pos X", "Pos Y", "Pos Z", "Roll", "Pitch", "Yaw"]
         plt.figure()
         for i in range(6):
@@ -648,11 +652,16 @@ class LoggerControl:
                 prop={"size": 8},
             )
             plt.ylabel(lgd[i])
+            plt.ylim([y_low[i], y_high[i]])
         self.custom_suptitle("Position and orientation")
 
         ####
         # Measured & Reference linear and angular velocities (horizontal frame)
         ####
+
+        y_low = [-0.05, -0.23, -0.4, -4, -2, -1.2]
+        y_high = [1.3, 0.23, 0.4, 4, 2, 1.2]
+
         lgd = [
             "Linear vel X",
             "Linear vel Y",
@@ -685,7 +694,10 @@ class LoggerControl:
                 )
             else:
                 plt.plot(t_range, self.mocap_b_w[:, i - 3], "k", linewidth=3)
-            plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
+            if i in [0, 1, 5]:
+                plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
+            else:
+                plt.plot(t_range, self.planner_xref[:, 6+i, 1], "r", linewidth=3)
             if i < 3:
                 plt.legend(
                     [
@@ -700,8 +712,7 @@ class LoggerControl:
             else:
                 plt.legend(["State", "Ground truth", "Ref state"], prop={"size": 8})
             plt.ylabel(lgd[i])
-            if i == 0:
-                plt.ylim([-0.05, 1.25])
+            plt.ylim([y_low[i], y_high[i]])
         self.custom_suptitle("Linear and angular velocities")
 
         print(
@@ -979,6 +990,57 @@ class LoggerControl:
                 plt.ylabel("Bus energy [J]")
                 plt.xlabel("Time [s]")
 
+        ####
+        # Comparison of raw and filtered quantities (15 Hz and windowed)
+        ####
+        """
+        lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw"]
+        plt.figure()
+        for i in range(6):
+            if i == 0:
+                ax0 = plt.subplot(3, 2, index6[i])
+            else:
+                plt.subplot(3, 2, index6[i], sharex=ax0)
+
+            plt.plot(t_range, self.loop_o_q[:, i], linewidth=3)
+            plt.plot(t_range, self.loop_q_filt_mpc[:, i], linewidth=3)
+
+            plt.legend(["Estimated", "Estimated 15Hz filt"], prop={'size': 8})
+            plt.ylabel(lgd[i])
+        self.custom_suptitle("Comparison between position quantities before and after 15Hz low-pass filtering")
+
+        lgd = ["Linear vel X", "Linear vel Y", "Linear vel Z",
+               "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+        plt.figure()
+        for i in range(6):
+            if i == 0:
+                ax0 = plt.subplot(3, 2, index6[i])
+            else:
+                plt.subplot(3, 2, index6[i], sharex=ax0)
+
+            plt.plot(t_range, self.loop_h_v[:, i], linewidth=3)
+            plt.plot(t_range, self.loop_h_v_windowed[:, i], linewidth=3)
+            plt.plot(t_range, self.loop_h_v_filt_mpc[:, i], linewidth=3)
+            plt.plot(t_range, self.loop_vref_filt_mpc[:, i], linewidth=3)
+
+            plt.legend(["Estimated", "Estimated 3Hz windowed", "Estimated 15Hz filt",
+                        "Estimated 15Hz filt 3Hz windowed", "Reference 15Hz filt"], prop={'size': 8})
+            plt.ylabel(lgd[i])
+        self.custom_suptitle("Comparison between velocity quantities before and after 15Hz low-pass filtering")
+        """
+
+        ####
+        # Estimation of base velocity by forward kinematics
+        ####
+        plt.figure()
+        plt.plot(t_range, self.esti_FK_lin_vel[:, 0])
+        plt.xlabel("Time [s]")
+        plt.ylabel("Velocity [m/s]")
+        self.custom_suptitle("Forward velocity estimated by FK")
+
+        ####
+        # Computation times
+        ####
         self.plotTimes()
         self.plotMpcTime()
         if self.solo3d:
@@ -986,6 +1048,9 @@ class LoggerControl:
         self.plotStepTime()
         self.plotMPCCost()
 
+        ###############################
+        # Display all graphs and wait #
+        ###############################
         plt.show(block=True)
 
     def custom_suptitle(self, name):
