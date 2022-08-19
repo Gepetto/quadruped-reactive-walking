@@ -4,7 +4,7 @@ import numpy as np
 import pinocchio as pin
 import pybullet as pyb
 
-from . import MPC_Wrapper, quadruped_reactive_walking as qrw
+from . import ContactDetector, MPC_Wrapper, quadruped_reactive_walking as qrw
 from .solo3D.utils import quaternionToRPY
 from .tools.utils_mpc import init_robot
 
@@ -44,6 +44,7 @@ class DummyDevice:
         def __init__(self):
             self.positions = np.zeros(12)
             self.velocities = np.zeros(12)
+            self.measured_torques = np.zeros(12)
 
 
 class Controller:
@@ -94,7 +95,7 @@ class Controller:
             self.surfacePlanner = Surface_planner_wrapper(params)
 
             self.statePlanner = qrw.StatePlanner3D()
-            self.statePlanner.initialize(params)
+            self.statePlanner.initialize(params, self.gait)
 
             self.footstepPlanner = qrw.FootstepPlannerQP()
             self.footstepPlanner.initialize(
@@ -118,7 +119,7 @@ class Controller:
             self.update_mip = False
         else:
             self.statePlanner = qrw.StatePlanner()
-            self.statePlanner.initialize(params)
+            self.statePlanner.initialize(params, self.gait)
 
             self.footstepPlanner = qrw.FootstepPlanner()
             self.footstepPlanner.initialize(params, self.gait)
@@ -152,6 +153,9 @@ class Controller:
         self.n_nan = 0
         self.result = Result(params)
 
+        self.jump = False
+        self.cd = ContactDetector.ContactDetector(params)
+
         device = DummyDevice()
         device.joints.positions = q_init
         self.compute(device)
@@ -173,8 +177,14 @@ class Controller:
         t_filter = time.time()
         self.t_filter = t_filter - t_start
 
-        self.gait.update(self.k, self.k_mpc, self.joystick.get_joystick_code())
+        self.gait.update(self.k, self.joystick.get_joystick_code())
         gait_matrix = self.gait.matrix
+
+        # Run contact detection
+        """self.cd.run(self.k, self.gait, self.q[:, 0:1],
+                    self.estimator.get_v_estimate().reshape((-1, 1)),
+                    device.joints.measured_torques.reshape((12, 1)), device,
+                    self.result.q_des[:])"""
 
         if self.solo3D:
             self.retrieve_surfaces()
@@ -185,11 +195,13 @@ class Controller:
             self.q,
             self.h_v_windowed,
             self.v_ref,
+            self.footTrajectoryGenerator.get_foot_position()
         )
         footsteps = self.footstepPlanner.get_footsteps()
 
         self.statePlanner.compute_reference_states(
-            self.q_filtered[:6], self.h_v_filtered, self.vref_filtered
+            self.k, self.q_filtered[:6], self.h_v_filtered, self.vref_filtered,
+            footsteps[0, :]
         )
         reference_state = self.statePlanner.get_reference_states()
 
@@ -228,7 +240,7 @@ class Controller:
             self.wbcWrapper.compute(
                 self.q_wbc,
                 self.dq_wbc,
-                self.mpc_result[12:24, 0:1].copy(),
+                np.repeat(gait_matrix[0, :], 3).reshape((-1, 1)) * self.mpc_result[12:24, 0:1].copy(),
                 np.array([gait_matrix[0, :]]),
                 self.feet_p_cmd,
                 self.feet_v_cmd,
@@ -548,6 +560,10 @@ class Controller:
                     )
             except ValueError:
                 print("MPC Problem")
+
+        # Use a temporary result if contact status changes between two calls of the MPC
+        self.mpc_wrapper.get_temporary_result(self.gait.matrix[0, :])
+
         self.mpc_result, self.mpc_cost = self.mpc_wrapper.get_latest_result()
 
         if self.k > 100 and self.type_MPC == 3:

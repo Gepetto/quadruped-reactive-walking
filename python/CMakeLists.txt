@@ -35,6 +35,7 @@ set(${PY_NAME}_PYTHON
   main_solo12_control.py
   main_solo12_replay.py
   MPC_Wrapper.py
+  ContactDetector.py
   )
 
 set(${PY_NAME}_CROCODDYL_PYTHON
