@@ -27,9 +27,8 @@ class DataInCtype(Structure):
     params = qrw.Params()  # Object that holds all controller parameters
     mpc_type = MPC_type(params.type_MPC)  # MPC type
     n_steps = np.int(params.gait.shape[0])  # Colomn size for xref (12 x n_steps)
-    N_gait = int(
-        params.gait.shape[0]
-    )  # Row size for fsteps  (N_gait x 12), from utils_mpc.py
+    # Row size for fsteps  (N_gait x 12), from utils_mpc.py
+    N_gait = int(params.gait.shape[0])
 
     if mpc_type == MPC_type.CROCODDYL_PLANNER:
         _fields_ = [
@@ -213,7 +212,7 @@ class MPC_Wrapper:
         """
         same = False
         for i in range(4):
-            same = (gait[i] != self.gait_now[i])
+            same = gait[i] != self.gait_now[i]
             if same:
                 break
         # If gait status has changed
@@ -221,7 +220,9 @@ class MPC_Wrapper:
             for i in range(4):
                 if not gait[i]:
                     # Foot not in contact
-                    self.last_available_result[(12+3*i):(12+3*(i+1)), 0] = 0.0
+                    self.last_available_result[
+                        (12 + 3 * i) : (12 + 3 * (i + 1)), 0
+                    ] = 0.0
                 elif gait[i] and self.gait_now[i]:
                     # Foot in contact and was already in contact
                     continue
@@ -229,11 +230,26 @@ class MPC_Wrapper:
                     # Foot in contact but was not in contact (new detection)
                     self.flag_change[i] = True
                     # Fetch first non zero force in the prediction horizon for this foot
-                    idx = next((index for index, value in enumerate(self.last_available_result[14+3*i, :]) if value != 0), None)
+                    idx = next(
+                        (
+                            index
+                            for index, value in enumerate(
+                                self.last_available_result[14 + 3 * i, :]
+                            )
+                            if value != 0
+                        ),
+                        None,
+                    )
                     if idx is not None:
-                        self.last_available_result[(12+3*i):(12+3*(i+1)), 0] = self.last_available_result[(12+3*i):(12+3*(i+1)), idx]
+                        self.last_available_result[
+                            (12 + 3 * i) : (12 + 3 * (i + 1)), 0
+                        ] = self.last_available_result[
+                            (12 + 3 * i) : (12 + 3 * (i + 1)), idx
+                        ]
                     else:
-                        self.last_available_result[(12+3*i):(12+3*(i+1)), 0] = 0.0
+                        self.last_available_result[
+                            (12 + 3 * i) : (12 + 3 * (i + 1)), 0
+                        ] = 0.0
 
             self.gait_now = gait.copy()
 
@@ -272,11 +288,26 @@ class MPC_Wrapper:
                 if self.flag_change[i]:
                     # Foot in contact but was not in contact when we launched MPC solving (new detection)
                     # Fetch first non zero force in the prediction horizon for this foot
-                    idx = next((index for index, value in enumerate(self.last_available_result[14+3*i, :]) if value != 0), None)
+                    idx = next(
+                        (
+                            index
+                            for index, value in enumerate(
+                                self.last_available_result[14 + 3 * i, :]
+                            )
+                            if value != 0
+                        ),
+                        None,
+                    )
                     if idx is not None:
-                        self.last_available_result[(12+3*i):(12+3*(i+1)), 0] = self.last_available_result[(12+3*i):(12+3*(i+1)), idx]
+                        self.last_available_result[
+                            (12 + 3 * i) : (12 + 3 * (i + 1)), 0
+                        ] = self.last_available_result[
+                            (12 + 3 * i) : (12 + 3 * (i + 1)), idx
+                        ]
                     else:
-                        self.last_available_result[(12+3*i):(12+3*(i+1)), 0] = 0.0
+                        self.last_available_result[
+                            (12 + 3 * i) : (12 + 3 * (i + 1)), 0
+                        ] = 0.0
                     self.flag_change[i] = False
 
             refresh = False

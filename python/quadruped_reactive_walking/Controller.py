@@ -195,13 +195,16 @@ class Controller:
             self.q,
             self.h_v_windowed,
             self.v_ref,
-            self.footTrajectoryGenerator.get_foot_position()
+            self.footTrajectoryGenerator.get_foot_position(),
         )
         footsteps = self.footstepPlanner.get_footsteps()
 
         self.statePlanner.compute_reference_states(
-            self.k, self.q_filtered[:6], self.h_v_filtered, self.vref_filtered,
-            footsteps[0, :]
+            self.k,
+            self.q_filtered[:6],
+            self.h_v_filtered,
+            self.vref_filtered,
+            footsteps[0, :],
         )
         reference_state = self.statePlanner.get_reference_states()
 
@@ -240,7 +243,8 @@ class Controller:
             self.wbcWrapper.compute(
                 self.q_wbc,
                 self.dq_wbc,
-                np.repeat(gait_matrix[0, :], 3).reshape((-1, 1)) * self.mpc_result[12:24, 0:1].copy(),
+                np.repeat(gait_matrix[0, :], 3).reshape((-1, 1))
+                * self.mpc_result[12:24, 0:1].copy(),
                 np.array([gait_matrix[0, :]]),
                 self.feet_p_cmd,
                 self.feet_v_cmd,
@@ -412,11 +416,11 @@ class Controller:
         """
         q_perfect = np.zeros(6)
         b_baseVel_perfect = np.zeros(3)
-        if self.solo3D and qc == None:
+        if self.solo3D and qc is None:
             q_perfect[:3] = device.base_position
             q_perfect[3:] = device.imu.attitude_euler
             b_baseVel_perfect = device.b_base_velocity
-        elif self.solo3D and qc != None:
+        elif self.solo3D and qc is not None:
             if self.k <= 1:
                 self.initial_pos = [0.0, 0.0, -0.046]
             q_perfect[:3] = qc.getPosition() - self.initial_pos
