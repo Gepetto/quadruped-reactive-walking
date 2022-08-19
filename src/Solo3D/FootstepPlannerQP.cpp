@@ -164,7 +164,7 @@ void FootstepPlannerQP::computeFootsteps(int k, Vector6 const& b_v, Vector6 cons
     footsteps_[i] = Matrix34::Zero();
     b_footsteps_[i] = Matrix34::Zero();
   }
-  MatrixN gait = gait_->getCurrentGait();
+  MatrixN4 gait = gait_->getCurrentGait();
 
   // Set current position of feet for feet in stance phase
   std::fill(footsteps_.begin(), footsteps_.end(), Matrix34::Zero());

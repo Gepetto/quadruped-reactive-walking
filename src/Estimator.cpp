@@ -237,7 +237,7 @@ void Estimator::computeFeetPositionBarycenter() {
 }
 
 double Estimator::computeAlphaVelocity() {
-  double a = std::ceil(feetStancePhaseDuration_.maxCoeff() * (dt_wbc / dt_mpc)) - 1;
+  double a = std::ceil(feetStancePhaseDuration_.maxCoeff() * (dt_ / dt_mpc_)) - 1;
   double b = static_cast<double>(phaseRemainingDuration_);
   double c = ((a + b) - 2) * 0.5;
   const double n = 2;  // Nb of steps of margin around contact switch

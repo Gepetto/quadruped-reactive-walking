@@ -182,8 +182,8 @@ class ContactDetector():
         # Retrieve phase duration and remaining time
         for i in range(4):
             status = gait.getCurrentGaitCoeff(0, i)
-            t_ph = gait.getPhaseDuration(0, i, status)
-            t_rem = gait.getRemainingTime()
+            t_ph = gait.getPhaseDuration(0, i)
+            t_rem = gait.getRemainingTime(0, i)
             if t_rem <= (t_ph * 0.5 / self.dt_mpc):
                 ctc = - np.ceil(t_rem)
             else:

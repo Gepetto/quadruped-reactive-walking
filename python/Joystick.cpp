@@ -11,8 +11,7 @@ struct JoystickVisitor : public bp::def_visitor<JoystickVisitor<Joystick>> {
             .def("initialize", &Joystick::initialize, bp::args("params"), "Initialize Joystick from Python.\n")
 
             .def("update_v_ref", &Joystick::update_v_ref, bp::args("k", "gait_is_static"), "Update joystick values.")
-            .def("handle_v_switch", &Joystick::handle_v_switch_py, bp::args("k", "k_switch", "v_switch"),
-                 "Run security check.\n") +
+            .def("handle_v_switch", &Joystick::handle_v_switch, bp::args("k"), "Handle velocity profile.\n")
             .def("update_for_analysis", &Joystick::update_for_analysis,
                  bp::args("des_vel_analysis", "N_analysis", "N_steady"), "Set test velocity profile.\n")
 

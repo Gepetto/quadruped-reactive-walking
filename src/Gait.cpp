@@ -20,9 +20,9 @@ void Gait::initialize(Params& params) {
   k_mpc_ = (int)std::round(params.dt_mpc / params.dt_wbc);
   nRows_ = params.gait.rows();
 
-  pastGait_ = MatrixN::Zero(nRows_, 4);
-  currentGait_ = MatrixN::Zero(nRows_, 4);
-  desiredGait_ = MatrixN::Zero(nRows_, 4);
+  pastGait_ = MatrixN4::Zero(nRows_, 4);
+  currentGait_ = MatrixN4::Zero(nRows_, 4);
+  desiredGait_ = MatrixN4::Zero(nRows_, 4);
 
   currentGait_ = params.gait;
   desiredGait_ = currentGait_;
@@ -35,7 +35,7 @@ void Gait::createWalk() {
   // Number of timesteps in 1/4th period of gait
   long int N = nRows_ / 4;
 
-  desiredGait_ = MatrixN::Zero(nRows_, 4);
+  desiredGait_ = MatrixN4::Zero(nRows_, 4);
 
   RowVector4 sequence;
   sequence << 1., 0., 1., 0.;
@@ -50,7 +50,7 @@ void Gait::createWalk() {
 
 void Gait::createTrot() {
   long int N = nRows_ / 2;
-  desiredGait_ = MatrixN::Zero(nRows_, 4);
+  desiredGait_ = MatrixN4::Zero(nRows_, 4);
 
   RowVector4 sequence;
   sequence << 1., 0., 0., 1.;
@@ -61,7 +61,7 @@ void Gait::createTrot() {
 
 void Gait::createWalkingTrot() {
   long int N = nRows_ / 2;
-  desiredGait_ = MatrixN::Zero(nRows_, 4);
+  desiredGait_ = MatrixN4::Zero(nRows_, 4);
 
   long int M = 8;
   RowVector4 sequence;
@@ -77,7 +77,7 @@ void Gait::createWalkingTrot() {
 
 void Gait::createPacing() {
   long int N = nRows_ / 2;
-  desiredGait_ = MatrixN::Zero(nRows_, 4);
+  desiredGait_ = MatrixN4::Zero(nRows_, 4);
 
   RowVector4 sequence;
   sequence << 1., 0., 1., 0.;
@@ -88,7 +88,7 @@ void Gait::createPacing() {
 
 void Gait::createBounding() {
   long int N = nRows_ / 2;
-  desiredGait_ = MatrixN::Zero(nRows_, 4);
+  desiredGait_ = MatrixN4::Zero(nRows_, 4);
 
   RowVector4 sequence;
   sequence << 1., 1., 0., 0.;
@@ -99,7 +99,7 @@ void Gait::createBounding() {
 
 void Gait::createTransverseGallop() {
   long int N = nRows_ / 4;
-  desiredGait_ = MatrixN::Zero(nRows_, 4);
+  desiredGait_ = MatrixN4::Zero(nRows_, 4);
 
   RowVector4 sequence;
   sequence << 0., 0., 1., 0.;
@@ -114,7 +114,7 @@ void Gait::createTransverseGallop() {
 
 void Gait::createCustomGallop() {
   long int N = nRows_ / 4;
-  desiredGait_ = MatrixN::Zero(nRows_, 4);
+  desiredGait_ = MatrixN4::Zero(nRows_, 4);
 
   RowVector4 sequence;
   sequence << 1., 0., 1., 0.;
@@ -171,7 +171,7 @@ double Gait::getElapsedTime(int i, int j) {
 
 void Gait::update(int const k, int const joystickCode) {
   changeGait(k, joystickCode);
-  if (k % k_mpc == 0 && k > 0) {
+  if (k % k_mpc_ == 0 && k > 0) {
     rollGait();
     for (int i = 0; i < 4; i++) {
       isLate_[i] = false;  // Reset isLate status

@@ -14,8 +14,8 @@ struct GaitVisitor : public bp::def_visitor<GaitVisitor<Gait>> {
         .def("get_desired_gait", &Gait::getDesiredGait, "Get desired gait matrix.\n")
         .def("is_new_step", &Gait::isNewPhase, "True if new phase of the gait.\n")
         .def("is_static", &Gait::getIsStatic, "True if static gait.\n")
-        .def("get_phase_duration", &Gait::getPhaseDuration, bp::args("i", "j", "value"), "Get phase duration.\n")
-        .def("get_remaining_time", &Gait::getRemainingTime, "Get remaining time of the last computed phase.\n")
+        .def("get_phase_duration", &Gait::getPhaseDuration, bp::args("i", "j"), "Get phase duration.\n")
+        .def("get_remaining_time", &Gait::getRemainingTime, bp::args("i", "j"), "Get remaining time of the last computed phase.\n")
 
         .def("initialize", &Gait::initialize, bp::args("params"), "Initialize Gait from Python.\n")
 

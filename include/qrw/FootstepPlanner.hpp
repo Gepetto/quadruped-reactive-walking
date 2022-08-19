@@ -160,8 +160,8 @@ class FootstepPlanner {
   Matrix34 targetFootstep_;                  // In horizontal frame
   Matrix34 o_targetFootstep_;                // targetFootstep_ in world frame
   std::vector<Matrix34> footsteps_;          // Desired footsteps locations for each step of the horizon
-  Eigen::Matrix<int, 1, 4> previousGait_;    // Last gait status used to update footsteps
-  Eigen::Matrix<int, 1, 4> previousHeight_;  // Height of the last contact phase for each foot
+  RowVector4 previousGait_;    // Last gait status used to update footsteps
+  RowVector4 previousHeight_;  // Height of the last contact phase for each foot
 
   MatrixN Rz;      // Rotation matrix along z axis
   VectorN dt_cum;  // Cumulated time vector

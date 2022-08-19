@@ -217,7 +217,7 @@ int MPC::create_ML() {
     // Get skew-symetric matrix for each foothold
     Matrix34 l_arms = footholds - (xref.block(0, k, 3, 1)).replicate<1, 4>();
     for (int i = 0; i < 4; i++) {
-      if (footholds_bis.col(i).isZero()) {  // Foot in swing
+      if (footholds.col(i).isZero()) {  // Foot in swing
         B.block(9, 3 * i, 3, 3).setZero();
       } else {
         B.block(9, 3 * i, 3, 3) = dt * (I_inv * getSkew(lever_arms.col(i)));

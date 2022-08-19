@@ -8,7 +8,7 @@ FootTrajectoryGenerator::FootTrajectoryGenerator()
       k_mpc(0),
       maxHeight_(0.0),
       lockTime_(0.0),
-      feet(Eigen::Matrix<int, 1, 4>::Zero()),
+      feet(Eigen::Matrix<double, 1, 4>::Zero()),
       t0s(Vector4::Zero()),
       t_swing(Vector4::Zero()),
       stepHeight_(Vector4::Zero()),
@@ -136,7 +136,6 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const &tar
 
   // Coefficients for z (deterministic)
   double Tz = t_swing[j];
-  Vector4 Az;
   if (t0s[j] == 0) {
     stepHeight_[j] = maxHeight_ * (1.0 - 0.5 * targetFootstep_(2, j) / maxHeight_);
   }

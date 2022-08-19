@@ -71,7 +71,7 @@ void StatePlanner::computeReferenceStates(int k, VectorN const& q, Vector6 const
   // Low pass of the mean height of feet in contact
   int cpt = 0;
   double sum = 0;
-  Matrix14 cgait = gait_->getCurrentGait().row(0);
+  RowVector4 cgait = gait_->getCurrentGait().row(0);
   for (int i = 0; i < 4; i++) {
     if (cgait(0, i) == 1) {
       cpt++;
@@ -123,7 +123,7 @@ void StatePlanner::computeReferenceStates(int k, VectorN const& q, Vector6 const
     if (false && gait.row(i).isZero())  // Enable for jumping
     {
       // Assumption of same duration for all feet
-      double t_swing = gait_->getPhaseDuration(i, 0, 0.0);  // 0.0 for swing phase
+      double t_swing = gait_->getPhaseDuration(i, 0);  // 0.0 for swing phase
 
       // Compute the reference trajectory of the CoM for time steps before the jump phase
       preJumpTrajectory(i - 1, t_swing, k);
@@ -132,7 +132,7 @@ void StatePlanner::computeReferenceStates(int k, VectorN const& q, Vector6 const
       double g = 9.81;
       double vz0 = -g * t_swing * 0.5;
 
-      double t_fly = t_swing - (gait_->getRemainingTime() - 1) * dt_;
+      double t_fly = t_swing - (gait_->getRemainingTime(i, 0) - 1) * dt_;
       while (i < n_steps_ && gait.row(i).isZero()) {
         if (i != 0) {
           referenceStates_(2, 1 + i) = h_ref_ + h_feet_mean_ - g * 0.5 * t_fly * (t_fly - t_swing);

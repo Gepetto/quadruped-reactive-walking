@@ -127,10 +127,10 @@ class Gait {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void setLate(int i) { isLate_[i] = true; }
 
-  MatrixN getPastGait() { return pastGait_; }
-  MatrixN getCurrentGait() { return currentGait_; }
+  MatrixN4 getPastGait() { return pastGait_; }
+  MatrixN4 getCurrentGait() { return currentGait_; }
   double getCurrentGaitCoeff(int i, int j) { return currentGait_(i, j); }
-  MatrixN getDesiredGait() { return desiredGait_; }
+  MatrixN4 getDesiredGait() { return desiredGait_; }
   bool getIsStatic() { return isStatic_; }
   bool isNewPhase() { return newPhase_; }
   bool isLate(int i) { return isLate_[i]; }
@@ -193,9 +193,9 @@ class Gait {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void createCustomGallop();
 
-  MatrixN pastGait_;     // Past gait
-  MatrixN currentGait_;  // Current and future gait
-  MatrixN desiredGait_;  // Future desired gait
+  MatrixN4 pastGait_;     // Past gait
+  MatrixN4 currentGait_;  // Current and future gait
+  MatrixN4 desiredGait_;  // Future desired gait
 
   double dt_;  // Time step of the contact sequence (time step of the MPC)
   int k_mpc_;  // Number of wbc time steps for each MPC time step

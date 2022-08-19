@@ -100,11 +100,6 @@ void InvKin::refreshAndCompute(RowVector4 const& contacts, Matrix43 const& pgoal
     afeet.row(i) -= af_.row(i) + (wf_.row(i)).cross(vf_.row(i));
   }
 
-  // Jacobian for the base / feet position task
-  for (int i = 0; i < 4; i++) {
-    J_.block(6 + 3 * i, 0, 3, 18) = Jf_.block(3 * i, 0, 3, 18) - Jb_.block(0, 0, 3, 18);
-  }
-
   // Acceleration references for the base linear velocity task
   posb_err_ = Vector3::Zero();  // No tracking in x, y, z
   abasis = Kp_base_position.cwiseProduct(posb_err_) + Kd_base_position.cwiseProduct(vb_ref_ - vb_);

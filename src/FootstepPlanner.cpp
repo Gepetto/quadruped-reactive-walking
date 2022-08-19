@@ -13,8 +13,8 @@ FootstepPlanner::FootstepPlanner()
       L(0.25),
       nextFootstep_(Matrix34::Zero()),
       footsteps_(),
-      previousGait_(Eigen::Matrix<int, 1, 4>::Zero()),
-      previousHeight_(Eigen::Matrix<int, 1, 4>::Zero()),
+      previousGait_(RowVector4::Zero()),
+      previousHeight_(RowVector4::Zero()),
       Rz(MatrixN::Zero(3, 3)),
       dt_cum(),
       yaws(),
@@ -94,7 +94,7 @@ MatrixN FootstepPlanner::updateFootsteps(bool refresh, int k, VectorN const& q, 
     pinocchio::updateFramePlacements(model_, data_);
 
     // Retrieve gait status
-    Matrix14 currentGait = gait_->getCurrentGait().row(0);
+    RowVector4 currentGait = gait_->getCurrentGait().row(0);
 
     // Rotation from world to horizontal
     double c = std::cos(q[5]);
