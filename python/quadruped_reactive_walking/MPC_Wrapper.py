@@ -84,8 +84,8 @@ class MPC_Wrapper:
         self.n_steps = np.int(params.gait.shape[0])
         self.N_gait = params.gait.shape[0]
         self.T_gait = params.gait.shape[0] * params.dt_mpc
-        self.gait_past = np.zeros(4)
-        self.gait_next = np.zeros(4)
+        self.gait_now = np.zeros(4)
+        self.flag_change = np.zeros(4, dtype=bool)
         self.mass = params.mass
 
         self.mpc_type = MPC_type(params.type_MPC)
@@ -104,11 +104,11 @@ class MPC_Wrapper:
             self.running = Value("b", True)
         else:
             if self.mpc_type == MPC_type.CROCODDYL_LINEAR:
-                self.mpc = MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=True)
+                self.mpc = MPC_crocoddyl(params, mu=0.5, inner=False, linearModel=True)
             elif self.mpc_type == MPC_type.CROCODDYL_NON_LINEAR:
-                self.mpc = MPC_crocoddyl(params, mu=0.9, inner=False, linearModel=False)
+                self.mpc = MPC_crocoddyl(params, mu=0.5, inner=False, linearModel=False)
             elif self.mpc_type == MPC_type.CROCODDYL_PLANNER:
-                self.mpc = MPC_crocoddyl_planner(params, mu=0.9, inner=False)
+                self.mpc = MPC_crocoddyl_planner(params, mu=0.5, inner=False)
             else:
                 self.mpc = qrw.MPC(params)
                 if self.mpc_type != MPC_type.OSQP:
@@ -189,21 +189,55 @@ class MPC_Wrapper:
                 dt_flying,
             )
 
-        if not np.allclose(gait[0, :], self.gait_past):  # If gait status has changed
-            if np.allclose(gait[0, :], self.gait_next):
-                self.last_available_result[12:24, 0] = self.last_available_result[
-                    12:24, 1
-                ].copy()
-            else:
-                F = 9.81 * self.mass / np.sum(gait[0, :])
-                self.last_available_result[12:24:3, 0] = 0.0
-                self.last_available_result[13:24:3, 0] = 0.0
+        if k == 0 and not self.multiprocessing:
+            # For first iterations, weight is distributed evenly on all feet in contact
+            self.last_available_result[12:24:3, 0] = 0.0
+            self.last_available_result[13:24:3, 0] = 0.0
+            nbc = np.sum(gait[0, :])
+            if nbc != 0:
+                F = 9.81 * self.mass / nbc
                 self.last_available_result[14:24:3, 0] = F
+            else:
+                self.last_available_result[14:24:3, 0] = 0.0
 
-            self.last_available_result[12:24, 1:] = 0.0
-            self.gait_past = gait[0, :].copy()
+        # Keeping track of the gait
+        if k == 0:
+            self.gait_now = gait[0, :].copy()
 
-        self.gait_next = gait[1, :].copy()
+    def get_temporary_result(self, gait):
+        """
+        Use a temporary result if contact status changes between two calls of the MPC
+
+        Args:
+            gait (array): Current contact state of the four feet
+        """
+        same = False
+        for i in range(4):
+            same = (gait[i] != self.gait_now[i])
+            if same:
+                break
+        # If gait status has changed
+        if not same:
+            for i in range(4):
+                if not gait[i]:
+                    # Foot not in contact
+                    self.last_available_result[(12+3*i):(12+3*(i+1)), 0] = 0.0
+                elif gait[i] and self.gait_now[i]:
+                    # Foot in contact and was already in contact
+                    continue
+                elif gait[i] and not self.gait_now[i]:
+                    # Foot in contact but was not in contact (new detection)
+                    self.flag_change[i] = True
+                    # Fetch first non zero force in the prediction horizon for this foot
+                    idx = next((index for index, value in enumerate(self.last_available_result[14+3*i, :]) if value != 0), None)
+                    if idx is not None:
+                        self.last_available_result[(12+3*i):(12+3*(i+1)), 0] = self.last_available_result[(12+3*i):(12+3*(i+1)), idx]
+                    else:
+                        self.last_available_result[(12+3*i):(12+3*(i+1)), 0] = 0.0
+
+            self.gait_now = gait.copy()
+
+        return 0
 
     def get_latest_result(self):
         """
@@ -211,21 +245,43 @@ class MPC_Wrapper:
         If a new result is available, return the new result. Otherwise return the old result again.
         """
 
+        refresh = False
         if self.not_first_iter:
             if self.multiprocessing:
                 if self.newResult.value:
                     self.newResult.value = False
                     self.t_mpc_solving_duration = time() - self.t_mpc_solving_start
+                    # Retrieve desired contact forces with through the memory shared with the asynchronous
                     self.last_available_result = self.convert_dataOut()
                     self.last_cost = self.cost.value
-                    return self.last_available_result, self.last_cost
+                    refresh = True
                 else:
-                    return self.last_available_result, self.last_cost
+                    # No new result
+                    pass
             else:
-                return self.f_applied, self.last_cost
+                # Directly retrieve desired contact force of the synchronous MPC object
+                self.last_available_result = self.f_applied
+                refresh = True
         else:
+            # Default forces for the first iteration
             self.not_first_iter = True
-            return self.last_available_result, self.last_cost
+
+        if refresh:
+            # Handle changes of gait between moment when the MPC solving is launched and result is retrieved
+            for i in range(4):
+                if self.flag_change[i]:
+                    # Foot in contact but was not in contact when we launched MPC solving (new detection)
+                    # Fetch first non zero force in the prediction horizon for this foot
+                    idx = next((index for index, value in enumerate(self.last_available_result[14+3*i, :]) if value != 0), None)
+                    if idx is not None:
+                        self.last_available_result[(12+3*i):(12+3*(i+1)), 0] = self.last_available_result[(12+3*i):(12+3*(i+1)), idx]
+                    else:
+                        self.last_available_result[(12+3*i):(12+3*(i+1)), 0] = 0.0
+                    self.flag_change[i] = False
+
+            refresh = False
+
+        return self.last_available_result, self.last_cost
 
     def run_MPC_synchronous(
         self,
@@ -366,15 +422,15 @@ class MPC_Wrapper:
                         loop_mpc = qrw.MPC(self.params)
                     elif self.mpc_type == MPC_type.CROCODDYL_LINEAR:
                         loop_mpc = MPC_crocoddyl(
-                            self.params, mu=0.9, inner=False, linearModel=True
+                            self.params, mu=0.5, inner=False, linearModel=True
                         )
                     elif self.mpc_type == MPC_type.CROCODDYL_NON_LINEAR:
                         loop_mpc = MPC_crocoddyl(
-                            self.params, mu=0.9, inner=False, linearModel=False
+                            self.params, mu=0.5, inner=False, linearModel=False
                         )
                     elif self.mpc_type == MPC_type.CROCODDYL_PLANNER:
                         loop_mpc = MPC_crocoddyl_planner(
-                            self.params, mu=0.9, inner=False
+                            self.params, mu=0.5, inner=False
                         )
                     else:
                         self.mpc_type = MPC_type.OSQP
