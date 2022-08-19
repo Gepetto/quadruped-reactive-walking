@@ -221,3 +221,14 @@ void Gait::rollGait() {
   desiredGait_.topRows(nRows_ - 1) = desiredGait_.bottomRows(nRows_ - 1);
   desiredGait_.row(nRows_ - 1) = currentGait_.row(nRows_ - 1);
 }
+
+void Gait::setCurrentGait(MatrixN4 const& gaitMatrix) {
+  if (gaitMatrix.rows() != currentGait_.rows()) {
+    throw std::runtime_error("Input matrix should have the same number of rows than the current gait matrix.");
+  }
+  if (gaitMatrix.cols() != currentGait_.cols()) {
+    throw std::runtime_error("Input matrix should have the same number of columns than the current gait matrix.");
+  }
+
+  currentGait_ = gaitMatrix;
+}

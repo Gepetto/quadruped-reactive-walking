@@ -181,7 +181,7 @@ class Controller:
         gait_matrix = self.gait.matrix
 
         # Run contact detection
-        """self.cd.run(self.k, self.gait, self.q[:, 0:1],
+        """self.cd.run(self.k, self.gait, self.q.reshape((-1, 1)),
                     self.estimator.get_v_estimate().reshape((-1, 1)),
                     device.joints.measured_torques.reshape((12, 1)), device,
                     self.result.q_des[:])"""

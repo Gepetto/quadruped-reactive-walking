@@ -25,6 +25,9 @@ struct GaitVisitor : public bp::def_visitor<GaitVisitor<Gait>> {
         .def("set_new_phase", &Gait::setNewPhase, bp::args("value"), "Set value of newPhase_ from Python.\n")
         .def("set_late", &Gait::setLate, bp::args("i"), "Set value of isLate_ from Python.\n")
 
+        .def("set_current_gait", &Gait::setCurrentGait, bp::args("gaitMatrix"),
+             "Set current gait matrix from Python.\n")
+
         .add_property("matrix",
                       bp::make_function(&Gait::getCurrentGait, bp::return_value_policy<bp::return_by_value>()));
   }

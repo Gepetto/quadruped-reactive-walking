@@ -98,8 +98,8 @@ class ContactDetector():
 
     def run(self, k, gait, q, dq, tau, device, qdes):
         self.contact_detection = False
-        gait_tmp = gait.getCurrentGait()
-        gait_tmp_past = gait.getPastGait()
+        gait_tmp = gait.matrix
+        gait_tmp_past = gait.get_past_gait()
 
         # In simulation we can get the ground truth from the simulator
         if self.is_simulation and k > 0:
@@ -136,14 +136,14 @@ class ContactDetector():
                             gait_tmp[j, i] = 1
                             j += 1
                         self.contact_detection = True
-                        gait.setCurrentGait(gait_tmp)
-                        gait.setNewPhase(True)
+                        gait.set_current_gait(gait_tmp)
+                        gait.set_new_phase(True)
                     elif self.log_ctc_truth[k, i] == 0 and gait_tmp[0, i] == 1 and gait_tmp_past[0, i] == 0:
                         # Contact detected after hardcoded timing
                         # print("Late contact foot ", i, "at step ", k)
                         gait_tmp[0, i] = 0
                         gait.setLate(i)
-                        gait.setCurrentGait(gait_tmp)"""
+                        gait.set_current_gait(gait_tmp)"""
 
         """# Time spent in flying phase
         self.k_since_flying += (1 - gait_tmp[0, :])
@@ -181,9 +181,9 @@ class ContactDetector():
 
         # Retrieve phase duration and remaining time
         for i in range(4):
-            status = gait.getCurrentGaitCoeff(0, i)
-            t_ph = gait.getPhaseDuration(0, i)
-            t_rem = gait.getRemainingTime(0, i)
+            status = gait.get_gait_coeff(0, i)
+            t_ph = gait.get_phase_duration(0, i)
+            t_rem = gait.get_remaining_time(0, i)
             if t_rem <= (t_ph * 0.5 / self.dt_mpc):
                 ctc = - np.ceil(t_rem)
             else:
@@ -252,8 +252,8 @@ class ContactDetector():
                         gait_tmp[j, i] = 1
                         j += 1
                     self.contact_detection = True
-                    gait.setCurrentGait(gait_tmp)
-                    gait.setNewPhase(True)
+                    gait.set_current_gait(gait_tmp)
+                    gait.set_new_phase(True)
                     #from IPython import embed
                     #embed()
                 elif (self.P_tot[k, i] < p) and (gait_tmp[0, i] == 1) and (gait_tmp_past[0, i] == 0):
@@ -262,11 +262,11 @@ class ContactDetector():
                     self.k_since_late[i] += self.k_mpc
                     gait_tmp[0, i] = 0
                     gait.setLate(i)
-                    gait.setCurrentGait(gait_tmp)
+                    gait.set_current_gait(gait_tmp)
                     #from IPython import embed
                     #embed()
 
-        self.log_gait[k, :] = gait.getCurrentGait()[0, :]
+        self.log_gait[k, :] = gait.matrix[0, :]
 
         # Time spent in flying phase
         self.k_since_flying += (1 - gait_tmp[0, :])

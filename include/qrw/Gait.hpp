@@ -127,6 +127,15 @@ class Gait {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void setLate(int i) { isLate_[i] = true; }
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Update the current gait matrix externally (directly set the gait matrix)
+  ///
+  /// \param[in] gaitMatrix Gait matrix that should be used for the current gait matrix
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void setCurrentGait(MatrixN4 const& gaitMatrix);
+
   MatrixN4 getPastGait() { return pastGait_; }
   MatrixN4 getCurrentGait() { return currentGait_; }
   double getCurrentGaitCoeff(int i, int j) { return currentGait_(i, j); }
