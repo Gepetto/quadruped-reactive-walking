@@ -12,6 +12,7 @@ Estimator::Estimator()
       solo3D_(false),
       dt_(0.0),
       dt_mpc_(0.0),
+      k_mpc_(0),
       initialized_(false),
       feetFrames_(Vector4::Zero()),
       footRadius_(0.155),
@@ -27,6 +28,7 @@ Estimator::Estimator()
       qActuators_(Vector12::Zero()),
       vActuators_(Vector12::Zero()),
       phaseRemainingDuration_(0),
+      minElapsed_(0.),
       feetStancePhaseDuration_(Vector4::Zero()),
       feetStatus_(Vector4::Zero()),
       feetTargets_(Matrix34::Zero()),
@@ -62,8 +64,8 @@ void Estimator::initialize(Params& params) {
   solo3D_ = params.solo3D;
 
   // Filtering estimated linear velocity
-  int k_mpc = (int)(std::round(params.dt_mpc / params.dt_wbc));
-  windowSize_ = (int)(k_mpc * params.gait.rows() / params.N_periods);
+  k_mpc_ = (int)(std::round(params.dt_mpc / params.dt_wbc));
+  windowSize_ = (int)(k_mpc_ * params.gait.rows() / params.N_periods);
   vx_queue_.resize(windowSize_, 0.0);  // List full of 0.0
   vy_queue_.resize(windowSize_, 0.0);  // List full of 0.0
   vz_queue_.resize(windowSize_, 0.0);  // List full of 0.0
@@ -146,12 +148,43 @@ void Estimator::updatFeetStatus(MatrixN const& gait, MatrixN const& feetTargets)
   feetStatus_ = gait.row(0);
   feetTargets_ = feetTargets;
 
+  // Update nb of iterations since contact for each foot
   feetStancePhaseDuration_ += feetStatus_;
   feetStancePhaseDuration_ = feetStancePhaseDuration_.cwiseProduct(feetStatus_);
 
-  phaseRemainingDuration_ = 1;
-  while (feetStatus_.isApprox((Vector4)gait.row(phaseRemainingDuration_))) {
-    phaseRemainingDuration_++;
+  // Get minimum non-zero number of iterations since contact
+  minElapsed_ = 0.;
+  for (int j = 0; j < 4; j++) {
+    if (feetStancePhaseDuration_(j) > 0) {
+      minElapsed_ =
+          minElapsed_ == 0 ? feetStancePhaseDuration_(j) : std::min(feetStancePhaseDuration_(j), minElapsed_);
+    }
+  }
+
+  // Get minimum number of MPC iterations remaining among all feet in contact
+  phaseRemainingDuration_ = std::numeric_limits<int>::max();
+  bool flying = true;
+  for (int j = 0; j < 4; j++) {
+    if (feetStatus_(j) == 0.) {
+      continue;
+    }
+    flying = false;
+    int i = 1;
+    while (i < gait.rows() && gait(i, j) == 1.) {
+      i++;
+    }
+    if (i < phaseRemainingDuration_) {
+      phaseRemainingDuration_ = i;
+    }
+  }
+  if (flying) {
+    phaseRemainingDuration_ = 0;
+  }
+
+  // Convert minimum number of MPC iterations into WBC iterations
+  if (phaseRemainingDuration_ != 0) {
+    int a = static_cast<int>(std::round(minElapsed_)) % k_mpc_;
+    phaseRemainingDuration_ = a == 0 ? (phaseRemainingDuration_ - 1) * k_mpc_ : phaseRemainingDuration_ * k_mpc_ - a;
   }
 }
 
@@ -237,11 +270,11 @@ void Estimator::computeFeetPositionBarycenter() {
 }
 
 double Estimator::computeAlphaVelocity() {
-  double a = std::ceil(feetStancePhaseDuration_.maxCoeff() * (dt_ / dt_mpc_)) - 1;
+  double a = minElapsed_;
   double b = static_cast<double>(phaseRemainingDuration_);
-  double c = ((a + b) - 2) * 0.5;
-  const double n = 2;  // Nb of steps of margin around contact switch
-  if (a <= (n - 1) || b <= n || std::abs(c - (a - n)) <= n)
+  const double n = 2 * k_mpc_;  // Nb of steps of margin around contact switch
+  double c = (a + b) * 0.5 - n;
+  if (a <= n || b <= n)
     return alphaVelMax_;
   else
     return alphaVelMin_ + (alphaVelMax_ - alphaVelMin_) * std::abs(c - (a - n)) / c;

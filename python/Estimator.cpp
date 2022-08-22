@@ -38,6 +38,7 @@ struct EstimatorVisitor : public bp::def_visitor<EstimatorVisitor<Estimator>> {
         .def("get_oRh", &Estimator::getoRh, "")
         .def("get_hRb", &Estimator::gethRb, "")
         .def("get_oTh", &Estimator::getoTh, "")
+        .def("get_alpha", &Estimator::computeAlphaVelocity, "")
 
         .def("run", &Estimator::run,
              bp::args("gait", "goals", "baseLinearAcceleration", "baseAngularVelocity", "baseOrientation", "q_mes",

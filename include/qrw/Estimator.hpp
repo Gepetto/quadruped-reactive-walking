@@ -102,6 +102,8 @@ class Estimator {
   Matrix3 gethRb() { return hRb_; }
   Vector3 getoTh() { return oTh_; }
 
+  double computeAlphaVelocity();
+
  private:
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -179,7 +181,7 @@ class Estimator {
   /// \return alpha
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  double computeAlphaVelocity();
+  //double computeAlphaVelocity();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -212,6 +214,7 @@ class Estimator {
   bool solo3D_;            // Perfect estimator including yaw angle
   double dt_;              // Time step of the estimator
   double dt_mpc_;          // Time step of the mpc
+  int k_mpc_;              // Number of wbc time steps for each MPC time step
   bool initialized_;       // Is intiialized after the first update of the IMU
   Vector4 feetFrames_;     // Frame indexes of the four feet
   double footRadius_;      // radius of a foot
@@ -231,6 +234,7 @@ class Estimator {
   Vector12 vActuators_;  // Measured velocities of actuators
 
   int phaseRemainingDuration_;       // Number of iterations left for the current gait phase
+  double minElapsed_;                 // Minimum non zeros coefficients of feetStancePhaseDuration_
   Vector4 feetStancePhaseDuration_;  // Number of loops during which each foot has been in contact
   Vector4 feetStatus_;               // Contact status of the four feet
   Matrix34 feetTargets_;             // Target positions of the four feet
