@@ -340,6 +340,7 @@ class TestInvKin(unittest.TestCase):
                 """from IPython import embed
                 embed()"""
 
+        return
         filename = "/home/palex/Documents/Travail/Presentations/2022_03_29_Comparisons/"
         N_test = "3"
         N_size = "18"
