@@ -421,7 +421,7 @@ void Params::initialize() {
   // Offset between center of base and CoM
   Vector3 CoM = data_.com[0].head(3) - q_tmp.head(3);
   CoM_offset[0] = CoM(0, 0);
-  CoM_offset[1] = CoM(1, 0);
+  CoM_offset[1] = CoM(1, 0) * 0.0;  // Force lateral offset to 0 because Solo is symmetric
   CoM_offset[2] = CoM(2, 0);
 
   for (int i = 0; i < 4; i++) {
