@@ -26,7 +26,7 @@ class TestFootstepPlanner(unittest.TestCase):
         self.params.N_SIMULATION = 1000
         self.params.perfect_estimator = False
         self.params.solo3D = False
-        q_init = [0.0, 0.764, -1.407, 0.0, 0.76407, -1.4, 0.0, 0.76407, -1.407, 0.0, 0.764, -1.407]
+        q_init = [0.0, 0.764, -1.4, 0.0, 0.764, -1.4, 0.0, 0.764, -1.4, 0.0, 0.764, -1.4]
         for i in range(len(q_init)):
             self.params.q_init[i] = q_init[i]
         self.params.N_periods = 1
@@ -89,22 +89,24 @@ class TestFootstepPlanner(unittest.TestCase):
 
         # Configuration vector
         q = np.zeros((18, 1))
+        q[2, 0] = self.params.h_ref
         q[6:, 0] = np.array(self.params.q_init)
 
         for k in range(500):
             # Update gait
-            self.gait.updateGait(k, self.k_mpc, 0)
+            self.gait.update(k, 0)
 
             # Compute target footstep based on current and reference velocities
-            o_targetFootstep = self.footstepPlanner.updateFootsteps(k % self.k_mpc == 0 and k != 0,
+            o_targetFootstep = self.footstepPlanner.update_footsteps(k % self.k_mpc == 0 and k != 0,
                                                                     int(self.k_mpc - k % self.k_mpc),
                                                                     q, np.zeros((6, 1)),
-                                                                    np.zeros((6, 1)))
+                                                                    np.zeros((6, 1)),
+                                                                    ref)
             # Same footsteps in horizontal frame
-            h_targetFootstep = self.footstepPlanner.getTargetFootsteps()
+            h_targetFootstep = self.footstepPlanner.get_target_footsteps()
 
             # Pos of feet in stance phase + target of feet in swing phase (in horizontal frame)
-            fsteps = self.footstepPlanner.getFootsteps()
+            fsteps = self.footstepPlanner.get_footsteps()
 
             # Check footsteps locations
             if not np.allclose(ref, o_targetFootstep):
@@ -113,7 +115,7 @@ class TestFootstepPlanner(unittest.TestCase):
             self.assertTrue(np.allclose(ref, o_targetFootstep), "o_targetFootstep is OK")
             self.assertTrue(np.allclose(ref, h_targetFootstep), "h_targetFootstep is OK")
             self.assertTrue(np.allclose(np.tile(ref.ravel(order='F'), (N_ref, 1)) *
-                                        np.repeat(self.gait.getCurrentGait(), 3, axis=1), fsteps), "fsteps is OK")
+                                        np.repeat(self.gait.matrix, 3, axis=1), fsteps), "fsteps is OK")
 
     def test_moving_at_ref_forward(self):
         """
@@ -125,12 +127,14 @@ class TestFootstepPlanner(unittest.TestCase):
 
         # Footsteps should land in front of the shoulders
         under_shoulder = np.array(self.params.footsteps_under_shoulders.tolist()).reshape((3, 4), order='F')
+        o_targetFootstep = under_shoulder.copy()
         targets = under_shoulder.copy()
         targets[0, :] += v_x * self.params.T_gait / 4
         N_ref = self.params.gait.shape[0]
 
         # Configuration vector
         q = np.zeros((18, 1))
+        q[2, 0] = self.params.h_ref
         q[6:, 0] = np.array(self.params.q_init)
 
         # Velocity vectors
@@ -142,7 +146,7 @@ class TestFootstepPlanner(unittest.TestCase):
         for k in range(500):
 
             # Run estimator
-            self.estimator.run_filter(self.gait.getCurrentGait(),
+            self.estimator.run(self.gait.matrix,
                                       np.random.random((3, 4)),
                                       np.random.random((3, 1)),
                                       np.random.random((3, 1)),
@@ -153,33 +157,39 @@ class TestFootstepPlanner(unittest.TestCase):
                                       np.random.random((3, 1)))
 
             # Update state
-            self.estimator.updateState(v_ref)
+            self.estimator.update_reference_state(v_ref)
 
             # Robot moving in ideal world
-            oTh = self.estimator.getoTh()
-            yaw = self.estimator.getYawEstim()
+            oTh = self.estimator.get_oTh()
+            yaw = self.estimator.get_q_reference()[5]
             q[0:2, 0] = oTh[0:2]
             q[5, 0] = yaw
 
             # Update gait
-            self.gait.updateGait(k, self.k_mpc, 0)
+            self.gait.update(k, 0)
 
             # Compute target footstep based on current and reference velocities
-            o_targetFootstep = self.footstepPlanner.updateFootsteps(k % self.k_mpc == 0 and k != 0,
+            o_targetFootstep = self.footstepPlanner.update_footsteps(k % self.k_mpc == 0 and k != 0,
                                                                     int(self.k_mpc - k % self.k_mpc),
-                                                                    q, v, v_ref)
+                                                                    q, v, v_ref, o_targetFootstep)
+            
+            print(o_targetFootstep)
+
             # Same footsteps in horizontal frame
-            h_targetFootstep = self.footstepPlanner.getTargetFootsteps()
+            h_targetFootstep = self.footstepPlanner.get_target_footsteps()
 
             # Pos of feet in stance phase + target of feet in swing phase (in horizontal frame)
-            fsteps = self.footstepPlanner.getFootsteps()
+            fsteps = self.footstepPlanner.get_footsteps()
+
+            """print(k)
+            print(fsteps[0:2, :])"""
 
             # Check footsteps locations
             # if (k % 20 == 0):
             #     print(o_targetFootstep)
 
             # Check each foot one after the other
-            cgait = self.gait.getCurrentGait()
+            cgait = self.gait.matrix
             for j in range(4):
                 phase = -1
                 cpt_phase = 0
@@ -198,14 +208,25 @@ class TestFootstepPlanner(unittest.TestCase):
                             if (cpt_phase == 0):  # Foot currently in stance phase
                                 o_loc = under_shoulder[:, j] + \
                                     np.array([v_x * np.floor(k / 240) * 240 * self.params.dt_wbc, 0.0, 0.0])
+                                if k >= 240:
+                                    o_loc += np.array([v_x * self.params.T_gait * 0.25, 0.0, 0.0])
+
                             else:
                                 o_loc = targets[:, j] + np.array([v_x * (np.floor(k / 240) *
                                                                          240 + 1 + cpt_phase * 240) * self.params.dt_wbc, 0.0, 0.0])
                             h_loc = o_loc - np.array([v_x * (k + 1) * self.params.dt_wbc, 0.0, 0.0])
+                            #print("oloc:", o_loc)
+                            #print("minu:", np.array([v_x * (k + 1) * self.params.dt_wbc, 0.0, 0.0]))
                         if (not np.allclose(h_loc, fsteps[i, (3*j):(3*(j+1))])):
+                            print("---")
+                            print("Status: ", cgait[0, :])
                             print("[", i, ", ", j, "]")
                             print(h_loc)
                             print(fsteps[i, (3*j):(3*(j+1))])
+                            print(o_loc)
+                            print(o_targetFootstep)
+                            print("---")
+
                             from IPython import embed
                             embed()
                         self.assertTrue(np.allclose(h_loc, fsteps[i, (3*j):(3*(j+1))]), "fsteps stance is OK")
@@ -232,8 +253,8 @@ class TestFootstepPlanner(unittest.TestCase):
     self.assertTrue(np.allclose(ref, o_targetFootstep), "o_targetFootstep is OK")
     self.assertTrue(np.allclose(ref, h_targetFootstep), "h_targetFootstep is OK")
     self.assertTrue(np.allclose(np.tile(ref.ravel(order='F'), (N_ref, 1)) *
-                                np.repeat(self.gait.getCurrentGait(), 3, axis=1), fsteps), "fsteps is OK")"""
-    
+                                np.repeat(self.gait.matrix, 3, axis=1), fsteps), "fsteps is OK")"""
+
     def test_moving_at_ref_turning(self):
         """
         Check footsteps when walking at reference velocity forwards and turning
@@ -255,11 +276,23 @@ class TestFootstepPlanner(unittest.TestCase):
                 y = v_y * self.params.dt_wbc * k
             return np.array([[x], [y], [0.0]])
 
+        def get_oTh_bis(k):
+            k = int(k)
+            k_range = np.linspace(0, k, k + 1)
+            yaw = w_yaw * (k_range + 1) * self.params.dt_wbc
+            oTh = np.zeros((3, 1))
+            for i in range(k):
+                Rz = pin.rpy.rpyToMatrix(0.0, 0.0, yaw[i])
+                vRef = Rz @ np.array([[v_x], [v_y], [0.0]])
+                oTh += vRef * self.params.dt_wbc
+            return oTh
+
         def get_oRh(k):
             return pin.rpy.rpyToMatrix(0.0, 0.0, w_yaw * k * self.params.dt_wbc)
 
         # Footsteps should land in front of the shoulders
         under_shoulder = np.array(self.params.footsteps_under_shoulders.tolist()).reshape((3, 4), order='F')
+        o_targetFootstep = under_shoulder.copy()
         targets = under_shoulder.copy()
         targets[0, :] += v_x * self.params.T_gait / 4 + 0.5 * np.sqrt(self.params.h_ref / 9.81) * (v_y * w_yaw)
         targets[1, :] += v_y * self.params.T_gait / 4 + 0.5 * np.sqrt(self.params.h_ref / 9.81) * (- v_x * w_yaw)
@@ -267,6 +300,7 @@ class TestFootstepPlanner(unittest.TestCase):
 
         # Configuration vector
         q = np.zeros((18, 1))
+        q[2, 0] = self.params.h_ref
         q[6:, 0] = np.array(self.params.q_init)
 
         # Velocity vectors
@@ -284,7 +318,7 @@ class TestFootstepPlanner(unittest.TestCase):
         for k in range(500):
 
             # Run estimator
-            self.estimator.run_filter(self.gait.getCurrentGait(),
+            self.estimator.run(self.gait.matrix,
                                       np.random.random((3, 4)),
                                       np.random.random((3, 1)),
                                       np.random.random((3, 1)),
@@ -295,38 +329,43 @@ class TestFootstepPlanner(unittest.TestCase):
                                       np.random.random((3, 1)))
 
             # Update state
-            self.estimator.updateState(v_ref)
+            self.estimator.update_reference_state(v_ref)
 
             # Robot moving in ideal world
-            oTh = get_oTh(k + 1)
+            oTh = get_oTh_bis(k + 1)
             oRh = get_oRh(k + 1)
             yaw = w_yaw * (k + 1) * self.params.dt_wbc
 
             # Compare with estimator
-            print(oTh.ravel())
-            print(self.estimator.getoTh())
-            self.assertTrue(np.allclose(oTh.ravel(), self.estimator.getoTh(), atol=1e-3), "oTh is OK")
-            self.assertTrue(np.allclose(yaw, self.estimator.getYawEstim()), "yaw is OK")
+            """print(oTh.ravel())
+            print(get_oTh_bis(k + 1).ravel())
+            print(self.estimator.get_oTh())"""
+            self.assertTrue(np.allclose(oTh.ravel(), self.estimator.get_oTh(), atol=1e-3), "oTh is OK")
+            self.assertTrue(np.allclose(yaw, self.estimator.get_q_reference()[5]), "yaw is OK")
 
-            # oTh = self.estimator.getoTh().reshape((3, 1))
-            # yaw = self.estimator.getYawEstim()
+            """if k == 100:
+                from IPython import embed
+                embed()"""
+
+            # oTh = self.estimator.get_oTh().reshape((3, 1))
+            # yaw = self.estimator.get_q_reference()[5]
             # oRh = pin.rpy.rpyToMatrix(0.0, 0.0, yaw)
-            q[0:2, 0] = self.estimator.getoTh()[0:2]  # oTh[0:2, 0]
-            q[5, 0] = self.estimator.getYawEstim()
+            q[0:2, 0] = self.estimator.get_oTh()[0:2]  # oTh[0:2, 0]
+            q[5, 0] = self.estimator.get_q_reference()[5]
 
             # Update gait
-            self.gait.updateGait(k, self.k_mpc, 0)
+            self.gait.update(k, 0)
 
             # Compute target footstep based on current and reference velocities
-            o_targetFootstep = self.footstepPlanner.updateFootsteps(k % self.k_mpc == 0 and k != 0,
+            o_targetFootstep = self.footstepPlanner.update_footsteps(k % self.k_mpc == 0 and k != 0,
                                                                     int(self.k_mpc - k % self.k_mpc),
-                                                                    q, v, v_ref)
+                                                                    q, v, v_ref, o_targetFootstep)
             log_o_targetFootstep[k, :, :] = o_targetFootstep.copy()
             #print(k)
             #print(o_targetFootstep)
 
             # Same footsteps in horizontal frame
-            h_targetFootstep = self.footstepPlanner.getTargetFootsteps()
+            h_targetFootstep = self.footstepPlanner.get_target_footsteps()
             log_h_targetFootstep[k, :, :] = h_targetFootstep.copy()
 
             np.set_printoptions(precision=8)
@@ -344,10 +383,10 @@ class TestFootstepPlanner(unittest.TestCase):
             mem = h_targetFootstep.copy()
 
             # Pos of feet in stance phase + target of feet in swing phase (in horizontal frame)
-            fsteps = self.footstepPlanner.getFootsteps()
+            fsteps = self.footstepPlanner.get_footsteps()
 
             # Check each foot one after the other
-            cgait = self.gait.getCurrentGait()
+            cgait = self.gait.matrix
             for j in range(4):
                 phase = -1
                 cpt_phase = 0
@@ -364,28 +403,32 @@ class TestFootstepPlanner(unittest.TestCase):
                                 cpt_phase += 1
                             phase = 1
                             if (cpt_phase == 0):  # Foot currently in stance phase
-                                n = np.floor(k / 240) * 240
-                                o_loc = get_oRh(n) @ under_shoulder[:, j:(j+1)] + get_oTh(n)
+                                n = np.floor(k / 240) * 240 + 1
+                                o_loc = get_oRh(n) @ under_shoulder[:, j:(j+1)] + get_oTh_bis(n)
                                 # print("FIRST")
+                                if k >= 240:
+                                    a = k % 240
+                                    """if (k % 240 != 0 and a == 0):
+                                        a = 20"""
+                                    o_loc = get_oRh(n+a) @ (fsteps[0:1, (3*j):(3*(j+1))]).transpose() + get_oTh_bis(n+a)
                             else:
                                 n = np.floor(k / 240) * 240 + 1 + cpt_phase * 240
-                                o_loc = get_oRh(n) @ targets[:, j:(j+1)] + get_oTh(n)
-                                # print("target: ", targets)
-                                print("oTh: ", get_oTh(n).ravel())
-                            h_loc = get_oRh(k+1).transpose() @ (o_loc - get_oTh(k+1))
+                                o_loc = get_oRh(n) @ targets[:, j:(j+1)] + get_oTh_bis(n)
+                            h_loc = get_oRh(k+1).transpose() @ (o_loc - get_oTh_bis(k+1))
                         # or not np.allclose(o_loc, o_targetFootstep[:, j:(j+1)], atol=1e-6)):
+
+                        """if j == 1 and i == 0 and cgait[i, j] == 1.0:
+                            print(o_loc.ravel(), "  |  ", o_targetFootstep[:, j:(j+1)].ravel())"""
+
                         if (not np.allclose(h_loc.ravel(), fsteps[i, (3*j):(3*(j+1))], atol=1e-3) 
                             or (cpt_phase <= 1 and not np.allclose(o_loc, o_targetFootstep[:, j:(j+1)], atol=1e-3))):
-                            print("[", i, ", ", j, "]")
-                            print(h_loc)
-                            print(fsteps[i, (3*j):(3*(j+1))])
+                            print("------ [", i, ", ", j, "]")
+                            """print(h_loc)
+                            print(fsteps[i, (3*j):(3*(j+1))])"""
                             print(o_loc)
                             print(o_targetFootstep[:, j:(j+1)])
                             from IPython import embed
                             embed()
-                        """if (i == 0 and j == 0):
-                            from IPython import embed
-                            embed()"""
                         self.assertTrue(np.allclose(
                             h_loc.ravel(), fsteps[i, (3*j):(3*(j+1))], atol=1e-3), "fsteps stance is OK")
                         if (cpt_phase <= 1):
@@ -403,24 +446,24 @@ class TestFootstepPlanner(unittest.TestCase):
                     self.assertTrue(np.allclose(
                         memory_o_targetFootstep[:, j], o_targetFootstep[:, j], atol=1e-3), "o_target is consistent")
 
-        from matplotlib import pyplot as plt
+        """from matplotlib import pyplot as plt
         for j in range(3):
             plt.figure()
             for i in range(4):
                 plt.plot(log_o_targetFootstep[:, j, i])
-        plt.show(block=True)
+        plt.show(block=True)"""
 
 
     """
     # Compute target footstep based on current and reference velocities
-    o_targetFootstep = self.footstepPlanner.updateFootsteps(self.k % self.k_mpc == 0 and self.k != 0,
+    o_targetFootstep = self.footstepPlanner.update_footsteps(self.k % self.k_mpc == 0 and self.k != 0,
                                                             int(self.k_mpc - self.k % self.k_mpc),
                                                             self.q[:, 0], self.h_v_windowed[0:6, 0:1].copy(),
                                                             self.v_ref[0:6, 0:1])
 
     # Footsteps in horizontal frame
-    fsteps = self.footstepPlanner.getFootsteps()
-    getTargetFootsteps()
+    fsteps = self.footstepPlanner.get_footsteps()
+    get_target_footsteps()
     """
 
     def test_upper(self):
