@@ -136,6 +136,24 @@ class Gait {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void setCurrentGait(MatrixN4 const& gaitMatrix);
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Update the past gait matrix externally (directly set the gait matrix)
+  ///
+  /// \param[in] gaitMatrix Gait matrix that should be used for the past gait matrix
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void setPastGait(MatrixN4 const& gaitMatrix);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Update the desired gait matrix externally (directly set the gait matrix)
+  ///
+  /// \param[in] gaitMatrix Gait matrix that should be used for the desired gait matrix
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void setDesiredGait(MatrixN4 const& gaitMatrix);
+
   MatrixN4 getPastGait() { return pastGait_; }
   MatrixN4 getCurrentGait() { return currentGait_; }
   double getCurrentGaitCoeff(int i, int j) { return currentGait_(i, j); }

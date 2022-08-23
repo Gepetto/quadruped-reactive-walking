@@ -29,6 +29,11 @@ struct GaitVisitor : public bp::def_visitor<GaitVisitor<Gait>> {
         .def("set_current_gait", &Gait::setCurrentGait, bp::args("gaitMatrix"),
              "Set current gait matrix from Python.\n")
 
+        .def("set_past_gait", &Gait::setPastGait, bp::args("gaitMatrix"), "Set past gait matrix from Python.\n")
+
+        .def("set_desired_gait", &Gait::setDesiredGait, bp::args("gaitMatrix"),
+             "Set desired gait matrix from Python.\n")
+
         .add_property("matrix",
                       bp::make_function(&Gait::getCurrentGait, bp::return_value_policy<bp::return_by_value>()));
   }

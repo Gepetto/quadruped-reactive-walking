@@ -232,3 +232,25 @@ void Gait::setCurrentGait(MatrixN4 const& gaitMatrix) {
 
   currentGait_ = gaitMatrix;
 }
+
+void Gait::setPastGait(MatrixN4 const& gaitMatrix) {
+  if (gaitMatrix.rows() != pastGait_.rows()) {
+    throw std::runtime_error("Input matrix should have the same number of rows than the past gait matrix.");
+  }
+  if (gaitMatrix.cols() != pastGait_.cols()) {
+    throw std::runtime_error("Input matrix should have the same number of columns than the past gait matrix.");
+  }
+
+  pastGait_ = gaitMatrix;
+}
+
+void Gait::setDesiredGait(MatrixN4 const& gaitMatrix) {
+  if (gaitMatrix.rows() != desiredGait_.rows()) {
+    throw std::runtime_error("Input matrix should have the same number of rows than the desired gait matrix.");
+  }
+  if (gaitMatrix.cols() != desiredGait_.cols()) {
+    throw std::runtime_error("Input matrix should have the same number of columns than the desired gait matrix.");
+  }
+
+  desiredGait_ = gaitMatrix;
+}
