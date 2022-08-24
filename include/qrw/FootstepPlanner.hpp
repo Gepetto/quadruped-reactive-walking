@@ -50,9 +50,7 @@ class FootstepPlanner {
   ///
   /// \brief Refresh footsteps locations (computation and update of relevant matrices)
   ///
-  ///  \param[in] refresh True if we move one step further in the gait
-  ///  \param[in] k Number of remaining wbc time step for the current mpc time step (wbc frequency is higher so there
-  ///  are inter-steps)
+  ///  \param[in] k Numero of the current loop
   ///  \param[in] q Current position vector of the flying base in horizontal frame (linear and angular stacked) +
   ///  actuators
   ///  \param[in] b_v Current velocity vector of the flying base in horizontal frame (linear and angular
@@ -62,7 +60,7 @@ class FootstepPlanner {
   ///  \param[in] ftgPositions Target foot positions outputted by the foot trajectory generator (in world frame)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  MatrixN updateFootsteps(bool refresh, int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref,
+  MatrixN updateFootsteps(int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref,
                           MatrixN const& ftgPositions);
 
   MatrixN getFootsteps();
@@ -73,8 +71,7 @@ class FootstepPlanner {
   ///
   /// \brief Compute the desired location of footsteps and update relevant matrices
   ///
-  ///  \param[in] k Number of remaining wbc time step for the current mpc time step (wbc frequency is higher so there
-  ///  are inter-steps)
+  ///  \param[in] k Numero of the current loop
   ///  \param[in] q Current position vector of the flying base in horizontal frame (linear and
   ///  angular stacked)
   ///  \param[in] b_v Current velocity vector of the flying base in horizontal frame (linear and
@@ -144,6 +141,7 @@ class FootstepPlanner {
   double dt;      // Time step of the contact sequence (time step of the MPC)
   double dt_wbc;  // Time step of the whole body control
   double h_ref;   // Reference height for the trunk
+  int k_mpc_;     // Number of wbc time steps for each MPC time step
 
   // Predefined quantities
   double g;  // Value of the gravity acceleartion
@@ -153,15 +151,15 @@ class FootstepPlanner {
   int n_steps;  // T_mpc / time step of the MPC
 
   // Constant sized matrices
-  Matrix34 footsteps_under_shoulders_;       // Positions of footsteps to be "under the shoulder"
-  Matrix34 footsteps_offset_;                // Hardcoded offset to add to footsteps positions
-  Matrix34 currentFootstep_;                 // Feet matrix
-  Matrix34 nextFootstep_;                    // Temporary matrix to perform computations
-  Matrix34 targetFootstep_;                  // In horizontal frame
-  Matrix34 o_targetFootstep_;                // targetFootstep_ in world frame
-  std::vector<Matrix34> footsteps_;          // Desired footsteps locations for each step of the horizon
-  RowVector4 previousGait_;    // Last gait status used to update footsteps
-  RowVector4 previousHeight_;  // Height of the last contact phase for each foot
+  Matrix34 footsteps_under_shoulders_;  // Positions of footsteps to be "under the shoulder"
+  Matrix34 footsteps_offset_;           // Hardcoded offset to add to footsteps positions
+  Matrix34 currentFootstep_;            // Feet matrix
+  Matrix34 nextFootstep_;               // Temporary matrix to perform computations
+  Matrix34 targetFootstep_;             // In horizontal frame
+  Matrix34 o_targetFootstep_;           // targetFootstep_ in world frame
+  std::vector<Matrix34> footsteps_;     // Desired footsteps locations for each step of the horizon
+  RowVector4 previousGait_;             // Last gait status used to update footsteps
+  RowVector4 previousHeight_;           // Height of the last contact phase for each foot
 
   MatrixN Rz;      // Rotation matrix along z axis
   VectorN dt_cum;  // Cumulated time vector

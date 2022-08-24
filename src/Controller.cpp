@@ -73,9 +73,9 @@ void Controller::compute(FakeRobot* robot) {
   vref_filt_mpc = filter_mpc_vref.filter(estimator.getBaseVelRef().head(6), false);
 
   // Compute target footstep based on current and reference velocities
-  o_targetFootstep = footstepPlanner.updateFootsteps(
-      (k % k_mpc == 0) && (k != 0), static_cast<int>(k_mpc - (k % k_mpc)), estimator.getQReference().head(18),
-      estimator.getHVFiltered().head(6), estimator.getBaseVelRef().head(6), footTrajectoryGenerator.getFootPosition());
+  o_targetFootstep =
+      footstepPlanner.updateFootsteps(k, estimator.getQReference().head(18), estimator.getHVFiltered().head(6),
+                                      estimator.getBaseVelRef().head(6), footTrajectoryGenerator.getFootPosition());
 
   // Run state planner (outputs the reference trajectory of the base)
   statePlanner.computeReferenceStates(k, q_filt_mpc.head(6), h_v_filt_mpc, vref_filt_mpc,

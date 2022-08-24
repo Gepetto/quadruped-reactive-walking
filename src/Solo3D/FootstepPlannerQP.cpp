@@ -9,6 +9,10 @@
 
 FootstepPlannerQP::FootstepPlannerQP()
     : gait_(NULL),
+      dt(0.0),
+      dt_wbc(0.0),
+      h_ref(0.0),
+      k_mpc_(0),
       g(9.81),
       L(0.155),
       heuristic_fb_(Vector3::Zero()),
@@ -50,6 +54,7 @@ void FootstepPlannerQP::initialize(Params& params, Gait& gaitIn, Surface initial
   useSL1M = params.use_sl1m;
   dt = params.dt_mpc;
   dt_wbc = params.dt_wbc;
+  k_mpc_ = static_cast<int>(std::round(params.dt_mpc / params.dt_wbc));
   h_ref = params.h_ref;
   n_steps = static_cast<int>(params.gait.rows());
   k_mpc = (int)std::round(params.dt_mpc / params.dt_wbc);
@@ -87,8 +92,7 @@ void FootstepPlannerQP::initialize(Params& params, Gait& gaitIn, Surface initial
   P_.diagonal() << weights_;
 
   // Path to the robot URDF
-  const std::string filename =
-      std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
+  const std::string filename = std::string(EXAMPLE_ROBOT_DATA_MODEL_DIR "/solo_description/robots/solo12.urdf");
 
   // Build model from urdf (base is not free flyer)
   pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
@@ -108,14 +112,13 @@ void FootstepPlannerQP::initialize(Params& params, Gait& gaitIn, Surface initial
   foot_ids_[3] = static_cast<int>(model_.getFrameId("HR_FOOT"));
 }
 
-MatrixN FootstepPlannerQP::updateFootsteps(bool refresh, int k, VectorN const& q, Vector6 const& b_v,
-                                           Vector6 const& b_vref) {
+MatrixN FootstepPlannerQP::updateFootsteps(int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref) {
   if (q.rows() != 18) {
     throw std::runtime_error("q should be a vector of size 18 (base position + base RPY + joint)");
   }
 
   // Update location of feet in stance phase (for those which just entered stance phase)
-  if (refresh && gait_->isNewPhase()) {
+  if (k % k_mpc_ == 0 && k != 0 && gait_->isNewPhase()) {
     updateNewContact(q);
   }
 
@@ -151,7 +154,7 @@ MatrixN FootstepPlannerQP::computeTargetFootstep(int k, Vector6 const& q, Vector
   h_vref.tail(3) = pinocchio::rpy::rpyToMatrix(RP_) * b_vref.tail(3);
 
   // Compute the desired location of footsteps over the prediction horizon
-  computeFootsteps(k, b_v, h_vref);
+  computeFootsteps(k_mpc_ - k % k_mpc_, b_v, h_vref);
 
   // Update desired location of footsteps on the ground
   updateTargetFootsteps();

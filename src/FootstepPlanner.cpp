@@ -9,6 +9,10 @@
 
 FootstepPlanner::FootstepPlanner()
     : gait_(NULL),
+      dt(0.0),
+      dt_wbc(0.0),
+      h_ref(0.0),
+      k_mpc_(0),
       g(9.81),
       L(0.25),
       nextFootstep_(Matrix34::Zero()),
@@ -32,6 +36,7 @@ void FootstepPlanner::initialize(Params& params, Gait& gaitIn) {
   dt = params.dt_mpc;
   dt_wbc = params.dt_wbc;
   h_ref = params.h_ref;
+  k_mpc_ = static_cast<int>(std::round(params.dt_mpc / params.dt_wbc));
   n_steps = static_cast<int>(params.gait.rows());
   footsteps_under_shoulders_ << Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(params.footsteps_under_shoulders.data(),
                                                                               params.footsteps_under_shoulders.size());
@@ -74,14 +79,18 @@ void FootstepPlanner::initialize(Params& params, Gait& gaitIn) {
   foot_ids_[3] = static_cast<int>(model_.getFrameId("HR_FOOT"));
 }
 
-MatrixN FootstepPlanner::updateFootsteps(bool refresh, int k, VectorN const& q, Vector6 const& b_v,
-                                         Vector6 const& b_vref, MatrixN const& ftgPositions) {
+MatrixN FootstepPlanner::updateFootsteps(int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref,
+                                         MatrixN const& ftgPositions) {
   if (q.rows() != 18) {
     throw std::runtime_error("q should be a vector of size 18 (pos+RPY+mot)");
   }
 
+  /*std::cout << "Update footsteps " << std::endl;
+  std::cout << gait_->getCurrentGait().row(0) << std::endl;
+  std::cout << gait_->getCurrentGait().row(1) << std::endl;*/
+
   // Update location of feet in stance phase (for those which just entered stance phase)
-  if (refresh && gait_->isNewPhase()) {
+  if (k % k_mpc_ == 0 && k != 0 && gait_->isNewPhase()) {
     // updateNewContact(q);
 
     // Remove translation and yaw rotation to get position in local frame
@@ -147,7 +156,7 @@ void FootstepPlanner::computeFootsteps(int k, Vector6 const& b_v, Vector6 const&
 
   // Cumulative time by adding the terms in the first column (remaining number of timesteps)
   // Get future yaw yaws compared to current position
-  dt_cum(0) = dt_wbc * k;
+  dt_cum(0) = dt_wbc * static_cast<double>(k_mpc_ - k % k_mpc_);
   yaws(0) = b_vref(5) * dt_cum(0);
   for (uint j = 1; j < footsteps_.size(); j++) {
     dt_cum(j) = gait.row(j).isZero() ? dt_cum(j - 1) : dt_cum(j - 1) + dt;

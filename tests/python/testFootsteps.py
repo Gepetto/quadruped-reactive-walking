@@ -64,28 +64,6 @@ class TestFootstepPlanner(unittest.TestCase):
         self.footstepPlanner = lqrw.FootstepPlanner()
         self.footstepPlanner.initialize(self.params, self.gait)
 
-        """
-        # Load robot model and data
-        # Initialisation of the Gepetto viewer
-        Solo12Loader.free_flyer = True
-        self.solo = Solo12Loader().robot
-        q = self.solo.q0.reshape((-1, 1))
-
-        # Initialisation of the position of footsteps to be under the shoulder
-        # There is a lateral offset of around 7 centimeters
-        pos_feet = np.zeros((3, 4))
-        indexes = [self.solo.model.getFrameId('FL_FOOT'),
-                   self.solo.model.getFrameId('FR_FOOT'),
-                   self.solo.model.getFrameId('HL_FOOT'),
-                   self.solo.model.getFrameId('HR_FOOT')]
-        q[7:, 0] = np.array(q_init)
-        pin.framesForwardKinematics(self.solo.model, self.solo.data, q)
-        pin.updateFramePlacements(self.solo.model, self.solo.data)
-        for i in range(4):
-            pos_feet[:, i] = self.solo.data.oMf[indexes[i]].translation
-        pos_feet[2, :] = 0.0  # Z component does not matter
-        """
-
     def tearDown(self):
         pass
 
@@ -111,8 +89,7 @@ class TestFootstepPlanner(unittest.TestCase):
 
             # Compute target footstep based on current and reference velocities
             o_targetFootstep = self.footstepPlanner.update_footsteps(
-                k % self.k_mpc == 0 and k != 0,
-                int(self.k_mpc - k % self.k_mpc),
+                k,
                 q,
                 np.zeros((6, 1)),
                 np.zeros((6, 1)),
@@ -125,9 +102,9 @@ class TestFootstepPlanner(unittest.TestCase):
             fsteps = self.footstepPlanner.get_footsteps()
 
             # Check footsteps locations
-            if not np.allclose(ref, o_targetFootstep):
+            """if not np.allclose(ref, o_targetFootstep):
                 print(ref)
-                print(o_targetFootstep)
+                print(o_targetFootstep)"""
             self.assertTrue(
                 np.allclose(ref, o_targetFootstep), "o_targetFootstep is OK"
             )
@@ -200,15 +177,14 @@ class TestFootstepPlanner(unittest.TestCase):
 
             # Compute target footstep based on current and reference velocities
             o_targetFootstep = self.footstepPlanner.update_footsteps(
-                k % self.k_mpc == 0 and k != 0,
-                int(self.k_mpc - k % self.k_mpc),
+                k,
                 q,
                 v,
                 v_ref,
                 o_targetFootstep,
             )
 
-            print(o_targetFootstep)
+            # print(o_targetFootstep)
 
             # Same footsteps in horizontal frame
             h_targetFootstep = self.footstepPlanner.get_target_footsteps()
@@ -280,7 +256,7 @@ class TestFootstepPlanner(unittest.TestCase):
                             )
                             # print("oloc:", o_loc)
                             # print("minu:", np.array([v_x * (k + 1) * self.params.dt_wbc, 0.0, 0.0]))
-                        if not np.allclose(h_loc, fsteps[i, (3 * j) : (3 * (j + 1))]):
+                        """if not np.allclose(h_loc, fsteps[i, (3 * j) : (3 * (j + 1))]):
                             print("---")
                             print("Status: ", cgait[0, :])
                             print("[", i, ", ", j, "]")
@@ -291,8 +267,7 @@ class TestFootstepPlanner(unittest.TestCase):
                             print("---")
 
                             from IPython import embed
-
-                            embed()
+                            embed()"""
                         self.assertTrue(
                             np.allclose(h_loc, fsteps[i, (3 * j) : (3 * (j + 1))]),
                             "fsteps stance is OK",
@@ -448,8 +423,7 @@ class TestFootstepPlanner(unittest.TestCase):
 
             # Compute target footstep based on current and reference velocities
             o_targetFootstep = self.footstepPlanner.update_footsteps(
-                k % self.k_mpc == 0 and k != 0,
-                int(self.k_mpc - k % self.k_mpc),
+                k,
                 q,
                 v,
                 v_ref,
@@ -528,7 +502,7 @@ class TestFootstepPlanner(unittest.TestCase):
                         """if j == 1 and i == 0 and cgait[i, j] == 1.0:
                             print(o_loc.ravel(), "  |  ", o_targetFootstep[:, j:(j+1)].ravel())"""
 
-                        if not np.allclose(
+                        """if not np.allclose(
                             h_loc.ravel(), fsteps[i, (3 * j) : (3 * (j + 1))], atol=1e-3
                         ) or (
                             cpt_phase <= 1
@@ -537,13 +511,12 @@ class TestFootstepPlanner(unittest.TestCase):
                             )
                         ):
                             print("------ [", i, ", ", j, "]")
-                            """print(h_loc)
-                            print(fsteps[i, (3*j):(3*(j+1))])"""
+                            print(h_loc)
+                            print(fsteps[i, (3*j):(3*(j+1))])
                             print(o_loc)
                             print(o_targetFootstep[:, j : (j + 1)])
                             from IPython import embed
-
-                            embed()
+                            embed()"""
                         self.assertTrue(
                             np.allclose(
                                 h_loc.ravel(),
@@ -592,8 +565,7 @@ class TestFootstepPlanner(unittest.TestCase):
 
     """
     # Compute target footstep based on current and reference velocities
-    o_targetFootstep = self.footstepPlanner.update_footsteps(self.k % self.k_mpc == 0 and self.k != 0,
-                                                            int(self.k_mpc - self.k % self.k_mpc),
+    o_targetFootstep = self.footstepPlanner.update_footsteps(self.k,
                                                             self.q[:, 0], self.h_v_windowed[0:6, 0:1].copy(),
                                                             self.v_ref[0:6, 0:1])
 

@@ -190,8 +190,7 @@ class Controller:
             self.retrieve_surfaces()
 
         self.next_footstep = self.footstepPlanner.update_footsteps(
-            self.k % self.k_mpc == 0 and self.k != 0,
-            int(self.k_mpc - self.k % self.k_mpc),
+            self.k,
             self.q,
             self.h_v_windowed,
             self.v_ref,

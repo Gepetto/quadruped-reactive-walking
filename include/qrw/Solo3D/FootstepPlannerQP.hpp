@@ -70,9 +70,7 @@ class FootstepPlannerQP {
   ///
   /// \brief Refresh footsteps locations (computation and update of relevant matrices)
   ///
-  ///  \param[in] refresh True if we move one step further in the gait
-  ///  \param[in] k Number of remaining wbc time step for the current mpc time step (wbc frequency is higher so there
-  ///  are inter-steps)
+  ///  \param[in] k Numero of the current loop
   ///  \param[in] q Current position vector of the flying base in horizontal frame (linear and angular stacked) +
   ///  actuators
   ///  \param[in] b_v Current velocity vector of the flying base in horizontal frame (linear and angular
@@ -83,7 +81,7 @@ class FootstepPlannerQP {
   ///  Precondition : updateSurfaces should have been called to store the new surface planner result
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  MatrixN updateFootsteps(bool refresh, int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref);
+  MatrixN updateFootsteps(int k, VectorN const& q, Vector6 const& b_v, Vector6 const& b_vref);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -202,6 +200,7 @@ class FootstepPlannerQP {
   double dt;      // Time step of the contact sequence (time step of the MPC)
   double dt_wbc;  // Time step of the whole body control
   double h_ref;   // Reference height for the trunk
+  int k_mpc_;     // Number of wbc time steps for each MPC time step
 
   // Predefined quantities
   double g;  // Value of the gravity acceleartion
