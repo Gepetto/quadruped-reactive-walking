@@ -85,7 +85,13 @@ class Controller:
         self.q_init[2] = params.h_ref
         self.q_display = np.zeros(19)
 
-        self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q_init)
+        if self.type_MPC == 0:
+            print("Create wrapper")
+            self.mpc_wrapper = qrw.mpcWrapper()
+            self.mpc_wrapper.initialize(params)
+        else:
+            self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q_init)
+
         self.next_footstep = np.zeros((3, 4))
 
         self.enable_multiprocessing_mip = params.enable_multiprocessing_mip
@@ -553,6 +559,13 @@ class Controller:
                         self.footTrajectoryGenerator.get_phase_durations()
                         - self.footTrajectoryGenerator.get_elapsed_durations(),
                     )
+                elif self.type_MPC == 0:
+                    print("Call Wrapper")
+                    self.mpc_wrapper.solve(
+                        self.k,
+                        reference_state,
+                        footsteps,
+                        self.gait.matrix)
                 else:
                     self.mpc_wrapper.solve(
                         self.k,
@@ -567,7 +580,13 @@ class Controller:
         # Use a temporary result if contact status changes between two calls of the MPC
         self.mpc_wrapper.get_temporary_result(self.gait.matrix[0, :])
 
-        self.mpc_result, self.mpc_cost = self.mpc_wrapper.get_latest_result()
+        if self.type_MPC == 0:
+            print("get latest result")
+            self.mpc_result = self.mpc_wrapper.get_latest_result()
+            from IPython import embed
+            embed()
+        else:
+            self.mpc_result, self.mpc_cost = self.mpc_wrapper.get_latest_result()
 
         if self.k > 100 and self.type_MPC == 3:
             for foot in range(4):

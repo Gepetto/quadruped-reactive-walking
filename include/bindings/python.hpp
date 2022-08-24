@@ -12,6 +12,7 @@
 namespace bp = boost::python;
 
 void exposeMPC();
+void exposeMpcWrapper();
 void exposeFilter();
 void exposeStatePlanner();
 void exposeGait();

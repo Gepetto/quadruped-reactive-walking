@@ -2,6 +2,7 @@
 
 BOOST_PYTHON_MODULE(quadruped_reactive_walking) {
   exposeMPC();
+  exposeMpcWrapper();
   exposeFilter();
   exposeStatePlanner();
   exposeGait();
