@@ -114,7 +114,7 @@ MatrixN FootstepPlanner::updateFootsteps(int k, VectorN const& q, Vector6 const&
     for (int i = 0; i < 4; i++) {
       if (currentGait(0, i) - previousGait_(0, i) >
           0) {  // New contact when currentGait[i] = 1 and previousGait_[i] = 0
-        currentFootstep_.col(i) = Rz * (ftgPositions.col(i).head(3) - Vector3(q[0], q[1], 0.0));
+        currentFootstep_.col(i) = Rz * (ftgPositions.col(i).head(3) - (Vector3(q[0], q[1], 0.0) - Rz * b_vref.head(3) * dt_wbc));
         currentFootstep_(2, i) = data_.oMf[foot_ids_[i]].translation()(2, 0);
         previousHeight_(0, i) = currentFootstep_(2, i);
         // std::cout << "= New contact at " << currentFootstep_.col(i).transpose() << " for foot " << i << std::endl;
