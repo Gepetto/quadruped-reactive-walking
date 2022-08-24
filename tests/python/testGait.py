@@ -149,8 +149,18 @@ class TestGait(unittest.TestCase):
                     "phaseDuration is OK",
                 )
                 self.assertTrue(
-                    self.params.dt_mpc * (12 - (i - 9) % 12)
-                    == self.gait.get_remaining_time(i, j),
+                    np.allclose(
+                        self.params.T_gait * 0.5
+                        - self.params.dt_mpc * (12 - (i - 9) % 12),
+                        self.gait.get_elapsed_time(i, j),
+                    ),
+                    "elapsedTime is OK",
+                )
+                self.assertTrue(
+                    np.allclose(
+                        self.params.dt_mpc * (12 - (i - 9) % 12),
+                        self.gait.get_remaining_time(i, j),
+                    ),
                     "remainingTime is OK",
                 )
 
