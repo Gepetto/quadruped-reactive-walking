@@ -131,15 +131,25 @@ class MpcWrapper {
   /// \brief Return the latest available result of the MPC
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  Eigen::Matrix<double, 24, 2> get_latest_result();
+  MatrixN get_latest_result();
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Return the solving duration of the latest MPC iteration
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  double get_t_mpc_solving_duration() { return t_mpc_solving_duration_; }
 
  private:
   Params* params_;  // Object that stores parameters
   MPC mpc_;         // MPC object used for synchronous solving (not in parallel loop)
 
-  Eigen::Matrix<double, 24, 2> last_available_result;  // Latest available result of the MPC
-  RowVector4 gait_past;                                  // Gait status of the previous MPC time step
-  RowVector4 gait_next;                                  // Gait status of the next MPC time step
+  MatrixN last_available_result;  // Latest available result of the MPC
+  RowVector4 gait_past;           // Gait status of the previous MPC time step
+  RowVector4 gait_next;           // Gait status of the next MPC time step
+
+  std::chrono::time_point<std::chrono::system_clock> t_mpc_solving_start_;
+  double t_mpc_solving_duration_;
 };
 
 #endif  // MPCWRAPPER_H_INCLUDED

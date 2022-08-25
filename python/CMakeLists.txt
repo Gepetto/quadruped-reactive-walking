@@ -3,6 +3,7 @@ set(${PY_NAME}_SOURCES
   Estimator.cpp
   Filter.cpp
   MPC.cpp
+  MpcWrapper.cpp
   FootstepPlanner.cpp
   FootTrajectoryGenerator.cpp
   Gait.cpp

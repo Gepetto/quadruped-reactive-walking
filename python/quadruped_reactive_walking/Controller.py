@@ -86,8 +86,7 @@ class Controller:
         self.q_display = np.zeros(19)
 
         if self.type_MPC == 0:
-            print("Create wrapper")
-            self.mpc_wrapper = qrw.mpcWrapper()
+            self.mpc_wrapper = qrw.MpcWrapper()
             self.mpc_wrapper.initialize(params)
         else:
             self.mpc_wrapper = MPC_Wrapper.MPC_Wrapper(params, self.q_init)
@@ -560,7 +559,6 @@ class Controller:
                         - self.footTrajectoryGenerator.get_elapsed_durations(),
                     )
                 elif self.type_MPC == 0:
-                    print("Call Wrapper")
                     self.mpc_wrapper.solve(
                         self.k,
                         reference_state,
@@ -577,15 +575,12 @@ class Controller:
             except ValueError:
                 print("MPC Problem")
 
-        # Use a temporary result if contact status changes between two calls of the MPC
-        self.mpc_wrapper.get_temporary_result(self.gait.matrix[0, :])
-
         if self.type_MPC == 0:
-            print("get latest result")
             self.mpc_result = self.mpc_wrapper.get_latest_result()
-            from IPython import embed
-            embed()
+            self.mpc_cost = 0.0
         else:
+            # Use a temporary result if contact status changes between two calls of the MPC
+            self.mpc_wrapper.get_temporary_result(self.gait.matrix[0, :])
             self.mpc_result, self.mpc_cost = self.mpc_wrapper.get_latest_result()
 
         if self.k > 100 and self.type_MPC == 3:

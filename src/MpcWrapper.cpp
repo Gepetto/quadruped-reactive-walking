@@ -18,6 +18,8 @@ std::mutex mutexStop;  // To check if the thread should still run
 std::mutex mutexIn;    // From main loop to MPC
 std::mutex mutexOut;   // From MPC to main loop
 
+std::thread parallel_thread(parallel_loop);  // spawn new thread that runs MPC in parallel
+
 void stop_thread() {
   const std::lock_guard<std::mutex> lockStop(mutexStop);
   shared_running = false;
@@ -69,6 +71,9 @@ MatrixN read_out() {
 }
 
 void parallel_loop() {
+  while (shared_params == nullptr) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));  // Wait a bit
+  }
   int k;
   MatrixN xref;
   MatrixN fsteps;
@@ -87,8 +92,7 @@ void parallel_loop() {
       loop_mpc.run(k, xref, fsteps);
 
       // Store the result (predicted state + desired forces) in the shared memory
-      // MPC::get_latest_result() returns a matrix of size 24 x N and we want to
-      // retrieve only the 2 first columns i.e. dataOut.block(0, 0, 24, 2)
+      // MPC::get_latest_result() returns a matrix of size 24 x N
       // std::cout << "NEW RESULT AVAILABLE, WRITING OUT" << std::endl;
       result = loop_mpc.get_latest_result();
       write_out(result);
@@ -99,26 +103,32 @@ void parallel_loop() {
 }
 
 MpcWrapper::MpcWrapper()
-    : last_available_result(Eigen::Matrix<double, 24, 2>::Zero()),
-      gait_past(RowVector4::Zero()),
-      gait_next(RowVector4::Zero()) {}
+    : gait_past(RowVector4::Zero()),
+      gait_next(RowVector4::Zero()),
+      t_mpc_solving_duration_(0.0) {}
 
 void MpcWrapper::initialize(Params& params) {
   params_ = &params;
   mpc_ = MPC(params);
 
+  t_mpc_solving_start_ = std::chrono::system_clock::now();
+
   // Default result for first step
+  last_available_result = MatrixN::Zero(24, params.gait.rows());
   last_available_result(2, 0) = params.h_ref;
   last_available_result.col(0).tail(12) = (Vector3(0.0, 0.0, 8.0)).replicate<4, 1>();
 
   // Initialize the shared memory
-  shared_params = &params;
   shared_k = 42;
   shared_xref = MatrixN::Zero(12, params.gait.rows() + 1);
   shared_fsteps = MatrixN::Zero(params.gait.rows(), 12);
+  shared_params = &params;
 }
 
 void MpcWrapper::solve(int k, MatrixN xref, MatrixN fsteps, MatrixN gait) {
+
+  t_mpc_solving_start_ = std::chrono::system_clock::now();
+
   // std::cout << "NEW DATA AVAILABLE, WRITING IN" << std::endl;
   write_in(k, xref, fsteps);
 
@@ -142,10 +152,11 @@ void MpcWrapper::solve(int k, MatrixN xref, MatrixN fsteps, MatrixN gait) {
   gait_next = gait.row(1);
 }
 
-Eigen::Matrix<double, 24, 2> MpcWrapper::get_latest_result() {
+MatrixN MpcWrapper::get_latest_result() {
   // Retrieve data from parallel process if a new result is available
   if (check_new_result()) {
-    last_available_result = read_out().block(0, 0, 24, 2);
+    t_mpc_solving_duration_ = ((std::chrono::duration<double>)(std::chrono::system_clock::now() - t_mpc_solving_start_)).count();
+    last_available_result = read_out();
   }
   // std::cout << "get_latest_result: " << std::endl << last_available_result.transpose() << std::endl;
   return last_available_result;
