@@ -122,7 +122,9 @@ class TestMPC(unittest.TestCase):
         )
         self.assertTrue(
             np.allclose(
-                x_f_mpc[12:, 0], np.array([0.0, 0.0, 9.81 * self.params.mass / 4] * 4)
+                x_f_mpc[12:, 0],
+                np.array([0.0, 0.0, 9.81 * self.params.mass / 4] * 4),
+                atol=1e-3,
             ),
             "Feet forces are equal to theorical value.",
         )
