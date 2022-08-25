@@ -112,7 +112,7 @@ class MpcWrapper {
   /// \brief Destructor
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  ~MpcWrapper() {}  // Empty destructor
+  ~MpcWrapper();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -135,18 +135,36 @@ class MpcWrapper {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
+  /// \brief Use a temporary result if contact status changes between two calls of the MPC
+  ///
+  /// \param[in] gait Current contact state of the four feet
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void get_temporary_result(RowVector4 gait);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
   /// \brief Return the solving duration of the latest MPC iteration
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   double get_t_mpc_solving_duration() { return t_mpc_solving_duration_; }
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Stop the parallel loop
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  void stop_parallel_loop();
+
  private:
   Params* params_;  // Object that stores parameters
   MPC mpc_;         // MPC object used for synchronous solving (not in parallel loop)
 
-  MatrixN last_available_result;  // Latest available result of the MPC
-  RowVector4 gait_past;           // Gait status of the previous MPC time step
-  RowVector4 gait_next;           // Gait status of the next MPC time step
+  MatrixN last_available_result;                        // Latest available result of the MPC
+  RowVector4 gait_past;                                 // Gait status of the previous MPC time step
+  RowVector4 gait_next;                                 // Gait status of the next MPC time step
+  RowVector4 gait_mem_;                                 // Gait status memory for get_temporary_result
+  bool flag_change_[4] = {false, false, false, false};  // Flags to indicate a gait change
 
   std::chrono::time_point<std::chrono::system_clock> t_mpc_solving_start_;
   double t_mpc_solving_duration_;

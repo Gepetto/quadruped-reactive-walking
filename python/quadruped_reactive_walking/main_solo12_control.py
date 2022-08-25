@@ -249,7 +249,7 @@ def control_loop(des_vel_analysis=None):
     finished = t >= t_max
     damp_control(device, 12)
 
-    if params.enable_multiprocessing:
+    if params.enable_multiprocessing or params.type_MPC == 0:
         print("Stopping parallel process MPC")
         controller.mpc_wrapper.stop_parallel_loop()
 

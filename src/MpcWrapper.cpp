@@ -18,7 +18,7 @@ std::mutex mutexStop;  // To check if the thread should still run
 std::mutex mutexIn;    // From main loop to MPC
 std::mutex mutexOut;   // From MPC to main loop
 
-std::thread parallel_thread(parallel_loop);  // spawn new thread that runs MPC in parallel
+std::thread parallel_thread;  // spawn new thread that runs MPC in parallel
 
 void stop_thread() {
   const std::lock_guard<std::mutex> lockStop(mutexStop);
@@ -105,6 +105,7 @@ void parallel_loop() {
 MpcWrapper::MpcWrapper()
     : gait_past(RowVector4::Zero()),
       gait_next(RowVector4::Zero()),
+      gait_mem_(RowVector4::Zero()),
       t_mpc_solving_duration_(0.0) {}
 
 void MpcWrapper::initialize(Params& params) {
@@ -123,10 +124,17 @@ void MpcWrapper::initialize(Params& params) {
   shared_xref = MatrixN::Zero(12, params.gait.rows() + 1);
   shared_fsteps = MatrixN::Zero(params.gait.rows(), 12);
   shared_params = &params;
+
+  // Start the parallel loop
+  parallel_thread = std::thread(parallel_loop);
+}
+
+MpcWrapper::~MpcWrapper() {
+  stop_thread();
+  parallel_thread.join();
 }
 
 void MpcWrapper::solve(int k, MatrixN xref, MatrixN fsteps, MatrixN gait) {
-
   t_mpc_solving_start_ = std::chrono::system_clock::now();
 
   // std::cout << "NEW DATA AVAILABLE, WRITING IN" << std::endl;
@@ -154,10 +162,64 @@ void MpcWrapper::solve(int k, MatrixN xref, MatrixN fsteps, MatrixN gait) {
 
 MatrixN MpcWrapper::get_latest_result() {
   // Retrieve data from parallel process if a new result is available
+  bool refresh = false;
   if (check_new_result()) {
-    t_mpc_solving_duration_ = ((std::chrono::duration<double>)(std::chrono::system_clock::now() - t_mpc_solving_start_)).count();
+    t_mpc_solving_duration_ =
+        ((std::chrono::duration<double>)(std::chrono::system_clock::now() - t_mpc_solving_start_)).count();
     last_available_result = read_out();
+    refresh = true;
   }
+
+  if (refresh) {
+    // Handle changes of gait between moment when the MPC solving is launched and result is retrieved
+    for (int i = 0; i < 4; i++) {
+      if (flag_change_[i]) {
+        // Foot in contact but was not in contact when we launched MPC solving (new detection)
+        // Fetch first non zero force in the prediction horizon for this foot
+        int k = 0;
+        while (k < last_available_result.cols() && last_available_result(14 + 3 * i, k) == 0) {
+          k++;
+        }
+        last_available_result.block(12 + 3 * i, 0, 3, 1) = last_available_result.block(12 + 3 * i, k, 3, 1);
+      }
+    }
+  }
+
   // std::cout << "get_latest_result: " << std::endl << last_available_result.transpose() << std::endl;
   return last_available_result;
+}
+
+void MpcWrapper::get_temporary_result(RowVector4 gait) {
+  // Check if gait status has changed
+  bool same = false;
+  for (int i = 0; i < 4 && !same; i++) {
+    same = (gait[i] != gait_mem_[i]);
+  }
+  // If gait status has changed
+  if (!same) {
+    for (int i = 0; i < 4; i++) {
+      if (gait[i] == 0) {
+        // Foot not in contact
+        last_available_result.block(12 + 3 * i, 0, 3, 1).setZero();
+      } else if (gait[i] == 1 && gait_mem_[i] == 1) {
+        // Foot in contact and was already in contact
+        continue;
+      } else if (gait[i] == 1 && gait_mem_[i] == 0) {
+        // Foot in contact but was not in contact (new detection)
+        flag_change_[i] = true;
+        // Fetch first non zero force in the prediction horizon for this foot
+        int k = 0;
+        while (k < last_available_result.cols() && last_available_result(14 + 3 * i, k) == 0) {
+          k++;
+        }
+        last_available_result.block(12 + 3 * i, 0, 3, 1) = last_available_result.block(12 + 3 * i, k, 3, 1);
+      }
+    }
+    gait_mem_ = gait;
+  }
+}
+
+void MpcWrapper::stop_parallel_loop() {
+  stop_thread();
+  // std::terminate(parallel_thread);
 }
