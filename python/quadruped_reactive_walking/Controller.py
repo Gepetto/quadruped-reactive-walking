@@ -298,6 +298,34 @@ class Controller:
 
     def pyb_debug(self, device, footsteps, gait_matrix, xref):
 
+        # Spawn a block under the front left foot at a given iteration
+        if False and self.k == 360:
+            import pybullet_data
+            pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
+
+            mesh_scale = [0.1, 0.1, 0.04]
+            visualShapeId = pyb.createVisualShape(shapeType=pyb.GEOM_MESH,
+                                                  fileName="cube.obj",
+                                                  halfExtents=[0.5, 0.5, 0.1],
+                                                  rgbaColor=[0.0, 0.0, 1.0, 1.0],
+                                                  specularColor=[0.4, .4, 0],
+                                                  visualFramePosition=[0.0, 0.0, 0.0],
+                                                  meshScale=mesh_scale)
+
+            collisionShapeId = pyb.createCollisionShape(shapeType=pyb.GEOM_MESH,
+                                                        fileName="cube.obj",
+                                                        collisionFramePosition=[0.0, 0.0, 0.0],
+                                                        meshScale=mesh_scale)
+
+            self.blockId = pyb.createMultiBody(baseMass=0.0,
+                                               baseInertialFramePosition=[0, 0, 0],
+                                               baseCollisionShapeIndex=collisionShapeId,
+                                               baseVisualShapeIndex=visualShapeId,
+                                               basePosition=[0.19, 0.15005, 0.02],
+                                               useMaximalCoordinates=True)
+            pyb.changeDynamics(self.blockId, -1, lateralFriction=1.0)
+            print("ID of spawned block: ", self.blockId)
+
         if self.k > 1 and self.enable_pyb_GUI:
             # Display desired feet positions in WBC as green spheres
             oTh_pyb = device.base_position.reshape((-1, 1))
