@@ -113,6 +113,143 @@ def damp_control(device, nb_motors):
         t += params.dt_wbc
 
 
+def recover(device, q_init):
+    """
+    Recover after falling on the ground
+
+    Args:
+        device  (robot wrapper): a wrapper to communicate with the robot
+        q_init (array): the default position of the robot
+    """
+
+    # Read sensor data
+    device.parse_sensor_data()
+
+    # Set desired quantities for the actuators
+    device.joints.set_position_gains(np.zeros(12))
+    device.joints.set_velocity_gains(np.zeros(12))
+    device.joints.set_desired_velocities(np.zeros(12))
+    device.joints.set_torques(np.zeros(12))
+
+    # Flip base if it is upside down
+    if (
+        np.abs(device.imu.attitude_euler[0]) < 0.8
+        or np.abs(device.imu.attitude_euler[1]) < 0.8
+    ):
+        print("Base upside down")
+
+        # Get in waiting position
+        t = 0.0
+        t_max = 2.5
+        q_target = np.zeros(12)
+        init_q = device.joints.positions.copy()
+        HFE_targets = np.array([-np.pi / 2, np.pi / 2])
+        Knee_targets = np.array([-np.pi, 0, np.pi])
+        for i in range(4):
+            q_target[1 + 3 * i] = HFE_targets[
+                np.abs(HFE_targets - init_q[1 + 3 * i]).argmin()
+            ]
+            q_target[2 + 3 * i] = Knee_targets[
+                np.abs(Knee_targets - init_q[2 + 3 * i]).argmin()
+            ]
+        while (not device.is_timeout) and (t < t_max):
+            # Read sensor data
+            device.parse_sensor_data()
+
+            # Set desired quantities for the actuators
+            device.joints.set_desired_positions(
+                q_target * t / t_max + init_q * (t_max - t) / t_max
+            )
+            device.joints.set_position_gains(3.0 * np.ones(12))
+            device.joints.set_velocity_gains(0.1 * np.ones(12))
+
+            # Send command to the robot
+            device.send_command_and_wait_end_of_cycle(params.dt_wbc)
+
+            t += params.dt_wbc
+
+        mask_HFA = np.array([1, 0, 0] * 4)
+        mask_HFE = np.array([0, 1, 0] * 4)
+        mask_Knee = np.array([0, 0, 1] * 4)
+        init_q = device.joints.positions.copy()
+        q_target = device.joints.positions.copy()
+
+        if True or device.imu.attitude_euler[0] > 0:
+            # Use left legs
+            legs = np.repeat(np.array([1, 0] * 2), 3)
+            sign_leg = +1
+        else:
+            # Use right legs
+            legs = np.repeat(np.array([0, 1] * 2), 3)
+            sign_leg = -1
+
+        # Moving shoulders at 45 deg to make flip easier
+        init_q[(legs * mask_HFA).astype(bool)] = 65 / 180 * np.pi * sign_leg
+        # Immobile shoulders at 110 deg to make flip easier
+        init_q[((1 - legs) * mask_HFA).astype(bool)] = -0 / 180 * np.pi * sign_leg
+
+        # Move knee in + or - direction depending on Knee position
+        sign = - np.repeat(2 * (device.joints.positions[2::3] > np.pi / 2).astype(int) - 1, 3) * sign_leg
+
+        Knee_pos = np.array([-np.pi, 0, np.pi])
+        Knee_targets = np.array([-1, 1, 1]) * 90 * np.pi / 180 + np.array([-1, -1, 1]) * 40 / 180 * np.pi
+        HFE_pos = np.array([-np.pi, 0, np.pi])
+        HFE_targets = np.array([-1, 1, 1]) * 40 / 180 * np.pi
+
+        for i in range(4):
+            q_target[2 + 3 * i] += Knee_targets[
+                np.abs(Knee_pos - init_q[2 + 3 * i]).argmin()
+            ]
+            q_target[1 + 3 * i] -= HFE_targets[
+                np.abs(HFE_pos - init_q[1 + 3 * i]).argmin()
+            ]
+
+        # Set targets
+        q_target = (
+            (mask_Knee + mask_HFE) * legs * (q_target + 0 * sign * np.pi / 2 * np.ones(12))
+            + ((1 - mask_Knee) * legs + (1 - legs)) * init_q
+        )
+
+        # Refresh init_q since it was modified for shoulders
+        init_q = device.joints.positions.copy()
+
+        print(mask_Knee)
+        #print(sign)
+        print(legs)
+        #print(mask_Knee * sign * legs)
+        print(((1 - mask_Knee) * legs + (1 - legs)))
+        print("init_q: ", init_q)
+        print("q: ", q_target)
+
+        t = 0.0
+        t_max = 1
+        while (not device.is_timeout) and (t < t_max):
+            # (np.abs(device.imu.attitude_euler[0]) > 0.2):
+
+            # Read sensor data
+            device.parse_sensor_data()
+
+            # Set targets
+            device.joints.set_desired_positions(
+                q_target * t / t_max + init_q * (t_max - t) / t_max
+            )
+            device.joints.set_position_gains(6.0 * np.ones(12))
+            device.joints.set_velocity_gains(0.2 * np.ones(12))
+
+            # Send command to the robot
+            device.send_command_and_wait_end_of_cycle(params.dt_wbc)
+
+            t += params.dt_wbc
+
+        while (True):
+
+             # Read sensor data
+            device.parse_sensor_data()
+
+            # Send command to the robot
+            device.send_command_and_wait_end_of_cycle(params.dt_wbc)
+
+
 def control_loop(des_vel_analysis=None):
     """
     Main function that calibrates the robot, get it into a default waiting position then launch
