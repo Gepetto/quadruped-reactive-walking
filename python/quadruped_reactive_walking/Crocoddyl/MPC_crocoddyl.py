@@ -57,7 +57,7 @@ class MPC_crocoddyl:
 
         self.frictionWeights = 1.0  # Friction cone weight
 
-        self.min_fz = 0.2  # Minimum normal force (N)
+        self.min_fz = 1  # Minimum normal force (N)
         self.max_fz = 25  # Maximum normal force (N)
 
         self.shoulderWeights = 0.0  # Weight on the shoulder term :
