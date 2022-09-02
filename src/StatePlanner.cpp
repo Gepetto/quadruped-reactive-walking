@@ -40,9 +40,9 @@ void StatePlanner::preJumpTrajectory(int i, double t_swing, int k) {
     i--;
   }
   for (int a = 0; a <= j; a++) {
-    referenceStates_(6, 1 + i + a) = 0.81 * (static_cast<double>(a) / static_cast<double>(j));
+    referenceStates_(6, 1 + i + a) = 0.81 * 0.0 * (static_cast<double>(a) / static_cast<double>(j));
     if (i + a >= 0) {
-      referenceStates_(0, 1 + i + a) = 0.81 * dt_ + referenceStates_(0, i + a);
+      referenceStates_(0, 1 + i + a) = 0.81 * 0.0 * dt_ + referenceStates_(0, i + a);
     }
   }
 
@@ -120,30 +120,30 @@ void StatePlanner::computeReferenceStates(int k, VectorN const& q, Vector6 const
 
   MatrixN gait = gait_->getCurrentGait();
   for (int i = 0; i < n_steps_; i++) {
-    if (false && gait.row(i).isZero())  // Enable for jumping
+    if (gait.row(i).isZero())  // Enable for jumping
     {
       // Assumption of same duration for all feet
-      double t_swing = gait_->getPhaseDuration(i, 0);  // 0.0 for swing phase
+      double t_swing = gait_->getPhaseDuration(i);  // 0.0 for swing phase
 
       // Compute the reference trajectory of the CoM for time steps before the jump phase
-      preJumpTrajectory(i - 1, t_swing, k);
+      // preJumpTrajectory(i - 1, t_swing, k);
 
       // Vertical velocity at the start of the fly phase
       double g = 9.81;
       double vz0 = -g * t_swing * 0.5;
 
-      double t_fly = t_swing - (gait_->getRemainingTime(i, 0) - 1) * dt_;
+      double t_fly = t_swing - gait_->getRemainingTime(i);
       while (i < n_steps_ && gait.row(i).isZero()) {
         if (i != 0) {
           referenceStates_(2, 1 + i) = h_ref_ + h_feet_mean_ - g * 0.5 * t_fly * (t_fly - t_swing);
           referenceStates_(8, 1 + i) = g * (t_swing * 0.5 - t_fly);
-          referenceStates_(0, 1 + i) = 0.81 * dt_ + referenceStates_(0, i);
-          referenceStates_(6, 1 + i) = 0.81;
+          referenceStates_(0, 1 + i) = 0.81 * 0.0 * dt_ + referenceStates_(0, i);
+          referenceStates_(6, 1 + i) = 0.81 * 0.0;
         } else {
           double t_p = t_fly + (k % 20) * dt_wbc_ - dt_;
           referenceStates_(2, 1 + i) = h_ref_ + h_feet_mean_ - g * 0.5 * t_p * (t_p - t_swing);
           referenceStates_(8, 1 + i) = g * (t_swing * 0.5 - t_p);
-          referenceStates_(6, 1 + i) = 0.81;
+          referenceStates_(6, 1 + i) = 0.81 * 0.0;
         }
         // std::cout << t_swing << " | " << t_fly << " | " << referenceStates_(2, 1 + i) << std::endl;
         // Pitch
