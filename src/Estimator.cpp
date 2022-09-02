@@ -15,7 +15,7 @@ Estimator::Estimator()
       k_mpc_(0),
       initialized_(false),
       feetFrames_(Vector4::Zero()),
-      footRadius_(0.155),
+      footRadius_(0.0155),
       alphaPos_({0.995, 0.995, 0.9}),
       alphaVelMax_(1.),
       alphaVelMin_(0.97),
@@ -227,6 +227,7 @@ void Estimator::updateForwardKinematics() {
   for (int foot = 0; foot < 4; foot++) {
     if (feetStatus_(foot) == 1. && feetStancePhaseDuration_[foot] >= 40) {
       baseVelocityEstimate += computeBaseVelocityFromFoot(foot);
+      baseVelocityEstimate[0] += footRadius_ * (vActuators_(1 + 3 * foot) + vActuators_(2 + 3 * foot));
       basePositionEstimate += computeBasePositionFromFoot(foot);
       nContactFeet++;
     }
@@ -252,7 +253,6 @@ Vector3 Estimator::computeBaseVelocityFromFoot(int footId) {
 Vector3 Estimator::computeBasePositionFromFoot(int footId) {
   pinocchio::updateFramePlacement(positionModel_, positionData_, feetFrames_[footId]);
   Vector3 basePosition = -positionData_.oMf[feetFrames_[footId]].translation();
-  basePosition(0) += footRadius_ * (vActuators_(1 + 3 * footId) + vActuators_(2 + 3 * footId));
 
   return basePosition;
 }
