@@ -78,6 +78,37 @@ class Gait {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
+  /// \brief Compute the total duration of a gait phase based on the content
+  ///        of the gait matrix
+  ///
+  /// \param[in] i Considered phase (row of the gait matrix)
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  double getPhaseDuration(int i);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Compute the duration of a gait phase based on the content of the gait matrix
+  /// \details We suppose that the phase starts after the start of past gait matrix
+  ///
+  /// \param[in] i Considered phase (row of the gait matrix)
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  double getElapsedTime(int i);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
+  /// \brief Compute the remaining duration of a gait phase phase based on the content
+  ///        of the gait matrix
+  /// \details We suppose that the end of the phase is reached before the end of desiredGait matrix
+  ///
+  /// \param[in] i Considered phase (row of the gait matrix)
+  ///
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  double getRemainingTime(int i);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  ///
   /// \brief Handle the joystick code to trigger events (change of gait for instance)
   /// \details We suppose that the end of the phase is reached before the end of the desiredGait
   ///          matrix and the phase starts after the start of past gait matrix

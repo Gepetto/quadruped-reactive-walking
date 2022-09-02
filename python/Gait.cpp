@@ -4,6 +4,13 @@
 
 template <typename Gait>
 struct GaitVisitor : public bp::def_visitor<GaitVisitor<Gait>> {
+  double (Gait::*getPhaseDuration0)(int) = &Gait::getPhaseDuration;
+  double (Gait::*getPhaseDuration1)(int, int) = &Gait::getPhaseDuration;
+  double (Gait::*getElapsedTime0)(int) = &Gait::getElapsedTime;
+  double (Gait::*getElapsedTime1)(int, int) = &Gait::getElapsedTime;
+  double (Gait::*getRemainingTime0)(int) = &Gait::getRemainingTime;
+  double (Gait::*getRemainingTime1)(int, int) = &Gait::getRemainingTime;
+
   template <class PyClassGait>
   void visit(PyClassGait& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
@@ -14,11 +21,12 @@ struct GaitVisitor : public bp::def_visitor<GaitVisitor<Gait>> {
         .def("get_desired_gait", &Gait::getDesiredGait, "Get desired gait matrix.\n")
         .def("is_new_step", &Gait::isNewPhase, "True if new phase of the gait.\n")
         .def("is_static", &Gait::getIsStatic, "True if static gait.\n")
-        .def("get_phase_duration", &Gait::getPhaseDuration, bp::args("i", "j"), "Get phase duration.\n")
-        .def("get_elapsed_time", &Gait::getElapsedTime, bp::args("i", "j"),
-             "Get elapsed time of the last computed phase.\n")
-        .def("get_remaining_time", &Gait::getRemainingTime, bp::args("i", "j"),
-             "Get remaining time of the last computed phase.\n")
+        .def("get_phase_duration", getPhaseDuration0, "Get phase duration.\n")
+        .def("get_phase_duration", getPhaseDuration1, "Get phase duration.\n")
+        .def("get_elapsed_time", getElapsedTime0, "Get elapsed time of the last computed phase.\n")
+        .def("get_elapsed_time", getElapsedTime1, "Get elapsed time of the last computed phase.\n")
+        .def("get_remaining_time", getRemainingTime0, "Get remaining time of the last computed phase.\n")
+        .def("get_remaining_time", getRemainingTime1, "Get remaining time of the last computed phase.\n")
 
         .def("initialize", &Gait::initialize, bp::args("params"), "Initialize Gait from Python.\n")
 

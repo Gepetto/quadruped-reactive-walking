@@ -169,6 +169,48 @@ double Gait::getElapsedTime(int i, int j) {
   return nPhase * dt_;
 }
 
+double Gait::getPhaseDuration(int i) { return getElapsedTime(i) + getRemainingTime(i); }
+
+double Gait::getRemainingTime(int i) {
+  RowVector4 state = currentGait_.row(i);
+  double nPhase = 1;
+  int row = i;
+
+  while ((row < nRows_ - 1) && (state.isApprox(currentGait_.row(row + 1)))) {
+    row++;
+    nPhase++;
+  }
+
+  if (row == nRows_ - 1) {
+    row = 0;
+    while ((row < nRows_) && (state.isApprox(desiredGait_.row(row)))) {
+      row++;
+      nPhase++;
+    }
+  }
+  return nPhase * dt_;
+}
+
+double Gait::getElapsedTime(int i) {
+  RowVector4 state = currentGait_.row(i);
+  double nPhase = 0;
+  int row = i;
+
+  while ((row > 0) && (state.isApprox(currentGait_.row(row - 1)))) {
+    row--;
+    nPhase++;
+  }
+
+  if (row == 0) {
+    row = nRows_;
+    while ((row > 0) && (state.isApprox(pastGait_.row(row - 1)))) {
+      row--;
+      nPhase++;
+    }
+  }
+  return nPhase * dt_;
+}
+
 void Gait::update(int const k, int const joystickCode) {
   changeGait(k, joystickCode);
   if (k % k_mpc_ == 0 && k > 0) {
