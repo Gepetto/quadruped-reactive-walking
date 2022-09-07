@@ -90,7 +90,7 @@ MatrixN FootstepPlanner::updateFootsteps(int k, VectorN const& q, Vector6 const&
   std::cout << gait_->getCurrentGait().row(1) << std::endl;*/
 
   // Update location of feet in stance phase (for those which just entered stance phase)
-  if (k % k_mpc_ == 0 && k != 0 && gait_->isNewPhase()) {
+  if ((k % k_mpc_ == 0 && k != 0) || gait_->isNewPhase()) {
     // updateNewContact(q);
 
     // Remove translation and yaw rotation to get position in local frame
