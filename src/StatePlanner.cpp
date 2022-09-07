@@ -120,7 +120,7 @@ void StatePlanner::computeReferenceStates(int k, VectorN const& q, Vector6 const
 
   MatrixN gait = gait_->getCurrentGait();
   for (int i = 0; i < n_steps_; i++) {
-    if (gait.row(i).isZero())  // Enable for jumping
+    if (false && gait.row(i).isZero())  // Enable for jumping
     {
       // Assumption of same duration for all feet
       double t_swing = gait_->getPhaseDuration(i);  // 0.0 for swing phase
