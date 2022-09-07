@@ -137,7 +137,8 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const &tar
   // Coefficients for z (deterministic)
   double Tz = t_swing[j];
   if (t0s[j] == 0) {
-    stepHeight_[j] = maxHeight_ * (1.0 - 0.5 * targetFootstep_(2, j) / maxHeight_);
+    stepHeight_[j] = maxHeight_ - std::max(0.0, targetFootstep_(2, j)); //* (1.0 - 0.5 * std::max(0.0, targetFootstep_(2, j)) / maxHeight_);
+    // stepHeight_[j] = maxHeight_ * (1.0 - 0.5 * targetFootstep_(2, j) / maxHeight_);
   }
 
   Vector3 Az;  // z trajectory is split in two halfs (before/after apex point)
