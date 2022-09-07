@@ -213,6 +213,7 @@ double Gait::getElapsedTime(int i) {
 
 void Gait::update(int const k, int const joystickCode) {
   changeGait(k, joystickCode);
+  newPhase_ = false;
   if (k % k_mpc_ == 0 && k > 0) {
     rollGait();
     for (int i = 0; i < 4; i++) {
