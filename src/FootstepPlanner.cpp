@@ -94,13 +94,13 @@ MatrixN FootstepPlanner::updateFootsteps(int k, VectorN const& q, Vector6 const&
     // updateNewContact(q);
 
     // Remove translation and yaw rotation to get position in local frame
-    q_FK_.head(3) << 0.0, 0.0, q(2, 0);
-    q_FK_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q(3, 0), q(4, 0), 0.0)).coeffs();
-    q_FK_.tail(12) = q.tail(12);
+    // q_FK_.head(3) << 0.0, 0.0, q(2, 0);
+    // q_FK_.block(3, 0, 4, 1) = pinocchio::SE3::Quaternion(pinocchio::rpy::rpyToMatrix(q(3, 0), q(4, 0), 0.0)).coeffs();
+    // q_FK_.tail(12) = q.tail(12);
 
     // Update model and data of the robot
-    pinocchio::forwardKinematics(model_, data_, q_FK_);
-    pinocchio::updateFramePlacements(model_, data_);
+    // pinocchio::forwardKinematics(model_, data_, q_FK_);
+    // pinocchio::updateFramePlacements(model_, data_);
 
     // Retrieve gait status
     RowVector4 currentGait = gait_->getCurrentGait().row(0);
@@ -115,7 +115,7 @@ MatrixN FootstepPlanner::updateFootsteps(int k, VectorN const& q, Vector6 const&
       if (currentGait(0, i) - previousGait_(0, i) >
           0) {  // New contact when currentGait[i] = 1 and previousGait_[i] = 0
         currentFootstep_.col(i) = Rz * (ftgPositions.col(i).head(3) - (Vector3(q[0], q[1], 0.0) - Rz * b_vref.head(3) * dt_wbc));
-        currentFootstep_(2, i) = data_.oMf[foot_ids_[i]].translation()(2, 0);
+        // currentFootstep_(2, i) = data_.oMf[foot_ids_[i]].translation()(2, 0);
         previousHeight_(0, i) = currentFootstep_(2, i);
         // std::cout << "= New contact at " << currentFootstep_.col(i).transpose() << " for foot " << i << std::endl;
       }
