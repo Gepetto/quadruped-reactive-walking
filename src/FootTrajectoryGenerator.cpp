@@ -228,8 +228,10 @@ void FootTrajectoryGenerator::update(int k, MatrixN const &targetFootstep) {
         updateFootPosition(i, targetFootstep.col(i));
       } else {
         double vz = -0.5 * stepHeight_[i] / (t_swing[i] * 0.5);  // Velocity at the end of second half of z trajectory
-        targetFootstep_(2, i) += vz * dt_wbc;                    // Lowering the foot until contact
-        position_.col(i) = targetFootstep_.col(i);
+        // targetFootstep_(2, i) += vz * dt_wbc;                    // Lowering the foot until contact
+        // position_.col(i) = targetFootstep_.col(i);
+        position_(2, i) += vz * dt_wbc;
+        targetFootstep_.col(i) = position_.col(i); // GOOD ONE
         velocity_.col(i) << 0.0, 0.0, vz;
         acceleration_.col(i).setZero();
         jerk_.col(i).setZero();
