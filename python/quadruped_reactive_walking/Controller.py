@@ -260,6 +260,19 @@ class Controller:
                 self.base_targets,
             )
 
+            # Quantities sent to the control board
+            self.P = np.zeros(12)
+            self.D = np.zeros(12)
+            for i in range(4):
+                if gait_matrix[0, i] == 1:
+                    self.P[3 * i : 3 * (i + 1)] = 3.0
+                    self.D[3 * i : 3 * (i + 1)] = 0.3
+                else:
+                    self.P[3 * i : 3 * (i + 1)] = 1.5
+                    self.D[3 * i : 3 * (i + 1)] = 0.1
+            self.result.P = self.P
+            self.result.D = self.D
+
             self.result.q_des = self.wbcWrapper.qdes
             self.result.v_des = self.wbcWrapper.vdes
             self.result.tau_ff = self.wbcWrapper.tau_ff
