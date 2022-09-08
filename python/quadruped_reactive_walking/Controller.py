@@ -603,12 +603,14 @@ class Controller:
             except ValueError:
                 print("MPC Problem")
 
+        # Use a temporary result if contact status changes between two calls of the MPC
+        self.mpc_wrapper.get_temporary_result(self.gait.matrix[0, :])
+
+        # Retrieve MPC result
         if self.type_MPC == 0:
             self.mpc_result = self.mpc_wrapper.get_latest_result()
             self.mpc_cost = 0.0
         else:
-            # Use a temporary result if contact status changes between two calls of the MPC
-            self.mpc_wrapper.get_temporary_result(self.gait.matrix[0, :])
             self.mpc_result, self.mpc_cost = self.mpc_wrapper.get_latest_result()
 
         if self.k > 100 and self.type_MPC == 3:
