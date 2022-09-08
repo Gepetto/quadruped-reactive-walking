@@ -545,7 +545,6 @@ class Controller:
         self.q_filtered[:6] = self.filter_q.filter(self.q[:6], True)
         self.h_v_filtered = self.filter_h_v.filter(self.h_v, False)
         self.vref_filtered = self.filter_vref.filter(self.v_ref, False)
-
         return oRh, hRb, oTh
 
     def retrieve_surfaces(self):
@@ -610,10 +609,8 @@ class Controller:
                     )
                 elif self.type_MPC == 0:
                     self.mpc_wrapper.solve(
-                        self.k,
-                        reference_state,
-                        footsteps,
-                        self.gait.matrix)
+                        self.k, reference_state, footsteps, self.gait.matrix
+                    )
                 else:
                     self.mpc_wrapper.solve(
                         self.k,
