@@ -663,7 +663,7 @@ class Controller:
             R = pin.rpy.rpyToMatrix(0.0, 0.0, self.q_filtered[5]).transpose()
         else:
             T = -oTh - np.array([0.0, 0.0, self.h_ref]).reshape((3, 1))
-            R = hRb @ oRh.transpose()
+            R = oRh.transpose()
 
         self.feet_a_cmd = R @ self.footTrajectoryGenerator.get_foot_acceleration()
         self.feet_v_cmd = R @ self.footTrajectoryGenerator.get_foot_velocity()
