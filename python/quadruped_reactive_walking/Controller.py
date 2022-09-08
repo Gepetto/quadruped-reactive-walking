@@ -237,6 +237,10 @@ class Controller:
 
             self.get_base_targets(reference_state, hRb)
 
+            self.base_targets[6] = reference_state[6, 1]
+            self.base_targets[8] = reference_state[8, 1]
+            # self.base_targets[8] = self.mpc_result[8, 0]
+
             self.get_feet_targets(reference_state, oRh, oTh, hRb)
 
             self.q_wbc[3:5] = self.q_filtered[3:5]
