@@ -116,31 +116,39 @@ class ContactDetector:
         # In simulation we can get the ground truth from the simulator
         if self.is_simulation and k > 0:
             # Log ground truth for contacts
+            # Front left foot
             ctc_FL = pyb.getContactPoints(
                 device.pyb_sim.robotId, device.pyb_sim.planeId, linkIndexA=3
-            )  # Front left foot
+            )
+            # Front right foot
             ctc_FR = pyb.getContactPoints(
                 device.pyb_sim.robotId, device.pyb_sim.planeId, linkIndexA=7
-            )  # Front right foot
+            )
+            # Hind left foot
             ctc_HL = pyb.getContactPoints(
                 device.pyb_sim.robotId, device.pyb_sim.planeId, linkIndexA=11
-            )  # Hind left foot
+            )
+            # Hind right foot
             ctc_HR = pyb.getContactPoints(
                 device.pyb_sim.robotId, device.pyb_sim.planeId, linkIndexA=15
-            )  # Hind right foot
+            )
 
+            # Front left foot
             ctc_FL_block = pyb.getContactPoints(
-                device.pyb_sim.robotId, 26, linkIndexA=3
-            )  # Front left foot
+                device.pyb_sim.robotId, 27, linkIndexA=3
+            )
+            # Front right foot
             ctc_FR_block = pyb.getContactPoints(
-                device.pyb_sim.robotId, 26, linkIndexA=7
-            )  # Front right foot
+                device.pyb_sim.robotId, 27, linkIndexA=7
+            )
+            # Hind left foot
             ctc_HL_block = pyb.getContactPoints(
-                device.pyb_sim.robotId, 26, linkIndexA=11
-            )  # Hind left foot
+                device.pyb_sim.robotId, 27, linkIndexA=11
+            )
+            # Hind right foot
             ctc_HR_block = pyb.getContactPoints(
-                device.pyb_sim.robotId, 26, linkIndexA=15
-            )  # Hind right foot
+                device.pyb_sim.robotId, 27, linkIndexA=15
+            )
             a = np.array([len(ctc_FL), len(ctc_FR), len(ctc_HL), len(ctc_HR)]) > 0
             b = (
                 np.array(
@@ -182,11 +190,11 @@ class ContactDetector:
                         self.contact_detection = True
                         gait.set_current_gait(gait_tmp)
                         gait.set_new_phase(True)
-                    elif self.log_ctc_truth[k, i] == 0 and gait_tmp[0, i] == 1 and gait_tmp_past[0, i] == 0:
+                    elif self.log_ctc_truth[k, i] == 0 and gait_tmp[0, i] == 1 and gait_tmp_past[-1, i] == 0:
                         # Contact detected after hardcoded timing
                         # print("Late contact foot ", i, "at step ", k)
                         gait_tmp[0, i] = 0
-                        gait.setLate(i)
+                        gait.set_late(i)
                         gait.set_current_gait(gait_tmp)"""
 
         """# Time spent in flying phase
@@ -316,16 +324,22 @@ class ContactDetector:
                 elif (
                     (self.P_tot[k, i] < p)
                     and (gait_tmp[0, i] == 1)
-                    and (gait_tmp_past[0, i] == 0)
+                    and (gait_tmp_past[-1, i] == 0)
                 ):
                     # Contact detected after hardcoded timing
                     # print("Late contact foot ", i, "at step ", k)
                     self.k_since_late[i] += self.k_mpc
                     gait_tmp[0, i] = 0
-                    gait.setLate(i)
+                    gait.set_late(i)
                     gait.set_current_gait(gait_tmp)
                     # from IPython import embed
                     # embed()
+                """elif (gait_tmp_past[-1, i] == 0) and (gait_tmp[0, i] == 1):
+
+                    if k > 3000 and i == 0:
+                        print("Normal contact foot ", i, "at step ", k)
+                        from IPython import embed
+                        embed()"""
 
         self.log_gait[k, :] = gait.matrix[0, :]
 
