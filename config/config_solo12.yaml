@@ -6,8 +6,8 @@ robot:
         gear_ratios: 9.
         max_currents: 12.
         reverse_polarities: [
-            true, true, true, false, false, false,
-            true, true, true, false, false, false
+            false, true, true, true, false, false,
+            false, true, true, true, false, false
         ]
         lower_joint_limits: [
             -1.2, -2.0, -3.12, -1.2, -2.0, -3.12,
@@ -30,10 +30,8 @@ joint_calibrator:
       AUTO, AUTO, AUTO, AUTO, AUTO, AUTO
     ]
     position_offsets: [
-         0.15402414, -0.09870325, -0.04224743,
-        -0.19893768,  0.28213933,  0.07875716,
-        -0.19412552,  0.24585785,  0.22714814,
-         0.24258002, -0.10206669,  0.38732857
+         0.1596, -0.2471,  0.2973, -0.2421,  0.1022, -0.2663,
+         -0.1478, -0.1001, -0.0976,  0.0957,  0.3399, -0.2494
     ]
     calib_order: [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0]
     calib_pos: [
