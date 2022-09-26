@@ -55,8 +55,8 @@ def put_on_the_floor(device, q_init):
     # Slow increase till 1/4th of mass is supported by each foot
     duration_increase = 2.0
     steps = int(duration_increase / params.dt_wbc)
-    tau_ff = np.array([0.0, 0.022, 0.5] * 2 + [0.0, -0.022, -0.5] * 2)
-    # tau_ff = np.array([0.0, 0.022, 0.5, 0.0, 0.022, 0.5, 0.0, 0.025, 0.575, 0.0, 0.025, 0.575])
+    # tau_ff = np.array([0.0, 0.022, 0.5] * 2 + [0.0, -0.022, -0.5] * 2)
+    tau_ff = np.array([0.0, 0.04, 0.54, 0.0, 0.04, 0.54, 0.0, 0.04, 0.62, 0.0, 0.04, 0.62])
 
     for i in range(steps):
         device.joints.set_torques(tau_ff * i / steps)
