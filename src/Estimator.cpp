@@ -236,8 +236,8 @@ void Estimator::updateForwardKinematics() {
   if (nContactFeet > 0) {
     baseVelocityFK_ = baseVelocityEstimate / nContactFeet;
     const double coeff = 0.0005;
-    basePositionFK_ = basePositionFK_.cwiseProduct(Vector3(0.0, 0.0, 1.0 - coeff)) +
-                      (basePositionEstimate / nContactFeet).cwiseProduct(Vector3(1.0, 1.0, coeff));
+    basePositionFK_ = basePositionFK_.cwiseProduct(Vector3(0.005, 0.005, 0.1)) +
+                      (basePositionEstimate / nContactFeet).cwiseProduct(Vector3(0.995, 0.995, 0.9));
   }
 }
 
@@ -272,7 +272,7 @@ void Estimator::computeFeetPositionBarycenter() {
 double Estimator::computeAlphaVelocity() {
   double a = minElapsed_;
   double b = static_cast<double>(phaseRemainingDuration_);
-  const double n = 2 * k_mpc_;  // Nb of steps of margin around contact switch
+  const double n = 1 * k_mpc_;  // Nb of steps of margin around contact switch
   double c = (a + b) * 0.5 - n;
   if (a <= n || b <= n)
     return alphaVelMax_;
