@@ -136,21 +136,11 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const &tar
 
   // Coefficients for z (deterministic)
   double Tz = t_swing[j];
-  if (t0s[j] == 0) {
-    stepHeight_[j] = maxHeight_ - std::max(0.0, targetFootstep_(2, j)); //* (1.0 - 0.5 * std::max(0.0, targetFootstep_(2, j)) / maxHeight_);
-    // stepHeight_[j] = maxHeight_ * (1.0 - 0.5 * targetFootstep_(2, j) / maxHeight_);
-  }
-
-  Vector3 Az;  // z trajectory is split in two halfs (before/after apex point)
-  if (t0s[j] < Tz * 0.5) {
-    Az(0, 0) = 192.0 * stepHeight_[j] / std::pow(Tz, 5);
-    Az(1, 0) = -240.0 * stepHeight_[j] / std::pow(Tz, 4);
-    Az(2, 0) = 80.0 * stepHeight_[j] / std::pow(Tz, 3);
-  } else {
-    Az(0, 0) = -144.0 * (stepHeight_[j] + targetFootstep_(2, j)) / std::pow(Tz, 5);
-    Az(1, 0) = 184.0 * (stepHeight_[j] + targetFootstep_(2, j)) / std::pow(Tz, 4);
-    Az(2, 0) = -64.0 * (stepHeight_[j] + targetFootstep_(2, j)) / std::pow(Tz, 3);
-  }
+  Vector4 Az;
+  Az(0, j) = -maxHeight_ / (std::pow((Tz / 2), 3) * std::pow((Tz - Tz / 2), 3));
+  Az(1, j) = (3 * Tz * maxHeight_) / (std::pow((Tz / 2), 3) * std::pow((Tz - Tz / 2), 3));
+  Az(2, j) = -(3 * std::pow(Tz, 2) * maxHeight_) / (std::pow((Tz / 2), 3) * std::pow((Tz - Tz / 2), 3));
+  Az(3, j) = (std::pow(Tz, 3) * maxHeight_) / (std::pow((Tz / 2), 3) * std::pow((Tz - Tz / 2), 3));
 
   // Get the next point
   double ev = t + dt;
@@ -183,20 +173,14 @@ void FootTrajectoryGenerator::updateFootPosition(int const j, Vector3 const &tar
     jerk_(0, j) = 3 * 2 * Ax(2, j) + 4 * 3 * 2 * Ax(1, j) * ev + 5 * 4 * 3 * Ax(0, j) * std::pow(ev, 2);
     jerk_(1, j) = 3 * 2 * Ay(2, j) + 4 * 3 * 2 * Ay(1, j) * ev + 5 * 4 * 3 * Ay(0, j) * std::pow(ev, 2);
   }
-
-  if (t0s[j] >= Tz * 0.5) {
-    evz -= Tz * 0.5;  // To make coefficients simpler, second half was computed as if it started at t = 0
-  }
-  velocity_(2, j) =
-      3 * Az(2, 0) * std::pow(evz, 2) + 4 * Az(1, 0) * std::pow(evz, 3) + 5 * Az(0, 0) * std::pow(evz, 4);
-  acceleration_(2, j) =
-      2 * 3 * Az(2, 0) * evz + 3 * 4 * Az(1, 0) * std::pow(evz, 2) + 4 * 5 * Az(0, 0) * std::pow(evz, 3);
-  jerk_(2, j) = 2 * 3 * Az(2, 0) + 3 * 4 * 2 * Az(1, 0) * evz + 4 * 5 * 3 * Az(0, 0) * std::pow(evz, 2);
-  position_(2, j) =
-      Az(2, 0) * std::pow(evz, 3) + Az(1, 0) * std::pow(evz, 4) + Az(0, 0) * std::pow(evz, 5) + targetFootstep_(2, j);
-  if (t0s[j] >= Tz * 0.5) {
-    position_(2, j) += stepHeight_[j];  // Second half starts at the apex height then goes down
-  }
+  velocity_(2, j) = 3 * Az(3, j) * std::pow(evz, 2) + 4 * Az(2, j) * std::pow(evz, 3) +
+                    5 * Az(1, j) * std::pow(evz, 4) + 6 * Az(0, j) * std::pow(evz, 5);
+  acceleration_(2, j) = 2 * 3 * Az(3, j) * evz + 3 * 4 * Az(2, j) * std::pow(evz, 2) +
+                        4 * 5 * Az(1, j) * std::pow(evz, 3) + 5 * 6 * Az(0, j) * std::pow(evz, 4);
+  jerk_(2, j) = 2 * 3 * Az(3, j) + 3 * 4 * 2 * Az(2, j) * evz + 4 * 5 * 3 * Az(1, j) * std::pow(evz, 2) +
+                5 * 6 * 4 * Az(0, j) * std::pow(evz, 3);
+  position_(2, j) = Az(3, j) * std::pow(evz, 3) + Az(2, j) * std::pow(evz, 4) + Az(1, j) * std::pow(evz, 5) +
+                    Az(0, j) * std::pow(evz, 6);
 }
 
 void FootTrajectoryGenerator::update(int k, MatrixN const &targetFootstep) {
