@@ -186,7 +186,7 @@ class Controller:
         gait_matrix = self.gait.matrix
 
         # Run contact detection
-        self.cd.run(
+        """self.cd.run(
             self.k,
             self.gait,
             self.q.reshape((-1, 1)),
@@ -194,7 +194,7 @@ class Controller:
             device.joints.measured_torques.reshape((12, 1)),
             device,
             self.result.q_des[:],
-        )
+        )"""
 
         if self.solo3D:
             self.retrieve_surfaces()
@@ -243,7 +243,7 @@ class Controller:
             self.get_base_targets(reference_state, hRb)
 
             self.base_targets[6] = reference_state[6, 1]
-            self.base_targets[8] = reference_state[8, 1]
+            # self.base_targets[8] = reference_state[8, 1]
             # self.base_targets[8] = self.mpc_result[8, 0]
 
             self.get_feet_targets(reference_state, oRh, oTh, hRb)
@@ -273,8 +273,8 @@ class Controller:
                     self.P[3 * i : 3 * (i + 1)] = 3.0
                     self.D[3 * i : 3 * (i + 1)] = 0.3
                 else:
-                    self.P[3 * i : 3 * (i + 1)] = 1.5
-                    self.D[3 * i : 3 * (i + 1)] = 0.1
+                    self.P[3 * i : 3 * (i + 1)] = 3.0
+                    self.D[3 * i : 3 * (i + 1)] = 0.3
             self.result.P = self.P
             self.result.D = self.D
 
