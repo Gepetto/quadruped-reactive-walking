@@ -8,8 +8,6 @@ from . import ContactDetector, MPC_Wrapper, quadruped_reactive_walking as qrw
 from .solo3D.utils import quaternionToRPY
 from .tools.utils_mpc import init_robot
 
-new_data = []
-
 class Result:
     """
     Object to store the result of the control loop
@@ -282,31 +280,6 @@ class Controller:
             self.result.q_des = self.wbcWrapper.qdes
             self.result.v_des = self.wbcWrapper.vdes
             self.result.tau_ff = self.wbcWrapper.tau_ff
-
-        """new_data.append(str(self.k))
-        new_data.append(self.q.ravel())
-        new_data.append(self.q_filtered[:6].ravel().copy())
-        new_data.append(self.h_v_filtered.ravel().copy())
-        new_data.append(self.vref_filtered.ravel().copy())
-        new_data.append(reference_state[:, 0].copy())
-        new_data.append(footsteps[0, :].copy())
-        new_data.append("p_cmd")
-        new_data.append(self.feet_p_cmd.copy())
-        new_data.append(self.feet_v_cmd.copy())
-        new_data.append(self.feet_a_cmd.copy())
-        new_data.append(self.q_wbc.copy())
-        new_data.append(self.dq_wbc.copy())
-        new_data.append(self.mpc_result[12:24, 0].copy())
-        new_data.append("result")
-        new_data.append(self.result.q_des[:].copy())
-        new_data.append(self.result.v_des[:].copy())
-        new_data.append(self.result.tau_ff[:].copy())
-        new_data.append(self.base_targets.ravel().copy())
-        
-        if self.k > 5:
-            np.savez("/home/odri/git/paleziart/compare_performances/new_data.npz", new_data)
-            from IPython import embed
-            embed()"""
 
         self.t_wbc = time.time() - t_mpc
 
