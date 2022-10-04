@@ -8,9 +8,9 @@ robot:
     PLOTTING: false  # Enable/disable automatic plotting at the end of the experiment
     envID: 0  # Identifier of the environment to choose in which one the simulation will happen
     use_flat_plane: true  # If True the ground is flat, otherwise it has bumps
-    predefined_vel: false  # If we are using a predefined reference velocity (True) or a joystick (False)
-    N_SIMULATION: 60000  # Number of simulated wbc time steps
-    enable_pyb_GUI: false # Enable/disable PyBullet GUI
+    predefined_vel: true  # If we are using a predefined reference velocity (True) or a joystick (False)
+    N_SIMULATION: 10000  # Number of simulated wbc time steps
+    enable_pyb_GUI: true # Enable/disable PyBullet GUI
     enable_corba_viewer: false  # Enable/disable Corba Viewer
     enable_multiprocessing: true  # Enable/disable running the MPC in another process in parallel of the main loop
     perfect_estimator: false  # Enable/disable perfect estimator by using data directly from PyBullet
@@ -42,7 +42,7 @@ robot:
                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+               0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0]
 
     # Parameters of Estimator
     fc_v_esti: 50.0  # Cut frequency for the low pass that filters the estimated base velocity
