@@ -40,7 +40,8 @@ class Surface {
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief For a given X,Y point that belongs to the surface, return the height
+  /// \brief For a given X,Y point that belongs to the surface, return the
+  /// height
   ///        d/c -a/c*x -b/c*y
   ///
   /// \param[in] point Vecto3 [x, y, z]

@@ -39,10 +39,12 @@ void QPWBC::initialize(Params &params) {
   std::fill_n(v_NK_low, size_nz_NK, -std::numeric_limits<double>::infinity());
 
   // Create the matrices of the QP problem
-  create_matrices(Eigen::Matrix<double, 12, 6>::Ones(), Vector12::Ones(), Vector6::Ones());
+  create_matrices(Eigen::Matrix<double, 12, 6>::Ones(), Vector12::Ones(),
+                  Vector6::Ones());
 }
 
-int QPWBC::create_matrices(const Eigen::Matrix<double, 12, 6> &Jc, const Eigen::Matrix<double, 12, 1> &f_cmd,
+int QPWBC::create_matrices(const Eigen::Matrix<double, 12, 6> &Jc,
+                           const Eigen::Matrix<double, 12, 1> &f_cmd,
                            const Eigen::Matrix<double, 6, 1> &RNEA) {
   // Create the constraint matrices
   create_ML();
@@ -54,14 +56,16 @@ int QPWBC::create_matrices(const Eigen::Matrix<double, 12, 6> &Jc, const Eigen::
   return 0;
 }
 
-inline void QPWBC::add_to_ML(int i, int j, double v, int *r_ML, int *c_ML, double *v_ML) {
+inline void QPWBC::add_to_ML(int i, int j, double v, int *r_ML, int *c_ML,
+                             double *v_ML) {
   r_ML[cpt_ML] = i;  // row index
   c_ML[cpt_ML] = j;  // column index
   v_ML[cpt_ML] = v;  // value of coefficient
   cpt_ML++;          // increment the counter
 }
 
-inline void QPWBC::add_to_P(int i, int j, double v, int *r_P, int *c_P, double *v_P) {
+inline void QPWBC::add_to_P(int i, int j, double v, int *r_P, int *c_P,
+                            double *v_P) {
   r_P[cpt_P] = i;  // row index
   c_P[cpt_P] = j;  // column index
   v_P[cpt_P] = v;  // value of coefficient
@@ -69,8 +73,10 @@ inline void QPWBC::add_to_P(int i, int j, double v, int *r_P, int *c_P, double *
 }
 
 int QPWBC::create_ML() {
-  int *r_ML = new int[size_nz_ML];        // row indexes of non-zero values in matrix ML
-  int *c_ML = new int[size_nz_ML];        // col indexes of non-zero values in matrix ML
+  int *r_ML =
+      new int[size_nz_ML];  // row indexes of non-zero values in matrix ML
+  int *c_ML =
+      new int[size_nz_ML];  // col indexes of non-zero values in matrix ML
   double *v_ML = new double[size_nz_ML];  // non-zero values in matrix ML
 
   std::fill_n(r_ML, size_nz_ML, 0);
@@ -87,16 +93,19 @@ int QPWBC::create_ML() {
     }
   }
   // Dynamics equation constraints
-  // Filling with mass matrix (all coeffs to 1.0 to initialize that part as dense)
+  // Filling with mass matrix (all coeffs to 1.0 to initialize that part as
+  // dense)
   for (int i = 0; i < 6; i++) {
     for (int j = 0; j < 6; j++) {
       add_to_ML(20 + i, j, 1.0, r_ML, c_ML, v_ML);  // 1.0 replaces M(i, j)
     }
   }
-  // Filling with - contact Jacobian transposed (all coeffs to 1.0 to initialize that part as dense)
+  // Filling with - contact Jacobian transposed (all coeffs to 1.0 to initialize
+  // that part as dense)
   for (int i = 0; i < 6; i++) {
     for (int j = 0; j < 12; j++) {
-      add_to_ML(20 + i, 6 + j, 1.0, r_ML, c_ML, v_ML);  // 1.0 replaces -JcT(i, j)
+      add_to_ML(20 + i, 6 + j, 1.0, r_ML, c_ML,
+                v_ML);  // 1.0 replaces -JcT(i, j)
     }
   }
 
@@ -144,7 +153,8 @@ int QPWBC::create_ML() {
   return 0;
 }
 
-int QPWBC::create_NK(const Eigen::Matrix<double, 6, 12> &JcT, const Eigen::Matrix<double, 12, 1> &f_cmd,
+int QPWBC::create_NK(const Eigen::Matrix<double, 6, 12> &JcT,
+                     const Eigen::Matrix<double, 12, 1> &f_cmd,
                      const Eigen::Matrix<double, 6, 1> &RNEA) {
   // Fill upper bound of the friction cone contraints
   for (int i = 0; i < 4; i++) {
@@ -175,16 +185,16 @@ int QPWBC::create_NK(const Eigen::Matrix<double, 6, 12> &JcT, const Eigen::Matri
 }
 
 int QPWBC::create_weight_matrices() {
-  int *r_P = new int[size_nz_P];        // row indexes of non-zero values in matrix P
-  int *c_P = new int[size_nz_P];        // col indexes of non-zero values in matrix P
+  int *r_P = new int[size_nz_P];  // row indexes of non-zero values in matrix P
+  int *c_P = new int[size_nz_P];  // col indexes of non-zero values in matrix P
   double *v_P = new double[size_nz_P];  // non-zero values in matrix P
 
   std::fill_n(r_P, size_nz_P, 0);
   std::fill_n(c_P, size_nz_P, 0);
   std::fill_n(v_P, size_nz_P, 0.0);
 
-  // Fill P with 1.0 so that the sparse creation process considers that all coeffs
-  // can have a non zero value
+  // Fill P with 1.0 so that the sparse creation process considers that all
+  // coeffs can have a non zero value
   for (int i = 0; i < 6; i++) {
     add_to_P(i, i, Q1(i, i), r_P, c_P, v_P);
   }
@@ -232,13 +242,16 @@ int QPWBC::create_weight_matrices() {
   return 0;
 }
 
-int QPWBC::update_matrices(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Matrix<double, 12, 6> &Jc,
-                           const Eigen::Matrix<double, 12, 1> &f_cmd, const Eigen::Matrix<double, 6, 1> &RNEA) {
+int QPWBC::update_matrices(const Eigen::Matrix<double, 6, 6> &M,
+                           const Eigen::Matrix<double, 12, 6> &Jc,
+                           const Eigen::Matrix<double, 12, 1> &f_cmd,
+                           const Eigen::Matrix<double, 6, 1> &RNEA) {
   // Updating M and L matrices
   update_ML(M, Jc.transpose());
 
   // Updating N and K matrices
-  create_NK(Jc.transpose(), f_cmd, RNEA);  // We can use the create function to update NK
+  create_NK(Jc.transpose(), f_cmd,
+            RNEA);  // We can use the create function to update NK
 
   // Weight matrices do not need to be update
 
@@ -269,21 +282,25 @@ int QPWBC::update_matrices(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Ma
   return 0;
 }
 
-int QPWBC::update_ML(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Matrix<double, 6, 12> &JcT) {
+int QPWBC::update_ML(const Eigen::Matrix<double, 6, 6> &M,
+                     const Eigen::Matrix<double, 6, 12> &JcT) {
   // Update the part of ML that contains the dynamics constraint
-  // Coefficients are stored in column order and we want to update the block (20, 0, 6, 18)
-  // [0  fric
-  //  M -JcT] with fric having [2 2 5 2 2 5 2 2 5 2 2 5] non zeros coefficient for each one of its 12 columns
+  // Coefficients are stored in column order and we want to update the block
+  // (20, 0, 6, 18) [0  fric
+  //  M -JcT] with fric having [2 2 5 2 2 5 2 2 5 2 2 5] non zeros coefficient
+  //  for each one of its 12 columns
 
-  // Update M, no need to be careful because there is only zeros coefficients above M
+  // Update M, no need to be careful because there is only zeros coefficients
+  // above M
   for (int j = 0; j < 6; j++) {
     for (int i = 0; i < 6; i++) {
       ML->x[6 * j + i] = M(i, j);
     }
   }
 
-  // Update -JcT, need to be careful because there are non zeros coefficients before
-  // M represents 36 non zero coefficients + [2 2 5 2 2 5 2 2 5 2 2 5] non zeros for friction cone
+  // Update -JcT, need to be careful because there are non zeros coefficients
+  // before M represents 36 non zero coefficients + [2 2 5 2 2 5 2 2 5 2 2 5]
+  // non zeros for friction cone
   for (int j = 0; j < 12; j++) {
     for (int i = 0; i < 6; i++) {
       ML->x[36 + fric_nz[j] + 6 * j + i] = -JcT(i, j);
@@ -298,11 +315,12 @@ int QPWBC::call_solver() {
   if (not initialized)  // Setup the solver with the matrices
   {
     data = (OSQPData *)c_malloc(sizeof(OSQPData));
-    data->n = 18;        // number of variables
-    data->m = 26;        // number of constraints
-    data->P = P;         // the upper triangular part of the quadratic cost matrix P in csc format (size n x n)
-    data->A = ML;        // linear constraints matrix A in csc format (size m x n)
-    data->q = Q;         // dense array for linear part of cost function (size n)
+    data->n = 18;  // number of variables
+    data->m = 26;  // number of constraints
+    data->P = P;  // the upper triangular part of the quadratic cost matrix P in
+                  // csc format (size n x n)
+    data->A = ML;  // linear constraints matrix A in csc format (size m x n)
+    data->q = Q;   // dense array for linear part of cost function (size n)
     data->l = v_NK_low;  // dense array for lower bound (size m)
     data->u = v_NK_up;   // dense array for upper bound (size m)
 
@@ -357,7 +375,8 @@ int QPWBC::call_solver() {
   return 0;
 }
 
-int QPWBC::retrieve_result(const Eigen::Matrix<double, 6, 1> &ddq_cmd, const Eigen::Matrix<double, 12, 1> &f_cmd) {
+int QPWBC::retrieve_result(const Eigen::Matrix<double, 6, 1> &ddq_cmd,
+                           const Eigen::Matrix<double, 12, 1> &f_cmd) {
   // Retrieve the solution of the QP problem
   for (int k = 0; k < 6; k++) {
     ddq_res(k, 0) = (workspce->solution->x)[k];
@@ -394,7 +413,8 @@ MatrixN QPWBC::get_H() {
   return Hxd;
 }
 
-int QPWBC::run(const MatrixN &M, const MatrixN &Jc, const MatrixN &ddq_cmd, const MatrixN &f_cmd, const MatrixN &RNEA,
+int QPWBC::run(const MatrixN &M, const MatrixN &Jc, const MatrixN &ddq_cmd,
+               const MatrixN &f_cmd, const MatrixN &RNEA,
                const MatrixN &k_contact) {
   // Create the constraint and weight matrices used by the QP solver
   // Minimize x^T.P.x + 2 x^T.Q with constraints M.X == N and L.X <= K
@@ -439,11 +459,13 @@ int QPWBC::run(const MatrixN &M, const MatrixN &Jc, const MatrixN &ddq_cmd, cons
   /*else if (k_contact(0, i) == (k_max+10))
   {
     //char t_char[1] = {'M'};
-    //cc_print( (data->A)->m, (data->A)->n, (data->A)->nzmax, (data->A)->i, (data->A)->p, (data->A)->x, t_char);
-    std::cout << " ### " << k_contact(0, i) << std::endl;
+    //cc_print( (data->A)->m, (data->A)->n, (data->A)->nzmax, (data->A)->i,
+  (data->A)->p, (data->A)->x, t_char); std::cout << " ### " << k_contact(0, i)
+  << std::endl;
 
     for (int i = 0; i < data->m; i++) {
-      std::cout << data->l[i] << " | " << data->u[i] << " | " << f_cmd(i, 0) << std::endl;
+      std::cout << data->l[i] << " | " << data->u[i] << " | " << f_cmd(i, 0) <<
+  std::endl;
     }
   }*/
 
@@ -462,17 +484,20 @@ int QPWBC::run(const MatrixN &M, const MatrixN &Jc, const MatrixN &ddq_cmd, cons
   df(9, 0) = 0.01;
   df(10, 0) = 0.01;
   df(11, 0) = 0.01;
-  std::cout << 0.5 * f_res.transpose() * H * f_res + f_res.transpose() * g << std::endl;
-  std::cout << 0.5 * (f_res-df).transpose() * H * (f_res-df) + (f_res-df).transpose() * g << std::endl;
-  std::cout << 0.5 * (f_res+df).transpose() * H * (f_res+df) + (f_res+df).transpose() * g << std::endl;
+  std::cout << 0.5 * f_res.transpose() * H * f_res + f_res.transpose() * g <<
+  std::endl; std::cout << 0.5 * (f_res-df).transpose() * H * (f_res-df) +
+  (f_res-df).transpose() * g << std::endl; std::cout << 0.5 *
+  (f_res+df).transpose() * H * (f_res+df) + (f_res+df).transpose() * g <<
+  std::endl;
 
   std::cout << "A:" << std::endl << A << std::endl << "--" << std::endl;
-  std::cout << "Xf:" << std::endl << (X * f_cmd) << std::endl << "--" << std::endl;
-  std::cout << "RNEA:" << std::endl << RNEA << std::endl << "--" << std::endl;
-  std::cout << "B:" << std::endl << gamma << std::endl << "--" << std::endl;
-  std::cout << "AT Q1:" << std::endl << A.transpose() * Q1 << std::endl << "--" << std::endl;
-  std::cout << "g:" << std::endl << g << std::endl << "--" << std::endl;
-  std::cout << "H:" << std::endl << H << std::endl << "--" << std::endl;*/
+  std::cout << "Xf:" << std::endl << (X * f_cmd) << std::endl << "--" <<
+  std::endl; std::cout << "RNEA:" << std::endl << RNEA << std::endl << "--" <<
+  std::endl; std::cout << "B:" << std::endl << gamma << std::endl << "--" <<
+  std::endl; std::cout << "AT Q1:" << std::endl << A.transpose() * Q1 <<
+  std::endl << "--" << std::endl; std::cout << "g:" << std::endl << g <<
+  std::endl << "--" << std::endl; std::cout << "H:" << std::endl << H <<
+  std::endl << "--" << std::endl;*/
 
   return 0;
 }
@@ -545,7 +570,8 @@ void QPWBC::save_dns_matrix(double *M, int size, std::string filename) {
   myfile.close();
 }
 
-void QPWBC::compute_matrices(const MatrixN &M, const MatrixN &Jc, const MatrixN &f_cmd, const MatrixN &RNEA) {
+void QPWBC::compute_matrices(const MatrixN &M, const MatrixN &Jc,
+                             const MatrixN &f_cmd, const MatrixN &RNEA) {
   Y = M.block(0, 0, 6, 6);
   X = Jc.block(0, 0, 12, 6).transpose();
   Yinv = pseudoInverse(Y);

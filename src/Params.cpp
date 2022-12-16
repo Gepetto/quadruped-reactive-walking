@@ -30,8 +30,10 @@ Params::Params()
 
       gp_alpha_vel(0.0),
       gp_alpha_pos(0.0),
-      t_switch_vec(1, 0.0),  // Fill with zeros, will be filled with values later
-      v_switch_vec(6, 0.0),  // Fill with zeros, will be filled with values later
+      t_switch_vec(1,
+                   0.0),  // Fill with zeros, will be filled with values later
+      v_switch_vec(6,
+                   0.0),  // Fill with zeros, will be filled with values later
 
       fc_v_esti(0.0),
 
@@ -41,17 +43,23 @@ Params::Params()
       lock_time(0.0),
       vert_time(0.0),
 
-      osqp_w_states(12, 0.0),  // Fill with zeros, will be filled with values later
-      osqp_w_forces(3, 0.0),   // Fill with zeros, will be filled with values later
+      osqp_w_states(12,
+                    0.0),  // Fill with zeros, will be filled with values later
+      osqp_w_forces(3,
+                    0.0),  // Fill with zeros, will be filled with values later
       osqp_Nz_lim(0.0),
 
       Kp_flyingfeet(0.0),
       Kd_flyingfeet(0.0),
-      Kp_base_position(3, 0.0),     // Fill with zeros, will be filled with values later
-      Kd_base_position(3, 0.0),     // Fill with zeros, will be filled with values later
-      Kp_base_orientation(3, 0.0),  // Fill with zeros, will be filled with values later
-      Kd_base_orientation(3, 0.0),  // Fill with zeros, will be filled with values later
-      w_tasks(8, 0.0),              // Fill with zeros, will be filled with values later
+      Kp_base_position(
+          3, 0.0),  // Fill with zeros, will be filled with values later
+      Kd_base_position(
+          3, 0.0),  // Fill with zeros, will be filled with values later
+      Kp_base_orientation(
+          3, 0.0),  // Fill with zeros, will be filled with values later
+      Kd_base_orientation(
+          3, 0.0),      // Fill with zeros, will be filled with values later
+      w_tasks(8, 0.0),  // Fill with zeros, will be filled with values later
 
       Q1(0.0),
       Q2(0.0),
@@ -64,9 +72,11 @@ Params::Params()
       I_mat(9, 0.0),       // Fill with zeros, will be filled with values later
       CoM_offset(3, 0.0),  // Fill with zeros, will be filled with values later
       h_ref(0.0),
-      shoulders(12, 0.0),                 // Fill with zeros, will be filled with values later
-      footsteps_init(12, 0.0),            // Fill with zeros, will be filled with values later
-      footsteps_under_shoulders(12, 0.0)  // Fill with zeros, will be filled with values later
+      shoulders(12, 0.0),  // Fill with zeros, will be filled with values later
+      footsteps_init(12,
+                     0.0),  // Fill with zeros, will be filled with values later
+      footsteps_under_shoulders(
+          12, 0.0)  // Fill with zeros, will be filled with values later
 {
   read_yaml(WALK_PARAMETERS_YAML);
 }
@@ -202,10 +212,12 @@ void Params::read_yaml(const std::string& file_path) {
   Kd_base_position = robot_node["Kd_base_position"].as<std::vector<double> >();
 
   assert_yaml_parsing(robot_node, "robot", "Kp_base_orientation");
-  Kp_base_orientation = robot_node["Kp_base_orientation"].as<std::vector<double> >();
+  Kp_base_orientation =
+      robot_node["Kp_base_orientation"].as<std::vector<double> >();
 
   assert_yaml_parsing(robot_node, "robot", "Kd_base_orientation");
-  Kd_base_orientation = robot_node["Kd_base_orientation"].as<std::vector<double> >();
+  Kd_base_orientation =
+      robot_node["Kd_base_orientation"].as<std::vector<double> >();
 
   assert_yaml_parsing(robot_node, "robot", "w_tasks");
   w_tasks = robot_node["w_tasks"].as<std::vector<double> >();
@@ -229,7 +241,8 @@ void Params::read_yaml(const std::string& file_path) {
   solo3D = robot_node["solo3D"].as<bool>();
 
   assert_yaml_parsing(robot_node, "robot", "enable_multiprocessing_mip");
-  enable_multiprocessing_mip = robot_node["enable_multiprocessing_mip"].as<bool>();
+  enable_multiprocessing_mip =
+      robot_node["enable_multiprocessing_mip"].as<bool>();
 
   assert_yaml_parsing(robot_node, "robot", "environment_URDF");
   environment_URDF = robot_node["environment_URDF"].as<std::string>();
@@ -304,7 +317,8 @@ void Params::convert_gait_vec() {
   int k = 0;
   for (uint i = 0; i < gait_vec.size() / 5; i++) {
     for (int j = 0; j < gait_vec[5 * i]; j++) {
-      gait.row(k) << gait_vec[5 * i + 1], gait_vec[5 * i + 2], gait_vec[5 * i + 3], gait_vec[5 * i + 4];
+      gait.row(k) << gait_vec[5 * i + 1], gait_vec[5 * i + 2],
+          gait_vec[5 * i + 3], gait_vec[5 * i + 4];
       k++;
     }
   }
@@ -328,13 +342,16 @@ void Params::convert_t_switch() {
 void Params::convert_v_switch() {
   if (v_switch_vec.size() % 6 != 0) {
     throw std::runtime_error(
-        "v_switch matrix in yaml is not in the correct format. It should have six "
-        "lines, containing the values switch values for each coordinate of the velocity.");
+        "v_switch matrix in yaml is not in the correct format. It should have "
+        "six "
+        "lines, containing the values switch values for each coordinate of the "
+        "velocity.");
   }
 
   if (v_switch_vec.size() / 6 != t_switch_vec.size()) {
     throw std::runtime_error(
-        "v_switch matrix in yaml is not in the correct format. the same number of colums as t_switch.");
+        "v_switch matrix in yaml is not in the correct format. the same number "
+        "of colums as t_switch.");
   }
 
   int n_col = v_switch_vec.size() / 6;
@@ -352,14 +369,16 @@ void Params::convert_v_switch() {
 
 void Params::initialize() {
   // Path to the robot URDF (TODO: Automatic path)
-  const std::string filename =
-      std::string("/opt/openrobots/share/example-robot-data/robots/solo_description/robots/solo12.urdf");
+  const std::string filename = std::string(
+      "/opt/openrobots/share/example-robot-data/robots/solo_description/robots/"
+      "solo12.urdf");
 
   // Robot model
   pinocchio::Model model_;
 
   // Build model from urdf (base is not free flyer)
-  pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(), model_, false);
+  pinocchio::urdf::buildModel(filename, pinocchio::JointModelFreeFlyer(),
+                              model_, false);
 
   // Construct data from model
   pinocchio::Data data_ = pinocchio::Data(model_);
@@ -377,8 +396,10 @@ void Params::initialize() {
 
   // Initialisation of the position of footsteps
   Matrix34 fsteps_init = Matrix34::Zero();
-  int indexes[4] = {static_cast<int>(model_.getFrameId("FL_FOOT")), static_cast<int>(model_.getFrameId("FR_FOOT")),
-                    static_cast<int>(model_.getFrameId("HL_FOOT")), static_cast<int>(model_.getFrameId("HR_FOOT"))};
+  int indexes[4] = {static_cast<int>(model_.getFrameId("FL_FOOT")),
+                    static_cast<int>(model_.getFrameId("FR_FOOT")),
+                    static_cast<int>(model_.getFrameId("HL_FOOT")),
+                    static_cast<int>(model_.getFrameId("HR_FOOT"))};
   for (int i = 0; i < 4; i++) {
     fsteps_init.col(i) = data_.oMf[indexes[i]].translation();
   }
@@ -387,7 +408,8 @@ void Params::initialize() {
   double h_init = 0.0;
   double h_tmp = 0.0;
   for (int i = 0; i < 4; i++) {
-    h_tmp = (data_.oMf[1].translation() - data_.oMf[indexes[i]].translation())(2, 0);
+    h_tmp = (data_.oMf[1].translation() - data_.oMf[indexes[i]].translation())(
+        2, 0);
     if (h_tmp > h_init) {
       h_init = h_tmp;
     }
@@ -410,8 +432,8 @@ void Params::initialize() {
   // Inertia matrix
   Vector6 Idata = data_.Ycrb[1].inertia().data();
   Matrix3 inertia;
-  inertia << Idata(0, 0), Idata(1, 0), Idata(3, 0), Idata(1, 0), Idata(2, 0), Idata(4, 0), Idata(3, 0), Idata(4, 0),
-      Idata(5, 0);
+  inertia << Idata(0, 0), Idata(1, 0), Idata(3, 0), Idata(1, 0), Idata(2, 0),
+      Idata(4, 0), Idata(3, 0), Idata(4, 0), Idata(5, 0);
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       I_mat[3 * i + j] = inertia(i, j);
@@ -421,14 +443,16 @@ void Params::initialize() {
   // Offset between center of base and CoM
   Vector3 CoM = data_.com[0].head(3) - q_tmp.head(3);
   CoM_offset[0] = CoM(0, 0);
-  CoM_offset[1] = CoM(1, 0) * 0.0;  // Force lateral offset to 0 because Solo is symmetric
+  CoM_offset[1] =
+      CoM(1, 0) * 0.0;  // Force lateral offset to 0 because Solo is symmetric
   CoM_offset[2] = CoM(2, 0);
 
   for (int i = 0; i < 4; i++) {
     for (int j = 0; j < 3; j++) {
       shoulders[3 * i + j] = shoulders_init(j, i);
       footsteps_init[3 * i + j] = fsteps_init(j, i);
-      footsteps_under_shoulders[3 * i + j] = fsteps_init(j, i);  // Use initial feet pos as reference
+      footsteps_under_shoulders[3 * i + j] =
+          fsteps_init(j, i);  // Use initial feet pos as reference
     }
   }
 }

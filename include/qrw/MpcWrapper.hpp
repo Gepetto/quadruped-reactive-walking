@@ -10,8 +10,8 @@
 #define MPCWRAPPER_H_INCLUDED
 
 #include "pinocchio/math/rpy.hpp"
-#include "qrw/Types.h"
 #include "qrw/MPC.hpp"
+#include "qrw/Types.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///
@@ -39,7 +39,8 @@ bool check_stop_thread();
 ///
 /// \param[in] k Numero of the current loop
 /// \param[in] xref Desired state vector for the whole prediction horizon
-/// \param[in] fsteps The [x, y, z]^T desired position of each foot for each time step of the horizon
+/// \param[in] fsteps The [x, y, z]^T desired position of each foot for each
+/// time step of the horizon
 ///
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void write_in(int& k, MatrixN& xref, MatrixN& fsteps);
@@ -50,7 +51,8 @@ void write_in(int& k, MatrixN& xref, MatrixN& fsteps);
 ///
 /// \param[in] k Numero of the current loop
 /// \param[in] xref Desired state vector for the whole prediction horizon
-/// \param[in] fsteps The [x, y, z]^T desired position of each foot for each time step of the horizon
+/// \param[in] fsteps The [x, y, z]^T desired position of each foot for each
+/// time step of the horizon
 ///
 ////////////////////////////////////////////////////////////////////////////////////////////////
 bool read_in(int& k, MatrixN& xref, MatrixN& fsteps);
@@ -59,11 +61,14 @@ bool read_in(int& k, MatrixN& xref, MatrixN& fsteps);
 ///
 /// \brief Write data to shared memory (from MPC to main loop)
 ///
-/// \param[in] result Predicted state and desired contact forces resulting of the MPC. The first 12 rows contains the
-/// predicted position/orientation/velocity and the last 12 rows contains the 3D contact forces for each foot. The
-/// first column corresponds to the predicted state in dt_mpc seconds if the contact forces are applied. The second
-/// column is the predicted state in 2*dt_mpc seconds if the contact forces of the first column are applied during
-/// dt_mpc then those of the second column during dt_mpc. And so on...
+/// \param[in] result Predicted state and desired contact forces resulting of
+/// the MPC. The first 12 rows contains the predicted
+/// position/orientation/velocity and the last 12 rows contains the 3D contact
+/// forces for each foot. The first column corresponds to the predicted state in
+/// dt_mpc seconds if the contact forces are applied. The second column is the
+/// predicted state in 2*dt_mpc seconds if the contact forces of the first
+/// column are applied during dt_mpc then those of the second column during
+/// dt_mpc. And so on...
 ///
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void write_out(MatrixN& result);
@@ -120,8 +125,8 @@ class MpcWrapper {
   ///
   /// \param[in] k Numero of the current loop
   /// \param[in] xref Desired state vector for the whole prediction horizon
-  /// \param[in] fsteps The [x, y, z]^T desired position of each foot for each time step of the horizon
-  /// \param[in] gait Current gait matrix
+  /// \param[in] fsteps The [x, y, z]^T desired position of each foot for each
+  /// time step of the horizon \param[in] gait Current gait matrix
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void solve(int k, MatrixN xref, MatrixN fsteps, MatrixN gait);
@@ -135,7 +140,8 @@ class MpcWrapper {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Use a temporary result if contact status changes between two calls of the MPC
+  /// \brief Use a temporary result if contact status changes between two calls
+  /// of the MPC
   ///
   /// \param[in] gait Current contact state of the four feet
   ///
@@ -158,13 +164,14 @@ class MpcWrapper {
 
  private:
   Params* params_;  // Object that stores parameters
-  MPC mpc_;         // MPC object used for synchronous solving (not in parallel loop)
+  MPC mpc_;  // MPC object used for synchronous solving (not in parallel loop)
 
-  MatrixN last_available_result;                        // Latest available result of the MPC
-  RowVector4 gait_past;                                 // Gait status of the previous MPC time step
-  RowVector4 gait_next;                                 // Gait status of the next MPC time step
-  RowVector4 gait_mem_;                                 // Gait status memory for get_temporary_result
-  bool flag_change_[4] = {false, false, false, false};  // Flags to indicate a gait change
+  MatrixN last_available_result;  // Latest available result of the MPC
+  RowVector4 gait_past;           // Gait status of the previous MPC time step
+  RowVector4 gait_next;           // Gait status of the next MPC time step
+  RowVector4 gait_mem_;           // Gait status memory for get_temporary_result
+  bool flag_change_[4] = {false, false, false,
+                          false};  // Flags to indicate a gait change
 
   std::chrono::time_point<std::chrono::system_clock> t_mpc_solving_start_;
   double t_mpc_solving_duration_;

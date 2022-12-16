@@ -2,7 +2,8 @@
 ///
 /// \brief This is the header for Filter class
 ///
-/// \details This class applies a low pass filter to estimated data to avoid keeping high frequency components into
+/// \details This class applies a low pass filter to estimated data to avoid
+/// keeping high frequency components into
 ///          what is given to the "low frequency" model predictive control
 ///
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -51,10 +52,12 @@ class Filter {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Add or remove 2 PI to all elements in the queues to handle +- pi modulo
+  /// \brief Add or remove 2 PI to all elements in the queues to handle +- pi
+  /// modulo
   ///
-  /// \param[in] a Angle that needs change (3, 4, 5 for Roll, Pitch, Yaw respectively)
-  /// \param[in] dir Direction of the change (+pi to -pi or -pi to +pi)
+  /// \param[in] a Angle that needs change (3, 4, 5 for Roll, Pitch, Yaw
+  /// respectively) \param[in] dir Direction of the change (+pi to -pi or -pi to
+  /// +pi)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void handle_modulo(int a, bool dir);
@@ -68,8 +71,10 @@ class Filter {
   VectorN y_;      // Latest result
   Vector6 accum_;  // Used to compute the result (accumulation)
 
-  std::deque<Vector6> x_queue_;  // Store the last measurements for product with denominator coefficients
-  std::deque<Vector6> y_queue_;  // Store the last results for product with numerator coefficients
+  std::deque<Vector6> x_queue_;  // Store the last measurements for product with
+                                 // denominator coefficients
+  std::deque<Vector6> y_queue_;  // Store the last results for product with
+                                 // numerator coefficients
 
   bool init_;  // Initialisation flag
 };

@@ -8,6 +8,7 @@ from . import ContactDetector, MPC_Wrapper, quadruped_reactive_walking as qrw
 from .solo3D.utils import quaternionToRPY
 from .tools.utils_mpc import init_robot
 
+
 class Result:
     """
     Object to store the result of the control loop

@@ -2,9 +2,12 @@
 ///
 /// \brief This is the header for QPWBC and WbcWrapper classes
 ///
-/// \details WbcWrapper provides an interface for the user to solve the whole body control problem
-///          Internally it calls first the InvKin class to solve an inverse kinematics problem then calls the QPWBC
-///          class to solve a box QP problem based on result from the inverse kinematic and desired ground forces
+/// \details WbcWrapper provides an interface for the user to solve the whole
+/// body control problem
+///          Internally it calls first the InvKin class to solve an inverse
+///          kinematics problem then calls the QPWBC class to solve a box QP
+///          problem based on result from the inverse kinematic and desired
+///          ground forces
 ///
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -42,19 +45,22 @@ class QPWBC {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Run one iteration of the whole WBC QP problem by calling all the necessary functions (data retrieval,
-  ///        update of constraint matrices, update of the solver, running the solver, retrieving result)
+  /// \brief Run one iteration of the whole WBC QP problem by calling all the
+  /// necessary functions (data retrieval,
+  ///        update of constraint matrices, update of the solver, running the
+  ///        solver, retrieving result)
   ///
   /// \param[in] M Generalized mass matrix
   /// \param[in] Jc Contact Jacobian
   /// \param[in] ddq_cmd Command base accelerations
   /// \param[in] f_cmd Desired contact forces of the MPC
-  /// \param[in] RNEA M(q) ddq + NLE(q, dq) computed by rnea(q_wbc_, dq_wbc_, ddq_cmd_)
-  /// \param[in] k_contact Number of time step during which feet have been in the current stance phase
+  /// \param[in] RNEA M(q) ddq + NLE(q, dq) computed by rnea(q_wbc_, dq_wbc_,
+  /// ddq_cmd_) \param[in] k_contact Number of time step during which feet have
+  /// been in the current stance phase
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int run(const MatrixN &M, const MatrixN &Jc, const MatrixN &ddq_cmd, const MatrixN &f_cmd, const MatrixN &RNEA,
-          const MatrixN &k_contact);
+  int run(const MatrixN &M, const MatrixN &Jc, const MatrixN &ddq_cmd,
+          const MatrixN &f_cmd, const MatrixN &RNEA, const MatrixN &k_contact);
 
   // Getters
   MatrixN get_f_res();    // Return the f_res matrix
@@ -67,14 +73,16 @@ class QPWBC {
   /// \brief Print positions and value of coefficients in a csc matrix
   ///
   /// \param[in] M (csc*): pointer to the csc matrix you want to print
-  /// \param[in] name (char*): name that should be displayed for the matrix (one char)
+  /// \param[in] name (char*): name that should be displayed for the matrix (one
+  /// char)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void my_print_csc_matrix(csc *M, const char *name);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Save positions and value of coefficients of a csc matrix in a csc file
+  /// \brief Save positions and value of coefficients of a csc matrix in a csc
+  /// file
   ///
   /// \param[in] M (csc*): pointer to the csc matrix you want to save
   /// \param[in] filename (string): name of the generated csv file
@@ -84,7 +92,8 @@ class QPWBC {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Save positions and value of coefficients of a dense matrix in a csc file
+  /// \brief Save positions and value of coefficients of a dense matrix in a csc
+  /// file
   ///
   /// \param[in] M (double*): pointer to the dense matrix you want to save
   /// \param[in] size (int): size of the dense matrix
@@ -95,7 +104,8 @@ class QPWBC {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Add a new non-zero coefficient to the sparse ML matrix by filling the triplet r_ML / c_ML / v_ML
+  /// \brief Add a new non-zero coefficient to the sparse ML matrix by filling
+  /// the triplet r_ML / c_ML / v_ML
   ///
   /// \param[in] i Row index of the new entry
   /// \param[in] j Column index of the new entry
@@ -105,11 +115,13 @@ class QPWBC {
   /// \param[in] v_ML Pointer to the table that contains values
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  inline void add_to_ML(int i, int j, double v, int *r_ML, int *c_ML, double *v_ML);
+  inline void add_to_ML(int i, int j, double v, int *r_ML, int *c_ML,
+                        double *v_ML);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Add a new non-zero coefficient to the P matrix by filling the triplet r_P / c_P / v_P
+  /// \brief Add a new non-zero coefficient to the P matrix by filling the
+  /// triplet r_P / c_P / v_P
   ///
   /// \param[in] i Row index of the new entry
   /// \param[in] j Column index of the new entry
@@ -127,7 +139,8 @@ class QPWBC {
   ///        Create the weight matrices P and Q (cost 1/2 x^T * P * X + X^T * Q)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int create_matrices(const Eigen::Matrix<double, 12, 6> &Jc, const Eigen::Matrix<double, 12, 1> &f_cmd,
+  int create_matrices(const Eigen::Matrix<double, 12, 6> &Jc,
+                      const Eigen::Matrix<double, 12, 1> &f_cmd,
                       const Eigen::Matrix<double, 6, 1> &RNEA);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -144,7 +157,8 @@ class QPWBC {
   ///        the solution has to respect: M.X = N and L.X <= K
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int create_NK(const Eigen::Matrix<double, 6, 12> &JcT, const Eigen::Matrix<double, 12, 1> &f_cmd,
+  int create_NK(const Eigen::Matrix<double, 6, 12> &JcT,
+                const Eigen::Matrix<double, 12, 1> &f_cmd,
                 const Eigen::Matrix<double, 6, 1> &RNEA);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -155,10 +169,13 @@ class QPWBC {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   int create_weight_matrices();
 
-  int update_matrices(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Matrix<double, 12, 6> &Jc,
-                      const Eigen::Matrix<double, 12, 1> &f_cmd, const Eigen::Matrix<double, 6, 1> &RNEA);
+  int update_matrices(const Eigen::Matrix<double, 6, 6> &M,
+                      const Eigen::Matrix<double, 12, 6> &Jc,
+                      const Eigen::Matrix<double, 12, 1> &f_cmd,
+                      const Eigen::Matrix<double, 6, 1> &RNEA);
 
-  int update_ML(const Eigen::Matrix<double, 6, 6> &M, const Eigen::Matrix<double, 6, 12> &JcT);
+  int update_ML(const Eigen::Matrix<double, 6, 6> &M,
+                const Eigen::Matrix<double, 6, 12> &JcT);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -167,10 +184,12 @@ class QPWBC {
   /// \param[in] M joint space inertia matrix computed with crba
   /// \param[in] Jc Jacobian of contact points
   /// \param[in] f_cmd reference contact forces coming from the MPC
-  /// \param[in] RNEA joint torques according to the current state of the system and the desired joint accelerations
+  /// \param[in] RNEA joint torques according to the current state of the system
+  /// and the desired joint accelerations
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  void compute_matrices(const MatrixN &M, const MatrixN &Jc, const MatrixN &f_cmd, const MatrixN &RNEA);
+  void compute_matrices(const MatrixN &M, const MatrixN &Jc,
+                        const MatrixN &f_cmd, const MatrixN &RNEA);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
@@ -181,7 +200,8 @@ class QPWBC {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Initialize the solver (first iteration) or update it (next iterations) then call the OSQP solver to solve
+  /// \brief Initialize the solver (first iteration) or update it (next
+  /// iterations) then call the OSQP solver to solve
   ///        the QP problem
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,14 +214,16 @@ class QPWBC {
   /// \param[in] f_cmd Reference contact forces received from the MPC
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  int retrieve_result(const Eigen::Matrix<double, 6, 1> &ddq_cmd, const Eigen::Matrix<double, 12, 1> &f_cmd);
+  int retrieve_result(const Eigen::Matrix<double, 6, 1> &ddq_cmd,
+                      const Eigen::Matrix<double, 12, 1> &f_cmd);
 
   Params *params_;  // Object that stores parameters
 
   int cpt_ML = 0;  // Counter of ML coefficients
   int cpt_P = 0;   // Counter of P coefficients
 
-  // Set to True after the creation of the QP problem during the first call of the solver
+  // Set to True after the creation of the QP problem during the first call of
+  // the solver
   bool initialized = false;
 
   // Weight matrices of initial QP
@@ -215,8 +237,8 @@ class QPWBC {
   double Fz_max = 0.0;
   double Fz_min = 0.0;
 
-  // Cumulative non zero coefficients per column in friction cone constraint block
-  // In each column: 2, 2, 5, 2, 2, 5, 2, 2, 5, 2, 2, 5
+  // Cumulative non zero coefficients per column in friction cone constraint
+  // block In each column: 2, 2, 5, 2, 2, 5, 2, 2, 5, 2, 2, 5
   int fric_nz[12] = {2, 4, 9, 11, 13, 18, 20, 22, 27, 29, 31, 36};
 
   // Generalized mass matrix and contact Jacobian (transposed)
@@ -236,7 +258,8 @@ class QPWBC {
   Eigen::Matrix<double, 12, 1> g = Eigen::Matrix<double, 12, 1>::Zero();
 
   // Results
-  // Eigen::Matrix<double, 12, 1> lambdas = Eigen::Matrix<double, 12, 1>::Zero();
+  // Eigen::Matrix<double, 12, 1> lambdas = Eigen::Matrix<double, 12,
+  // 1>::Zero();
   MatrixN f_res = MatrixN::Zero(12, 1);
   MatrixN ddq_res = MatrixN::Zero(6, 1);
 

@@ -109,9 +109,7 @@ class LoggerControl:
         self.loop_o_v = np.zeros(
             [logSize, 18]
         )  # estimated velocity of the robot in the ideal world (h frame)
-        self.loop_h_v = np.zeros(
-            [logSize, 6]
-        )  # estimated velocity in horizontal frame
+        self.loop_h_v = np.zeros([logSize, 6])  # estimated velocity in horizontal frame
         self.loop_h_v_windowed = np.zeros(
             [logSize, 6]
         )  # estimated velocity in horizontal frame (windowed)
@@ -348,7 +346,11 @@ class LoggerControl:
 
         # Robot world to Mocap initial translationa and rotation
         mTo = np.array(
-            [loggerSensors.mocapPosition[0, 0], loggerSensors.mocapPosition[0, 1], 0.0155]
+            [
+                loggerSensors.mocapPosition[0, 0],
+                loggerSensors.mocapPosition[0, 1],
+                0.0155,
+            ]
         )
         mRo = pin.rpy.rpyToMatrix(0.0, 0.0, self.mocap_RPY[0, 2])
 
@@ -697,7 +699,7 @@ class LoggerControl:
             if i in [0, 1, 5]:
                 plt.plot(t_range, self.joy_v_ref[:, i], "r", linewidth=3)
             else:
-                plt.plot(t_range, self.planner_xref[:, 6+i, 1], "r", linewidth=3)
+                plt.plot(t_range, self.planner_xref[:, 6 + i, 1], "r", linewidth=3)
             if i < 3:
                 plt.legend(
                     [
@@ -1536,9 +1538,8 @@ if __name__ == "__main__":
 
     sys.path.insert(0, os.getcwd())
 
-    parser = argparse.ArgumentParser(description='Process logs.')
-    parser.add_argument('--file', type=str,
-                        help='A valid log file path')
+    parser = argparse.ArgumentParser(description="Process logs.")
+    parser.add_argument("--file", type=str, help="A valid log file path")
     args = parser.parse_args()
 
     params = qrw.Params()

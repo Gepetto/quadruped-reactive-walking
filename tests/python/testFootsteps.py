@@ -192,7 +192,6 @@ class TestFootstepPlanner(unittest.TestCase):
             # Pos of feet in stance phase + target of feet in swing phase (in horizontal frame)
             fsteps = self.footstepPlanner.get_footsteps()
 
-
             """if k >= 239:
                 from IPython import embed
                 embed()"""
@@ -250,10 +249,7 @@ class TestFootstepPlanner(unittest.TestCase):
                                 o_loc = targets[:, j] + np.array(
                                     [
                                         v_x
-                                        * (
-                                            np.floor(k / 240) * 240
-                                            + cpt_phase * 240
-                                        )
+                                        * (np.floor(k / 240) * 240 + cpt_phase * 240)
                                         * self.params.dt_wbc,
                                         0.0,
                                         0.0,
@@ -275,6 +271,7 @@ class TestFootstepPlanner(unittest.TestCase):
                             print("---")
 
                             from IPython import embed
+
                             embed()
                         self.assertTrue(
                             np.allclose(h_loc, fsteps[i, (3 * j) : (3 * (j + 1))]),
@@ -503,9 +500,7 @@ class TestFootstepPlanner(unittest.TestCase):
                                 o_loc = get_oRh(n) @ targets[
                                     :, j : (j + 1)
                                 ] + get_oTh_bis(n)
-                            h_loc = get_oRh(k).transpose() @ (
-                                o_loc - get_oTh_bis(k)
-                            )
+                            h_loc = get_oRh(k).transpose() @ (o_loc - get_oTh_bis(k))
                         # or not np.allclose(o_loc, o_targetFootstep[:, j:(j+1)], atol=1e-6)):
 
                         """if j == 1 and i == 0 and cgait[i, j] == 1.0:

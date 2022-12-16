@@ -10,8 +10,10 @@ struct ParamsVisitor : public bp::def_visitor<ParamsVisitor<Params>> {
 
         .def("read_yaml", &Params::read_yaml, bp::args("file_path"),
              "Read yaml file to retrieve parameters from Python.\n")
-        .def("convert_gait_vec", &Params::convert_gait_vec, "Convert gait vector into matrix.\n")
-        .def("initialize", &Params::initialize, "Initialize Params from Python.\n")
+        .def("convert_gait_vec", &Params::convert_gait_vec,
+             "Convert gait vector into matrix.\n")
+        .def("initialize", &Params::initialize,
+             "Initialize Params from Python.\n")
 
         // Read Params from Python
         .def_readwrite("config_file", &Params::config_file)
@@ -39,10 +41,12 @@ struct ParamsVisitor : public bp::def_visitor<ParamsVisitor<Params>> {
         .def_readonly("gait", &Params::get_gait)
         .def_readonly("t_switch", &Params::get_t_switch)
         .def_readonly("v_switch", &Params::get_v_switch)
-        .def("set_v_switch", &Params::set_v_switch, bp::args("v_switch"), "Set v_switch matrix from Python.\n")
+        .def("set_v_switch", &Params::set_v_switch, bp::args("v_switch"),
+             "Set v_switch matrix from Python.\n")
         .def_readwrite("enable_pyb_GUI", &Params::enable_pyb_GUI)
         .def_readwrite("enable_corba_viewer", &Params::enable_corba_viewer)
-        .def_readwrite("enable_multiprocessing", &Params::enable_multiprocessing)
+        .def_readwrite("enable_multiprocessing",
+                       &Params::enable_multiprocessing)
         .def_readwrite("perfect_estimator", &Params::perfect_estimator)
         .def_readwrite("w_tasks", &Params::w_tasks)
         .def_readwrite("T_gait", &Params::T_gait)
@@ -54,10 +58,12 @@ struct ParamsVisitor : public bp::def_visitor<ParamsVisitor<Params>> {
         .def_readwrite("lock_time", &Params::lock_time)
         .def_readwrite("vert_time", &Params::vert_time)
         .def_readwrite("footsteps_init", &Params::footsteps_init)
-        .def_readwrite("footsteps_under_shoulders", &Params::footsteps_under_shoulders)
+        .def_readwrite("footsteps_under_shoulders",
+                       &Params::footsteps_under_shoulders)
         .def_readwrite("enable_comp_forces", &Params::enable_comp_forces)
         .def_readwrite("solo3D", &Params::solo3D)
-        .def_readwrite("enable_multiprocessing_mip", &Params::enable_multiprocessing_mip)
+        .def_readwrite("enable_multiprocessing_mip",
+                       &Params::enable_multiprocessing_mip)
         .def_readwrite("environment_URDF", &Params::environment_URDF)
         .def_readwrite("environment_heightmap", &Params::environment_heightmap)
         .def_readwrite("heightmap_fit_length", &Params::heightmap_fit_length)
@@ -69,7 +75,9 @@ struct ParamsVisitor : public bp::def_visitor<ParamsVisitor<Params>> {
         .def_readwrite("use_heuristic", &Params::max_velocity);
   }
 
-  static void expose() { bp::class_<Params>("Params", bp::no_init).def(ParamsVisitor<Params>()); }
+  static void expose() {
+    bp::class_<Params>("Params", bp::no_init).def(ParamsVisitor<Params>());
+  }
 };
 
 void exposeParams() { ParamsVisitor<Params>::expose(); }

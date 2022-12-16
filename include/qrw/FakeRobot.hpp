@@ -32,7 +32,8 @@ class FakeJoints {
   void SetZeroCommands() {}
   Vector12 GetPositions() {
     Vector12 des_pos;
-    des_pos << 0.0, 0.764, -1.407, 0.0, 0.76407, -1.4, 0.0, 0.76407, -1.407, 0.0, 0.764, -1.407;
+    des_pos << 0.0, 0.764, -1.407, 0.0, 0.76407, -1.4, 0.0, 0.76407, -1.407,
+        0.0, 0.764, -1.407;
     return des_pos;
   }
   Vector12 GetVelocities() { return Vector12::Zero(); }

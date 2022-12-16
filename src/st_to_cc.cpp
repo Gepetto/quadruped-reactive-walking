@@ -1,13 +1,14 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
-#include <math.h>
-
 #include "other/st_to_cc.hpp"
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 /******************************************************************************/
 
-double *cc_mv(int m, int n, int ncc, int icc[], int ccc[], double acc[], double x[])
+double *cc_mv(int m, int n, int ncc, int icc[], int ccc[], double acc[],
+              double x[])
 
 /******************************************************************************/
 /*
@@ -74,7 +75,8 @@ double *cc_mv(int m, int n, int ncc, int icc[], int ccc[], double acc[], double 
 }
 /******************************************************************************/
 
-void cc_print(int m, int n, int ncc, int icc[], int ccc[], double acc[], char *title)
+void cc_print(int m, int n, int ncc, int icc[], int ccc[], double acc[],
+              char *title)
 
 /******************************************************************************/
 /*
@@ -703,7 +705,8 @@ int i4vec2_sorted_unique_count(int n, int a1[], int a2[])
 }
 /******************************************************************************/
 
-void i4vec2_sorted_uniquely(int n1, int a1[], int b1[], int n2, int a2[], int b2[])
+void i4vec2_sorted_uniquely(int n1, int a1[], int b1[], int n2, int a2[],
+                            int b2[])
 
 /******************************************************************************/
 /*
@@ -1240,7 +1243,8 @@ void sort_heap_external(int n, int *indx, int *i, int *j, int isgn)
 }
 /******************************************************************************/
 
-void st_data_read(char *input_filename, int m, int n, int nst, int ist[], int jst[], double ast[])
+void st_data_read(char *input_filename, int m, int n, int nst, int ist[],
+                  int jst[], double ast[])
 
 /******************************************************************************/
 /*
@@ -1305,7 +1309,8 @@ void st_data_read(char *input_filename, int m, int n, int nst, int ist[], int js
 }
 /******************************************************************************/
 
-void st_header_print(int i_min, int i_max, int j_min, int j_max, int m, int n, int nst)
+void st_header_print(int i_min, int i_max, int j_min, int j_max, int m, int n,
+                     int nst)
 
 /******************************************************************************/
 /*
@@ -1353,7 +1358,8 @@ void st_header_print(int i_min, int i_max, int j_min, int j_max, int m, int n, i
 }
 /******************************************************************************/
 
-void st_header_read(char *input_filename, int *i_min, int *i_max, int *j_min, int *j_max, int *m, int *n, int *nst)
+void st_header_read(char *input_filename, int *i_min, int *i_max, int *j_min,
+                    int *j_max, int *m, int *n, int *nst)
 
 /******************************************************************************/
 /*
@@ -1426,7 +1432,8 @@ void st_header_read(char *input_filename, int *i_min, int *i_max, int *j_min, in
 }
 /******************************************************************************/
 
-double *st_mv(int m, int n, int nst, int ist[], int jst[], double ast[], double x[])
+double *st_mv(int m, int n, int nst, int ist[], int jst[], double ast[],
+              double x[])
 
 /******************************************************************************/
 /*
@@ -1478,7 +1485,8 @@ double *st_mv(int m, int n, int nst, int ist[], int jst[], double ast[], double 
 }
 /******************************************************************************/
 
-void st_print(int m, int n, int nst, int ist[], int jst[], double ast[], char *title)
+void st_print(int m, int n, int nst, int ist[], int jst[], double ast[],
+              char *title)
 
 /******************************************************************************/
 /*
@@ -1581,7 +1589,8 @@ int st_to_cc_size(int nst, int ist[], int jst[])
 }
 /******************************************************************************/
 
-void st_to_cc_index(int nst, int ist[], int jst[], int ncc, int n, int icc[], int ccc[])
+void st_to_cc_index(int nst, int ist[], int jst[], int ncc, int n, int icc[],
+                    int ccc[])
 
 /******************************************************************************/
 /*
@@ -1664,7 +1673,8 @@ void st_to_cc_index(int nst, int ist[], int jst[], int ncc, int n, int icc[], in
 }
 /******************************************************************************/
 
-double *st_to_cc_values(int nst, int ist[], int jst[], double ast[], int ncc, int n, int icc[], int ccc[])
+double *st_to_cc_values(int nst, int ist[], int jst[], double ast[], int ncc,
+                        int n, int icc[], int ccc[])
 
 /******************************************************************************/
 /*
@@ -1896,11 +1906,13 @@ double *wathen_st(int nx, int ny, int nz_num, int *seed, int row[], int col[])
 */
 {
   double *a;
-  const double em[8 * 8] = {6.0,  -6.0, 2.0,  -8.0, 3.0,  -8.0, 2.0,  -6.0, -6.0, 32.0, -6.0, 20.0, -8.0,
-                            16.0, -8.0, 20.0, 2.0,  -6.0, 6.0,  -6.0, 2.0,  -8.0, 3.0,  -8.0, -8.0, 20.0,
-                            -6.0, 32.0, -6.0, 20.0, -8.0, 16.0, 3.0,  -8.0, 2.0,  -6.0, 6.0,  -6.0, 2.0,
-                            -8.0, -8.0, 16.0, -8.0, 20.0, -6.0, 32.0, -6.0, 20.0, 2.0,  -8.0, 3.0,  -8.0,
-                            2.0,  -6.0, 6.0,  -6.0, -6.0, 20.0, -8.0, 16.0, -8.0, 20.0, -6.0, 32.0};
+  const double em[8 * 8] = {
+      6.0,  -6.0, 2.0,  -8.0, 3.0,  -8.0, 2.0,  -6.0, -6.0, 32.0, -6.0,
+      20.0, -8.0, 16.0, -8.0, 20.0, 2.0,  -6.0, 6.0,  -6.0, 2.0,  -8.0,
+      3.0,  -8.0, -8.0, 20.0, -6.0, 32.0, -6.0, 20.0, -8.0, 16.0, 3.0,
+      -8.0, 2.0,  -6.0, 6.0,  -6.0, 2.0,  -8.0, -8.0, 16.0, -8.0, 20.0,
+      -6.0, 32.0, -6.0, 20.0, 2.0,  -8.0, 3.0,  -8.0, 2.0,  -6.0, 6.0,
+      -6.0, -6.0, 20.0, -8.0, 16.0, -8.0, 20.0, -6.0, 32.0};
   int i;
   int j;
   int k;

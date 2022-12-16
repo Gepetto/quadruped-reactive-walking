@@ -6,7 +6,7 @@ from inputs import get_gamepad
 
 SERVICE = "gepetto-quadruped-reactive-walking.service"
 SYSTEMD = "org.freedesktop.systemd1"
-SYSTEMDS = '/' + SYSTEMD.replace('.', '/')
+SYSTEMDS = "/" + SYSTEMD.replace(".", "/")
 
 
 def get_manager():

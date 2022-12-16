@@ -1,4 +1,4 @@
-### EVALUATION 1 : 
+### EVALUATION 1 :
 
 Some tests to compare the two MPC solvers: ddp & osqp. The data collected during the simulation is used to restart and analyze each control cycle with different MPCs or different parameters. A third DDP MPC can be run to evaluate and compare the parameters. (see bool *Relaunch_DDP*)
 
@@ -23,7 +23,7 @@ For the Hessian of the cost Lxx and Luu, the results are not accurate. With NumD
     -> Run python3 crocoddyl_eval/test_2/unittest_model.py
 
 
-### EVALUATION 3 : 
+### EVALUATION 3 :
 
 Test to evaluate the MPC with the optimisation of the foosteps. Comparison of : ddp + fstep optimization & osqp. The data collected during the simulation is used to restart and analyze each control cycle. The parameters can be modified in *DDP MPC* section.
 
@@ -31,4 +31,3 @@ Test to evaluate the MPC with the optimisation of the foosteps. Comparison of : 
     -> Modify the path in *Recover Logged data* section.
     -> Select the MPC control cycle to be analysed and tune the gains if necessary.
     -> Run python3 crocoddyl_eval/test_1/analyse_control_cycle.py
-

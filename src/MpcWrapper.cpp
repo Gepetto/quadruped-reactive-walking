@@ -1,17 +1,23 @@
 #include "qrw/MpcWrapper.hpp"
+
 #include <chrono>
-#include <thread>
 #include <mutex>
+#include <thread>
 
 // Shared global variables
-Params* shared_params = nullptr;  // Shared pointer to object that stores parameters
-bool shared_running = true;       // Flag to stop the parallel thread
-bool shared_newIn = false;        // Flag to indicate new data has been written by main loop for MPC
-bool shared_newOut = false;       // Flag to indicate new data has been written by MPC for main loop
-int shared_k;                     // Numero of the current loop
-MatrixN shared_xref;              // Desired state vector for the whole prediction horizon
-MatrixN shared_fsteps;            // The [x, y, z]^T desired position of each foot for each time step of the horizon
-MatrixN shared_result;            // Predicted state and desired contact forces resulting of the MPC
+Params* shared_params =
+    nullptr;                 // Shared pointer to object that stores parameters
+bool shared_running = true;  // Flag to stop the parallel thread
+bool shared_newIn =
+    false;  // Flag to indicate new data has been written by main loop for MPC
+bool shared_newOut =
+    false;  // Flag to indicate new data has been written by MPC for main loop
+int shared_k;           // Numero of the current loop
+MatrixN shared_xref;    // Desired state vector for the whole prediction horizon
+MatrixN shared_fsteps;  // The [x, y, z]^T desired position of each foot for
+                        // each time step of the horizon
+MatrixN shared_result;  // Predicted state and desired contact forces resulting
+                        // of the MPC
 
 // Mutexes to protect the global variables
 std::mutex mutexStop;  // To check if the thread should still run
@@ -78,7 +84,8 @@ void parallel_loop() {
   MatrixN xref;
   MatrixN fsteps;
   MatrixN result;
-  MPC loop_mpc = MPC(*shared_params);  // Create the MPC object running in parallel
+  MPC loop_mpc =
+      MPC(*shared_params);  // Create the MPC object running in parallel
   while (check_stop_thread()) {
     // Checking if new data is available to trigger the asynchronous MPC
     if (read_in(k, xref, fsteps)) {
@@ -91,8 +98,8 @@ void parallel_loop() {
       // Run the asynchronous MPC with the data that as been retrieved
       loop_mpc.run(k, xref, fsteps);
 
-      // Store the result (predicted state + desired forces) in the shared memory
-      // MPC::get_latest_result() returns a matrix of size 24 x N
+      // Store the result (predicted state + desired forces) in the shared
+      // memory MPC::get_latest_result() returns a matrix of size 24 x N
       // std::cout << "NEW RESULT AVAILABLE, WRITING OUT" << std::endl;
       result = loop_mpc.get_latest_result();
       write_out(result);
@@ -117,7 +124,8 @@ void MpcWrapper::initialize(Params& params) {
   // Default result for first step
   last_available_result = MatrixN::Zero(24, params.gait.rows());
   last_available_result(2, 0) = params.h_ref;
-  last_available_result.col(0).tail(12) = (Vector3(0.0, 0.0, 8.0)).replicate<4, 1>();
+  last_available_result.col(0).tail(12) =
+      (Vector3(0.0, 0.0, 8.0)).replicate<4, 1>();
 
   // Initialize the shared memory
   shared_k = 42;
@@ -143,11 +151,14 @@ void MpcWrapper::solve(int k, MatrixN xref, MatrixN fsteps, MatrixN gait) {
   // Adaptation if gait has changed
   if (!gait_past.isApprox(gait.row(0)))  // If gait status has changed
   {
-    if (gait_next.isApprox(gait.row(0)))  // If we're still doing what was planned the last time MPC was solved
+    if (gait_next.isApprox(
+            gait.row(0)))  // If we're still doing what was planned the last
+                           // time MPC was solved
     {
-      last_available_result.col(0).tail(12) = last_available_result.col(1).tail(12);
-    } else  // Otherwise use a default contact force command till we get the actual result of the MPC for this new
-            // sequence
+      last_available_result.col(0).tail(12) =
+          last_available_result.col(1).tail(12);
+    } else  // Otherwise use a default contact force command till we get the
+            // actual result of the MPC for this new sequence
     {
       double F = 9.81 * params_->mass / gait.row(0).sum();
       for (int i = 0; i < 4; i++) {
@@ -165,27 +176,34 @@ MatrixN MpcWrapper::get_latest_result() {
   bool refresh = false;
   if (check_new_result()) {
     t_mpc_solving_duration_ =
-        ((std::chrono::duration<double>)(std::chrono::system_clock::now() - t_mpc_solving_start_)).count();
+        ((std::chrono::duration<double>)(std::chrono::system_clock::now() -
+                                         t_mpc_solving_start_))
+            .count();
     last_available_result = read_out();
     refresh = true;
   }
 
   if (refresh) {
-    // Handle changes of gait between moment when the MPC solving is launched and result is retrieved
+    // Handle changes of gait between moment when the MPC solving is launched
+    // and result is retrieved
     for (int i = 0; i < 4; i++) {
       if (flag_change_[i]) {
-        // Foot in contact but was not in contact when we launched MPC solving (new detection)
-        // Fetch first non zero force in the prediction horizon for this foot
+        // Foot in contact but was not in contact when we launched MPC solving
+        // (new detection) Fetch first non zero force in the prediction horizon
+        // for this foot
         int k = 0;
-        while (k < last_available_result.cols() && last_available_result(14 + 3 * i, k) == 0) {
+        while (k < last_available_result.cols() &&
+               last_available_result(14 + 3 * i, k) == 0) {
           k++;
         }
-        last_available_result.block(12 + 3 * i, 0, 3, 1) = last_available_result.block(12 + 3 * i, k, 3, 1);
+        last_available_result.block(12 + 3 * i, 0, 3, 1) =
+            last_available_result.block(12 + 3 * i, k, 3, 1);
       }
     }
   }
 
-  // std::cout << "get_latest_result: " << std::endl << last_available_result.transpose() << std::endl;
+  // std::cout << "get_latest_result: " << std::endl <<
+  // last_available_result.transpose() << std::endl;
   return last_available_result;
 }
 
@@ -209,10 +227,12 @@ void MpcWrapper::get_temporary_result(RowVector4 gait) {
         flag_change_[i] = true;
         // Fetch first non zero force in the prediction horizon for this foot
         int k = 0;
-        while (k < last_available_result.cols() && last_available_result(14 + 3 * i, k) == 0) {
+        while (k < last_available_result.cols() &&
+               last_available_result(14 + 3 * i, k) == 0) {
           k++;
         }
-        last_available_result.block(12 + 3 * i, 0, 3, 1) = last_available_result.block(12 + 3 * i, k, 3, 1);
+        last_available_result.block(12 + 3 * i, 0, 3, 1) =
+            last_available_result.block(12 + 3 * i, k, 3, 1);
       }
     }
     gait_mem_ = gait;

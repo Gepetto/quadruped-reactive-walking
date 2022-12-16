@@ -21,7 +21,7 @@ Implementation of a reactive walking controller for quadruped robots. Architectu
 * Install OSQP solver: [https://osqp.org/docs/get_started/sources.html#build-the-binaries]
     * git clone --recursive https://github.com/oxfordcontrol/osqp
     * cd osqp
-    * Edit CMakeLists.txt 
+    * Edit CMakeLists.txt
     * Add `set(PRINTING OFF)` just above `message(STATUS "Printing is ${PRINTING}")`
     * Add `set(PROFILING OFF)` just above `message(STATUS "Profiling is ${PROFILING}")`
     * Turn DLONG off `option (DLONG "Use long integers (64bit) for indexing" OFF)`
@@ -72,7 +72,7 @@ index 72bcfb2..b77b72c 100644
 +++ b/config/walk_parameters.yaml
 @@ -3,7 +3,7 @@ robot:
      config_file: config_solo12.yaml  #  Name of the yaml file containing hardware information
- 
+
      interface: eth0  # Name of the communication inerface (check with ifconfig)
 -    LOGGING: true  # Enable/disable logging during the experiment
 +    LOGGING: false  # Enable/disable logging during the experiment
@@ -90,7 +90,7 @@ index 72bcfb2..b77b72c 100644
  #     Kd_main: [0., 0., 0.]  # Derivative gains for the PD+
 @@ -81,7 +81,7 @@ robot:
      Fz_min: 0.0  # Minimal vertical contact force [N]
- 
+
      # Parameters fro solo3D simulation
 -    solo3D: false  # Activation of the 3D environment, and corresponding planner blocks
 +    solo3D: true  # Activation of the 3D environment, and corresponding planner blocks
@@ -99,7 +99,7 @@ index 72bcfb2..b77b72c 100644
      environment_heightmap: "/short_bricks/short_bricks.bin"
 ```
 
-- 2/ In a first terminal run 
+- 2/ In a first terminal run
 ```
 hpp-rbprm-server
 ```

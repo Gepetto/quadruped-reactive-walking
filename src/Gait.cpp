@@ -127,7 +127,9 @@ void Gait::createCustomGallop() {
   desiredGait_.block(3 * N, 0, N, 4) = sequence.colwise().replicate(N);
 }
 
-double Gait::getPhaseDuration(int i, int j) { return getElapsedTime(i, j) + getRemainingTime(i, j); }
+double Gait::getPhaseDuration(int i, int j) {
+  return getElapsedTime(i, j) + getRemainingTime(i, j);
+}
 
 double Gait::getRemainingTime(int i, int j) {
   double state = currentGait_(i, j);
@@ -169,7 +171,9 @@ double Gait::getElapsedTime(int i, int j) {
   return nPhase * dt_;
 }
 
-double Gait::getPhaseDuration(int i) { return getElapsedTime(i) + getRemainingTime(i); }
+double Gait::getPhaseDuration(int i) {
+  return getElapsedTime(i) + getRemainingTime(i);
+}
 
 double Gait::getRemainingTime(int i) {
   RowVector4 state = currentGait_.row(i);
@@ -267,10 +271,14 @@ void Gait::rollGait() {
 
 void Gait::setCurrentGait(MatrixN4 const& gaitMatrix) {
   if (gaitMatrix.rows() != currentGait_.rows()) {
-    throw std::runtime_error("Input matrix should have the same number of rows than the current gait matrix.");
+    throw std::runtime_error(
+        "Input matrix should have the same number of rows than the current "
+        "gait matrix.");
   }
   if (gaitMatrix.cols() != currentGait_.cols()) {
-    throw std::runtime_error("Input matrix should have the same number of columns than the current gait matrix.");
+    throw std::runtime_error(
+        "Input matrix should have the same number of columns than the current "
+        "gait matrix.");
   }
 
   currentGait_ = gaitMatrix;
@@ -278,10 +286,14 @@ void Gait::setCurrentGait(MatrixN4 const& gaitMatrix) {
 
 void Gait::setPastGait(MatrixN4 const& gaitMatrix) {
   if (gaitMatrix.rows() != pastGait_.rows()) {
-    throw std::runtime_error("Input matrix should have the same number of rows than the past gait matrix.");
+    throw std::runtime_error(
+        "Input matrix should have the same number of rows than the past gait "
+        "matrix.");
   }
   if (gaitMatrix.cols() != pastGait_.cols()) {
-    throw std::runtime_error("Input matrix should have the same number of columns than the past gait matrix.");
+    throw std::runtime_error(
+        "Input matrix should have the same number of columns than the past "
+        "gait matrix.");
   }
 
   pastGait_ = gaitMatrix;
@@ -289,10 +301,14 @@ void Gait::setPastGait(MatrixN4 const& gaitMatrix) {
 
 void Gait::setDesiredGait(MatrixN4 const& gaitMatrix) {
   if (gaitMatrix.rows() != desiredGait_.rows()) {
-    throw std::runtime_error("Input matrix should have the same number of rows than the desired gait matrix.");
+    throw std::runtime_error(
+        "Input matrix should have the same number of rows than the desired "
+        "gait matrix.");
   }
   if (gaitMatrix.cols() != desiredGait_.cols()) {
-    throw std::runtime_error("Input matrix should have the same number of columns than the desired gait matrix.");
+    throw std::runtime_error(
+        "Input matrix should have the same number of columns than the desired "
+        "gait matrix.");
   }
 
   desiredGait_ = gaitMatrix;

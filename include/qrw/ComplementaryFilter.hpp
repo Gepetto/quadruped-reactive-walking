@@ -2,7 +2,8 @@
 ///
 /// \brief This is the header for Estimator and ComplementaryFilter classes
 ///
-/// \details These classes estimate the state of the robot based on sensor measurements
+/// \details These classes estimate the state of the robot based on sensor
+/// measurements
 ///
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -60,11 +61,17 @@ class ComplementaryFilter {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   Vector3 compute(Vector3 const& x, Vector3 const& dx, Vector3 const& alpha);
 
-  Vector3 getX() { return x_; }              // Get the input quantity
-  Vector3 getDx() { return dx_; }            // Get the derivative of the input quantity
-  Vector3 getHighPass() { return HighPass_; }     // Get the high-passed internal quantity
-  Vector3 getLowPass() { return LowPass_; }      // Get the low-passed internal quantity
-  Vector3 getAlpha() { return alpha_; }      // Get the alpha coefficient of the filter
+  Vector3 getX() { return x_; }    // Get the input quantity
+  Vector3 getDx() { return dx_; }  // Get the derivative of the input quantity
+  Vector3 getHighPass() {
+    return HighPass_;
+  }  // Get the high-passed internal quantity
+  Vector3 getLowPass() {
+    return LowPass_;
+  }  // Get the low-passed internal quantity
+  Vector3 getAlpha() {
+    return alpha_;
+  }  // Get the alpha coefficient of the filter
   Vector3 getFilteredX() { return filteredX_; }  // Get the filtered output
 
  private:

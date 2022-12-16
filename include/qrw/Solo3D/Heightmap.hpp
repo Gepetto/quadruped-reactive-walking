@@ -2,7 +2,8 @@
 ///
 /// \brief This is the header for Heightmap class
 ///
-/// \details This class loads a binary file, return the height and compute surface of the heightmap
+/// \details This class loads a binary file, return the height and compute
+/// surface of the heightmap
 ///
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -36,7 +37,8 @@ class Heightmap {
   ///
   /// \brief Initialize with given data
   ///
-  /// \param[in] file_name name of the binary file containing the data of the heightmap
+  /// \param[in] file_name name of the binary file containing the data of the
+  /// heightmap
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void initialize(const std::string& file_name);
@@ -78,8 +80,8 @@ class Heightmap {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Update the surface equation to fit the heightmap, [a,b,c] such as ax + by -z +c = 0
-  /// for a given 2D  position
+  /// \brief Update the surface equation to fit the heightmap, [a,b,c] such as
+  /// ax + by -z +c = 0 for a given 2D  position
   ///
   /// \param[in] x x-axis position
   /// \param[in] y y-axis position

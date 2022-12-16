@@ -2,24 +2,24 @@
 #include <odri_control_interface/robot.hpp>
 #include <odri_control_interface/utils.hpp>
 
-#include "qrw/Types.h"
-#include "qrw/Params.hpp"
 #include "qrw/Controller.hpp"
 #include "qrw/FakeRobot.hpp"
+#include "qrw/Params.hpp"
+#include "qrw/Types.h"
 #ifdef QRW_WITH_MQTT
 #include "qrw/mqtt-interface.hpp"
 #endif
 
 using namespace odri_control_interface;
 
+#include <chrono>
 #include <iostream>
 #include <stdexcept>
-#include <chrono>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ///
-/// \brief Make the robot go to the default initial position and wait for the user to press the Start key to start the
-/// main control loop
+/// \brief Make the robot go to the default initial position and wait for the
+/// user to press the Start key to start the main control loop
 ///
 /// \param[in] robot Interface to communicate with the robot
 /// \param[in] q_init The default position of the robot
@@ -27,8 +27,10 @@ using namespace odri_control_interface;
 /// \param[in] controller Main controller object
 ///
 ////////////////////////////////////////////////////////////////////////////////////////////////
-// int put_on_the_floor(std::shared_ptr<Robot> robot, Vector12 const& q_init, Params & params, Controller & controller)
-int put_on_the_floor(FakeRobot* robot, Vector12 const& q_init, Params& params, Controller& controller) {
+// int put_on_the_floor(std::shared_ptr<Robot> robot, Vector12 const& q_init,
+// Params & params, Controller & controller)
+int put_on_the_floor(FakeRobot* robot, Vector12 const& q_init, Params& params,
+                     Controller& controller) {
   printf("PUT ON THE FLOOR\n");
 
   double Kp_pos = 6.;
@@ -51,8 +53,8 @@ int put_on_the_floor(FakeRobot* robot, Vector12 const& q_init, Params& params, C
   double duration_increase = 2.0;  // in seconds
   double steps = std::round(duration_increase / params.dt_wbc);
   Vector12 tau_ff;
-  tau_ff << -0.25, 0.022, 0.5, 0.25, 0.022, 0.5, -0.28, 0.025, 0.575, 0.28, 0.025, 0.575;
-  for (double i = 0; i < steps; i++) {
+  tau_ff << -0.25, 0.022, 0.5, 0.25, 0.022, 0.5, -0.28, 0.025, 0.575, 0.28,
+  0.025, 0.575; for (double i = 0; i < steps; i++) {
     robot->joints->SetTorques(tau_ff * i / steps);
     robot->ParseSensorData();
     robot->SendCommandAndWaitEndOfCycle(params.dt_wbc);
@@ -81,9 +83,11 @@ int main() {
   Vector12 q_init = Vector12(params.q_init.data());
 
   // Initialization of variables
-  Controller controller;                       // Main controller
-  controller.initialize(params);               // Update urdf dependent parameters (mass, inertia, ...)
-  std::thread parallel_thread(parallel_loop);  // spawn new thread that runs MPC in parallel
+  Controller controller;  // Main controller
+  controller.initialize(
+      params);  // Update urdf dependent parameters (mass, inertia, ...)
+  std::thread parallel_thread(
+      parallel_loop);  // spawn new thread that runs MPC in parallel
   int k_loop = 0;
 
   // Initialize the communication, session, joints, wait for motors to be ready
@@ -102,8 +106,9 @@ int main() {
   std::string mqtt_done = "done";
   std::string mqtt_placeholder = "TODO";
   mqtt_interface.setStatus(mqtt_ready);
-  mqtt_interface.set(robot->powerboard->GetCurrent(), robot->powerboard->GetVoltage(), robot->powerboard->GetEnergy(),
-                     mqtt_placeholder);
+  mqtt_interface.set(robot->powerboard->GetCurrent(),
+                     robot->powerboard->GetVoltage(),
+                     robot->powerboard->GetEnergy(), mqtt_placeholder);
 #endif
   // Wait for Enter input before starting the control loop
   put_on_the_floor(robot, q_init, params, controller);
@@ -111,9 +116,10 @@ int main() {
 #ifdef QRW_WITH_MQTT
   mqtt_interface.setStatus(mqtt_running);
 #endif
-  // std::chrono::time_point<std::chrono::steady_clock> t_log[params.N_SIMULATION - 2];
-  // Main loop
-  while ((!robot->IsTimeout()) && (k_loop < params.N_SIMULATION - 2) && (!controller.error)) {
+  // std::chrono::time_point<std::chrono::steady_clock>
+  // t_log[params.N_SIMULATION - 2]; Main loop
+  while ((!robot->IsTimeout()) && (k_loop < params.N_SIMULATION - 2) &&
+         (!controller.error)) {
 #ifdef QRW_WITH_MQTT
     if (mqtt_interface.getStop()) break;
 #endif
@@ -130,7 +136,8 @@ int main() {
     if (k_loop <= 10) {
       Vector12 pos = robot->joints->GetPositions();
       if ((controller.q_des - pos).cwiseAbs().maxCoeff() > 0.15) {
-        std::cout << "DIFFERENCE: " << (controller.q_des - pos).transpose() << std::endl;
+        std::cout << "DIFFERENCE: " << (controller.q_des - pos).transpose()
+                  << std::endl;
         std::cout << "q_des: " << controller.q_des.transpose() << std::endl;
         std::cout << "q_mes: " << pos.transpose() << std::endl;
         break;
@@ -152,7 +159,8 @@ int main() {
     k_loop++;
     if (k_loop % 1000 == 0) {
 #ifdef QRW_WITH_MQTT
-      mqtt_interface.set(robot->powerboard->GetCurrent(), robot->powerboard->GetVoltage(),
+      mqtt_interface.set(robot->powerboard->GetCurrent(),
+                         robot->powerboard->GetVoltage(),
                          robot->powerboard->GetEnergy(), mqtt_placeholder);
 #endif
       std::cout << "Joints: ";
@@ -197,7 +205,9 @@ int main() {
 
   if (robot->IsTimeout()) {
     printf("Masterboard timeout detected.");
-    printf("Either the masterboard has been shut down or there has been a connection issue with the cable/wifi.");
+    printf(
+        "Either the masterboard has been shut down or there has been a "
+        "connection issue with the cable/wifi.");
   }
 
   // Close parallel thread
@@ -213,12 +223,15 @@ int main() {
   /*int duration_log [params.N_SIMULATION-2];
   for (int i = 0; i < params.N_SIMULATION-3; i++)
   {
-      duration_log[i] = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1] -
-  t_log[i]).count());
+      duration_log[i] =
+  static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1]
+  - t_log[i]).count());
   }
   for (int i = 0; i < params.N_SIMULATION-3; i++)
   {
-      std::cout << std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1] - t_log[i]).count() << ", ";
+      std::cout <<
+  std::chrono::duration_cast<std::chrono::microseconds>(t_log[i+1] -
+  t_log[i]).count() << ", ";
   }
   std::cout << std::endl;*/
 

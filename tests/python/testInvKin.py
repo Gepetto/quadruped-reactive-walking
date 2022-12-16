@@ -10,7 +10,6 @@ np.set_printoptions(precision=6, linewidth=300)
 
 
 class TestInvKin(unittest.TestCase):
-
     def setUp(self):
 
         # Object that holds all controller parameters
@@ -29,12 +28,24 @@ class TestInvKin(unittest.TestCase):
         self.params.lock_time = 0.04  # Target lock before the touchdown [s]
         self.params.vert_time = 0.03  # Duration during which feet move only along Z when taking off and landing
 
-        q_init = [0.0, 0.764, -1.407, 0.0, 0.76407, -1.4, 0.0, 0.76407, -1.407, 0.0, 0.764, -1.407]
+        q_init = [
+            0.0,
+            0.764,
+            -1.407,
+            0.0,
+            0.76407,
+            -1.4,
+            0.0,
+            0.76407,
+            -1.407,
+            0.0,
+            0.764,
+            -1.407,
+        ]
         for i in range(len(q_init)):
             self.params.q_init[i] = q_init[i]
         self.params.N_periods = 1
-        gait = [12, 1, 0, 0, 1,
-                12, 0, 1, 1, 0]
+        gait = [12, 1, 0, 0, 1, 12, 0, 1, 1, 0]
         for i in range(len(gait)):
             self.params.gait_vec[i] = gait[i]
 
@@ -57,6 +68,7 @@ class TestInvKin(unittest.TestCase):
 
         # Load robot model and data
         from example_robot_data.robots_loader import Solo12Loader
+
         Solo12Loader.free_flyer = True
         solo = Solo12Loader().robot
         q = solo.q0.reshape((-1, 1))
@@ -65,26 +77,32 @@ class TestInvKin(unittest.TestCase):
         dq = np.zeros((18, 1))
 
         # Get foot indexes
-        BASE_ID = solo.model.getFrameId('base_link')
-        foot_ids = [solo.model.getFrameId('FL_FOOT'),
-                    solo.model.getFrameId('FR_FOOT'),
-                    solo.model.getFrameId('HL_FOOT'),
-                    solo.model.getFrameId('HR_FOOT')]
+        BASE_ID = solo.model.getFrameId("base_link")
+        foot_ids = [
+            solo.model.getFrameId("FL_FOOT"),
+            solo.model.getFrameId("FR_FOOT"),
+            solo.model.getFrameId("HL_FOOT"),
+            solo.model.getFrameId("HR_FOOT"),
+        ]
 
         # Initialization of viewer
         if DISPLAY:
             solo.initViewer(loadModel=True)
-            if ('viewer' in solo.viz.__dict__):
-                solo.viewer.gui.addFloor('world/floor')
+            if "viewer" in solo.viz.__dict__:
+                solo.viewer.gui.addFloor("world/floor")
                 solo.viewer.gui.setRefreshIsSynchronous(False)
             solo.display(q)
 
         # References for tracking tasks
-        feet_p_cmd0 = np.array([[0.1946, 0.1946, -0.1946, -0.1946],
-                                [0.16891, -0.16891, 0.16891, -0.16891],
-                                [0.0191028, 0.0191028, 0.0191028, 0.0191028]])
-        feet_p_cmd0[2, :] = 0.05 # - self.params.h_ref
-        
+        feet_p_cmd0 = np.array(
+            [
+                [0.1946, 0.1946, -0.1946, -0.1946],
+                [0.16891, -0.16891, 0.16891, -0.16891],
+                [0.0191028, 0.0191028, 0.0191028, 0.0191028],
+            ]
+        )
+        feet_p_cmd0[2, :] = 0.05  # - self.params.h_ref
+
         xgoals = np.zeros((12, 1))
         q_wbc = np.zeros((18, 1))
         dq_wbc = np.zeros((18, 1))
@@ -164,15 +182,51 @@ class TestInvKin(unittest.TestCase):
             o_feet_p_cmd = feet_p_cmd0.copy()
             o_feet_v_cmd = np.zeros((3, 4))
             o_feet_a_cmd = np.zeros((3, 4))
-            o_feet_p_cmd[0, 0] += 0.04 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_p_cmd[1, 1] += 0.04 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_p_cmd[2, 2] += 0.04 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_v_cmd[0, 0] += 0.04 * 2 * np.pi * 0.25 * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_v_cmd[1, 1] += 0.04 * 2 * np.pi * 0.25 * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_v_cmd[2, 2] += 0.04 * 2 * np.pi * 0.25 * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_a_cmd[0, 0] += -0.04 * (2 * np.pi * 0.25)**2 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_a_cmd[1, 1] += -0.04 * (2 * np.pi * 0.25)**2 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_a_cmd[2, 2] += -0.04 * (2 * np.pi * 0.25)**2 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            o_feet_p_cmd[0, 0] += 0.04 * np.sin(
+                2 * np.pi * 0.25 * k * self.params.dt_wbc
+            )
+            o_feet_p_cmd[1, 1] += 0.04 * np.sin(
+                2 * np.pi * 0.25 * k * self.params.dt_wbc
+            )
+            o_feet_p_cmd[2, 2] += 0.04 * np.sin(
+                2 * np.pi * 0.25 * k * self.params.dt_wbc
+            )
+            o_feet_v_cmd[0, 0] += (
+                0.04
+                * 2
+                * np.pi
+                * 0.25
+                * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
+            o_feet_v_cmd[1, 1] += (
+                0.04
+                * 2
+                * np.pi
+                * 0.25
+                * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
+            o_feet_v_cmd[2, 2] += (
+                0.04
+                * 2
+                * np.pi
+                * 0.25
+                * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
+            o_feet_a_cmd[0, 0] += (
+                -0.04
+                * (2 * np.pi * 0.25) ** 2
+                * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
+            o_feet_a_cmd[1, 1] += (
+                -0.04
+                * (2 * np.pi * 0.25) ** 2
+                * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
+            o_feet_a_cmd[2, 2] += (
+                -0.04
+                * (2 * np.pi * 0.25) ** 2
+                * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
 
             # Second test
             amp_x = 0.1
@@ -181,19 +235,67 @@ class TestInvKin(unittest.TestCase):
             o_feet_p_cmd = feet_p_cmd0.copy()
             o_feet_v_cmd = np.zeros((3, 4))
             o_feet_a_cmd = np.zeros((3, 4))
-            o_feet_p_cmd[0, 0] += amp_x * np.sin(2 * np.pi * freq * k * self.params.dt_wbc)
-            o_feet_p_cmd[0, 2] += amp_x * np.sin(2 * np.pi * freq * k * self.params.dt_wbc + np.pi)
-            o_feet_v_cmd[0, 0] += amp_x * 2 * np.pi * freq * np.cos(2 * np.pi * freq * k * self.params.dt_wbc)
-            o_feet_v_cmd[0, 2] += amp_x * 2 * np.pi * freq * np.cos(2 * np.pi * freq * k * self.params.dt_wbc + np.pi)
-            o_feet_a_cmd[0, 0] += -amp_x * (2 * np.pi * freq)**2 * np.sin(2 * np.pi * freq * k * self.params.dt_wbc)
-            o_feet_a_cmd[0, 2] += -amp_x * (2 * np.pi * freq)**2 * np.sin(2 * np.pi * freq * k * self.params.dt_wbc + np.pi)
+            o_feet_p_cmd[0, 0] += amp_x * np.sin(
+                2 * np.pi * freq * k * self.params.dt_wbc
+            )
+            o_feet_p_cmd[0, 2] += amp_x * np.sin(
+                2 * np.pi * freq * k * self.params.dt_wbc + np.pi
+            )
+            o_feet_v_cmd[0, 0] += (
+                amp_x
+                * 2
+                * np.pi
+                * freq
+                * np.cos(2 * np.pi * freq * k * self.params.dt_wbc)
+            )
+            o_feet_v_cmd[0, 2] += (
+                amp_x
+                * 2
+                * np.pi
+                * freq
+                * np.cos(2 * np.pi * freq * k * self.params.dt_wbc + np.pi)
+            )
+            o_feet_a_cmd[0, 0] += (
+                -amp_x
+                * (2 * np.pi * freq) ** 2
+                * np.sin(2 * np.pi * freq * k * self.params.dt_wbc)
+            )
+            o_feet_a_cmd[0, 2] += (
+                -amp_x
+                * (2 * np.pi * freq) ** 2
+                * np.sin(2 * np.pi * freq * k * self.params.dt_wbc + np.pi)
+            )
 
-            o_feet_p_cmd[2, 0] += amp_z * np.sin(2 * np.pi * freq * k * self.params.dt_wbc)
-            o_feet_p_cmd[2, 2] += amp_z * np.sin(2 * np.pi * freq * k * self.params.dt_wbc + np.pi)
-            o_feet_v_cmd[2, 0] += amp_z * 2 * np.pi * freq * np.cos(2 * np.pi * freq * k * self.params.dt_wbc)
-            o_feet_v_cmd[2, 2] += amp_z * 2 * np.pi * freq * np.cos(2 * np.pi * freq * k * self.params.dt_wbc + np.pi)
-            o_feet_a_cmd[2, 0] += -amp_z * (2 * np.pi * freq)**2 * np.sin(2 * np.pi * freq * k * self.params.dt_wbc)
-            o_feet_a_cmd[2, 2] += -amp_z * (2 * np.pi * freq)**2 * np.sin(2 * np.pi * freq * k * self.params.dt_wbc + np.pi)
+            o_feet_p_cmd[2, 0] += amp_z * np.sin(
+                2 * np.pi * freq * k * self.params.dt_wbc
+            )
+            o_feet_p_cmd[2, 2] += amp_z * np.sin(
+                2 * np.pi * freq * k * self.params.dt_wbc + np.pi
+            )
+            o_feet_v_cmd[2, 0] += (
+                amp_z
+                * 2
+                * np.pi
+                * freq
+                * np.cos(2 * np.pi * freq * k * self.params.dt_wbc)
+            )
+            o_feet_v_cmd[2, 2] += (
+                amp_z
+                * 2
+                * np.pi
+                * freq
+                * np.cos(2 * np.pi * freq * k * self.params.dt_wbc + np.pi)
+            )
+            o_feet_a_cmd[2, 0] += (
+                -amp_z
+                * (2 * np.pi * freq) ** 2
+                * np.sin(2 * np.pi * freq * k * self.params.dt_wbc)
+            )
+            o_feet_a_cmd[2, 2] += (
+                -amp_z
+                * (2 * np.pi * freq) ** 2
+                * np.sin(2 * np.pi * freq * k * self.params.dt_wbc + np.pi)
+            )
 
             # Target positions of feet in horizontal frame
             feet_p_cmd = oRh.transpose() @ (o_feet_p_cmd - oTh)
@@ -213,8 +315,10 @@ class TestInvKin(unittest.TestCase):
             # feet_a_cmd = hRb @ feet_a_cmd
 
             # Goal is 20 degrees in pitch, lateral velocity, yaw velocity
-            xgoals[4, 0] = - 10.0 / 57
-            xgoals[6, 0] = 0.1 # * k * self.params.dt_wbc # 0.04 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            xgoals[4, 0] = -10.0 / 57
+            xgoals[
+                6, 0
+            ] = 0.1  # * k * self.params.dt_wbc # 0.04 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
             xgoals[7, 0] = vy * sig
             xgoals[11, 0] = wyaw * sig
 
@@ -234,46 +338,84 @@ class TestInvKin(unittest.TestCase):
             base_v_cmd[:, 0] = xgoals[6:, 0]
 
             # Run InvKin + WBC QP
-            self.wbcWrapper.compute(q_wbc, dq_wbc, np.zeros(12), np.array([[0.0, 0.0, 0.0, 1.0]]),
-                                    feet_p_cmd, feet_v_cmd, feet_a_cmd, xgoals)
+            self.wbcWrapper.compute(
+                q_wbc,
+                dq_wbc,
+                np.zeros(12),
+                np.array([[0.0, 0.0, 0.0, 1.0]]),
+                feet_p_cmd,
+                feet_v_cmd,
+                feet_a_cmd,
+                xgoals,
+            )
 
             # Check acceleration output from IK
             q_tmp = np.zeros((19, 1))
             q_tmp[:3, 0] = q_wbc[:3, 0]
-            q_tmp[3:7, 0] = pin.Quaternion(pin.rpy.rpyToMatrix(q_wbc[3, 0], q_wbc[4, 0], q_wbc[5, 0])).coeffs()
+            q_tmp[3:7, 0] = pin.Quaternion(
+                pin.rpy.rpyToMatrix(q_wbc[3, 0], q_wbc[4, 0], q_wbc[5, 0])
+            ).coeffs()
             q_tmp[7:, 0] = q_wbc[6:, 0]
-            pin.forwardKinematics(solo.model, solo.data, q_tmp, dq_wbc, self.wbcWrapper.ddq_cmd.reshape((-1, 1)))
+            pin.forwardKinematics(
+                solo.model,
+                solo.data,
+                q_tmp,
+                dq_wbc,
+                self.wbcWrapper.ddq_cmd.reshape((-1, 1)),
+            )
             pin.updateFramePlacements(solo.model, solo.data)
             for i_ee in range(4):
                 idx = int(foot_ids[i_ee])
-                acc_f_cmd[:, i_ee] = pin.getFrameAcceleration(solo.model, solo.data, int(idx), pin.LOCAL_WORLD_ALIGNED).linear
+                acc_f_cmd[:, i_ee] = pin.getFrameAcceleration(
+                    solo.model, solo.data, int(idx), pin.LOCAL_WORLD_ALIGNED
+                ).linear
 
             # Check velocity output from IK
             dq_cmd[:, 0] = self.wbcWrapper.dq_cmd
             pin.computeJointJacobians(solo.model, solo.data, q_tmp)
-            pin.forwardKinematics(solo.model, solo.data, q_tmp, dq_cmd, np.zeros(solo.model.nv))
+            pin.forwardKinematics(
+                solo.model, solo.data, q_tmp, dq_cmd, np.zeros(solo.model.nv)
+            )
             pin.updateFramePlacements(solo.model, solo.data)
             for i_ee in range(4):
                 idx = int(foot_ids[i_ee])
-                vel_f_cmd[:, i_ee] = pin.getFrameVelocity(solo.model, solo.data, int(idx), pin.LOCAL_WORLD_ALIGNED).linear
+                vel_f_cmd[:, i_ee] = pin.getFrameVelocity(
+                    solo.model, solo.data, int(idx), pin.LOCAL_WORLD_ALIGNED
+                ).linear
             vel_b_cmd[:, 0] = dq_cmd[:6, 0]
 
             # Check position output from IK
             q_cmd[:, 0] = self.wbcWrapper.q_cmd
-            pin.forwardKinematics(solo.model, solo.data, q_cmd, np.zeros(solo.model.nv), np.zeros(solo.model.nv))
+            pin.forwardKinematics(
+                solo.model,
+                solo.data,
+                q_cmd,
+                np.zeros(solo.model.nv),
+                np.zeros(solo.model.nv),
+            )
             pin.updateFramePlacements(solo.model, solo.data)
             for i_ee in range(4):
                 idx = int(foot_ids[i_ee])
                 pos_f_cmd[:, i_ee] = solo.data.oMf[idx].translation
             pos_b_cmd[:3, 0] = q_cmd[:3, 0]
-            pos_b_cmd[3:, 0] = pin.rpy.matrixToRpy(pin.Quaternion(q_cmd[3:7].reshape((-1, 1))).toRotationMatrix())
+            pos_b_cmd[3:, 0] = pin.rpy.matrixToRpy(
+                pin.Quaternion(q_cmd[3:7].reshape((-1, 1))).toRotationMatrix()
+            )
 
             """from IPython import embed
             embed()"""
 
             # Velocity integration
-            dq[0:3, 0:1] += self.params.dt_wbc * hRb.transpose() @ self.wbcWrapper.ddq_cmd[0:3].reshape((-1, 1))
-            dq[3:6, 0:1] += self.params.dt_wbc * hRb.transpose() @ self.wbcWrapper.ddq_cmd[3:6].reshape((-1, 1))
+            dq[0:3, 0:1] += (
+                self.params.dt_wbc
+                * hRb.transpose()
+                @ self.wbcWrapper.ddq_cmd[0:3].reshape((-1, 1))
+            )
+            dq[3:6, 0:1] += (
+                self.params.dt_wbc
+                * hRb.transpose()
+                @ self.wbcWrapper.ddq_cmd[3:6].reshape((-1, 1))
+            )
             dq[6:, 0] += self.params.dt_wbc * self.wbcWrapper.ddq_cmd[6:]
 
             # Position integration
@@ -286,10 +428,16 @@ class TestInvKin(unittest.TestCase):
             for i_ee in range(4):
                 idx = int(foot_ids[i_ee])
                 posf[:, i_ee] = solo.data.oMf[idx].translation
-                velf[:, i_ee] = pin.getFrameVelocity(solo.model, solo.data, int(idx), pin.LOCAL_WORLD_ALIGNED).linear
-                accf[:, i_ee] = pin.getFrameAcceleration(solo.model, solo.data, int(idx), pin.LOCAL_WORLD_ALIGNED).linear
+                velf[:, i_ee] = pin.getFrameVelocity(
+                    solo.model, solo.data, int(idx), pin.LOCAL_WORLD_ALIGNED
+                ).linear
+                accf[:, i_ee] = pin.getFrameAcceleration(
+                    solo.model, solo.data, int(idx), pin.LOCAL_WORLD_ALIGNED
+                ).linear
             posb[:3, 0] = q[:3, 0]
-            posb[3:, 0] = pin.rpy.matrixToRpy(pin.Quaternion(q[3:7].reshape((-1, 1))).toRotationMatrix())
+            posb[3:, 0] = pin.rpy.matrixToRpy(
+                pin.Quaternion(q[3:7].reshape((-1, 1))).toRotationMatrix()
+            )
             velb[:, 0] = dq[:6, 0]
 
             oTh = np.array([[q[0, 0]], [q[1, 0]], [q[2, 0]]])
@@ -351,6 +499,7 @@ class TestInvKin(unittest.TestCase):
             index6 = [1, 3, 5, 2, 4, 6]
             index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
             from matplotlib import pyplot as plt
+
             plt.figure()
             for i, j in enumerate([0, 1, 5]):
                 plt.subplot(3, 1, i + 1)
@@ -360,12 +509,12 @@ class TestInvKin(unittest.TestCase):
             plt.figure()
             for i in range(12):
                 ax0 = plt.subplot(3, 4, index12[i])
-                plt.plot(log_q[:, 7+i], "r")
+                plt.plot(log_q[:, 7 + i], "r")
             plt.suptitle("Actuators position (from integration)")
             plt.figure()
             for i in range(12):
                 ax0 = plt.subplot(3, 4, index12[i])
-                plt.plot(log_dq[:, 6+i], "r")
+                plt.plot(log_dq[:, 6 + i], "r")
             plt.suptitle("Actuators velocity (from integration)")
             plt.figure()
             mng = plt.get_current_fig_manager()
@@ -378,7 +527,11 @@ class TestInvKin(unittest.TestCase):
                 plt.ylabel(lgd6[i])
             plt.suptitle("Base position task (from integration)")
             plt.show(block=False)
-            plt.savefig(filename + "base_pos_test_" + N_test + "_" + N_size + ".eps", dpi=150, bbox_inches="tight")
+            plt.savefig(
+                filename + "base_pos_test_" + N_test + "_" + N_size + ".eps",
+                dpi=150,
+                bbox_inches="tight",
+            )
             plt.figure()
             mng = plt.get_current_fig_manager()
             mng.full_screen_toggle()
@@ -390,7 +543,11 @@ class TestInvKin(unittest.TestCase):
                 plt.ylabel(lgd6[i])
             plt.suptitle("Base velocity task (from integration)")
             plt.show(block=False)
-            plt.savefig(filename + "base_vel_test_" + N_test + "_" + N_size + ".eps", dpi=150, bbox_inches="tight")
+            plt.savefig(
+                filename + "base_vel_test_" + N_test + "_" + N_size + ".eps",
+                dpi=150,
+                bbox_inches="tight",
+            )
             plt.figure()
             for i in range(12):
                 ax0 = plt.subplot(3, 4, index12[i])
@@ -414,17 +571,17 @@ class TestInvKin(unittest.TestCase):
             plt.figure()
             for i in range(12):
                 ax0 = plt.subplot(3, 4, index12[i])
-                plt.plot(log_q_cmd[:, 7+i], "r")
+                plt.plot(log_q_cmd[:, 7 + i], "r")
             plt.suptitle("Actuators position commands")
             plt.figure()
             for i in range(12):
                 ax0 = plt.subplot(3, 4, index12[i])
-                plt.plot(log_dq_cmd[:, 6+i], "r")
+                plt.plot(log_dq_cmd[:, 6 + i], "r")
             plt.suptitle("Actuators velocity commands")
             plt.figure()
             for i in range(12):
                 ax0 = plt.subplot(3, 4, index12[i])
-                plt.plot(log_ddq_cmd[:, 6+i], "r")
+                plt.plot(log_ddq_cmd[:, 6 + i], "r")
             plt.suptitle("Actuators acceleration commands")
             plt.figure()
             mng = plt.get_current_fig_manager()
@@ -459,7 +616,11 @@ class TestInvKin(unittest.TestCase):
                 plt.ylabel(lgd4[int(i / 3)] + lgd3[int(i % 3)])
             plt.suptitle("Feet position task (from IK)")
             plt.show(block=False)
-            plt.savefig(filename + "feet_pos_test_" + N_test + "_" + N_size + ".eps", dpi=150, bbox_inches="tight")
+            plt.savefig(
+                filename + "feet_pos_test_" + N_test + "_" + N_size + ".eps",
+                dpi=150,
+                bbox_inches="tight",
+            )
             plt.figure()
             mng = plt.get_current_fig_manager()
             mng.full_screen_toggle()
@@ -471,7 +632,11 @@ class TestInvKin(unittest.TestCase):
                 plt.ylabel(lgd4[int(i / 3)] + lgd3[int(i % 3)])
             plt.suptitle("Feet velocity task (from IK)")
             plt.show(block=False)
-            plt.savefig(filename + "feet_vel_test_" + N_test + "_" + N_size + ".eps", dpi=150, bbox_inches="tight")
+            plt.savefig(
+                filename + "feet_vel_test_" + N_test + "_" + N_size + ".eps",
+                dpi=150,
+                bbox_inches="tight",
+            )
             plt.figure()
             mng = plt.get_current_fig_manager()
             mng.full_screen_toggle()
@@ -483,7 +648,11 @@ class TestInvKin(unittest.TestCase):
                 plt.ylabel(lgd4[int(i / 3)] + lgd3[int(i % 3)])
             plt.suptitle("Feet acceleration task (from IK)")
             plt.show(block=False)
-            plt.savefig(filename + "feet_acc_test_" + N_test + "_" + N_size + ".eps", dpi=150, bbox_inches="tight")
+            plt.savefig(
+                filename + "feet_acc_test_" + N_test + "_" + N_size + ".eps",
+                dpi=150,
+                bbox_inches="tight",
+            )
 
     def test_task_tracking(self, ctc=0.0):
         return
@@ -491,6 +660,7 @@ class TestInvKin(unittest.TestCase):
 
         # Load robot model and data
         from example_robot_data.robots_loader import Solo12Loader
+
         Solo12Loader.free_flyer = True
         solo = Solo12Loader().robot
         q = solo.q0.reshape((-1, 1))
@@ -499,24 +669,30 @@ class TestInvKin(unittest.TestCase):
         dq = np.zeros((18, 1))
 
         # Get foot indexes
-        BASE_ID = solo.model.getFrameId('base_link')
-        foot_ids = [solo.model.getFrameId('FL_FOOT'),
-                    solo.model.getFrameId('FR_FOOT'),
-                    solo.model.getFrameId('HL_FOOT'),
-                    solo.model.getFrameId('HR_FOOT')]
+        BASE_ID = solo.model.getFrameId("base_link")
+        foot_ids = [
+            solo.model.getFrameId("FL_FOOT"),
+            solo.model.getFrameId("FR_FOOT"),
+            solo.model.getFrameId("HL_FOOT"),
+            solo.model.getFrameId("HR_FOOT"),
+        ]
 
         # Initialization of viewer
         if DISPLAY:
             solo.initViewer(loadModel=True)
-            if ('viewer' in solo.viz.__dict__):
-                solo.viewer.gui.addFloor('world/floor')
+            if "viewer" in solo.viz.__dict__:
+                solo.viewer.gui.addFloor("world/floor")
                 solo.viewer.gui.setRefreshIsSynchronous(False)
             solo.display(q)
 
         # References for tracking tasks
-        feet_p_cmd0 = np.array([[0.1946, 0.1946, -0.1946, -0.1946],
-                                [0.16891, -0.16891, 0.16891, -0.16891],
-                                [0.0191028, 0.0191028, 0.0191028, 0.0191028]])
+        feet_p_cmd0 = np.array(
+            [
+                [0.1946, 0.1946, -0.1946, -0.1946],
+                [0.16891, -0.16891, 0.16891, -0.16891],
+                [0.0191028, 0.0191028, 0.0191028, 0.0191028],
+            ]
+        )
         feet_p_cmd0[2, :] = 0.05
         o_feet_p_cmd = np.zeros((3, 4))
         o_feet_v_cmd = np.zeros((3, 4))
@@ -559,15 +735,51 @@ class TestInvKin(unittest.TestCase):
             o_feet_p_cmd = feet_p_cmd0.copy()
             o_feet_v_cmd = np.zeros((3, 4))
             o_feet_a_cmd = np.zeros((3, 4))
-            o_feet_p_cmd[0, 0] += 0.04 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_p_cmd[1, 1] += 0.04 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_p_cmd[2, 2] += 0.04 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_v_cmd[0, 0] += 0.04 * 2 * np.pi * 0.25 * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_v_cmd[1, 1] += 0.04 * 2 * np.pi * 0.25 * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_v_cmd[2, 2] += 0.04 * 2 * np.pi * 0.25 * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_a_cmd[0, 0] += -0.04 * (2 * np.pi * 0.25)**2 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_a_cmd[1, 1] += -0.04 * (2 * np.pi * 0.25)**2 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
-            o_feet_a_cmd[2, 2] += -0.04 * (2 * np.pi * 0.25)**2 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            o_feet_p_cmd[0, 0] += 0.04 * np.sin(
+                2 * np.pi * 0.25 * k * self.params.dt_wbc
+            )
+            o_feet_p_cmd[1, 1] += 0.04 * np.sin(
+                2 * np.pi * 0.25 * k * self.params.dt_wbc
+            )
+            o_feet_p_cmd[2, 2] += 0.04 * np.sin(
+                2 * np.pi * 0.25 * k * self.params.dt_wbc
+            )
+            o_feet_v_cmd[0, 0] += (
+                0.04
+                * 2
+                * np.pi
+                * 0.25
+                * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
+            o_feet_v_cmd[1, 1] += (
+                0.04
+                * 2
+                * np.pi
+                * 0.25
+                * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
+            o_feet_v_cmd[2, 2] += (
+                0.04
+                * 2
+                * np.pi
+                * 0.25
+                * np.cos(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
+            o_feet_a_cmd[0, 0] += (
+                -0.04
+                * (2 * np.pi * 0.25) ** 2
+                * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
+            o_feet_a_cmd[1, 1] += (
+                -0.04
+                * (2 * np.pi * 0.25) ** 2
+                * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
+            o_feet_a_cmd[2, 2] += (
+                -0.04
+                * (2 * np.pi * 0.25) ** 2
+                * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            )
 
             # Target positions of feet in horizontal frame
             feet_p_cmd = oRh.transpose() @ (o_feet_p_cmd - oTh)
@@ -580,7 +792,7 @@ class TestInvKin(unittest.TestCase):
             # feet_a_cmd = hRb @ feet_a_cmd
 
             # Goal is 20 degrees in pitch
-            xgoals[4, 0] = - 10.0 / 57
+            xgoals[4, 0] = -10.0 / 57
 
             # xgoals[1, 0] += 0.02 * sig * self.params.dt_wbc
             xgoals[7, 0] = vy * sig
@@ -596,12 +808,28 @@ class TestInvKin(unittest.TestCase):
             q_wbc[6:, 0] = q[7:, 0]  # Actuators
 
             # Run InvKin + WBC QP
-            self.wbcWrapper.compute(q_wbc, dq, np.zeros(12), np.array([[0.0, 0.0, 0.0, ctc]]),
-                                    feet_p_cmd, feet_v_cmd, feet_a_cmd, xgoals)
+            self.wbcWrapper.compute(
+                q_wbc,
+                dq,
+                np.zeros(12),
+                np.array([[0.0, 0.0, 0.0, ctc]]),
+                feet_p_cmd,
+                feet_v_cmd,
+                feet_a_cmd,
+                xgoals,
+            )
 
             # Velocity integration
-            dq[0:3, 0:1] += self.params.dt_wbc * hRb.transpose() @ self.wbcWrapper.ddq_cmd[0:3].reshape((-1, 1))
-            dq[3:6, 0:1] += self.params.dt_wbc * hRb.transpose() @ self.wbcWrapper.ddq_cmd[3:6].reshape((-1, 1))
+            dq[0:3, 0:1] += (
+                self.params.dt_wbc
+                * hRb.transpose()
+                @ self.wbcWrapper.ddq_cmd[0:3].reshape((-1, 1))
+            )
+            dq[3:6, 0:1] += (
+                self.params.dt_wbc
+                * hRb.transpose()
+                @ self.wbcWrapper.ddq_cmd[3:6].reshape((-1, 1))
+            )
             dq[6:, 0] += self.params.dt_wbc * self.wbcWrapper.ddq_cmd[6:]
 
             # Position integration
@@ -615,7 +843,9 @@ class TestInvKin(unittest.TestCase):
             for i_ee in range(4):
                 idx = int(foot_ids[i_ee])
                 posf[:, i_ee] = solo.data.oMf[idx].translation
-                velf[:, i_ee] = pin.getFrameVelocity(solo.model, solo.data, int(idx), pin.LOCAL_WORLD_ALIGNED).linear
+                velf[:, i_ee] = pin.getFrameVelocity(
+                    solo.model, solo.data, int(idx), pin.LOCAL_WORLD_ALIGNED
+                ).linear
 
             oTh = np.array([[q[0, 0]], [q[1, 0]], [q[2, 0]]])
             RPY = pin.rpy.matrixToRpy(pin.Quaternion(q[3:7, 0]).toRotationMatrix())
@@ -638,6 +868,7 @@ class TestInvKin(unittest.TestCase):
 
         if DISPLAY:
             from matplotlib import pyplot as plt
+
             plt.figure()
             index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
             for i in range(12):
@@ -660,10 +891,10 @@ class TestInvKin(unittest.TestCase):
         self.test_task_tracking(ctc=1.0)
 
     def test_upper(self):
-        self.assertEqual('foo'.upper(), 'FOO')
+        self.assertEqual("foo".upper(), "FOO")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
 
 """

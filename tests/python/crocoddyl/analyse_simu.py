@@ -3,6 +3,7 @@
 
 import matplotlib.pylab as plt
 import numpy as np
+
 """import sys
 import os
 from sys import argv
@@ -15,7 +16,7 @@ sys.path.insert(0, os.getcwd())  # adds current directory to python path"""
 
 folder_name = ""
 pathIn = "crocoddyl_eval/test_4/log_eval/"
-#res = np.load(pathIn + folder_name + "results_wyaw_all_false.npy", allow_pickle=True)
+# res = np.load(pathIn + folder_name + "results_wyaw_all_false.npy", allow_pickle=True)
 
 N_lin = 6
 X = np.linspace(1.4, -1.4, N_lin)
@@ -28,16 +29,17 @@ def find_nearest(A, B, C, D):
     idy = (np.abs(C - D)).argmin()
     return idx, idy
 
+
 res = np.load(pathIn + folder_name + "results_osqp_vy.npy", allow_pickle=True)
 plt.figure()
-for elt in res :
-    if elt[0] == True :
-        plt.plot(elt[1][0] , elt[1][1] , "bs" , markerSize= "13")
-    else :
-        plt.plot(elt[1][0] , elt[1][1] , "rs" , markerSize= "13")
+for elt in res:
+    if elt[0] == True:
+        plt.plot(elt[1][0], elt[1][1], "bs", markerSize="13")
+    else:
+        plt.plot(elt[1][0], elt[1][1], "rs", markerSize="13")
 print(res)
-plt.xlim([-1.5,1.5])
-plt.ylim([-1.5,1.5])
+plt.xlim([-1.5, 1.5])
+plt.ylim([-1.5, 1.5])
 plt.show(block=True)
 
 ####################
@@ -55,7 +57,7 @@ for elt in res_osqp_vy:
 
 
 plt.figure()
-plt.rc('text', usetex=True)
+plt.rc("text", usetex=True)
 im = plt.imshow(Z_osqp_vy, cmap=plt.cm.binary, extent=(-1, 1, -1, 1))
 plt.xlabel("Lateral Velocity $\dot{p_y} \hspace{2mm} [m.s^{-1}]$", fontsize=12)
 plt.ylabel("Forward Velocity $\dot{p_x} \hspace{2mm} [m.s^{-1}]$", fontsize=12)

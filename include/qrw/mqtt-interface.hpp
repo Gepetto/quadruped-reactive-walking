@@ -3,12 +3,12 @@
 
 #include <mutex>
 
-
 class MqttInterface {
  public:
   MqttInterface();
-  void set(double current, double voltage, double energy, std::string & joystick);
-  void setStatus(std::string & status);
+  void set(double current, double voltage, double energy,
+           std::string& joystick);
+  void setStatus(std::string& status);
   void start();
   void stop();
   bool getStop();

@@ -3,19 +3,23 @@
 #include "bindings/python.hpp"
 
 template <typename WbcWrapper>
-struct WbcWrapperVisitor : public bp::def_visitor<WbcWrapperVisitor<WbcWrapper>> {
+struct WbcWrapperVisitor
+    : public bp::def_visitor<WbcWrapperVisitor<WbcWrapper>> {
   template <class PyClassWbcWrapper>
   void visit(PyClassWbcWrapper& cl) const {
     cl.def(bp::init<>(bp::arg(""), "Default constructor."))
 
-        .def("initialize", &WbcWrapper::initialize, bp::args("params"), "Initialize WbcWrapper from Python.\n")
+        .def("initialize", &WbcWrapper::initialize, bp::args("params"),
+             "Initialize WbcWrapper from Python.\n")
 
         .def("get_bdes", &WbcWrapper::get_bdes, "Get bdes_.\n")
         .def("get_qdes", &WbcWrapper::get_qdes, "Get qdes_.\n")
         .def("get_vdes", &WbcWrapper::get_vdes, "Get vdes_.\n")
         .def("get_tau_ff", &WbcWrapper::get_tau_ff, "Get tau_ff_.\n")
-        .def("get_tasks_acc", &WbcWrapper::get_tasks_acc, "Get tasks acceleration.\n")
-        .def("get_tasks_vel", &WbcWrapper::get_tasks_vel, "Get tasks velocity.\n")
+        .def("get_tasks_acc", &WbcWrapper::get_tasks_acc,
+             "Get tasks acceleration.\n")
+        .def("get_tasks_vel", &WbcWrapper::get_tasks_vel,
+             "Get tasks velocity.\n")
         .def("get_tasks_err", &WbcWrapper::get_tasks_err, "Get tasks error.\n")
 
         .def_readonly("bdes", &WbcWrapper::get_bdes)
@@ -41,10 +45,14 @@ struct WbcWrapperVisitor : public bp::def_visitor<WbcWrapperVisitor<WbcWrapper>>
         .def_readonly("JcTf_out", &WbcWrapper::get_JcTf_out)
 
         .def("compute", &WbcWrapper::compute,
-             bp::args("q", "dq", "f_cmd", "contacts", "pgoals", "vgoals", "agoals", "xgoals"),
+             bp::args("q", "dq", "f_cmd", "contacts", "pgoals", "vgoals",
+                      "agoals", "xgoals"),
              "Run WbcWrapper from Python.\n");
   }
 
-  static void expose() { bp::class_<WbcWrapper>("WbcWrapper", bp::no_init).def(WbcWrapperVisitor<WbcWrapper>()); }
+  static void expose() {
+    bp::class_<WbcWrapper>("WbcWrapper", bp::no_init)
+        .def(WbcWrapperVisitor<WbcWrapper>());
+  }
 };
 void exposeWbcWrapper() { WbcWrapperVisitor<WbcWrapper>::expose(); }

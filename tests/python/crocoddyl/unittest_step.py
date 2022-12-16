@@ -4,7 +4,7 @@ import numpy as np
 
 import quadruped_walkgen as quadruped_walkgen
 import quadruped_reactive_walking as qrw
-import crocoddyl 
+import crocoddyl
 
 #####################
 # Select MPC type   #
@@ -13,47 +13,49 @@ import crocoddyl
 model = quadruped_walkgen.ActionModelQuadrupedStep()
 
 # Tune the weights
-model.stateWeights = 2*np.ones(12)
-model.heuristicWeights = 2*np.ones(8)
+model.stateWeights = 2 * np.ones(12)
+model.heuristicWeights = 2 * np.ones(8)
 model.stepWeights = np.ones(8)
 
 model.is_acc_activated = False
-model.acc_limit = np.array([0.09,0.])
+model.acc_limit = np.array([0.09, 0.0])
 model.acc_weight = 1.88
 
 model.is_vel_activated = True
-model.vel_limit = np.array([0.,0.])
+model.vel_limit = np.array([0.0, 0.0])
 model.vel_weight = 0.0015
 
 model.is_jerk_activated = True
 model.jerk_weight = 0.000001
 
 
-# Update the dynamic of the model 
-fstep = np.random.rand(12).reshape((3,4))
+# Update the dynamic of the model
+fstep = np.random.rand(12).reshape((3, 4))
 xref = np.random.rand(12)
 gait = np.random.randint(2, size=4)
-position = np.random.rand(12).reshape((3,4))
-velocity = np.random.rand(12).reshape((3,4))
-acceleration = np.random.rand(12).reshape((3,4))
-jerk = np.random.rand(12).reshape((3,4))
-oRh = np.zeros((3,3))
-oTh = np.zeros((3,1))
-oRh[0,0] = 0.88
-oRh[1,1] = 0.88
-oRh[0,1] = -0.2
-oRh[1,0] = 0.2
-oTh[0,0] = 0.1
-oTh[1,0] = 0.09
+position = np.random.rand(12).reshape((3, 4))
+velocity = np.random.rand(12).reshape((3, 4))
+acceleration = np.random.rand(12).reshape((3, 4))
+jerk = np.random.rand(12).reshape((3, 4))
+oRh = np.zeros((3, 3))
+oTh = np.zeros((3, 1))
+oRh[0, 0] = 0.88
+oRh[1, 1] = 0.88
+oRh[0, 1] = -0.2
+oRh[1, 0] = 0.2
+oTh[0, 0] = 0.1
+oTh[1, 0] = 0.09
 Dt = 0.16
-model.updateModel(fstep, xref , gait, position, velocity, acceleration, jerk, oRh, oTh, Dt )
+model.updateModel(
+    fstep, xref, gait, position, velocity, acceleration, jerk, oRh, oTh, Dt
+)
 
 ################################################
-## CHECK DERIVATIVE WITH NUM_DIFF 
+## CHECK DERIVATIVE WITH NUM_DIFF
 #################################################
 
 a = 1
-b = -1 
+b = -1
 N_trial = 1
 epsilon = 10e-6
 
@@ -62,118 +64,168 @@ data_diff = model_diff.createData()
 data = model.createData()
 
 # RUN CALC DIFF
-def run_calcDiff_numDiff(epsilon) :
-  Lx = 0
-  Lx_err = 0
-  Lu = 0
-  Lu_err = 0
-  Lxu = 0
-  Lxu_err = 0
-  Lxx = 0
-  Lxx_err = 0
-  Luu = 0
-  Luu_err = 0
-  Luu_noFri = 0
-  Luu_err_noFri = 0
-  Fx = 0
-  Fx_err = 0 
-  Fu = 0
-  Fu_err = 0    
+def run_calcDiff_numDiff(epsilon):
+    Lx = 0
+    Lx_err = 0
+    Lu = 0
+    Lu_err = 0
+    Lxu = 0
+    Lxu_err = 0
+    Lxx = 0
+    Lxx_err = 0
+    Luu = 0
+    Luu_err = 0
+    Luu_noFri = 0
+    Luu_err_noFri = 0
+    Fx = 0
+    Fx_err = 0
+    Fu = 0
+    Fu_err = 0
 
-  for k in range(N_trial):    
+    for k in range(N_trial):
 
-    x = a + (b-a)*np.random.rand(20)
-    u = a + (b-a)*np.random.rand(8)
+        x = a + (b - a) * np.random.rand(20)
+        u = a + (b - a) * np.random.rand(8)
 
-    fstep = np.random.rand(12).reshape((3,4))
-    xref = np.random.rand(12)
-    gait = np.random.randint(2, size=4)
-    position = np.random.rand(12).reshape((3,4))
-    velocity = np.random.rand(12).reshape((3,4))
-    acceleration = np.random.rand(12).reshape((3,4))
-    jerk = np.random.rand(12).reshape((3,4))
-    Dt = 0.16
-    model.updateModel(fstep, xref , gait, position, velocity, acceleration, jerk, oRh, oTh, Dt )
-    model_diff = crocoddyl.ActionModelNumDiff(model)     
-   
-    # Run calc & calcDiff function : numDiff     
-    model_diff.calc(data_diff , x , u )
-    model_diff.calcDiff(data_diff , x , u )
-    
-    # Run calc & calcDiff function : c++ model
-    model.calc(data , x , u )
-    model.calcDiff(data , x , u )
+        fstep = np.random.rand(12).reshape((3, 4))
+        xref = np.random.rand(12)
+        gait = np.random.randint(2, size=4)
+        position = np.random.rand(12).reshape((3, 4))
+        velocity = np.random.rand(12).reshape((3, 4))
+        acceleration = np.random.rand(12).reshape((3, 4))
+        jerk = np.random.rand(12).reshape((3, 4))
+        Dt = 0.16
+        model.updateModel(
+            fstep, xref, gait, position, velocity, acceleration, jerk, oRh, oTh, Dt
+        )
+        model_diff = crocoddyl.ActionModelNumDiff(model)
 
-    Lx +=  np.sum( abs((data.Lx - data_diff.Lx )) >= epsilon  ) 
-    Lx_err += np.sum( abs((data.Lx - data_diff.Lx )) )  
+        # Run calc & calcDiff function : numDiff
+        model_diff.calc(data_diff, x, u)
+        model_diff.calcDiff(data_diff, x, u)
 
-    Lu +=  np.sum( abs((data.Lu - data_diff.Lu )) >= epsilon  ) 
-    print("\n")
-    print("Lu :")
-    print(data.Lu)
-    print("Lu diff :")
-    print(data_diff.Lu )
-    Lu_err += np.sum( abs((data.Lu - data_diff.Lu )) )  
+        # Run calc & calcDiff function : c++ model
+        model.calc(data, x, u)
+        model.calcDiff(data, x, u)
 
-    Lxu +=  np.sum( abs((data.Lxu - data_diff.Lxu )) >= epsilon  ) 
-    Lxu_err += np.sum( abs((data.Lxu - data_diff.Lxu )) )  
+        Lx += np.sum(abs((data.Lx - data_diff.Lx)) >= epsilon)
+        Lx_err += np.sum(abs((data.Lx - data_diff.Lx)))
 
-    Lxx +=  np.sum( abs((data.Lxx - data_diff.Lxx )) >= epsilon  ) 
-    Lxx_err += np.sum( abs((data.Lxx - data_diff.Lxx )) )  
+        Lu += np.sum(abs((data.Lu - data_diff.Lu)) >= epsilon)
+        print("\n")
+        print("Lu :")
+        print(data.Lu)
+        print("Lu diff :")
+        print(data_diff.Lu)
+        Lu_err += np.sum(abs((data.Lu - data_diff.Lu)))
 
-    Luu +=  np.sum( abs((data.Luu - data_diff.Luu )) >= epsilon  ) 
-    Luu_err += np.sum( abs((data.Luu - data_diff.Luu )) ) 
+        Lxu += np.sum(abs((data.Lxu - data_diff.Lxu)) >= epsilon)
+        Lxu_err += np.sum(abs((data.Lxu - data_diff.Lxu)))
 
-    Fx +=  np.sum( abs((data.Fx - data_diff.Fx )) >= epsilon  ) 
-    Fx_err += np.sum( abs((data.Fx - data_diff.Fx )) )  
+        Lxx += np.sum(abs((data.Lxx - data_diff.Lxx)) >= epsilon)
+        Lxx_err += np.sum(abs((data.Lxx - data_diff.Lxx)))
 
-    Fu +=  np.sum( abs((data.Fu - data_diff.Fu )) >= epsilon  ) 
-    Fu_err += np.sum( abs((data.Fu - data_diff.Fu )) )  
-  
-  Lx_err = Lx_err /N_trial
-  Lu_err = Lu_err/N_trial
-  Lxx_err = Lxx_err/N_trial    
-  Luu_err = Luu_err/N_trial
-  Fx_err = Fx_err/N_trial
-  Fu_err = Fu_err/N_trial
-  
-  return Lx , Lx_err , Lu , Lu_err , Lxu , Lxu_err, Lxx , Lxx_err , Luu , Luu_err, Luu_noFri , Luu_err_noFri, Fx, Fx_err, Fu , Fu_err
+        Luu += np.sum(abs((data.Luu - data_diff.Luu)) >= epsilon)
+        Luu_err += np.sum(abs((data.Luu - data_diff.Luu)))
+
+        Fx += np.sum(abs((data.Fx - data_diff.Fx)) >= epsilon)
+        Fx_err += np.sum(abs((data.Fx - data_diff.Fx)))
+
+        Fu += np.sum(abs((data.Fu - data_diff.Fu)) >= epsilon)
+        Fu_err += np.sum(abs((data.Fu - data_diff.Fu)))
+
+    Lx_err = Lx_err / N_trial
+    Lu_err = Lu_err / N_trial
+    Lxx_err = Lxx_err / N_trial
+    Luu_err = Luu_err / N_trial
+    Fx_err = Fx_err / N_trial
+    Fu_err = Fu_err / N_trial
+
+    return (
+        Lx,
+        Lx_err,
+        Lu,
+        Lu_err,
+        Lxu,
+        Lxu_err,
+        Lxx,
+        Lxx_err,
+        Luu,
+        Luu_err,
+        Luu_noFri,
+        Luu_err_noFri,
+        Fx,
+        Fx_err,
+        Fu,
+        Fu_err,
+    )
 
 
-Lx, Lx_err, Lu, Lu_err, Lxu, Lxu_err, Lxx, Lxx_err , Luu , Luu_err , Luu_noFri , Luu_err_noFri , Fx, Fx_err, Fu , Fu_err = run_calcDiff_numDiff(epsilon)
+(
+    Lx,
+    Lx_err,
+    Lu,
+    Lu_err,
+    Lxu,
+    Lxu_err,
+    Lxx,
+    Lxx_err,
+    Luu,
+    Luu_err,
+    Luu_noFri,
+    Luu_err_noFri,
+    Fx,
+    Fx_err,
+    Fu,
+    Fu_err,
+) = run_calcDiff_numDiff(epsilon)
 
-print("\n \n ------------------------------------------ " )
+print("\n \n ------------------------------------------ ")
 print(" Checking implementation of the derivatives ")
 print(" Using crocoddyl NumDiff class")
-print(" ------------------------------------------ " )
+print(" ------------------------------------------ ")
 
 print("\n Luu and Lxx are calculated with the residual cost and cannot be exact")
 print("\n")
-print("Espilon : %f" %epsilon)
-print("N_trial : %f" %N_trial)
+print("Espilon : %f" % epsilon)
+print("N_trial : %f" % N_trial)
 print("\n")
 
-if Fx == 0:  print("Fx : OK    (error : %f)" %Fx_err)
-else :     print("Fx : NOT OK !!!   (error : %f)" %Fx_err)
+if Fx == 0:
+    print("Fx : OK    (error : %f)" % Fx_err)
+else:
+    print("Fx : NOT OK !!!   (error : %f)" % Fx_err)
 
-if Fu == 0:  print("Fu : OK    (error : %f)" %Fu_err)
-else :     print("Fu : NOT OK !!!   (error : %f)" %Fu_err)
-if Lx == 0:  print("Lx : OK    (error : %f)" %Lx_err)
-else :     print("Lx : NOT OK !!!    (error : %f)" %Lx_err )
+if Fu == 0:
+    print("Fu : OK    (error : %f)" % Fu_err)
+else:
+    print("Fu : NOT OK !!!   (error : %f)" % Fu_err)
+if Lx == 0:
+    print("Lx : OK    (error : %f)" % Lx_err)
+else:
+    print("Lx : NOT OK !!!    (error : %f)" % Lx_err)
 
-if Lu == 0:  print("Lu : OK    (error : %f)" %Lu_err)
-else :     print("Lu : NOT OK !!!    (error : %f)" %Lu_err)
+if Lu == 0:
+    print("Lu : OK    (error : %f)" % Lu_err)
+else:
+    print("Lu : NOT OK !!!    (error : %f)" % Lu_err)
 
-if Lxu == 0:  print("Lxu : OK    (error : %f)" %Lxu_err)
-else :     print("Lxu : NOT OK !!!    (error : %f)" %Lxu_err)
+if Lxu == 0:
+    print("Lxu : OK    (error : %f)" % Lxu_err)
+else:
+    print("Lxu : NOT OK !!!    (error : %f)" % Lxu_err)
 
-if Lxx == 0:  print("Lxx : OK    (error : %f)" %Lxx_err)
-else :     print("Lxx : NOT OK !!!   (error : %f)" %Lxx_err)
+if Lxx == 0:
+    print("Lxx : OK    (error : %f)" % Lxx_err)
+else:
+    print("Lxx : NOT OK !!!   (error : %f)" % Lxx_err)
 
-if Luu == 0:  print("Luu : OK    (error : %f)" %Luu_err)
-else :     print("Luu : NOT OK !!!   (error : %f)" %Luu_err)
+if Luu == 0:
+    print("Luu : OK    (error : %f)" % Luu_err)
+else:
+    print("Luu : NOT OK !!!   (error : %f)" % Luu_err)
 
 if Lx == 0 and Lu == 0 and Fx == 0 and Fu == 0:
-  print("\n      -->      Derivatives 1st order : OK")
-else: 
-  print("\n         -->    Derivatives : NOT OK !!!")
+    print("\n      -->      Derivatives 1st order : OK")
+else:
+    print("\n         -->    Derivatives : NOT OK !!!")

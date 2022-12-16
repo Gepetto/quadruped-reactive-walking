@@ -56,7 +56,9 @@ def put_on_the_floor(device, q_init):
     duration_increase = 2.0
     steps = int(duration_increase / params.dt_wbc)
     # tau_ff = np.array([0.0, 0.022, 0.5] * 2 + [0.0, -0.022, -0.5] * 2)
-    tau_ff = np.array([0.0, 0.04, 0.54, 0.0, 0.04, 0.54, 0.0, 0.04, 0.62, 0.0, 0.04, 0.62])
+    tau_ff = np.array(
+        [0.0, 0.04, 0.54, 0.0, 0.04, 0.54, 0.0, 0.04, 0.62, 0.0, 0.04, 0.62]
+    )
 
     for i in range(steps):
         device.joints.set_torques(tau_ff * i / steps)
@@ -133,9 +135,9 @@ def recover(device, q_init):
 
     # Flip base if it is upside down
     if (
-        (np.abs(device.imu.attitude_euler[0]) < 0.8
-        or np.abs(device.imu.attitude_euler[1]) < 0.8) and False
-    ):
+        np.abs(device.imu.attitude_euler[0]) < 0.8
+        or np.abs(device.imu.attitude_euler[1]) < 0.8
+    ) and False:
         print("Base upside down")
 
         # Get in waiting position
@@ -189,10 +191,18 @@ def recover(device, q_init):
         init_q[((1 - legs) * mask_HFA).astype(bool)] = -0 / 180 * np.pi * sign_leg
 
         # Move knee in + or - direction depending on Knee position
-        sign = - np.repeat(2 * (device.joints.positions[2::3] > np.pi / 2).astype(int) - 1, 3) * sign_leg
+        sign = (
+            -np.repeat(
+                2 * (device.joints.positions[2::3] > np.pi / 2).astype(int) - 1, 3
+            )
+            * sign_leg
+        )
 
         Knee_pos = np.array([-np.pi, 0, np.pi])
-        Knee_targets = np.array([-1, 1, 1]) * 90 * np.pi / 180 + np.array([-1, -1, 1]) * 20 / 180 * np.pi
+        Knee_targets = (
+            np.array([-1, 1, 1]) * 90 * np.pi / 180
+            + np.array([-1, -1, 1]) * 20 / 180 * np.pi
+        )
         HFE_pos = np.array([-np.pi, 0, np.pi])
         HFE_targets = np.array([-1, 1, 1]) * 70 / 180 * np.pi
 
@@ -205,18 +215,17 @@ def recover(device, q_init):
             ]
 
         # Set targets
-        q_target = (
-            (mask_Knee + mask_HFE) * legs * (q_target + 0 * sign * np.pi / 2 * np.ones(12))
-            + ((1 - mask_Knee) * legs + (1 - legs)) * init_q
-        )
+        q_target = (mask_Knee + mask_HFE) * legs * (
+            q_target + 0 * sign * np.pi / 2 * np.ones(12)
+        ) + ((1 - mask_Knee) * legs + (1 - legs)) * init_q
 
         # Refresh init_q since it was modified for shoulders
         init_q = device.joints.positions.copy()
 
         print(mask_Knee)
-        #print(sign)
+        # print(sign)
         print(legs)
-        #print(mask_Knee * sign * legs)
+        # print(mask_Knee * sign * legs)
         print(((1 - mask_Knee) * legs + (1 - legs)))
         print("init_q: ", init_q)
         print("q: ", q_target)
@@ -241,9 +250,9 @@ def recover(device, q_init):
 
             t += params.dt_wbc
 
-        while (True):
+        while True:
 
-             # Read sensor data
+            # Read sensor data
             device.parse_sensor_data()
 
             # Send command to the robot

@@ -41,11 +41,15 @@ void Heightmap::initialize(const std::string &fileName) {
 }
 
 int Heightmap::xIndex(double x) {
-  return (x < map_.x_init || x > map_.x_end) ? -1 : (int)std::round((x - map_.x_init) / dx_);
+  return (x < map_.x_init || x > map_.x_end)
+             ? -1
+             : (int)std::round((x - map_.x_init) / dx_);
 }
 
 int Heightmap::yIndex(double y) {
-  return (y < map_.y_init || y > map_.y_end) ? -1 : (int)std::round((y - map_.y_init) / dy_);
+  return (y < map_.y_init || y > map_.y_end)
+             ? -1
+             : (int)std::round((y - map_.y_init) / dy_);
 }
 
 double Heightmap::getHeight(double x, double y) {
@@ -55,8 +59,12 @@ double Heightmap::getHeight(double x, double y) {
 }
 
 Vector3 Heightmap::fitSurface_(double x, double y) {
-  VectorN xVector = VectorN::LinSpaced(p.heightmap_fit_size, x - p.heightmap_fit_length, x + p.heightmap_fit_length);
-  VectorN yVector = VectorN::LinSpaced(p.heightmap_fit_size, y - p.heightmap_fit_length, y + p.heightmap_fit_length);
+  VectorN xVector =
+      VectorN::LinSpaced(p.heightmap_fit_size, x - p.heightmap_fit_length,
+                         x + p.heightmap_fit_length);
+  VectorN yVector =
+      VectorN::LinSpaced(p.heightmap_fit_size, y - p.heightmap_fit_length,
+                         y + p.heightmap_fit_length);
 
   int index = 0;
   for (int i = 0; i < p.heightmap_fit_size; i++) {

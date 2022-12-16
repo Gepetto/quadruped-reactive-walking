@@ -22,17 +22,21 @@ MPC::MPC(Params &params) {
   cpt_ML = 0;
   cpt_P = 0;
   offset_CoM(0, 0) = params_->CoM_offset[0];
-  offset_CoM(1, 0) = params_->CoM_offset[1] * 0.0;  // No lateral offset due to symmetry
-  offset_CoM(2, 0) = params_->CoM_offset[2];        // Vertical offset between center of base and CoM
+  offset_CoM(1, 0) =
+      params_->CoM_offset[1] * 0.0;  // No lateral offset due to symmetry
+  offset_CoM(2, 0) =
+      params_->CoM_offset[2];  // Vertical offset between center of base and CoM
 
   // Predefined matrices
-  footholds << 0.19, 0.19, -0.19, -0.19, 0.15005, -0.15005, 0.15005, -0.15005, 0.0, 0.0, 0.0, 0.0;
+  footholds << 0.19, 0.19, -0.19, -0.19, 0.15005, -0.15005, 0.15005, -0.15005,
+      0.0, 0.0, 0.0, 0.0;
   /*for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       gI(i, j) = params_->I_mat[3 * i + j];
     }
   }*/
-  gI << Eigen::Map<VectorN, Eigen::Unaligned>(params_->I_mat.data(), params_->I_mat.size());
+  gI << Eigen::Map<VectorN, Eigen::Unaligned>(params_->I_mat.data(),
+                                              params_->I_mat.size());
 
   g(8, 0) = -9.81f * dt;
 
@@ -52,14 +56,16 @@ int MPC::create_matrices() {
   return 0;
 }
 
-inline void MPC::add_to_ML(int i, int j, double v, int *r_ML, int *c_ML, double *v_ML) {
+inline void MPC::add_to_ML(int i, int j, double v, int *r_ML, int *c_ML,
+                           double *v_ML) {
   r_ML[cpt_ML] = i;  // row index
   c_ML[cpt_ML] = j;  // column index
   v_ML[cpt_ML] = v;  // value of coefficient
   cpt_ML++;          // increment the counter
 }
 
-inline void MPC::add_to_P(int i, int j, double v, int *r_P, int *c_P, double *v_P) {
+inline void MPC::add_to_P(int i, int j, double v, int *r_P, int *c_P,
+                          double *v_P) {
   r_P[cpt_P] = i;  // row index
   c_P[cpt_P] = j;  // column index
   v_P[cpt_P] = v;  // value of coefficient
@@ -67,8 +73,10 @@ inline void MPC::add_to_P(int i, int j, double v, int *r_P, int *c_P, double *v_
 }
 
 int MPC::create_ML() {
-  int *r_ML = new int[size_nz_ML];        // row indexes of non-zero values in matrix ML
-  int *c_ML = new int[size_nz_ML];        // col indexes of non-zero values in matrix ML
+  int *r_ML =
+      new int[size_nz_ML];  // row indexes of non-zero values in matrix ML
+  int *c_ML =
+      new int[size_nz_ML];  // col indexes of non-zero values in matrix ML
   double *v_ML = new double[size_nz_ML];  // non-zero values in matrix ML
 
   std::fill_n(r_ML, size_nz_ML, 0);
@@ -97,9 +105,12 @@ int MPC::create_ML() {
   double div_tmp = dt / mass;
   for (int k = 0; k < n_steps; k++) {
     for (int i = 0; i < 4; i++) {
-      add_to_ML(12 * k + 6, 12 * (n_steps + k) + 0 + 3 * i, div_tmp, r_ML, c_ML, v_ML);
-      add_to_ML(12 * k + 7, 12 * (n_steps + k) + 1 + 3 * i, div_tmp, r_ML, c_ML, v_ML);
-      add_to_ML(12 * k + 8, 12 * (n_steps + k) + 2 + 3 * i, div_tmp, r_ML, c_ML, v_ML);
+      add_to_ML(12 * k + 6, 12 * (n_steps + k) + 0 + 3 * i, div_tmp, r_ML, c_ML,
+                v_ML);
+      add_to_ML(12 * k + 7, 12 * (n_steps + k) + 1 + 3 * i, div_tmp, r_ML, c_ML,
+                v_ML);
+      add_to_ML(12 * k + 8, 12 * (n_steps + k) + 2 + 3 * i, div_tmp, r_ML, c_ML,
+                v_ML);
     }
     for (int i = 0; i < 12; i++) {
       add_to_ML(12 * k + 9, 12 * (n_steps + k) + i, 8.0, r_ML, c_ML, v_ML);
@@ -189,7 +200,8 @@ int MPC::create_ML() {
   for (int k = 0; k < 4; k++) {
     for (int i = 0; i < 12; i++) {
       i_x_B[12 * k + i] = i_x_tmp[i];
-      i_y_B[12 * k + i] = (12 * k + i) / 4;  // 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2...
+      i_y_B[12 * k + i] =
+          (12 * k + i) / 4;  // 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2...
     }
   }
 
@@ -235,7 +247,8 @@ int MPC::create_ML() {
 
   Vector3i i_tmp1;
   i_tmp1 << 3 + 4, 3 + 4, 6 + 4;
-  VectorNi i_tmp2 = VectorNi::Zero(12 * n_steps, 1);  // i_tmp1.replicate<4,1>();
+  VectorNi i_tmp2 =
+      VectorNi::Zero(12 * n_steps, 1);  // i_tmp1.replicate<4,1>();
   for (int k = 0; k < 4 * n_steps; k++) {
     i_tmp2.block(3 * k, 0, 3, 1) = i_tmp1;
   }
@@ -280,17 +293,21 @@ int MPC::create_NK() {
   }
 
   // Add third term to matrix N
-  Eigen::Map<MatrixN> xref_col((xref.block(0, 1, 12, n_steps)).data(), 12 * n_steps, 1);
+  Eigen::Map<MatrixN> xref_col((xref.block(0, 1, 12, n_steps)).data(),
+                               12 * n_steps, 1);
   NK_up.block(0, 0, 12 * n_steps, 1) += D * xref_col;
 
   // Lines to enable/disable forces are already initialized (0 values)
   // Matrix K is already initialized (0 values)
-  VectorN inf_lower_bount = -std::numeric_limits<double>::infinity() * VectorN::Ones(20 * n_steps, 1);
+  VectorN inf_lower_bount =
+      -std::numeric_limits<double>::infinity() * VectorN::Ones(20 * n_steps, 1);
   for (int k = 0; (4 + 5 * k) < (20 * n_steps); k++) {
-    inf_lower_bount(4 + 5 * k, 0) = -params_->osqp_Nz_lim;  // Maximum vertical contact force [N]
+    inf_lower_bount(4 + 5 * k, 0) =
+        -params_->osqp_Nz_lim;  // Maximum vertical contact force [N]
   }
 
-  NK_low.block(0, 0, 12 * n_steps * 2, 1) = NK_up.block(0, 0, 12 * n_steps * 2, 1);
+  NK_low.block(0, 0, 12 * n_steps * 2, 1) =
+      NK_up.block(0, 0, 12 * n_steps * 2, 1);
   NK_low.block(12 * n_steps * 2, 0, 20 * n_steps, 1) = inf_lower_bount;
 
   // Convert to c_double arrays
@@ -306,8 +323,8 @@ int MPC::create_NK() {
 }
 
 int MPC::create_weight_matrices() {
-  int *r_P = new int[size_nz_P];        // row indexes of non-zero values in matrix P
-  int *c_P = new int[size_nz_P];        // col indexes of non-zero values in matrix P
+  int *r_P = new int[size_nz_P];  // row indexes of non-zero values in matrix P
+  int *c_P = new int[size_nz_P];  // col indexes of non-zero values in matrix P
   double *v_P = new double[size_nz_P];  // non-zero values in matrix P
 
   std::fill_n(r_P, size_nz_P, 0);
@@ -315,10 +332,11 @@ int MPC::create_weight_matrices() {
   std::fill_n(v_P, size_nz_P, 0.0);
 
   // Define weights for the x-x_ref components of the optimization vector
-  // Hand-tuning of parameters if you want to give more weight to specific components
-  // double w[12] = {10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 10.0f};
-  // double w[12] = {2.0f, 2.0f, 20.0f, 2.0f, 2.0f, 10.0f, 0.2f, 0.2f, 0.2f, 0.0f, 0.0f, 10.0f};
-  // double w[12] = {2.0f, 2.0f, 20.0f, 0.25f, 0.25f, 10.0f, 0.2f, 0.2f, 0.2f, 0.0f, 0.0f, 0.3f};
+  // Hand-tuning of parameters if you want to give more weight to specific
+  // components double w[12] = {10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 10.0f}; double
+  // w[12] = {2.0f, 2.0f, 20.0f, 2.0f, 2.0f, 10.0f, 0.2f, 0.2f, 0.2f, 0.0f,
+  // 0.0f, 10.0f}; double w[12] = {2.0f, 2.0f, 20.0f, 0.25f, 0.25f, 10.0f, 0.2f,
+  // 0.2f, 0.2f, 0.0f, 0.0f, 0.3f};
   /*w[6] = 2.0f * sqrt(w[0]);
   w[7] = 2.0f * sqrt(w[1]);
   w[8] = 2.0f * sqrt(w[2]);
@@ -327,16 +345,20 @@ int MPC::create_weight_matrices() {
   w[11] = 0.05f * sqrt(w[5]);*/
   for (int k = 0; k < n_steps; k++) {
     for (int i = 0; i < 12; i++) {
-      add_to_P(12 * k + i, 12 * k + i, params_->osqp_w_states[i], r_P, c_P, v_P);
+      add_to_P(12 * k + i, 12 * k + i, params_->osqp_w_states[i], r_P, c_P,
+               v_P);
     }
   }
 
   // Define weights for the force components of the optimization vector
   for (int k = n_steps; k < (2 * n_steps); k++) {
     for (int i = 0; i < 4; i++) {
-      add_to_P(12 * k + 3 * i + 0, 12 * k + 3 * i + 0, params_->osqp_w_forces[0], r_P, c_P, v_P);
-      add_to_P(12 * k + 3 * i + 1, 12 * k + 3 * i + 1, params_->osqp_w_forces[1], r_P, c_P, v_P);
-      add_to_P(12 * k + 3 * i + 2, 12 * k + 3 * i + 2, params_->osqp_w_forces[2], r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 0, 12 * k + 3 * i + 0,
+               params_->osqp_w_forces[0], r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 1, 12 * k + 3 * i + 1,
+               params_->osqp_w_forces[1], r_P, c_P, v_P);
+      add_to_P(12 * k + 3 * i + 2, 12 * k + 3 * i + 2,
+               params_->osqp_w_forces[2], r_P, c_P, v_P);
     }
   }
 
@@ -413,12 +435,14 @@ int MPC::update_ML(MatrixN fsteps) {
       Matrix3 I_inv = R_gI.inverse();
 
       // Get skew-symetric matrix for each foothold
-      // Eigen::Map<Matrix34> fsteps_tmp((fsteps.block(j, 1, 1, 12)).data(), 3, 4);
+      // Eigen::Map<Matrix34> fsteps_tmp((fsteps.block(j, 1, 1, 12)).data(), 3,
+      // 4);
       footholds_tmp = fsteps.row(j);  // block(j, 1, 1, 12);
       // footholds = footholds_tmp.reshaped(3, 4);
       Eigen::Map<MatrixN> footholds_bis(footholds_tmp.data(), 3, 4);
 
-      lever_arms = footholds_bis - (xref.block(0, k, 3, 1) + offset_CoM).replicate<1, 4>();
+      lever_arms = footholds_bis -
+                   (xref.block(0, k, 3, 1) + offset_CoM).replicate<1, 4>();
       for (int i = 0; i < 4; i++) {
         B.block(9, 3 * i, 3, 3) = dt * (I_inv * getSkew(lever_arms.col(i)));
       }
@@ -466,14 +490,16 @@ int MPC::update_NK() {
 
   // Matrix D is already created and not changed
   // Add third term to matrix N
-  Eigen::Map<MatrixN> xref_col((xref.block(0, 1, 12, n_steps)).data(), 12 * n_steps, 1);
+  Eigen::Map<MatrixN> xref_col((xref.block(0, 1, 12, n_steps)).data(),
+                               12 * n_steps, 1);
   NK_up.block(0, 0, 12 * n_steps, 1) += D * xref_col;
 
   // Update upper bound c_double array (unrequired since Map is just pointers?)
   VectorN::Map(&v_NK_up[0], NK_up.size()) = NK_up;
 
   // Update lower bound c_double array
-  NK_low.block(0, 0, 12 * n_steps * 2, 1) = NK_up.block(0, 0, 12 * n_steps * 2, 1);
+  NK_low.block(0, 0, 12 * n_steps * 2, 1) =
+      NK_up.block(0, 0, 12 * n_steps * 2, 1);
   VectorN::Map(&v_NK_low[0], NK_low.size()) = NK_low;
 
   return 0;
@@ -492,21 +518,31 @@ float MPC::retrieve_cost() {
 int MPC::call_solver(int k) {
   // Initial guess for forces (mass evenly supported by all legs in contact)
   if (k == 0) {
-    warmxf.block(0, 0, 12 * (n_steps - 1), 1) = x.block(12, 0, 12 * (n_steps - 1), 1);
-    warmxf.block(12 * n_steps, 0, 12 * (n_steps - 1), 1) = x.block(12 * (n_steps + 1), 0, 12 * (n_steps - 1), 1);
-    warmxf.block(12 * (2 * n_steps - 1), 0, 12, 1) = x.block(12 * n_steps, 0, 12, 1);
-    Eigen::Matrix<double, Eigen::Dynamic, 1>::Map(&v_warmxf[0], warmxf.size()) = warmxf;
+    warmxf.block(0, 0, 12 * (n_steps - 1), 1) =
+        x.block(12, 0, 12 * (n_steps - 1), 1);
+    warmxf.block(12 * n_steps, 0, 12 * (n_steps - 1), 1) =
+        x.block(12 * (n_steps + 1), 0, 12 * (n_steps - 1), 1);
+    warmxf.block(12 * (2 * n_steps - 1), 0, 12, 1) =
+        x.block(12 * n_steps, 0, 12, 1);
+    Eigen::Matrix<double, Eigen::Dynamic, 1>::Map(&v_warmxf[0], warmxf.size()) =
+        warmxf;
   } else {
     for (int i = 0; i < 12 * (n_steps - 1); i++) {
-      v_warmxf[i] = (workspce->solution->x)[i + 12];  // Shift predicted state by one time step
+      v_warmxf[i] =
+          (workspce->solution
+               ->x)[i + 12];  // Shift predicted state by one time step
       v_warmxf[i + 12 * n_steps] =
-          (workspce->solution->x)[i + 12 + 12 * n_steps];  // Shift desired forces by one time step
+          (workspce->solution
+               ->x)[i + 12 +
+                    12 * n_steps];  // Shift desired forces by one time step
     }
     for (int i = 0; i < 12; i++) {
       v_warmxf[i + 12 * (n_steps - 1)] =
-          (workspce->solution->x)[i + 12 * (n_steps - 1)];  // Last state is not shifted (no roll)
+          (workspce->solution->x)[i + 12 * (n_steps - 1)];  // Last state is not
+                                                            // shifted (no roll)
       v_warmxf[i + 12 * (n_steps - 1) + 12 * n_steps] =
-          0.0;  // Last ctc force is 0.0, could be workspce->solution->x)[i + 12 * (n_steps-1) + 12 * n_steps];
+          0.0;  // Last ctc force is 0.0, could be workspce->solution->x)[i + 12
+                // * (n_steps-1) + 12 * n_steps];
     }
   }
 
@@ -516,9 +552,10 @@ int MPC::call_solver(int k) {
     data = (OSQPData *)c_malloc(sizeof(OSQPData));
     data->n = 12 * n_steps * 2;                 // number of variables
     data->m = 12 * n_steps * 2 + 20 * n_steps;  // number of constraints
-    data->P = P;             // the upper triangular part of the quadratic cost matrix P in csc format (size n x n)
-    data->A = ML;            // linear constraints matrix A in csc format (size m x n)
-    data->q = &Q[0];         // dense array for linear part of cost function (size n)
+    data->P = P;  // the upper triangular part of the quadratic cost matrix P in
+                  // csc format (size n x n)
+    data->A = ML;     // linear constraints matrix A in csc format (size m x n)
+    data->q = &Q[0];  // dense array for linear part of cost function (size n)
     data->l = &v_NK_low[0];  // dense array for lower bound (size m)
     data->u = &v_NK_up[0];   // dense array for upper bound (size m)
 
@@ -545,8 +582,8 @@ int MPC::call_solver(int k) {
     // settings->adaptive_rho_fraction = (c_float)0.7;
     osqp_setup(&workspce, data, settings);
 
-    /*self.prob.setup(P=self.P, q=self.Q, A=self.ML, l=self.NK_inf, u=self.NK.ravel(), verbose=False)
-    self.prob.update_settings(eps_abs=1e-5)
+    /*self.prob.setup(P=self.P, q=self.Q, A=self.ML, l=self.NK_inf,
+    u=self.NK.ravel(), verbose=False) self.prob.update_settings(eps_abs=1e-5)
     self.prob.update_settings(eps_rel=1e-5)*/
   } else  // Code to update the QP problem without creating it again
   {
@@ -637,15 +674,16 @@ int MPC::run(int num_iter, const MatrixN &xref_in, const MatrixN &fsteps_in) {
 
 Matrix3 MPC::getSkew(Vector3 v) {
   Matrix3 result;
-  result << 0.0, -v(2, 0), v(1, 0), v(2, 0), 0.0, -v(0, 0), -v(1, 0), v(0, 0), 0.0;
+  result << 0.0, -v(2, 0), v(1, 0), v(2, 0), 0.0, -v(0, 0), -v(1, 0), v(0, 0),
+      0.0;
   return result;
 }
 
 int MPC::construct_S() {
   inv_gait = MatrixN4i::Ones(gait.rows(), 4) - gait;
   for (int i = 0; i < gait.rows(); i++) {
-    // S_gait.block(k*12, 0, gait[i, 0]*12, 1) = (1 - (gait.block(i, 1, 1, 4)).transpose()).replicate<gait[i, 0], 1>()
-    // not finished;
+    // S_gait.block(k*12, 0, gait[i, 0]*12, 1) = (1 - (gait.block(i, 1, 1,
+    // 4)).transpose()).replicate<gait[i, 0], 1>() not finished;
     for (int b = 0; b < 4; b++) {
       for (int c = 0; c < 3; c++) {
         S_gait(i * 12 + 3 * b + c, 0) = inv_gait(i, b);

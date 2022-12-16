@@ -35,28 +35,32 @@ class MPC {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Run one iteration of the whole MPC by calling all the necessary functions (data retrieval, update
-  ///        of constraint matrices, update of the solver, running the solver, retrieving result)
+  /// \brief Run one iteration of the whole MPC by calling all the necessary
+  /// functions (data retrieval, update
+  ///        of constraint matrices, update of the solver, running the solver,
+  ///        retrieving result)
   ///
   /// \param[in] num_iter Number of the current iteration of the MPC
   /// \param[in] xref_in Reference state trajectory over the prediction horizon
-  /// \param[in] fsteps_in Footsteps location over the prediction horizon stored in a Nx12 matrix
+  /// \param[in] fsteps_in Footsteps location over the prediction horizon stored
+  /// in a Nx12 matrix
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   int run(int num_iter, const MatrixN &xref_in, const MatrixN &fsteps_in);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Retrieve the value of the cost function at the end of the resolution
-  /// \return the cost value
+  /// \brief Retrieve the value of the cost function at the end of the
+  /// resolution \return the cost value
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   float retrieve_cost();
 
   // Getters
-  MatrixN get_latest_result();  // Return the latest desired contact forces that have been computed
-  MatrixNi get_gait();           // Return the gait matrix
-  VectorNi get_Sgait();          // Return the S_gait matrix
+  MatrixN get_latest_result();  // Return the latest desired contact forces that
+                                // have been computed
+  MatrixNi get_gait();          // Return the gait matrix
+  VectorNi get_Sgait();         // Return the S_gait matrix
   double *get_x_next();         // Return the next predicted state of the base
 
  private:
@@ -65,14 +69,16 @@ class MPC {
   /// \brief Print positions and value of coefficients in a csc matrix
   ///
   /// \param[in] M (csc*): pointer to the csc matrix you want to print
-  /// \param[in] name (char*): name that should be displayed for the matrix (one char)
+  /// \param[in] name (char*): name that should be displayed for the matrix (one
+  /// char)
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   void my_print_csc_matrix(csc *M, const char *name);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Save positions and value of coefficients of a csc matrix in a csc file
+  /// \brief Save positions and value of coefficients of a csc matrix in a csc
+  /// file
   ///
   /// \param[in] M (csc*): pointer to the csc matrix you want to save
   /// \param[in] filename (string): name of the generated csv file
@@ -82,7 +88,8 @@ class MPC {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Save positions and value of coefficients of a dense matrix in a csc file
+  /// \brief Save positions and value of coefficients of a dense matrix in a csc
+  /// file
   ///
   /// \param[in] M (double*): pointer to the dense matrix you want to save
   /// \param[in] size (int): size of the dense matrix
@@ -93,7 +100,8 @@ class MPC {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Add a new non-zero coefficient to the sparse ML matrix by filling the triplet r_ML / c_ML / v_ML
+  /// \brief Add a new non-zero coefficient to the sparse ML matrix by filling
+  /// the triplet r_ML / c_ML / v_ML
   ///
   /// \param[in] i Row index of the new entry
   /// \param[in] j Column index of the new entry
@@ -103,11 +111,13 @@ class MPC {
   /// \param[in] v_ML Pointer to the table that contains values
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  inline void add_to_ML(int i, int j, double v, int *r_ML, int *c_ML, double *v_ML);
+  inline void add_to_ML(int i, int j, double v, int *r_ML, int *c_ML,
+                        double *v_ML);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Add a new non-zero coefficient to the P matrix by filling the triplet r_P / c_P / v_P
+  /// \brief Add a new non-zero coefficient to the P matrix by filling the
+  /// triplet r_P / c_P / v_P
   ///
   /// \param[in] i Row index of the new entry
   /// \param[in] j Column index of the new entry
@@ -137,7 +147,8 @@ class MPC {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Create the N and K matrices involved in the MPC constraint equations
+  /// \brief Create the N and K matrices involved in the MPC constraint
+  /// equations
   ///        the solution has to respect: M.X = N and L.X <= K
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -153,32 +164,38 @@ class MPC {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Update the M, N, L and K constraint matrices depending on what happened
+  /// \brief Update the M, N, L and K constraint matrices depending on what
+  /// happened
   ///
-  /// \param[in] fsteps Footsteps location over the prediction horizon stored in a Nx12 matrix
+  /// \param[in] fsteps Footsteps location over the prediction horizon stored in
+  /// a Nx12 matrix
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   int update_matrices(MatrixN fsteps);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Update the M and L constaint matrices depending on the current state of the gait
+  /// \brief Update the M and L constaint matrices depending on the current
+  /// state of the gait
   ///
-  /// \param[in] fsteps Footsteps location over the prediction horizon stored in a Nx12 matrix
+  /// \param[in] fsteps Footsteps location over the prediction horizon stored in
+  /// a Nx12 matrix
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   int update_ML(MatrixN fsteps);
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Update the N and K matrices involved in the MPC constraint equations M.X = N and L.X <= K
+  /// \brief Update the N and K matrices involved in the MPC constraint
+  /// equations M.X = N and L.X <= K
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   int update_NK();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Initialize the solver (first iteration) or update it (next iterations) then call the
+  /// \brief Initialize the solver (first iteration) or update it (next
+  /// iterations) then call the
   ///        OSQP solver to solve the QP problem
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -200,18 +217,21 @@ class MPC {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Construct an array of size 12*N that contains information about the contact state of feet.
-  ///        This matrix is used to enable/disable contact forces in the QP problem.
-  ///        N is the number of time step in the prediction horizon.
+  /// \brief Construct an array of size 12*N that contains information about the
+  /// contact state of feet.
+  ///        This matrix is used to enable/disable contact forces in the QP
+  ///        problem. N is the number of time step in the prediction horizon.
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   int construct_S();
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   ///
-  /// \brief Reconstruct the gait matrix based on the fsteps matrix since only the last one is received by the MPC
+  /// \brief Reconstruct the gait matrix based on the fsteps matrix since only
+  /// the last one is received by the MPC
   ///
-  /// \param[in] fsteps Footsteps location over the prediction horizon stored in a Nx12 matrix
+  /// \param[in] fsteps Footsteps location over the prediction horizon stored in
+  /// a Nx12 matrix
   ///
   ////////////////////////////////////////////////////////////////////////////////////////////////
   int construct_gait(MatrixN fsteps_in);
@@ -227,17 +247,21 @@ class MPC {
   Matrix3 gI;                                 // Inertia matrix
   Matrix34 footholds = Matrix34::Zero();      // Initial position of footsteps
   Vector12 footholds_tmp = Vector12::Zero();  // Updated position of footsteps
-  Matrix34 lever_arms = Matrix34::Zero();     // Lever arms of footsteps with the center of mass
-  MatrixN4i gait;                              // Contact status over the prediction horizon
-  MatrixN4i inv_gait;                          // Inversed contact status over the prediction horizon
-  Vector12 g = Vector12::Zero();              // Gravity vector
-  Vector3 offset_CoM = Vector3::Zero();       // Offset of the CoM position compared to center of base
+  Matrix34 lever_arms =
+      Matrix34::Zero();  // Lever arms of footsteps with the center of mass
+  MatrixN4i gait;        // Contact status over the prediction horizon
+  MatrixN4i inv_gait;    // Inversed contact status over the prediction horizon
+  Vector12 g = Vector12::Zero();  // Gravity vector
+  Vector3 offset_CoM =
+      Vector3::Zero();  // Offset of the CoM position compared to center of base
 
   Matrix12 A = Matrix12::Identity();  // Of evolution X+ = A*X + B*f + C
   Matrix12 B = Matrix12::Zero();      // Of evolution X+ = A*X + B*f + C
   Vector12 x0 = Vector12::Zero();     // Current state of the robot
-  double x_next[12] = {};             // Next state of the robot (difference with reference state)
-  MatrixN x_f_applied;                // Next predicted state of the robot + Desired contact forces to reach it
+  double x_next[12] =
+      {};  // Next state of the robot (difference with reference state)
+  MatrixN x_f_applied;  // Next predicted state of the robot + Desired contact
+                        // forces to reach it
 
   // Matrix ML
   const static int size_nz_ML = 15000;
@@ -268,17 +292,20 @@ class MPC {
   OSQPData *data;
   OSQPSettings *settings = (OSQPSettings *)c_malloc(sizeof(OSQPSettings));
 
-  // Matrices whose size depends on the arguments sent to the constructor function
-  Matrix12N xref;  // Reference state trajectory over the prediction horizon
-  VectorN x;       // State vector
+  // Matrices whose size depends on the arguments sent to the constructor
+  // function
+  Matrix12N xref;   // Reference state trajectory over the prediction horizon
+  VectorN x;        // State vector
   VectorNi S_gait;  // Matrix used to enable/disable feet in the solver
-  VectorN warmxf;  // Vector to store the solver warm start
-  VectorN NK_up;   // Upper constraint limit
-  VectorN NK_low;  // Lower constraint limit
-  // There is no M.X = N and L.X <= K, it's actually NK_low <= ML.X <= NK_up for the solver
-  MatrixN D;      // Matrix used to create NK matrix
+  VectorN warmxf;   // Vector to store the solver warm start
+  VectorN NK_up;    // Upper constraint limit
+  VectorN NK_low;   // Lower constraint limit
+  // There is no M.X = N and L.X <= K, it's actually NK_low <= ML.X <= NK_up for
+  // the solver
+  MatrixN D;       // Matrix used to create NK matrix
   VectorNi i_off;  // Coefficient offsets to directly update the data field
-  // Sparse matrix coefficents are all stored in M->x so if we know the indexes we can update them directly
+  // Sparse matrix coefficents are all stored in M->x so if we know the indexes
+  // we can update them directly
 };
 
 #endif  // MPC_H_INCLUDED

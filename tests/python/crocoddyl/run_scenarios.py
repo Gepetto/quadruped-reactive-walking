@@ -3,7 +3,7 @@
 import os
 import sys
 
-sys.path.insert(0, '../scripts')
+sys.path.insert(0, "../scripts")
 
 import time
 import multiprocessing as mp
@@ -89,7 +89,7 @@ Y = np.hstack((np.linspace(-0.4, 0.4, 5)))
 list_param = []
 for i in range(X.size):
     for j in range(Y.size):
-        #if (np.abs(X[i]) >= 0.79) and (np.abs(Y[j]) >= 0.79):
+        # if (np.abs(X[i]) >= 0.79) and (np.abs(Y[j]) >= 0.79):
         list_param.append([X[i], Y[j]])
 
 """from IPython import embed
@@ -101,7 +101,7 @@ type_MPC = False
 start_time = time.time()
 
 # Multiprocess lauch : cpu -1 --> avoid freeze
-with mp.Pool(mp.cpu_count()-1) as pool:
+with mp.Pool(mp.cpu_count() - 1) as pool:
     res2 = pool.map(run_simu_vy, list_param)
 
 # print("Temps d execution ddp wyaw: %s secondes ---" % (mem_time))
