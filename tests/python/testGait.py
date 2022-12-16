@@ -2,7 +2,8 @@ import unittest
 import numpy as np
 
 # from numpy.lib.function_base import gradient
-# import pinocchio as pin
+import pinocchio as pin  # noqa: F401
+
 # import time
 # from example_robot_data.robots_loader import Solo12Loader
 

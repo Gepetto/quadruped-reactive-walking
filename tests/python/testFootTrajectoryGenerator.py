@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-# import pinocchio as pin
+import pinocchio as pin  # noqa: F401
 
 # Import classes to test
 import quadruped_reactive_walking as lqrw
