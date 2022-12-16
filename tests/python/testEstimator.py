@@ -538,13 +538,10 @@ class TestEstimator(unittest.TestCase):
 
             # Test output values
             if i > int(0.5 * T / self.params.dt_wbc) + 1:  # Wait half a gait period
-                self.assertTrue(
-                    np.allclose(
-                        lin_vel[:3, i],
-                        lin_vel_esti[:, i],
-                        atol=atol_esti,
-                    ),
-                    "Estimated velocity OK",
+                np.testing.assert_allclose(
+                    lin_vel[:3, i],
+                    lin_vel_esti[:, i],
+                    atol=atol_esti,
                 )
 
         ####
@@ -650,7 +647,7 @@ class TestEstimator(unittest.TestCase):
         for i in range(3):
             plt.subplot(3, 1, i + 1)
             plt.plot(t, lin_acc[i, :] + np.random.random((3 * self.params.N_SIMULATION)))
-            plt.plot(t, lin_acc[i, :], "k") 
+            plt.plot(t, lin_acc[i, :], "k")
         plt.figure()
         ylabels = ["Vel X", "Vel Y", "Vel Z"]
         for i in range(3):
