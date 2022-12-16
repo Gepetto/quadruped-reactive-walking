@@ -26,7 +26,8 @@ class TestInvKin(unittest.TestCase):
         # Parameters of FootTrajectoryGenerator
         self.params.max_height = 0.05  # Apex height of the swinging trajectory [m]
         self.params.lock_time = 0.04  # Target lock before the touchdown [s]
-        self.params.vert_time = 0.03  # Duration during which feet move only along Z when taking off and landing
+        # Duration during which feet move only along Z when taking off and landing
+        self.params.vert_time = 0.03
 
         q_init = [
             0.0,
@@ -77,7 +78,7 @@ class TestInvKin(unittest.TestCase):
         dq = np.zeros((18, 1))
 
         # Get foot indexes
-        BASE_ID = solo.model.getFrameId("base_link")
+        # BASE_ID = solo.model.getFrameId("base_link")
         foot_ids = [
             solo.model.getFrameId("FL_FOOT"),
             solo.model.getFrameId("FR_FOOT"),
@@ -158,7 +159,7 @@ class TestInvKin(unittest.TestCase):
 
         vy = 0.02
         wyaw = 0.0 / 57.0
-        x_ref = 0.0
+        # x_ref = 0.0
         y_ref = 0.0
         yaw_ref = 0.0
         while k < N:
@@ -306,8 +307,17 @@ class TestInvKin(unittest.TestCase):
             # feet_p_cmd = oRh.transpose() @ (feet_p_cmd0.copy() - oTh)
 
             # for j in range(4):
-            #    feet_v_cmd[0, j] = -np.cos(np.arctan(feet_p_cmd0[0, j] / feet_p_cmd0[1, j])) * np.sqrt(0.1946**2 + 0.16891**2) * wyaw
-            #    feet_v_cmd[1, j] = vy + np.sin(np.arctan(feet_p_cmd0[0, j] / feet_p_cmd0[1, j])) * np.sqrt(0.1946**2 + 0.16891**2) * wyaw
+            # feet_v_cmd[0, j] = (
+            # -np.cos(np.arctan(feet_p_cmd0[0, j] / feet_p_cmd0[1, j]))
+            # * np.sqrt(0.1946**2 + 0.16891**2)
+            # * wyaw
+            # )
+            # feet_v_cmd[1, j] = (
+            # vy
+            # + np.sin(np.arctan(feet_p_cmd0[0, j] / feet_p_cmd0[1, j]))
+            # * np.sqrt(0.1946**2 + 0.16891**2)
+            # * wyaw
+            # )
 
             # Express feet so that they follow base orientation
             # feet_p_cmd = hRb @ feet_p_cmd
@@ -316,9 +326,9 @@ class TestInvKin(unittest.TestCase):
 
             # Goal is 20 degrees in pitch, lateral velocity, yaw velocity
             xgoals[4, 0] = -10.0 / 57
-            xgoals[
-                6, 0
-            ] = 0.1  # * k * self.params.dt_wbc # 0.04 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
+            xgoals[6, 0] = 0.1
+            # * k * self.params.dt_wbc
+            # 0.04 * np.sin(2 * np.pi * 0.25 * k * self.params.dt_wbc)
             xgoals[7, 0] = vy * sig
             xgoals[11, 0] = wyaw * sig
 
@@ -474,8 +484,14 @@ class TestInvKin(unittest.TestCase):
                 log_feet_v_cmd[k, :, :] = feet_v_cmd
                 log_feet_a_cmd[k, :, :] = feet_a_cmd
 
-            # self.assertTrue(np.allclose(oRh.transpose() @ (posf - oTh), feet_p_cmd, atol=2e-3), "feet pos tracking is OK")
-            # self.assertTrue(np.allclose(oRh.transpose() @ velf, feet_v_cmd, atol=2e-3), "feet vel tracking is OK")
+            # self.assertTrue(
+            # np.allclose(oRh.transpose() @ (posf - oTh), feet_p_cmd, atol=2e-3),
+            # "feet pos tracking is OK",
+            # )
+            # self.assertTrue(
+            # np.allclose(oRh.transpose() @ velf, feet_v_cmd, atol=2e-3),
+            # "feet vel tracking is OK",
+            # )
 
             k += 1
 
@@ -508,19 +524,19 @@ class TestInvKin(unittest.TestCase):
             # RESULTS FROM INTEGRATION
             plt.figure()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_q[:, 7 + i], "r")
             plt.suptitle("Actuators position (from integration)")
             plt.figure()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_dq[:, 6 + i], "r")
             plt.suptitle("Actuators velocity (from integration)")
             plt.figure()
             mng = plt.get_current_fig_manager()
             mng.full_screen_toggle()
             for i in range(6):
-                ax0 = plt.subplot(3, 2, index6[i])
+                plt.subplot(3, 2, index6[i])
                 plt.plot(log_base_p_cmd[:, i], "r")
                 plt.plot(log_pos_b[:, i], "b")
                 plt.legend(["Ref", "Cmd"])
@@ -536,7 +552,7 @@ class TestInvKin(unittest.TestCase):
             mng = plt.get_current_fig_manager()
             mng.full_screen_toggle()
             for i in range(6):
-                ax0 = plt.subplot(3, 2, index6[i])
+                plt.subplot(3, 2, index6[i])
                 plt.plot(log_base_v_cmd[:, i], "r")
                 plt.plot(log_vel_b[:, i], "b")
                 plt.legend(["Ref", "Cmd"])
@@ -550,19 +566,19 @@ class TestInvKin(unittest.TestCase):
             )
             plt.figure()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_feet_p_cmd[:, int(i % 3), int(i / 3)], "r")
                 plt.plot(log_pos_f[:, int(i % 3), int(i / 3)], "b")
             plt.suptitle("Feet position task (from integration)")
             plt.figure()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_feet_v_cmd[:, int(i % 3), int(i / 3)], "r")
                 plt.plot(log_vel_f[:, int(i % 3), int(i / 3)], "b")
             plt.suptitle("Feet velocity task (from integration)")
             plt.figure()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_feet_a_cmd[:, int(i % 3), int(i / 3)], "r")
                 plt.plot(log_acc_f[:, int(i % 3), int(i / 3)], "b")
             plt.suptitle("Feet acceleration task (from integration)")
@@ -570,24 +586,24 @@ class TestInvKin(unittest.TestCase):
             # RESULTS FROM IK
             plt.figure()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_q_cmd[:, 7 + i], "r")
             plt.suptitle("Actuators position commands")
             plt.figure()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_dq_cmd[:, 6 + i], "r")
             plt.suptitle("Actuators velocity commands")
             plt.figure()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_ddq_cmd[:, 6 + i], "r")
             plt.suptitle("Actuators acceleration commands")
             plt.figure()
             mng = plt.get_current_fig_manager()
             mng.full_screen_toggle()
             for i in range(6):
-                ax0 = plt.subplot(3, 2, index6[i])
+                plt.subplot(3, 2, index6[i])
                 plt.plot(log_base_p_cmd[:, i], "r")
                 plt.plot(log_pos_b_cmd[:, i], "b")
                 plt.legend(["Ref", "Cmd"])
@@ -598,7 +614,7 @@ class TestInvKin(unittest.TestCase):
             mng = plt.get_current_fig_manager()
             mng.full_screen_toggle()
             for i in range(6):
-                ax0 = plt.subplot(3, 2, index6[i])
+                plt.subplot(3, 2, index6[i])
                 plt.plot(log_base_v_cmd[:, i], "r")
                 plt.plot(log_vel_b_cmd[:, i], "b")
                 plt.legend(["Ref", "Cmd"])
@@ -609,7 +625,7 @@ class TestInvKin(unittest.TestCase):
             mng = plt.get_current_fig_manager()
             mng.full_screen_toggle()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_feet_p_cmd[:, int(i % 3), int(i / 3)], "r")
                 plt.plot(log_pos_f_cmd[:, int(i % 3), int(i / 3)], "b")
                 plt.legend(["Ref", "Cmd"])
@@ -625,7 +641,7 @@ class TestInvKin(unittest.TestCase):
             mng = plt.get_current_fig_manager()
             mng.full_screen_toggle()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_feet_v_cmd[:, int(i % 3), int(i / 3)], "r")
                 plt.plot(log_vel_f_cmd[:, int(i % 3), int(i / 3)], "b")
                 plt.legend(["Ref", "Cmd"])
@@ -641,7 +657,7 @@ class TestInvKin(unittest.TestCase):
             mng = plt.get_current_fig_manager()
             mng.full_screen_toggle()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_feet_a_cmd[:, int(i % 3), int(i / 3)], "r")
                 plt.plot(log_acc_f_cmd[:, int(i % 3), int(i / 3)], "b")
                 plt.legend(["Ref", "Cmd"])
@@ -669,7 +685,7 @@ class TestInvKin(unittest.TestCase):
         dq = np.zeros((18, 1))
 
         # Get foot indexes
-        BASE_ID = solo.model.getFrameId("base_link")
+        # BASE_ID = solo.model.getFrameId("base_link")
         foot_ids = [
             solo.model.getFrameId("FL_FOOT"),
             solo.model.getFrameId("FR_FOOT"),
@@ -858,8 +874,14 @@ class TestInvKin(unittest.TestCase):
                 log_pos_f[k, :, :] = posf
                 log_dq[k, :] = dq[:, 0]
 
-            # self.assertTrue(np.allclose(oRh.transpose() @ (posf - oTh), feet_p_cmd, atol=2e-3), "feet pos tracking is OK")
-            # self.assertTrue(np.allclose(oRh.transpose() @ velf, feet_v_cmd, atol=2e-3), "feet vel tracking is OK")
+            # self.assertTrue(
+            # np.allclose(oRh.transpose() @ (posf - oTh), feet_p_cmd, atol=2e-3),
+            # "feet pos tracking is OK",
+            # )
+            # self.assertTrue(
+            # np.allclose(oRh.transpose() @ velf, feet_v_cmd, atol=2e-3),
+            # "feet vel tracking is OK",
+            # )
 
             k += 1
 
@@ -872,12 +894,12 @@ class TestInvKin(unittest.TestCase):
             plt.figure()
             index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_pos_cmd[:, int(i % 3), int(i / 3)], "r")
                 plt.plot(log_pos_f[:, int(i % 3), int(i / 3)], "b")
             plt.figure()
             for i in range(12):
-                ax0 = plt.subplot(3, 4, index12[i])
+                plt.subplot(3, 4, index12[i])
                 plt.plot(log_vel_cmd[:, int(i % 3), int(i / 3)], "r")
                 plt.plot(log_vel_f[:, int(i % 3), int(i / 3)], "b")
             plt.figure()

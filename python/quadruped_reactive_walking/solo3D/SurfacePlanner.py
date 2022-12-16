@@ -13,7 +13,7 @@ from hpp.gepetto import ViewerFactory
 
 from .utils import getAllSurfacesDict_inner
 
-# --------------------------------- PROBLEM DEFINITION ---------------------------------------------------------------
+# --------------------------------- PROBLEM DEFINITION ---------------------------------
 
 paths = [
     os.environ["INSTALL_HPP_DIR"] + "/solo-rbprm/com_inequalities/feet_quasi_flat/",
@@ -31,7 +31,8 @@ class SurfacePlanner:
 
     def __init__(self, params):
         """
-        Initialize the affordance tool and save the solo abstract rbprm builder, and surface dictionary
+        Initialize the affordance tool and save the solo abstract rbprm builder, and
+        surface dictionary
         """
         self.plot = False
 
@@ -143,7 +144,8 @@ class SurfacePlanner:
         Get the rotation matrix and surface condidates for each configuration in configs
         :param configs: a list of successive configurations of the robot
         :param gait: a gait matrix
-        :return: a list of surface candidates and a boolean set to false if one foot hase no potential surface
+        :return: a list of surface candidates and a boolean set to false if one foot
+        hase no potential surface
         """
         surfaces_list = []
         empty_list = False
@@ -183,10 +185,12 @@ class SurfacePlanner:
 
     def retrieve_surfaces(self, surfaces, indices=None):
         """
-        Get all the potential surfaces as vertices and as inequalities for the first step of each foot
-        and get the selected surface indices if need be
-        return vertices a list of all potential surfaces vertices for each foot's first step
-        return inequalities a list of all potential surfaces inequalities for each foot's  first step
+        Get all the potential surfaces as vertices and as inequalities for the first
+        step of each foot and get the selected surface indices if need be.
+        return vertices a list of all potential surfaces vertices for each foot's first
+        step.
+        return inequalities a list of all potential surfaces inequalities for each
+        foot's  first step.
         return indices the selected surface indices for each foot's first step
         """
         vertices = []
@@ -220,7 +224,8 @@ class SurfacePlanner:
         :param gait_in: a gait matrix
         :param current_contacts: the initial_contacts to use in the computation
         :param h_v: Array (x3) the current velocity for the cost, in horizontal frame
-        :param h_v_ref: Array (x3) the desired velocity for the cost, in horizontal frame
+        :param h_v_ref: Array (x3) the desired velocity for the cost, in horizontal
+        frame
         :return: the selected surfaces for the first phase
         """
         R = [pin.XYZQUATToSE3(np.array(config)).rotation for config in configs]
@@ -252,10 +257,12 @@ class SurfacePlanner:
             }
         result = solve_MIP(self.pb, costs=costs, com=False)
 
+        if self.plot:
+            import matplotlib.pyplot as plt
+            import sl1m.tools.plot_tools as plot
+
         if result.success:
             if self.plot:
-                import matplotlib.pyplot as plt
-                import sl1m.tools.plot_tools as plot
 
                 ax = plot.draw_whole_scene(self.all_surfaces)
                 plot.plot_planner_result(
@@ -272,9 +279,6 @@ class SurfacePlanner:
             return vertices, inequalities, indices, result.all_feet_pos, True
 
         if self.plot:
-            import matplotlib.pyplot as plt
-            import sl1m.tools.plot_tools as plot
-
             ax = plot.draw_whole_scene(self.all_surfaces)
             plot.plot_initial_contacts(initial_contacts, ax=ax)
             ax.scatter(

@@ -86,8 +86,8 @@ def damp_control(device, nb_motors):
 
 def control_loop(des_vel_analysis=None):
     """
-    Main function that calibrates the robot, get it into a default waiting position then launch
-    the main control loop once the user has pressed the Enter key
+    Main function that calibrates the robot, get it into a default waiting position then
+    launch the main control loop once the user has pressed the Enter key.
     """
     # Read replay data
     # replay = np.load("/home/odri/git/abonnefoy/Motion/Logs/push_up.npz")
@@ -205,7 +205,8 @@ def control_loop(des_vel_analysis=None):
     if device.is_timeout:
         print("Masterboard timeout detected.")
         print(
-            "Either the masterboard has been shut down or there has been a connection issue with the cable/wifi."
+            "Either the masterboard has been shut down "
+            "or there has been a connection issue with the cable/wifi."
         )
 
     if params.LOGGING:

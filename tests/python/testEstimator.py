@@ -1,7 +1,6 @@
 import unittest
 import numpy as np
 import pinocchio as pin
-import time
 from example_robot_data.robots_loader import Solo12Loader
 
 # Import classes to test
@@ -164,7 +163,10 @@ class TestEstimator(unittest.TestCase):
                 np.allclose(h_v_ref.ravel(), self.estimator.get_base_vel_ref()),
                 "h_v_ref is OK",
             )
-            # self.assertTrue(np.allclose(h_a_ref.ravel(), self.estimator.get_base_acc_ref()), "h_a_ref is OK")
+            # self.assertTrue(
+            # np.allclose(h_a_ref.ravel(), self.estimator.get_base_acc_ref()),
+            # "h_a_ref is OK",
+            # )
             self.assertTrue(
                 np.allclose(yaw[i], self.estimator.get_q_reference()[5]),
                 "yaw_estim is OK",
@@ -321,6 +323,10 @@ class TestEstimator(unittest.TestCase):
             # Update state
             self.estimator.update_reference_state(np.random.random((6, 1)))
 
+            # Save values for next loop
+            v_win = self.estimator.get_v_filtered()[:6]
+            h_v_win = self.estimator.get_h_v_filtered()
+
             # Test output values
             if i > int(T / self.params.dt_wbc) + 1:  # Wait one gait period
                 self.assertTrue(
@@ -332,9 +338,6 @@ class TestEstimator(unittest.TestCase):
                     "Horizontal windowed velocity OK",
                 )
 
-            # Save values for next loop
-            v_win = self.estimator.get_v_filtered()[:6]
-            h_v_win = self.estimator.get_h_v_filtered()
             self.assertTrue(
                 np.allclose(
                     h_v_win[:3].reshape((-1, 1)), hRb @ v_win[:3].reshape((-1, 1))
@@ -359,7 +362,7 @@ class TestEstimator(unittest.TestCase):
         atol_esti = 1e-2
 
         # Parameters of the Invkin
-        l = 0.1946 * 2
+        l = 0.1946 * 2  # noqa: E741
         L = 0.14695 * 2
         h = self.params.h_ref
         q_init = [0.0, 0.7, -1.4, -0.0, 0.7, -1.4, 0.0, 0.7, -1.4, -0.0, 0.7, -1.4]
@@ -372,7 +375,7 @@ class TestEstimator(unittest.TestCase):
         q_12[:, 0] = q_init  # Initial angular positions of actuators
 
         # Get foot indexes
-        BASE_ID = solo.model.getFrameId("base_link")
+        # BASE_ID = solo.model.getFrameId("base_link")
         foot_ids = [
             solo.model.getFrameId("FL_FOOT"),
             solo.model.getFrameId("FR_FOOT"),
@@ -545,7 +548,8 @@ class TestEstimator(unittest.TestCase):
                 )
 
         ####
-        # Adding noise to acceleration and using only IMU acc, it should fail due to drift
+        # Adding noise to acceleration and using only IMU acc, it should fail due to
+        # drift.
         ####
 
         # Loop with forward kinematics
@@ -589,7 +593,8 @@ class TestEstimator(unittest.TestCase):
         )
 
         ####
-        # Adding noise to acceleration and using IMU acc + FK, drift should be compensated by FK
+        # Adding noise to acceleration and using IMU acc + FK, drift should be
+        # compensated by FK.
         ####
 
         gait = self.params.gait.copy()
@@ -641,12 +646,15 @@ class TestEstimator(unittest.TestCase):
         """
         # Figures to understand what happens
         from matplotlib import pyplot as plt
+
         plt.figure()
         plt.plot(t, log_alpha)
         plt.figure()
         for i in range(3):
             plt.subplot(3, 1, i + 1)
-            plt.plot(t, lin_acc[i, :] + np.random.random((3 * self.params.N_SIMULATION)))
+            plt.plot(
+                t, lin_acc[i, :] + np.random.random((3 * self.params.N_SIMULATION))
+            )
             plt.plot(t, lin_acc[i, :], "k")
         plt.figure()
         ylabels = ["Vel X", "Vel Y", "Vel Z"]

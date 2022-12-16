@@ -1,19 +1,22 @@
 # coding: utf8
 
-import sys
-import os
-from sys import argv
-from matplotlib.cbook import ls_mapper
+# import sys
+# import os
 
-sys.path.insert(0, os.getcwd())  # adds current directory to python path
+# from sys import argv
+# from matplotlib.cbook import ls_mapper
+
+# sys.path.insert(0, os.getcwd())  # adds current directory to python path
 
 import numpy as np
 import matplotlib.pylab as plt
 import quadruped_reactive_walking as qrw
-import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
-import time
+
+# import crocoddyl_class.MPC_crocoddyl_planner as MPC_crocoddyl_planner
+# import time
 import utils_mpc
-import pinocchio as pin
+
+# import pinocchio as pin
 from matplotlib.collections import LineCollection
 import matplotlib
 import LoggerSensors
@@ -115,7 +118,10 @@ solo = utils_mpc.init_robot(q_init, params)
 #######################
 # Recover Logged data
 #######################
-file_name = "/home/thomas_cbrs/Desktop/edin/quadruped-reactive-walking/scripts/crocoddyl_eval/logs/explore_weight_acc/data_cost.npz"
+file_name = (
+    "/home/thomas_cbrs/Desktop/edin/quadruped-reactive-walking/scripts/"
+    "crocoddyl_eval/logs/explore_weight_acc/data_cost.npz"
+)
 
 logs = np.load(file_name)
 planner_gait = logs.get("planner_gait")
@@ -410,7 +416,7 @@ for i in range(N_mpc):
     # Scatter to highlight points
     ax_f[0, 3].scatter(T, JX, s=10, zorder=1, c=my_colors, cmap=matplotlib.cm.Greys)
 
-    ##################################################################################################
+    ####################################################################################
 
     # Set up lists of (x,y) points for predicted state i
     points_j = np.array([T, Y]).transpose().reshape(-1, 1, 2)
@@ -562,20 +568,22 @@ index = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
 
 # plt.figure()
 # for i in range(N_mpc):
-#     k = int( iteration_mpc * (params.dt_mpc / params.dt_wbc) ) - 1# simulation iteration corresponding
-#     xref = planner_xref[k].copy() # From logged value
-#     xs = mpc_x_f[k,:12,:]
-#     xs = np.vstack([xref[:,0] , xs.transpose()]).transpose()
+# k = (
+# int(iteration_mpc * (params.dt_mpc / params.dt_wbc)) - 1
+# )  # simulation iteration corresponding
+# xref = planner_xref[k].copy()  # From logged value
+# xs = mpc_x_f[k, :12, :]
+# xs = np.vstack([xref[:, 0], xs.transpose()]).transpose()
 
-#     t_init = t_0 + i*params.dt_mpc
-#     t_end = t_init + N*params.dt_mpc
-#     T = np.linspace(t_init, t_end,N+1)
+# t_init = t_0 + i * params.dt_mpc
+# t_end = t_init + N * params.dt_mpc
+# T = np.linspace(t_init, t_end, N + 1)
 
-#     for j in range(12):
-#         plt.subplot(3,4,index[j])
-#         plt.plot(T,xs[j,:])
+# for j in range(12):
+# plt.subplot(3, 4, index[j])
+# plt.plot(T, xs[j, :])
 
-#     iteration_mpc +=1
+# iteration_mpc += 1
 
 
 # for j in range(12):
@@ -728,7 +736,6 @@ plt.show()
 
 # T = np.linspace()
 # for it in range(N_mpc):
-
-
-#     k_0 = int( iteration_mpc * (params.dt_mpc / params.dt_wbc) ) # simulation iteration corresponding
-#     gait = planner_gait[k_0]
+# # simulation iteration corresponding
+# k_0 = int(iteration_mpc * (params.dt_mpc / params.dt_wbc))
+# gait = planner_gait[k_0]

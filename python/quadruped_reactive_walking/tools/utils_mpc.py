@@ -84,6 +84,6 @@ def init_robot(q_init, params):
             params.footsteps_init[3 * i + j] = fsteps_init[j, i]
             params.footsteps_under_shoulders[3 * i + j] = fsteps_init[
                 j, i
-            ]  #  Use initial feet pos as reference
+            ]  # Use initial feet pos as reference
 
     return solo

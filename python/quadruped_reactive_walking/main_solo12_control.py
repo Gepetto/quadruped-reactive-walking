@@ -291,8 +291,8 @@ def recover(device, q_init):
 
 def control_loop(des_vel_analysis=None):
     """
-    Main function that calibrates the robot, get it into a default waiting position then launch
-    the main control loop once the user has pressed the Enter key
+    Main function that calibrates the robot, get it into a default waiting position then
+    launch the main control loop once the user has pressed the Enter key.
 
     Args:
         des_vel_analysis (string)
@@ -343,7 +343,9 @@ def control_loop(des_vel_analysis=None):
             params.dt_wbc,
         )
         # import ForceMonitor
-        # myForceMonitor = ForceMonitor.ForceMonitor(device.pyb_sim.robotId, device.pyb_sim.planeId)
+        # myForceMonitor = ForceMonitor.ForceMonitor(
+        # device.pyb_sim.robotId, device.pyb_sim.planeId
+        # )
     else:
         device.initialize(q_init[:])
         device.joints.set_zero_commands()
@@ -448,7 +450,8 @@ def control_loop(des_vel_analysis=None):
     if device.is_timeout:
         print("Masterboard timeout detected.")
         print(
-            "Either the masterboard has been shut down or there has been a connection issue with the cable/wifi."
+            "Either the masterboard has been shut down "
+            "or there has been a connection issue with the cable/wifi."
         )
 
     if params.LOGGING:

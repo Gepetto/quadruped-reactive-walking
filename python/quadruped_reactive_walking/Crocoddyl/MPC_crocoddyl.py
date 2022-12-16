@@ -14,7 +14,8 @@ class MPC_crocoddyl:
     Args:
         params (obj): Params object containing the simulation parameters
         mu (float): Friction coefficient
-        inner (float): Inside or outside approximation of the friction cone (mu * 1/sqrt(2))
+        inner (float): Inside or outside approximation of the friction cone (mu *
+        1/sqrt(2)).
         linearModel(bool) : Approximation in the cross product by using desired state
     """
 
@@ -47,8 +48,22 @@ class MPC_crocoddyl:
         # self.w_vpitch = 0.07*np.sqrt(self.w_pitch)
         # self.w_vyaw = 0.08*np.sqrt(self.w_yaw)
         # # Weights on the state vector
-        # self.stateWeights = np.array([self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw,
-        #                              self.w_vx, self.w_vy, self.w_vz, self.w_vroll, self.w_vpitch, self.w_vyaw])
+        # self.stateWeights = np.array(
+        # [
+        # self.w_x,
+        # self.w_y,
+        # self.w_z,
+        # self.w_roll,
+        # self.w_pitch,
+        # self.w_yaw,
+        # self.w_vx,
+        # self.w_vy,
+        # self.w_vz,
+        # self.w_vroll,
+        # self.w_vpitch,
+        # self.w_vyaw,
+        # ]
+        # )
         # self.forceWeights = 1.*np.array(4*[0.0071, 0.0071, 0.0071]) # Force weights
 
         # OSQP weights
@@ -110,8 +125,8 @@ class MPC_crocoddyl:
         self.u_init = []
 
     def updateProblem(self, fsteps, xref):
-        """Update the dynamic of the model list according to the predicted position of the feet,
-        and the desired state
+        """Update the dynamic of the model list according to the predicted position of
+        the feet, and the desired state.
 
         Args:
             fsteps (6x13): Position of the feet in local frame
@@ -124,7 +139,8 @@ class MPC_crocoddyl:
         # Update initial state of the problem
         self.problem.x0 = xref[:, 0]
 
-        # Construction of the gait matrix representing the feet in contact with the ground
+        # Construction of the gait matrix representing the feet in contact with the
+        # ground.
         self.index = self.n_nodes
         self.gait[: self.index, :] = 1.0 - (self.fsteps[: self.index, 0::3] == 0.0)
         self.gait[self.index :, :] = 0.0
@@ -183,7 +199,8 @@ class MPC_crocoddyl:
         return 0
 
     def get_latest_result(self):
-        """Returns the desired contact forces that have been computed by the last iteration of the MPC
+        """Returns the desired contact forces that have been computed by the last
+        iteration of the MPC.
         Args:
         """
 
@@ -195,15 +212,16 @@ class MPC_crocoddyl:
         return output
 
     def get_xrobot(self):
-        """Returns the state vectors predicted by the mpc throughout the time horizon, the initial column
-        is deleted as it corresponds initial state vector
+        """Returns the state vectors predicted by the mpc throughout the time horizon,
+        the initial column is deleted as it corresponds initial state vector.
         Args:
         """
 
         return np.array(self.ddp.xs)[1:, :].transpose()
 
     def get_fpredicted(self):
-        """Returns the force vectors command predicted by the mpc throughout the time horizon,
+        """Returns the force vectors command predicted by the mpc throughout the time
+        horizon.
         Args:
         """
 

@@ -49,8 +49,8 @@ class DummyDevice:
 
 class Controller:
     def __init__(self, params, q_init, t):
-        """Function that runs a simulation scenario based on a reference velocity profile, an environment and
-        various parameters to define the gait
+        """Function that runs a simulation scenario based on a reference velocity
+        profile, an environment and various parameters to define the gait.
 
         Args:
             params (Params object): store parameters
@@ -321,7 +321,9 @@ class Controller:
     def pyb_debug(self, device, footsteps, gait_matrix, xref):
 
         # if self.k > 1:
-        #    device.pyb_sim.apply_external_force(self.k, 500, 1000, np.array([0.0, +20.0, 0.0]), np.zeros((3,)))
+        # device.pyb_sim.apply_external_force(
+        # self.k, 500, 1000, np.array([0.0, +20.0, 0.0]), np.zeros((3,))
+        # )
 
         # Spawn a block under the front left foot at a given iteration
         if False and self.k == 360:

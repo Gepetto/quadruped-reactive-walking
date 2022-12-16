@@ -274,8 +274,8 @@ class MPC_crocoddyl_2:
         return model
 
     def updateProblem(self, k, fsteps, xref_, lC, abg, lV, lW, v_ref, h_ref=0.2027682):
-        """Update the dynamic of the model list according to the predicted position of the feet,
-        and the desired state.
+        """Update the dynamic of the model list according to the predicted position of
+        the feet, and the desired state.
 
         Args:
             fsteps (6x13): Position of the feet in local frame
@@ -285,7 +285,8 @@ class MPC_crocoddyl_2:
         # Update position of the feet
         self.fsteps[:, :] = fsteps[:, :]
 
-        # Construction of the gait matrix representing the feet in contact with the ground
+        # Construction of the gait matrix representing the feet in contact with the
+        # ground
         self.index = next(
             (idx for idx, val in np.ndenumerate(self.fsteps[:, 0]) if val == 0.0), 0.0
         )[0]
@@ -347,7 +348,8 @@ class MPC_crocoddyl_2:
                 dt_list[i] = self.dt
                 self.dt_vector[i] = self.dt_vector[i - 1] + self.dt
 
-        # Update x and y velocities taking into account the rotation of the base over the prediction horizon
+        # Update x and y velocities taking into account the rotation of the base over
+        # the prediction horizon
         yaw1 = self.dt_vector[1 : self.initial_node] * v_ref[5, 0]
         self.xref[6, 1 : self.initial_node] = v_ref[0, 0] * np.cos(yaw1) - v_ref[
             1, 0
@@ -384,8 +386,10 @@ class MPC_crocoddyl_2:
         # self.xref[1, 1:] += lC[1, 0]
 
         # No need to update Z velocity as the reference is always 0
-        # No need to update roll and roll velocity as the reference is always 0 for those
-        # No need to update pitch and pitch velocity as the reference is always 0 for those
+        # No need to update roll and roll velocity as the reference is always 0 for
+        # those.
+        # No need to update pitch and pitch velocity as the reference is always 0 for
+        # those.
         # Update yaw and yaw velocity
         self.xref[5, 1:] = v_ref[5, 0] * self.dt_vector[1:]
         self.xref[11, 1:] = v_ref[5, 0]
@@ -447,7 +451,7 @@ class MPC_crocoddyl_2:
                     )
 
         k_cum = self.initial_node
-        L = []
+        # L = []
 
         # Iterate over the 1st phase of the gait
         if k_remaining >= self.initial_node:  # 1st node removed
@@ -533,7 +537,8 @@ class MPC_crocoddyl_2:
 
         Args:
             k : Iteration
-            fstep_planner : Object that includes the feet predicted position and the desired state vector
+            fstep_planner : Object that includes the feet predicted position and the
+            desired state vector.
         """
 
         # Update the dynamic depending on the predicted feet position
@@ -560,28 +565,31 @@ class MPC_crocoddyl_2:
         return 0
 
     def get_latest_result(self):
-        """Returns the desired contact forces that have been computed by the last iteration of the MPC
+        """Returns the desired contact forces that have been computed by the last
+        iteration of the MPC.
         Args:
         """
         return np.reshape(np.asarray(self.ddp.us[0]), (12,))
 
     def get_xrobot(self):
-        """Returns the state vectors predicted by the mpc throughout the time horizon, the initial column is deleted as it corresponds
-        initial state vector
+        """Returns the state vectors predicted by the mpc throughout the time horizon,
+        the initial column is deleted as it corresponds initial state vector.
         Args:
         """
 
         return np.array(self.ddp.xs)[1:, :].transpose()
 
     def get_fpredicted(self):
-        """Returns the force vectors command predicted by the mpc throughout the time horizon,
+        """Returns the force vectors command predicted by the mpc throughout the time
+        horizon.
         Args:
         """
 
         return np.array(self.ddp.us)[:, :].transpose()[:, :]
 
     def updateActionModel(self):
-        """Update the quadruped model with the new weights or model parameters. Useful to try new weights without modify this class"""
+        """Update the quadruped model with the new weights or model parameters. Useful
+        to try new weights without modify this class"""
 
         for elt in self.ListAction:
             elt.dt = self.dt

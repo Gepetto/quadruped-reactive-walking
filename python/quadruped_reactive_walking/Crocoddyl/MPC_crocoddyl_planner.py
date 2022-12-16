@@ -12,7 +12,8 @@ class MPC_crocoddyl_planner:
     Args:
         params (obj): Params object containing the simulation parameters
         mu (float): Friction coefficient
-        inner (float): Inside or outside approximation of the friction cone (mu * 1/sqrt(2))
+        inner (float): Inside or outside approximation of the friction cone (mu *
+        1/sqrt(2)).
     """
 
     def __init__(self, params, mu=1, inner=True):
@@ -34,7 +35,9 @@ class MPC_crocoddyl_planner:
             self.mu = mu
 
         # Weights Vector : States
-        # self.stateWeights = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3])
+        # self.stateWeights = np.sqrt(
+        # [2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]
+        # )
         # self.w_x = 0.5
         # self.w_y = 0.3
         # self.w_z = 10
@@ -47,10 +50,22 @@ class MPC_crocoddyl_planner:
         # self.w_vroll = 0.05 * np.sqrt(self.w_roll)
         # self.w_vpitch = 0.07 * np.sqrt(self.w_pitch)
         # self.w_vyaw = 0.08 * np.sqrt(self.w_yaw)
-        # self.stateWeights = np.array([
-        #     self.w_x, self.w_y, self.w_z, self.w_roll, self.w_pitch, self.w_yaw, self.w_vx, self.w_vy, self.w_vz,
-        #     self.w_vroll, self.w_vpitch, self.w_vyaw
-        # ])
+        # self.stateWeights = np.array(
+        # [
+        # self.w_x,
+        # self.w_y,
+        # self.w_z,
+        # self.w_roll,
+        # self.w_pitch,
+        # self.w_yaw,
+        # self.w_vx,
+        # self.w_vy,
+        # self.w_vz,
+        # self.w_vroll,
+        # self.w_vpitch,
+        # self.w_vyaw,
+        # ]
+        # )
         state_tmp = np.sqrt(params.osqp_w_states)
         # state_tmp[0] = np.sqrt(10.)
         # state_tmp[6] = np.sqrt(10.)
@@ -60,24 +75,23 @@ class MPC_crocoddyl_planner:
         # self.stateWeights = np.sqrt(params.osqp_w_states)
         self.forceWeights = np.tile(np.sqrt(params.osqp_w_forces), 4)
 
-        # self.forceWeights = 1 * np.array(4 * [0.007, 0.007, 0.007])  # Weight vector : Force Norm
-        self.frictionWeights = 1.0  # Weight vector : Friction cone penalisation
-        self.heuristicWeights = 0.0 * np.array(
-            4 * [0.03, 0.04]
-        )  # Weight vector : Heuristic term
-        self.stepWeights = 0.0 * np.full(
-            8, 0.005
-        )  # Weight vector : Norm of step command (distance between steps)
-        self.stopWeights = 0.0 * np.full(
-            8, 0.005
-        )  # Weight vector : Stop the optimisation (end flying phase)
-        self.shoulderContactWeight = 1.5 * np.full(
-            4, 1.0
-        )  # Weight vector : Shoulder-to-contact penalisation
-        self.shoulder_hlim = (
-            0.235  # Distance to activate the shoulder-to-contact penalisation
-        )
-        self.shoulderReferencePosition = False  # Use the reference trajectory of the Com (True) or not (False) for shoulder-to-contact penalisation
+        # self.forceWeights = 1 * np.array(4 * [0.007, 0.007, 0.007])  # Weight vector :
+        # Force Norm
+        # Weight vector : Friction cone penalisation
+        self.frictionWeights = 1.0
+        # Weight vector : Heuristic term
+        self.heuristicWeights = 0.0 * np.array(4 * [0.03, 0.04])
+        # Weight vector : Norm of step command (distance between steps)
+        self.stepWeights = 0.0 * np.full(8, 0.005)
+        # Weight vector : Stop the optimisation (end flying phase)
+        self.stopWeights = 0.0 * np.full(8, 0.005)
+        # Weight vector : Shoulder-to-contact penalisation
+        self.shoulderContactWeight = 1.5 * np.full(4, 1.0)
+        # Distance to activate the shoulder-to-contact penalisation
+        self.shoulder_hlim = 0.235
+        # Use the reference trajectory of the Com (True) or not (False) for
+        # shoulder-to-contact penalisation.
+        self.shoulderReferencePosition = False
 
         # TODO : create a proper warm-start with the previous optimisation
         self.warm_start = True
@@ -142,39 +156,36 @@ class MPC_crocoddyl_planner:
         self.xref = np.full((12, self.n_nodes + 1), np.nan)
 
         # Index to stop the feet optimisation
-        # Row index in the gait matrix when the optimisation of the feet should be stopped
+        # Row index in the gait matrix when the optimisation of the feet should be
+        # stopped.
         self.index_lock_time = int(params.lock_time / params.dt_mpc)
-        self.index_stop_optimisation = (
-            []
-        )  # List of index to reset the stopWeights to 0 after optimisation
+        # List of index to reset the stopWeights to 0 after optimisation
+        self.index_stop_optimisation = []
 
         # Usefull to optimise around the previous optimisation
-        self.flying_foot = 4 * [
-            False
-        ]  # Bool corresponding to the current flying foot (gait[0,foot_id] == 0)
-        self.flying_foot_nodes = np.zeros(
-            4
-        )  # The number of nodes in the next phase of flight
+        # Bool corresponding to the current flying foot (gait[0,foot_id] == 0)
+        self.flying_foot = 4 * [False]
+        # The number of nodes in the next phase of flight
+        self.flying_foot_nodes = np.zeros(4)
         self.flying_max_nodes = int(
             params.T_gait / (2 * params.dt_mpc)
         )  # TODO : get the maximum number of nodes from the gait_planner
 
-        # Usefull to setup the shoulder-to-contact cost (no cost for the initial stance phase)
-        self.stance_foot = 4 * [
-            False
-        ]  # Bool corresponding to the current flying foot (gait[0,foot_id] == 0)
-        self.stance_foot_nodes = np.zeros(
-            4
-        )  # The number of nodes in the next phase of flight
-        self.index_inital_stance_phase = (
-            []
-        )  # List of index to reset the stopWeights to 0 after optimisation
+        # Usefull to setup the shoulder-to-contact cost (no cost for the initial stance
+        # phase).
+        # Bool corresponding to the current flying foot (gait[0,foot_id] == 0)
+        self.stance_foot = 4 * [False]
+        # The number of nodes in the next phase of flight
+        self.stance_foot_nodes = np.zeros(4)
+        # List of index to reset the stopWeights to 0 after optimisation
+        self.index_inital_stance_phase = []
 
         # Initialize the lists of models
         self.initialize_models()
 
     def initialize_models(self):
-        """Reset the two lists of augmented and step-by-step models, to avoid recreating them at each loop.
+        """Reset the two lists of augmented and step-by-step models, to avoid recreating
+        them at each loop.
         Not all models here will necessarily be used.
         """
         self.models_augmented = []
@@ -286,7 +297,8 @@ class MPC_crocoddyl_planner:
         # Update internal matrix
         self.compute_gait_matrix(footsteps)
 
-        # Set up intial feet position : shoulder for flying feet and current foot position for feet on the ground
+        # Set up intial feet position : shoulder for flying feet and current foot
+        # position for feet on the ground.
         p0 = (1.0 - np.repeat(self.gait[0, :], 2)) * self.shoulders + np.repeat(
             self.gait[0, :], 2
         ) * footsteps[0, [0, 1, 3, 4, 6, 7, 9, 10]]
@@ -325,7 +337,8 @@ class MPC_crocoddyl_planner:
                 shoulder_weight[foot] = 0.0
 
         if np.sum(shoulder_weight != self.shoulderContactWeight) > 0:
-            # The shoulder-to-contact weight has been modified, needs to be added to the list
+            # The shoulder-to-contact weight has been modified, needs to be added to the
+            # list
             self.models_augmented[
                 index_augmented
             ].shoulderContactWeight = shoulder_weight
@@ -345,7 +358,8 @@ class MPC_crocoddyl_planner:
         is_first_step = True
 
         while j < self.n_nodes:
-            # TODO Adapt this [1,1,1,1] --> [1,0,0,1] True here but not step model to add
+            # TODO Adapt this [1,1,1,1] --> [1,0,0,1] True here but not step model to
+            # add.
             if np.any(self.gait[j, :] - self.gait[j - 1, :]):
 
                 flying_feet = np.where(self.gait[j - 1, :] == 0)[
@@ -376,15 +390,32 @@ class MPC_crocoddyl_planner:
                     dt_ -= self.vert_time
                     part_curve = 1
                 else:
-                    dt_ = 0.002  # Close to 0 to avoid high jerk and thus keep the optimised fstep from previous cycle
+                    # Close to 0 to avoid high jerk and thus keep the optimised fstep
+                    # from previous cycle.
+                    dt_ = 0.002
                     part_curve = 2
 
                 if is_first_step:
                     #  Acceleration cost
-                    # if self.flying_foot_old != self.flying_foot :
-                    #     self.dx_new_phase = abs(footsteps[j, 3*flying_feet[0] ] - position[0,flying_feet[0] ])
-                    #     self.dy_new_phase = abs(footsteps[j, 3*flying_feet[0]+1 ] - position[1,flying_feet[0] ])
-                    #     self.acc_limit = 2*5.625*np.array([ self.dx_new_phase / 0.24**2  , self.dy_new_phase / 0.24**2])
+                    # if self.flying_foot_old != self.flying_foot:
+                    # self.dx_new_phase = abs(
+                    # footsteps[j, 3 * flying_feet[0]]
+                    # - position[0, flying_feet[0]]
+                    # )
+                    # self.dy_new_phase = abs(
+                    # footsteps[j, 3 * flying_feet[0] + 1]
+                    # - position[1, flying_feet[0]]
+                    # )
+                    # self.acc_limit = (
+                    # 2
+                    # * 5.625
+                    # * np.array(
+                    # [
+                    # self.dx_new_phase / 0.24**2,
+                    # self.dy_new_phase / 0.24**2,
+                    # ]
+                    # )
+                    # )
                     self.models_step[
                         index_step
                     ].is_acc_activated = self.is_acc_activated
@@ -411,7 +442,8 @@ class MPC_crocoddyl_planner:
 
                 else:
                     # Cost on the feet trajectory disabled
-                    # TODO : Only activate cost on the maximum speed (simplify the equations in step model, vmax = T/2)
+                    # TODO : Only activate cost on the maximum speed (simplify the
+                    # equations in step model, vmax = T/2).
                     self.models_step[index_step].is_acc_activated = False
                     self.models_step[index_step].is_vel_activated = False
                     self.models_step[index_step].is_jerk_activated = False
@@ -439,10 +471,13 @@ class MPC_crocoddyl_planner:
                     self.gait[j, :],
                 )
 
-                # Activation of the cost to stop the optimisation around l_stop (position locked by the footstepGenerator)
+                # Activation of the cost to stop the optimisation around l_stop
+                # (position locked by the footstepGenerator)
                 # if j < self.index_lock_time:
-                #     self.models_augmented[index_augmented].stopWeights = self.stopWeights
-                #     self.index_stop_optimisation.append(index_augmented)
+                # self.models_augmented[
+                # index_augmented
+                # ].stopWeights = self.stopWeights
+                # self.index_stop_optimisation.append(index_augmented)
 
                 feet_ground = np.where(self.gait[j, :] == 1)[0]
                 activation_cost = False
@@ -472,7 +507,8 @@ class MPC_crocoddyl_planner:
                     if self.stance_foot[foot] and j < self.stance_foot_nodes[foot]:
                         shoulder_weight[foot] = 0.0
                 if np.sum(shoulder_weight != self.shoulderContactWeight) > 0:
-                    # The shoulder-to-contact weight has been modified, needs to be added to the list
+                    # The shoulder-to-contact weight has been modified, needs to be
+                    # added to the list
                     self.models_augmented[
                         index_augmented
                     ].shoulderContactWeight = shoulder_weight
@@ -528,7 +564,8 @@ class MPC_crocoddyl_planner:
                     if self.stance_foot[foot] and j < self.stance_foot_nodes[foot]:
                         shoulder_weight[foot] = 0.0
                 if np.sum(shoulder_weight != self.shoulderContactWeight) > 0:
-                    # The shoulder-to-contact weight has been modified, needs to be added to the list
+                    # The shoulder-to-contact weight has been modified, needs to be
+                    # added to the list
                     self.models_augmented[
                         index_augmented
                     ].shoulderContactWeight = shoulder_weight
@@ -564,7 +601,8 @@ class MPC_crocoddyl_planner:
 
     def get_latest_result(self, oRh, oTh):
         """
-        Return the desired contact forces that have been computed by the last iteration of the MPC
+        Return the desired contact forces that have been computed by the last iteration
+        of the MPC
         Args :
          - q ( Array 7x1 ) : pos, quaternion orientation
         """
@@ -575,7 +613,8 @@ class MPC_crocoddyl_planner:
             if self.action_models[i].__class__.__name__ != "ActionModelQuadrupedStep":
                 if index >= self.n_nodes:
                     raise ValueError(
-                        "Too many action model considering the current MPC prediction horizon"
+                        "Too many action model considering "
+                        "the current MPC prediction horizon"
                     )
                 result[:12, index] = self.ddp.xs[i + 1][
                     :12

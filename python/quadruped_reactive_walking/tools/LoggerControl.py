@@ -1,7 +1,6 @@
 """This class will log 1d array in Nd matrix from device and qualisys object"""
 from datetime import datetime
 from time import time
-from pathlib import Path
 
 import numpy as np
 import pinocchio as pin
@@ -47,13 +46,13 @@ class LoggerControl:
         )  # estimated state of the robot (complementary filter)
         self.esti_q_up = np.zeros(
             [logSize, 18]
-        )  #  state of the robot in the ideal world
+        )  # state of the robot in the ideal world
         self.esti_v_filt = np.zeros(
             [logSize, 18]
         )  # estimated velocity of the robot (b frame)
         self.esti_v_filt_bis = np.zeros(
             [logSize, 18]
-        )  #  estimated velocity of the robot (b frame, windowed)
+        )  # estimated velocity of the robot (b frame, windowed)
         self.esti_v_up = np.zeros(
             [logSize, 18]
         )  # estimated velocity of the robot in the ideal world (h frame)
@@ -114,7 +113,7 @@ class LoggerControl:
             [logSize, 6]
         )  # estimated velocity in horizontal frame (windowed)
         self.loop_t_filter = np.zeros([logSize])  # time taken by the estimator
-        self.loop_t_planner = np.zeros([logSize])  #  time taken by the planning
+        self.loop_t_planner = np.zeros([logSize])  # time taken by the planning
         self.loop_t_mpc = np.zeros([logSize])  # time taken by the mcp
         self.loop_t_wbc = np.zeros([logSize])  # time taken by the whole body control
         self.loop_t_loop = np.zeros(
@@ -125,13 +124,13 @@ class LoggerControl:
         )  # time taken by the whole loop (with interface)
         self.loop_q_filt_mpc = np.zeros(
             [logSize, 6]
-        )  #  state in ideal world filtered by 1st order low pass
+        )  # state in ideal world filtered by 1st order low pass
         self.loop_h_v_filt_mpc = np.zeros(
             [logSize, 6]
-        )  #  vel in h frame filtered by 1st order low pass
+        )  # vel in h frame filtered by 1st order low pass
         self.loop_vref_filt_mpc = np.zeros(
             [logSize, 6]
-        )  #  ref vel in h frame filtered by 1st order low pass
+        )  # ref vel in h frame filtered by 1st order low pass
 
         # Gait
         self.planner_gait = np.zeros([logSize, n_gait, 4])  # Gait sequence
@@ -407,7 +406,7 @@ class LoggerControl:
 
         t_range = np.array([k * self.dt for k in range(self.tstamps.shape[0])])
 
-        fig = plt.figure()
+        plt.figure()
         plt.plot(t_range[100:], self.t_mip[100:], "k+")
         plt.legend(["Solving duration"])
         plt.xlabel("Time [s]")
@@ -422,7 +421,7 @@ class LoggerControl:
 
         t_range = np.array([k * self.dt for k in range(self.tstamps.shape[0])])
 
-        fig = plt.figure()
+        plt.figure()
         plt.plot(t_range[100:], self.mpc_cost[100:], "k+")
         plt.legend(["MPC cost"])
         plt.xlabel("Time [s]")
@@ -437,7 +436,7 @@ class LoggerControl:
 
         t_range = np.array([k * self.dt for k in range(self.tstamps.shape[0])])
 
-        fig = plt.figure()
+        plt.figure()
         plt.plot(t_range[35:], self.mpc_solving_duration[35:], "k+")
         plt.legend(["Solving duration"])
         plt.xlabel("Time [s]")
@@ -851,28 +850,53 @@ class LoggerControl:
         # Evolution of trajectories in position and orientation computed by the MPC
         ####
         """
-        log_t_pred = np.array([k*self.dt*10 for k in range(self.mpc_x_f.shape[2])])
-        log_t_ref = np.array([k*self.dt*10 for k in range(self.planner_xref.shape[2])])
+        log_t_pred = np.array([k * self.dt * 10 for k in range(self.mpc_x_f.shape[2])])
+        log_t_ref = np.array(
+            [k * self.dt * 10 for k in range(self.planner_xref.shape[2])]
+        )
 
         titles = ["X", "Y", "Z", "Roll", "Pitch", "Yaw"]
         step = 1000
         plt.figure()
         for j in range(6):
             plt.subplot(3, 2, index6[j])
-            c = [[i/(self.mpc_x_f.shape[0]+5), 0.0, i/(self.mpc_x_f.shape[0]+5)]
-                 for i in range(0, self.mpc_x_f.shape[0], step)]
+            c = [
+                [i / (self.mpc_x_f.shape[0] + 5), 0.0, i / (self.mpc_x_f.shape[0] + 5)]
+                for i in range(0, self.mpc_x_f.shape[0], step)
+            ]
             for i in range(0, self.mpc_x_f.shape[0], step):
-                h1, = plt.plot(log_t_pred+(i+10)*self.dt,
-                               self.mpc_x_f[i, j, :], "b", linewidth=2, color=c[int(i/step)])
-                h2, = plt.plot(log_t_ref+i*self.dt,
-                               self.planner_xref[i, j, :], linestyle="--", marker='x', color="g", linewidth=2)
-            #h3, = plt.plot(np.array([k*self.dt for k in range(self.mpc_x_f.shape[0])]),
-            #               self.planner_xref[:, j, 0], linestyle=None, marker='x', color="r", linewidth=1)
+                (h1,) = plt.plot(
+                    log_t_pred + (i + 10) * self.dt,
+                    self.mpc_x_f[i, j, :],
+                    "b",
+                    linewidth=2,
+                    color=c[int(i / step)],
+                )
+                (h2,) = plt.plot(
+                    log_t_ref + i * self.dt,
+                    self.planner_xref[i, j, :],
+                    linestyle="--",
+                    marker="x",
+                    color="g",
+                    linewidth=2,
+                )
+            # (h3,) = plt.plot(
+            # np.array([k * self.dt for k in range(self.mpc_x_f.shape[0])]),
+            # self.planner_xref[:, j, 0],
+            # linestyle=None,
+            # marker="x",
+            # color="r",
+            # linewidth=1,
+            # )
             plt.xlabel("Time [s]")
-            plt.legend([h1, h2, h3], ["Output trajectory of MPC",
-                                      "Input trajectory of planner"]) #, "Actual robot trajectory"])
+            plt.legend(
+                [h1, h2, h3],
+                ["Output trajectory of MPC", "Input trajectory of planner"],
+            )  # , "Actual robot trajectory"])
             plt.title("Predicted trajectory for " + titles[j])
-        self.custom_suptitle("Analysis of trajectories in position and orientation computed by the MPC")
+        self.custom_suptitle(
+            "Analysis of trajectories in position and orientation computed by the MPC"
+        )
         """
 
         ####
@@ -882,20 +906,48 @@ class LoggerControl:
         plt.figure()
         for j in range(6):
             plt.subplot(3, 2, index6[j])
-            c = [[i/(self.mpc_x_f.shape[0]+5), 0.0, i/(self.mpc_x_f.shape[0]+5)]
-                 for i in range(0, self.mpc_x_f.shape[0], step)]
+            c = [
+                [i / (self.mpc_x_f.shape[0] + 5), 0.0, i / (self.mpc_x_f.shape[0] + 5)]
+                for i in range(0, self.mpc_x_f.shape[0], step)
+            ]
             for i in range(0, self.mpc_x_f.shape[0], step):
-                h1, = plt.plot(log_t_pred+(i+10)*self.dt,
-                               self.mpc_x_f[i, j+6, :], "b", linewidth=2, color=c[int(i/step)])
-                h2, = plt.plot(log_t_ref+i*self.dt,
-                               self.planner_xref[i, j+6, :], linestyle="--", marker='x', color="g", linewidth=2)
-            h3, = plt.plot(np.array([k*self.dt for k in range(self.mpc_x_f.shape[0])]),
-                           self.planner_xref[:, j+6, 0], linestyle=None, marker='x', color="r", linewidth=1)
+                (h1,) = plt.plot(
+                    log_t_pred + (i + 10) * self.dt,
+                    self.mpc_x_f[i, j + 6, :],
+                    "b",
+                    linewidth=2,
+                    color=c[int(i / step)],
+                )
+                (h2,) = plt.plot(
+                    log_t_ref + i * self.dt,
+                    self.planner_xref[i, j + 6, :],
+                    linestyle="--",
+                    marker="x",
+                    color="g",
+                    linewidth=2,
+                )
+            (h3,) = plt.plot(
+                np.array([k * self.dt for k in range(self.mpc_x_f.shape[0])]),
+                self.planner_xref[:, j + 6, 0],
+                linestyle=None,
+                marker="x",
+                color="r",
+                linewidth=1,
+            )
             plt.xlabel("Time [s]")
-            plt.legend([h1, h2, h3], ["Output trajectory of MPC",
-                                      "Input trajectory of planner", "Actual robot trajectory"])
+            plt.legend(
+                [h1, h2, h3],
+                [
+                    "Output trajectory of MPC",
+                    "Input trajectory of planner",
+                    "Actual robot trajectory",
+                ],
+            )
             plt.title("Predicted trajectory for velocity in " + titles[j])
-        self.custom_suptitle("Analysis of trajectories of linear and angular velocities computed by the MPC")
+        self.custom_suptitle(
+            "Analysis of trajectories of linear and angular velocities "
+            "computed by the MPC"
+        )
         """
 
         ####
@@ -908,19 +960,28 @@ class LoggerControl:
         plt.figure()
         for i in range(4):
             if i == 0:
-                ax0 = plt.subplot(1, 4, i+1)
+                ax0 = plt.subplot(1, 4, i + 1)
             else:
-                plt.subplot(1, 4, i+1, sharex=ax0)
+                plt.subplot(1, 4, i + 1, sharex=ax0)
 
             for k in range(0, self.mpc_x_f.shape[0], step):
-                h2, = plt.plot(log_t_pred+k*self.dt, self.mpc_x_f[k, 12+(3*i+2), :], linestyle="--", marker='x', linewidth=2)
-            h1, = plt.plot(t_range, self.mpc_x_f[:, 12+(3*i+2), 0], "r", linewidth=3)
-            # h3, = plt.plot(t_range, self.wbc_f_ctc[:, i], "b", linewidth=3, linestyle="--")
+                (h2,) = plt.plot(
+                    log_t_pred + k * self.dt,
+                    self.mpc_x_f[k, 12 + (3 * i + 2), :],
+                    linestyle="--",
+                    marker="x",
+                    linewidth=2,
+                )
+            (h1,) = plt.plot(
+                t_range, self.mpc_x_f[:, 12 + (3 * i + 2), 0], "r", linewidth=3
+            )
+            # (h3,) = plt.plot(
+                # t_range, self.wbc_f_ctc[:, i], "b", linewidth=3, linestyle="--"
+            # )
             plt.plot(t_range, self.esti_feet_status[:, i], "k", linestyle="--")
             plt.xlabel("Time [s]")
-            plt.ylabel(lgd2[i]+" [N]")
-            plt.legend([h1, h2], ["MPC "+lgd2[i],
-                                  "MPC "+lgd2[i]+" trajectory"])
+            plt.ylabel(lgd2[i] + " [N]")
+            plt.legend([h1, h2], ["MPC " + lgd2[i], "MPC " + lgd2[i] + " trajectory"])
             plt.ylim([-1.0, 26.0])
         self.custom_suptitle("Contact forces trajectories & Actual forces trajectories")
         """
@@ -931,46 +992,124 @@ class LoggerControl:
         """
         clr = ["b", "darkred", "forestgreen"]
         # Velocity complementary filter
-        lgd_Y = ["dx", "ddx", "alpha dx", "dx_out", "dy", "ddy", "alpha dy", "dy_out", "dz", "ddz", "alpha dz", "dz_out"]
+        lgd_Y = [
+            "dx",
+            "ddx",
+            "alpha dx",
+            "dx_out",
+            "dy",
+            "ddy",
+            "alpha dy",
+            "dy_out",
+            "dz",
+            "ddz",
+            "alpha dz",
+            "dz_out",
+        ]
         plt.figure()
         for i in range(12):
             if i == 0:
-                ax0 = plt.subplot(3, 4, i+1)
+                ax0 = plt.subplot(3, 4, i + 1)
             else:
-                plt.subplot(3, 4, i+1, sharex=ax0)
+                plt.subplot(3, 4, i + 1, sharex=ax0)
             if i % 4 == 0:
-                plt.plot(t_range, self.esti_HP_x[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # x input of the velocity complementary filter
+                plt.plot(
+                    t_range,
+                    self.esti_HP_x[:, int(i / 4)],
+                    color=clr[int(i / 4)],
+                    linewidth=3,
+                    marker="",
+                )  # x input of the velocity complementary filter
             elif i % 4 == 1:
-                plt.plot(t_range, self.esti_HP_dx[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # dx input of the velocity complementary filter
+                plt.plot(
+                    t_range,
+                    self.esti_HP_dx[:, int(i / 4)],
+                    color=clr[int(i / 4)],
+                    linewidth=3,
+                    marker="",
+                )  # dx input of the velocity complementary filter
             elif i % 4 == 2:
-                plt.plot(t_range, self.esti_HP_alpha[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # alpha parameter of the velocity complementary filter
+                plt.plot(
+                    t_range,
+                    self.esti_HP_alpha[:, int(i / 4)],
+                    color=clr[int(i / 4)],
+                    linewidth=3,
+                    marker="",
+                )  # alpha parameter of the velocity complementary filter
             else:
-                plt.plot(t_range, self.esti_HP_filt_x[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # filtered output of the velocity complementary filter
+                plt.plot(
+                    t_range,
+                    self.esti_HP_filt_x[:, int(i / 4)],
+                    color=clr[int(i / 4)],
+                    linewidth=3,
+                    marker="",
+                )  # filtered output of the velocity complementary filter
 
-            plt.legend([lgd_Y[i]], prop={'size': 8})
-        self.custom_suptitle("Evolution of the quantities of the velocity complementary filter")
+            plt.legend([lgd_Y[i]], prop={"size": 8})
+        self.custom_suptitle(
+            "Evolution of the quantities of the velocity complementary filter"
+        )
 
         # Position complementary filter
-        lgd_Y = ["x", "dx", "alpha x", "x_out", "y", "dy", "alpha y", "y_out", "z", "dz", "alpha z", "z_out"]
+        lgd_Y = [
+            "x",
+            "dx",
+            "alpha x",
+            "x_out",
+            "y",
+            "dy",
+            "alpha y",
+            "y_out",
+            "z",
+            "dz",
+            "alpha z",
+            "z_out",
+        ]
         plt.figure()
         for i in range(12):
             if i == 0:
-                ax0 = plt.subplot(3, 4, i+1)
+                ax0 = plt.subplot(3, 4, i + 1)
             else:
-                plt.subplot(3, 4, i+1, sharex=ax0)
+                plt.subplot(3, 4, i + 1, sharex=ax0)
             if i % 4 == 0:
-                plt.plot(t_range, self.esti_LP_x[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # x input of the position complementary filter
+                plt.plot(
+                    t_range,
+                    self.esti_LP_x[:, int(i / 4)],
+                    color=clr[int(i / 4)],
+                    linewidth=3,
+                    marker="",
+                )  # x input of the position complementary filter
             elif i % 4 == 1:
-                plt.plot(t_range, self.esti_LP_dx[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # dx input of the position complementary filter
+                plt.plot(
+                    t_range,
+                    self.esti_LP_dx[:, int(i / 4)],
+                    color=clr[int(i / 4)],
+                    linewidth=3,
+                    marker="",
+                )  # dx input of the position complementary filter
             elif i % 4 == 2:
-                plt.plot(t_range, self.esti_LP_alpha[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # alpha parameter of the position complementary filter
+                plt.plot(
+                    t_range,
+                    self.esti_LP_alpha[:, int(i / 4)],
+                    color=clr[int(i / 4)],
+                    linewidth=3,
+                    marker="",
+                )  # alpha parameter of the position complementary filter
             else:
-                plt.plot(t_range, self.esti_LP_filt_x[:, int(i/4)], color=clr[int(i/4)], linewidth=3, marker='') # filtered output of the position complementary filter
+                plt.plot(
+                    t_range,
+                    self.esti_LP_filt_x[:, int(i / 4)],
+                    color=clr[int(i / 4)],
+                    linewidth=3,
+                    marker="",
+                )  # filtered output of the position complementary filter
 
-            plt.legend([lgd_Y[i]], prop={'size': 8})
-        self.custom_suptitle("Evolution of the quantities of the position complementary filter")
+            plt.legend([lgd_Y[i]], prop={"size": 8})
+        self.custom_suptitle(
+            "Evolution of the quantities of the position complementary filter"
+        )
+
         """
-
         ####
         # Power supply profile
         ####
@@ -996,7 +1135,14 @@ class LoggerControl:
         # Comparison of raw and filtered quantities (15 Hz and windowed)
         ####
         """
-        lgd = ["Position X", "Position Y", "Position Z", "Position Roll", "Position Pitch", "Position Yaw"]
+        lgd = [
+            "Position X",
+            "Position Y",
+            "Position Z",
+            "Position Roll",
+            "Position Pitch",
+            "Position Yaw",
+        ]
         plt.figure()
         for i in range(6):
             if i == 0:
@@ -1007,12 +1153,21 @@ class LoggerControl:
             plt.plot(t_range, self.loop_o_q[:, i], linewidth=3)
             plt.plot(t_range, self.loop_q_filt_mpc[:, i], linewidth=3)
 
-            plt.legend(["Estimated", "Estimated 15Hz filt"], prop={'size': 8})
+            plt.legend(["Estimated", "Estimated 15Hz filt"], prop={"size": 8})
             plt.ylabel(lgd[i])
-        self.custom_suptitle("Comparison between position quantities before and after 15Hz low-pass filtering")
+        self.custom_suptitle(
+            "Comparison between position quantities before and after "
+            "15Hz low-pass filtering"
+        )
 
-        lgd = ["Linear vel X", "Linear vel Y", "Linear vel Z",
-               "Angular vel Roll", "Angular vel Pitch", "Angular vel Yaw"]
+        lgd = [
+            "Linear vel X",
+            "Linear vel Y",
+            "Linear vel Z",
+            "Angular vel Roll",
+            "Angular vel Pitch",
+            "Angular vel Yaw",
+        ]
         plt.figure()
         for i in range(6):
             if i == 0:
@@ -1025,12 +1180,23 @@ class LoggerControl:
             plt.plot(t_range, self.loop_h_v_filt_mpc[:, i], linewidth=3)
             plt.plot(t_range, self.loop_vref_filt_mpc[:, i], linewidth=3)
 
-            plt.legend(["Estimated", "Estimated 3Hz windowed", "Estimated 15Hz filt",
-                        "Estimated 15Hz filt 3Hz windowed", "Reference 15Hz filt"], prop={'size': 8})
+            plt.legend(
+                [
+                    "Estimated",
+                    "Estimated 3Hz windowed",
+                    "Estimated 15Hz filt",
+                    "Estimated 15Hz filt 3Hz windowed",
+                    "Reference 15Hz filt",
+                ],
+                prop={"size": 8},
+            )
             plt.ylabel(lgd[i])
-        self.custom_suptitle("Comparison between velocity quantities before and after 15Hz low-pass filtering")
-        """
+        self.custom_suptitle(
+            "Comparison between velocity quantities before and after "
+            "15Hz low-pass filtering"
+        )
 
+        """
         ####
         # Estimation of base velocity by forward kinematics
         ####
@@ -1275,7 +1441,7 @@ class LoggerControl:
     def slider_predicted_trajectory(self):
 
         from matplotlib import pyplot as plt
-        from matplotlib.widgets import Slider, Button
+        from matplotlib.widgets import Slider
 
         # The parametrized function to be plotted
         def f(t, time):
@@ -1442,8 +1608,9 @@ class LoggerControl:
     def slider_predicted_footholds(self):
 
         from matplotlib import pyplot as plt
-        from matplotlib.widgets import Slider, Button
-        import utils_mpc
+        from matplotlib.widgets import Slider
+
+        # import utils_mpc
         import pinocchio as pin
 
         self.planner_fsteps

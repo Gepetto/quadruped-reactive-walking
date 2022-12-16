@@ -137,8 +137,8 @@ def order(vertices, method="convexHull"):
 
 
 def compute_inner_inequalities(vertices, margin):
-    """Compute surface inequalities from the vertices list with a margin, update self.ineq_inner,
-        self.ineq_vect_inner
+    """Compute surface inequalities from the vertices list with a margin, update
+        self.ineq_inner, self.ineq_vect_inner
     ineq_iner X <= ineq_vect_inner
     the last row contains the equality vector
     Keyword arguments:
@@ -233,7 +233,8 @@ def plane_intersect(P1, P2):
     :param P1,P2: Plan equalities
                   np.array([a,b,c,d])
                   ax + by + cz + d = 0
-    Returns : 1 point and 1 direction vect of the line of intersection, np.arrays, shape (3,)"""
+    Returns : 1 point and 1 direction vect of the line of intersection,
+    np.arrays, shape (3,)"""
 
     P1_normal, P2_normal = P1[:3], P2[:3]
 

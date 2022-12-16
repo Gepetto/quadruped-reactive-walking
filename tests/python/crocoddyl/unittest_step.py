@@ -3,12 +3,13 @@
 import numpy as np
 
 import quadruped_walkgen as quadruped_walkgen
-import quadruped_reactive_walking as qrw
+
+# import quadruped_reactive_walking as qrw
 import crocoddyl
 
-#####################
+# ###################
 # Select MPC type   #
-#####################
+# ###################
 
 model = quadruped_walkgen.ActionModelQuadrupedStep()
 
@@ -50,9 +51,9 @@ model.updateModel(
     fstep, xref, gait, position, velocity, acceleration, jerk, oRh, oTh, Dt
 )
 
-################################################
-## CHECK DERIVATIVE WITH NUM_DIFF
-#################################################
+# ##############################################
+#  CHECK DERIVATIVE WITH NUM_DIFF
+# ###############################################
 
 a = 1
 b = -1
@@ -63,8 +64,9 @@ model_diff = crocoddyl.ActionModelNumDiff(model)
 data_diff = model_diff.createData()
 data = model.createData()
 
-# RUN CALC DIFF
+
 def run_calcDiff_numDiff(epsilon):
+    """RUN CALC DIFF."""
     Lx = 0
     Lx_err = 0
     Lu = 0

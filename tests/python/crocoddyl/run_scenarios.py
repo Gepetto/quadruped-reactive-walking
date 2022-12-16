@@ -1,9 +1,6 @@
 # coding: utf8
 
-import os
-import sys
-
-sys.path.insert(0, "../scripts")
+# sys.path.insert(0, "../scripts")
 
 import time
 import multiprocessing as mp

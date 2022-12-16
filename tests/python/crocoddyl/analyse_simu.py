@@ -33,7 +33,7 @@ def find_nearest(A, B, C, D):
 res = np.load(pathIn + folder_name + "results_osqp_vy.npy", allow_pickle=True)
 plt.figure()
 for elt in res:
-    if elt[0] == True:
+    if elt[0]:
         plt.plot(elt[1][0], elt[1][1], "bs", markerSize="13")
     else:
         plt.plot(elt[1][0], elt[1][1], "rs", markerSize="13")
@@ -59,13 +59,15 @@ for elt in res_osqp_vy:
 plt.figure()
 plt.rc("text", usetex=True)
 im = plt.imshow(Z_osqp_vy, cmap=plt.cm.binary, extent=(-1, 1, -1, 1))
-plt.xlabel("Lateral Velocity $\dot{p_y} \hspace{2mm} [m.s^{-1}]$", fontsize=12)
-plt.ylabel("Forward Velocity $\dot{p_x} \hspace{2mm} [m.s^{-1}]$", fontsize=12)
+plt.xlabel("Lateral Velocity $\\dot{p_y} \\hspace{2mm} [m.s^{-1}]$", fontsize=12)
+plt.ylabel("Forward Velocity $\\dot{p_x} \\hspace{2mm} [m.s^{-1}]$", fontsize=12)
 plt.title("Viable Operating Regions OSQP", fontsize=14)
 
 # Plotting Forward vel VS Angular vel for OSQP
 """
-res_osqp_wyaw = np.load(pathIn + folder_name + "results_osqp_wyaw.npy", allow_pickle=True)
+res_osqp_wyaw = np.load(
+    pathIn + folder_name + "results_osqp_wyaw.npy", allow_pickle=True
+)
 XX, YY = np.meshgrid(X, W)
 Z = np.zeros((XX.shape[0], YY.shape[1]))
 Z_osqp_wyaw = np.zeros((XX.shape[0], YY.shape[1]))
@@ -76,8 +78,8 @@ for elt in res_osqp_wyaw:
 plt.figure()
 plt.rc('text', usetex=True)
 im = plt.imshow(Z_osqp_vy, cmap=plt.cm.binary, extent=(-2.2, 2.2, -1, 1))
-plt.xlabel("Angular Velocity $\dot{p_y} \hspace{2mm} [rad.s^{-1}]$", fontsize=12)
-plt.ylabel("Forward Velocity $\dot{p_x} \hspace{2mm} [m.s^{-1}]$", fontsize=12)
+plt.xlabel("Angular Velocity $\\dot{p_y} \\hspace{2mm} [rad.s^{-1}]$", fontsize=12)
+plt.ylabel("Forward Velocity $\\dot{p_x} \\hspace{2mm} [m.s^{-1}]$", fontsize=12)
 plt.title("Viable Operating Regions OSQP", fontsize=14)
 """
 

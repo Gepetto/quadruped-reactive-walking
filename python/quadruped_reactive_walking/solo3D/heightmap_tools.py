@@ -66,8 +66,8 @@ class Heightmap:
     def build_from_fit(self, fit):
         """
         Build the heightmap and return it
-        For each slot in the grid create a vertical segment and check its collisions with the
-        affordances until one is found
+        For each slot in the grid create a vertical segment and check its collisions
+        with the affordances until one is found.
         :param affordances list of affordances
         """
         for i in range(2):
@@ -77,8 +77,8 @@ class Heightmap:
     def build(self, affordances):
         """
         Build the heightmap and return it
-        For each slot in the grid create a vertical segment and check its collisions with the
-        affordances until one is found
+        For each slot in the grid create a vertical segment and check its collisions
+        with the affordances until one is found.
         :param affordances list of affordances
         """
         last_z = 0.0
@@ -146,8 +146,8 @@ def affordance_to_convex(affordance):
 
 def convex(points, indices):
     """
-    Creates a hpp-FCL convex object with a list of points and three indices of the vertices of the
-    triangle (or segment)
+    Creates a hpp-FCL convex object with a list of points and three indices of the
+    vertices of the triangle (or segment).
     """
     vertices = hppfcl.StdVec_Vec3f()
     faces = hppfcl.StdVec_Triangle()

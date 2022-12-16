@@ -15,29 +15,36 @@ class ForceMonitor:
         """
 
         for i in range(0, len(contactPoints)):
-            # There may be several contact points for each foot but only one of them as a non zero normal force
+            # There may be several contact points for each foot but only one of them as
+            # a non zero normal force.
             if contactPoints[i][9] != 0:
                 return contactPoints[i]
 
-        # If it returns 0 then it means there is no contact point with a non zero normal force (should not happen)
+        # If it returns 0 then it means there is no contact point with a non zero normal
+        # force (should not happen).
         return 0
 
     def display_contact_forces(self):
 
         # Info about contact points with the ground
+        # Front left  foot
         contactPoints_FL = pyb.getContactPoints(
             self.robotId, self.planeId, linkIndexA=3
-        )  # Front left  foot
+        )
+        # Front right foot
         contactPoints_FR = pyb.getContactPoints(
             self.robotId, self.planeId, linkIndexA=7
-        )  # Front right foot
+        )
+        # Hind left  foot
         contactPoints_HL = pyb.getContactPoints(
             self.robotId, self.planeId, linkIndexA=11
-        )  # Hind left  foot
+        )
+        # Hind right foot
         contactPoints_HR = pyb.getContactPoints(
             self.robotId, self.planeId, linkIndexA=15
-        )  # Hind right foot
-        # print(len(contactPoint_FL), len(contactPoint_FR), len(contactPoint_HL), len(contactPoint_HR))
+        )
+        # print(len(contactPoint_FL), len(contactPoint_FR), len(contactPoint_HL),
+        # len(contactPoint_HR)).
 
         # Sort contacts points to get only one contact per foot
         contactPoints = []
@@ -66,10 +73,30 @@ class ForceMonitor:
                     )
                     end[i_direction] += K * f_tmp[i_direction]
 
-                """if contact[3] < 10:
-                    print("Link  ", contact[3], "| Contact force: (", f_tmp[0], ", ", f_tmp[1], ", ", f_tmp[2], ")")
-                else:
-                    print("Link ", contact[3], "| Contact force: (", f_tmp[0], ", ", f_tmp[1], ", ", f_tmp[2], ")")"""
+                # if contact[3] < 10:
+                # print(
+                # "Link  ",
+                # contact[3],
+                # "| Contact force: (",
+                # f_tmp[0],
+                # ", ",
+                # f_tmp[1],
+                # ", ",
+                # f_tmp[2],
+                # ")",
+                # )
+                # else:
+                # print(
+                # "Link ",
+                # contact[3],
+                # "| Contact force: (",
+                # f_tmp[0],
+                # ", ",
+                # f_tmp[1],
+                # ", ",
+                # f_tmp[2],
+                # ")",
+                # )
 
                 f_x += f_tmp[0]
                 f_y += f_tmp[1]
@@ -83,7 +110,9 @@ class ForceMonitor:
                         start, end, lineColorRGB=[1.0, 0.0, 0.0], lineWidth=8
                     )
                     self.lines.append(lineID)
-                else:  # If there is already an existing line item we modify it (to avoid flickering)
+                else:
+                    # If there is already an existing line item we modify it (to avoid
+                    # flickering).
                     self.lines[i_line] = pyb.addUserDebugLine(
                         start,
                         end,

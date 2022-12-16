@@ -12,7 +12,7 @@ from .. import quadruped_reactive_walking as qrw
 from .heightmap_tools import Heightmap
 from .utils import getAllSurfacesDict_inner
 
-# --------------------------------- PROBLEM DEFINITION ---------------------------------------------------------------
+# --------------------------------- PROBLEM DEFINITION ---------------------------------
 params = qrw.Params()
 
 N_X = 400
@@ -38,13 +38,13 @@ COLORS = [
     "#bcbd22",
     "#17becf",
 ]
-# --------------------------------- METHODS ---------------------------------------------------------------
+# --------------------------------- METHODS --------------------------------------------
 
 
 def init_afftool():
     """
-    Initialize the affordance tool and return the solo abstract rbprm builder, the surface
-    dictionary and all the affordance points
+    Initialize the affordance tool and return the solo abstract rbprm builder, the
+    surface dictionary and all the affordance points.
     """
     robot = Robot()
     robot.setJointBounds("root_joint", [-5.0, 5.0, -5.0, 5.0, 0.241, 1.5])
@@ -91,7 +91,7 @@ def draw_whole_scene(surface_dict, ax=None, title=None, color_id=5):
     return ax
 
 
-# --------------------------------- MAIN ---------------------------------------------------------------
+# --------------------------------- MAIN -----------------------------------------------
 if __name__ == "__main__":
     afftool = init_afftool()
     affordances = afftool.getAffordancePoints("Support")
@@ -101,7 +101,9 @@ if __name__ == "__main__":
     heightmap = Heightmap(N_X, N_Y, X_BOUNDS, Y_BOUNDS)
     heightmap.build(affordances)
     heightmap.save_binary(os.environ["SOLO3D_ENV_DIR"] + params.environment_heightmap)
-    # heightmap.save_pickle(os.environ["SOLO3D_ENV_DIR"] + params.environment_heightmap + ".pickle")
+    # heightmap.save_pickle(
+    # os.environ["SOLO3D_ENV_DIR"] + params.environment_heightmap + ".pickle"
+    # )
 
     heightmap.plot()
     ax = draw_whole_scene(all_surfaces)

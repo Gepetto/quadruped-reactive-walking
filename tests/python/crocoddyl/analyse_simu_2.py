@@ -1,27 +1,17 @@
-# coding: utf8
-# coding: utf8
-
-import sys
-import os
-from sys import argv
-
-sys.path.insert(0, os.getcwd())  # adds current directory to python path
-
-
 import numpy as np
 import matplotlib.pylab as plt
 
-plt.ion()
-import utils
-import time
-from TSID_Debug_controller_four_legs_fb_vel import controller, dt
+# from TSID_Debug_controller_four_legs_fb_vel import controller
+from TSID_Debug_controller_four_legs_fb_vel import dt
 from crocoddyl_class.MPC_crocoddyl_2 import MPC_crocoddyl_2
 import MPC_Wrapper
 import FootstepPlanner
 
-####################
+plt.ion()
+
+# ##################
 # Recovery of Data
-####################
+# ##################
 
 folder_name = "log_eval/"
 pathIn = "crocoddyl_eval/test_5/"
@@ -32,9 +22,9 @@ xref = np.load(pathIn + folder_name + "xref.npy")
 # l_feet = np.load(pathIn + folder_name + "l_feet.npy")
 
 
-####################
+# ##################
 # Iteration
-####################
+# ##################
 
 iteration = 158
 
@@ -49,9 +39,9 @@ fstep_planner.xref = xref[:, :, iteration]
 fstep_planner.fsteps = fsteps[:, :, iteration]
 fstep_planner.fsteps_mpc = fstep_planner.fsteps.copy()
 
-######################################
+# ####################################
 #  Relaunch DDP to adjust the gains  #
-######################################
+# ####################################
 
 Relaunch_DDP = True
 

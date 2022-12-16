@@ -6,7 +6,8 @@ import pybullet_data
 
 
 class PybEnvironment3D:
-    """Class to vizualise the 3D environment and foot trajectory and in PyBullet simulation."""
+    """Class to vizualise the 3D environment and foot trajectory and in PyBullet
+    simulation."""
 
     def __init__(
         self, params, gait, statePlanner, footStepPlanner, footTrajectoryGenerator
@@ -52,7 +53,8 @@ class PybEnvironment3D:
         return 0
 
     def updateCamera(self, k, device):
-        # Update position of PyBullet camera on the robot position to do as if it was attached to the robot
+        # Update position of PyBullet camera on the robot position to do as if it was
+        # attached to the robot
         if k > 10 and self.enable_pyb_GUI:
             pyb.resetDebugVisualizerCamera(
                 cameraDistance=0.95,
@@ -60,15 +62,20 @@ class PybEnvironment3D:
                 cameraPitch=-29,
                 cameraTargetPosition=[0.6, 0.14, -0.22],
             )
-            # pyb.resetDebugVisualizerCamera(cameraDistance=1., cameraYaw=357, cameraPitch=-28,
-            #                                cameraTargetPosition=[device.height[0], device.height[1], 0.0])
+            # pyb.resetDebugVisualizerCamera(
+            # cameraDistance=1.0,
+            # cameraYaw=357,
+            # cameraPitch=-28,
+            # cameraTargetPosition=[device.height[0], device.height[1], 0.0],
+            # )
 
         return 0
 
     def update_target_SL1M(self, all_feet_pos):
         """Update position of the SL1M target
         Args :
-        -  all_feet_pos : list of optimized position such as : [[Foot 1 next_pos, None , Foot1 next_pos] , [Foot 2 next_pos, None , Foot2 next_pos] ]
+        -  all_feet_pos : list of optimized position such as : [[Foot 1 next_pos, None ,
+           Foot1 next_pos] , [Foot 2 next_pos, None , Foot2 next_pos] ]
         """
 
         for step in range(len(all_feet_pos[0])):
@@ -90,10 +97,11 @@ class PybEnvironment3D:
         return 0
 
     def updateTargetTrajectory(self):
-        """Update the target trajectory for current and next phases. Hide the unnecessary spheres."""
+        """Update the target trajectory for current and next phases. Hide the
+        unnecessary spheres."""
 
         gait = self.gait.get_gait_matrix()
-        fsteps = self.footStepPlanner.get_footsteps()
+        # fsteps = self.footStepPlanner.get_footsteps()
 
         for j in range(4):
             # Count the position of the plotted trajectory in the temporal horizon
@@ -109,7 +117,8 @@ class PybEnvironment3D:
                         i, j
                     ] > 0:  # from flying phase to stance
                         if c == 0:
-                            # Current flying phase, using coeff store in Bezier curve class
+                            # Current flying phase, using coeff store in Bezier curve
+                            # class.
                             t0 = self.footTrajectoryGenerator.t0s[j]
                             t1 = self.footTrajectoryGenerator.t_swing[j]
                             t_vector = np.linspace(t0, t1, self.n_points)
@@ -120,7 +129,9 @@ class PybEnvironment3D:
                                     j, 0, t
                                 )
                                 # Polynomial Curve 5th order
-                                # pos = self.footTrajectoryGenerator.evaluate_polynom(j, 0, t)
+                                # pos = self.footTrajectoryGenerator.evaluate_polynom(
+                                # j, 0, t
+                                # )
                                 pyb.resetBasePositionAndOrientation(
                                     int(self.trajectory_Ids[c, j, id_t]),
                                     posObj=pos,

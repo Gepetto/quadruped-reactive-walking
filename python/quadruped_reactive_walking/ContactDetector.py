@@ -58,11 +58,13 @@ class ContactDetector:
         """
 
         for i in range(0, len(contactPoints)):
-            # There may be several contact points for each foot but only one of them as a non zero normal force
+            # There may be several contact points for each foot but only one of them as
+            # a non zero normal force.
             if contactPoints[i][9] != 0:
                 return contactPoints[i]
 
-        # If it returns 0 then it means there is no contact point with a non zero normal force (should not happen)
+        # If it returns 0 then it means there is no contact point with a non zero normal
+        # force (should not happen).
         return 0
 
     def getContactForces(self, device):
@@ -178,24 +180,34 @@ class ContactDetector:
             self.log_f_truth[k, :] = self.getContactForces(device)
 
             # Late and early contact detection
-            """for i in range(4):
+            """
+            for i in range(4):
                 if self.k_since_flying[i] > 100:
-                    if self.log_ctc_truth[k, i] - self.log_ctc_truth[k-1, i] > 0.5 and self.log_ctc_truth[k, i] == 1 and gait_tmp[0, i] == 0:
+                    if (
+                        self.log_ctc_truth[k, i] - self.log_ctc_truth[k - 1, i] > 0.5
+                        and self.log_ctc_truth[k, i] == 1
+                        and gait_tmp[0, i] == 0
+                    ):
                         # Contact detected before hardcoded timing
                         # print("Early contact foot ", i, "at step ", k)
                         j = 0
-                        while(gait_tmp[j, i] == 0):
+                        while gait_tmp[j, i] == 0:
                             gait_tmp[j, i] = 1
                             j += 1
                         self.contact_detection = True
                         gait.set_current_gait(gait_tmp)
                         gait.set_new_phase(True)
-                    elif self.log_ctc_truth[k, i] == 0 and gait_tmp[0, i] == 1 and gait_tmp_past[-1, i] == 0:
+                    elif (
+                        self.log_ctc_truth[k, i] == 0
+                        and gait_tmp[0, i] == 1
+                        and gait_tmp_past[-1, i] == 0
+                    ):
                         # Contact detected after hardcoded timing
                         # print("Late contact foot ", i, "at step ", k)
                         gait_tmp[0, i] = 0
                         gait.set_late(i)
-                        gait.set_current_gait(gait_tmp)"""
+                        gait.set_current_gait(gait_tmp)
+            """
 
         """# Time spent in flying phase
         self.k_since_flying += (1 - gait_tmp[0, :])

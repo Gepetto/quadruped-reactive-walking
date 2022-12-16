@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
-import pinocchio as pin
+
+# import pinocchio as pin
 
 # Import classes to test
 import quadruped_reactive_walking as lqrw
@@ -26,7 +27,8 @@ class TestFootTrajectoryGenerator(unittest.TestCase):
         # Parameters of FootTrajectoryGenerator
         self.params.max_height = 0.05  # Apex height of the swinging trajectory [m]
         self.params.lock_time = 0.04  # Target lock before the touchdown [s]
-        self.params.vert_time = 0.03  # Duration during which feet move only along Z when taking off and landing
+        # Duration during which feet move only along Z when taking off and landing
+        self.params.vert_time = 0.03
 
         q_init = [
             0.0,
@@ -119,7 +121,7 @@ class TestFootTrajectoryGenerator(unittest.TestCase):
             - self.params.dt_wbc,
             3,
         )
-        N_ref = self.params.gait.shape[0]
+        # N_ref = self.params.gait.shape[0]
 
         for k in range(self.params.N_SIMULATION - 1):
             # print("#### ", k)
@@ -194,10 +196,12 @@ class TestFootTrajectoryGenerator(unittest.TestCase):
                             np.allclose(np.zeros(2), o_acc[:2, j]), "o_acc is OK"
                         )
                     """
-                    if tmod == 0 or tmod == np.round(self.params.T_gait * 0.5 - self.params.dt_wbc, 3):
-                        self.assertTrue(o_pos[2, j] < 1e-8, 'o_pos is OK')
-                        self.assertTrue(o_vel[2, j] < 1e-8, 'o_vel is OK')
-                        self.assertTrue(o_acc[2, j] < 1e-8, 'o_acc is OK')
+                    if tmod == 0 or tmod == np.round(
+                        self.params.T_gait * 0.5 - self.params.dt_wbc, 3
+                    ):
+                        self.assertTrue(o_pos[2, j] < 1e-8, "o_pos is OK")
+                        self.assertTrue(o_vel[2, j] < 1e-8, "o_vel is OK")
+                        self.assertTrue(o_acc[2, j] < 1e-8, "o_acc is OK")
                     """
 
     def test_upper(self):

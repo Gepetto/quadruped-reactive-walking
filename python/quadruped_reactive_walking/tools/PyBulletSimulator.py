@@ -15,7 +15,8 @@ class pybullet_simulator:
 
     Args:
         q_init (array): the default position of the robot
-        envID (int): identifier of the current environment to be able to handle different scenarios
+        envID (int): identifier of the current environment to be able to handle
+        different scenarios.
         use_flat_plane (bool): to use either a flat ground or a rough ground
         enable_pyb_GUI (bool): to display PyBullet GUI or not
         dt (float): time step of the inverse dynamics
@@ -339,7 +340,8 @@ class pybullet_simulator:
             pin.Quaternion(pin.rpy.rpyToMatrix(p_roll, p_pitch, 0.0)).coeffs(),
         )
 
-        # Progressively raise the base to achieve proper contact (take into account radius of the foot)
+        # Progressively raise the base to achieve proper contact (take into account
+        # radius of the foot)
         while (
             pyb.getClosestPoints(
                 self.robotId,
@@ -356,7 +358,16 @@ class pybullet_simulator:
             )
 
         # Fix the base in the world frame
-        # pyb.createConstraint(self.robotId, -1, -1, -1, pyb.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [0, 0, robotStartPos[2]])
+        # pyb.createConstraint(
+        # self.robotId,
+        # -1,
+        # -1,
+        # -1,
+        # pyb.JOINT_FIXED,
+        # [0, 0, 0],
+        # [0, 0, 0],
+        # [0, 0, robotStartPos[2]],
+        # )
 
         # Set time step for the simulation
         pyb.setTimeStep(dt)
@@ -374,9 +385,12 @@ class pybullet_simulator:
         Check the state of the robot to trigger events and update camera
 
         Args:
-            k (int): Number of inv dynamics iterations since the start of the simulation
-            envID (int): Identifier of the current environment to be able to handle different scenarios
-            q (19x1 array): the position/orientation of the trunk and angular position of actuators
+            k (int): Number of inv dynamics iterations since the start of the
+            simulation.
+            envID (int): Identifier of the current environment to be able to handle
+            different scenarios.
+            q (19x1 array): the position/orientation of the trunk and angular position
+            of actuators.
 
         """
         # If spheres are loaded
@@ -425,11 +439,13 @@ class pybullet_simulator:
                     self.robotId, [0, 0, 0.25], [0, 0, 0, 1]
                 )
 
-        # Get the orientation of the robot to change the orientation of the camera with the rotation of the robot
+        # Get the orientation of the robot to change the orientation of the camera with
+        # the rotation of the robot.
         oMb_tmp = pin.SE3(pin.Quaternion(q[3:7]), np.array([0.0, 0.0, 0.0]))
         RPY = pin.rpy.matrixToRpy(oMb_tmp.rotation)
 
-        # Update the PyBullet camera on the robot position to do as if it was attached to the robot
+        # Update the PyBullet camera on the robot position to do as if it was attached
+        # to the robot.
         pyb.resetDebugVisualizerCamera(
             cameraDistance=0.6,
             cameraYaw=(0.0 * RPY[2] * (180 / 3.1415) + 45),
@@ -439,7 +455,8 @@ class pybullet_simulator:
 
     def retrieve_pyb_data(self):
         """
-        Retrieve the position and orientation of the base in world frame as well as its linear and angular velocities
+        Retrieve the position and orientation of the base in world frame as well as its
+        linear and angular velocities.
         """
         self.jointStates = pyb.getJointStates(self.robotId, self.revoluteJointIndices)
         self.baseState = pyb.getBasePositionAndOrientation(self.robotId)
@@ -453,7 +470,8 @@ class pybullet_simulator:
 
         Args:
             k (int): numero of the current iteration of the simulation
-            start (int): numero of the iteration for which the force should start to be applied
+            start (int): numero of the iteration for which the force should start to be
+            applied.
             duration (int): number of iterations the force should last
             F (3x array): components of the force in PyBullet world frame
             loc (3x array): position on the link where the force is applied
@@ -475,9 +493,9 @@ class pybullet_simulator:
 
     def get_to_default_position(self, qtarget):
         """
-        Controler that tries to get the robot back to a default angular positions
-        of its 12 actuators using polynomials to generate trajectories and a PD controller
-        to make the actuators follow them
+        Controler that tries to get the robot back to a default angular positions of its
+        12 actuators using polynomials to generate trajectories and a PD controller to
+        make the actuators follow them.
 
         Args:
             qtarget (12x1 array): the target position for the 12 actuators
@@ -684,7 +702,8 @@ class pybullet_simulator:
                             4 * (i + Ni * j) + 3,
                         ]
                     )
-                    # Should be check_front_back but we see the steps better with right_left normals
+                    # Should be check_front_back but we see the steps better with
+                    # right_left normals.
                     n = check_right_left(
                         vertices[4 * (i + Ni * j) + 2][2],
                         vertices[4 * (i + Ni * (j + 1)) + 1][2],
@@ -763,7 +782,8 @@ class pybullet_simulator:
 
 class Hardware:
     """
-    Dummy class that simulates the Hardware class used to communicate with the real masterboard
+    Dummy class that simulates the Hardware class used to communicate with the real
+    masterboard.
     """
 
     def __init__(self):
@@ -790,7 +810,8 @@ class Hardware:
 
 class IMU:
     """
-    Dummy class that simulates the IMU class used to communicate with the real masterboard
+    Dummy class that simulates the IMU class used to communicate with the real
+    masterboard.
     """
 
     def __init__(self):
@@ -803,7 +824,8 @@ class IMU:
 
 class Powerboard:
     """
-    Dummy class that simulates the Powerboard class used to communicate with the real masterboard
+    Dummy class that simulates the Powerboard class used to communicate with the real
+    masterboard.
     """
 
     def __init__(self):
@@ -814,7 +836,8 @@ class Powerboard:
 
 class Joints:
     """
-    Dummy class that simulates the Joints class used to communicate with the real masterboard
+    Dummy class that simulates the Joints class used to communicate with the real
+    masterboard.
     """
 
     def __init__(self, parent_class):
@@ -869,7 +892,8 @@ class Joints:
 
 class RobotInterface:
     """
-    Dummy class that simulates the robot_interface class used to communicate with the real masterboard
+    Dummy class that simulates the robot_interface class used to communicate with the
+    real masterboard.
     """
 
     def __init__(self):
@@ -881,8 +905,9 @@ class RobotInterface:
 
 class PyBulletSimulator:
     """
-    Class that wraps a PyBullet simulation environment to seamlessly switch between the real robot or
-    simulation by having the same interface in both cases (calling the same functions/variables)
+    Class that wraps a PyBullet simulation environment to seamlessly switch between the
+    real robot or simulation by having the same interface in both cases (calling the
+    same functions/variables).
     """
 
     def __init__(self):
@@ -911,10 +936,12 @@ class PyBulletSimulator:
 
     def Init(self, q, envID, use_flat_plane, enable_pyb_GUI, dt):
         """
-        Initialize the PyBullet simultor with a given environment and a given state of the robot
+        Initialize the PyBullet simultor with a given environment and a given state of
+        the robot.
 
         Args:
-            calibrateEncoders (bool): dummy variable, not used for simulation but used for real robot
+            calibrateEncoders (bool): dummy variable, not used for simulation but used
+            for real robot.
             q (12 x 0 array): initial angular positions of the joints of the robot
             envID (int): which environment should be loaded in the simulation
             use_flat_plane (bool): to use either a flat ground or a rough ground
@@ -945,7 +972,8 @@ class PyBulletSimulator:
 
     def parse_sensor_data(self):
         """
-        Retrieve data about the robot from the simulation to mimic what the masterboard does
+        Retrieve data about the robot from the simulation to mimic what the masterboard
+        does.
         """
 
         # Position and velocity of actuators

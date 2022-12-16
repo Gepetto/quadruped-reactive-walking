@@ -1,5 +1,6 @@
 """
-This client connects to a Qualisys (motion capture) server with an asyncronous subprocess and expose 6d position and velocity of a given body
+This client connects to a Qualisys (motion capture) server with an asyncronous
+subprocess and expose 6d position and velocity of a given body.
 Thomas FLAYOLS - LAAS CNRS
 """
 
@@ -116,7 +117,8 @@ class QualisysClient:
         shared_timestamp.value = -1
 
         def on_packet(packet):
-            """Callback function that is called everytime a data packet arrives from QTM"""
+            """Callback function that is called everytime a data packet arrives from
+            QTM"""
             position = packet.get_6d()[1][body_id][0]
             orientation = packet.get_6d()[1][body_id][1]
             timestamp = packet.timestamp * 1e-6
@@ -200,7 +202,7 @@ class QualisysClient:
             print("Connected")
             try:
                 await connection.stream_frames(components=["6d"], on_packet=on_packet)
-            except:
+            except Exception:
                 print("connection with qualisys lost")
 
         asyncio.ensure_future(setup())

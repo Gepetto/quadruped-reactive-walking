@@ -54,8 +54,8 @@ class DataInCtype(Structure):
 
 class MPC_Wrapper:
     """
-    Wrapper to run both types of MPC (OQSP or Crocoddyl) with the possibility to run OSQP in
-    a parallel process
+    Wrapper to run both types of MPC (OQSP or Crocoddyl) with the possibility to run
+    OSQP in a parallel process.
 
     Args:
         mpc_type (int): 0 for OSQP MPC, 1, 2, 3 for Crocoddyl MPCs
@@ -257,8 +257,10 @@ class MPC_Wrapper:
 
     def get_latest_result(self):
         """
-        Return the desired contact forces that have been computed by the last iteration of the MPC
-        If a new result is available, return the new result. Otherwise return the old result again.
+        Return the desired contact forces that have been computed by the last iteration
+        of the MPC.
+        If a new result is available, return the new result. Otherwise return the old
+        result again.
         """
 
         refresh = False
@@ -267,7 +269,8 @@ class MPC_Wrapper:
                 if self.newResult.value:
                     self.newResult.value = False
                     self.t_mpc_solving_duration = time() - self.t_mpc_solving_start
-                    # Retrieve desired contact forces with through the memory shared with the asynchronous
+                    # Retrieve desired contact forces with through the memory shared
+                    # with the asynchronous.
                     self.last_available_result = self.convert_dataOut()
                     self.last_cost = self.cost.value
                     refresh = True
@@ -283,10 +286,12 @@ class MPC_Wrapper:
             self.not_first_iter = True
 
         if refresh:
-            # Handle changes of gait between moment when the MPC solving is launched and result is retrieved
+            # Handle changes of gait between moment when the MPC solving is launched and
+            # result is retrieved.
             for i in range(4):
                 if self.flag_change[i]:
-                    # Foot in contact but was not in contact when we launched MPC solving (new detection)
+                    # Foot in contact but was not in contact when we launched MPC
+                    # solving (new detection).
                     # Fetch first non zero force in the prediction horizon for this foot
                     idx = next(
                         (
@@ -329,13 +334,16 @@ class MPC_Wrapper:
         dt_flying,
     ):
         """
-        Run the MPC (synchronous version) to get the desired contact forces for the feet currently in stance phase
+        Run the MPC (synchronous version) to get the desired contact forces for the feet
+        currently in stance phase.
 
         Args:
             k (int): Number of inv dynamics iterations since the start of the simulation
             xref (12xN): Desired state vector for the whole prediction horizon
-            fsteps (12xN array): the [x, y, z]^T desired position of each foot for each time step of the horizon
-            l_fsteps_target (3x4 array) : [x, y, z]^T target position in local frame, to stop the optimisation of the feet location around it
+            fsteps (12xN array): the [x, y, z]^T desired position of each foot for each
+            time step of the horizon.
+            l_fsteps_target (3x4 array) : [x, y, z]^T target position in local frame, to
+            stop the optimisation of the feet location around it.
         """
         if self.mpc_type == MPC_type.OSQP:
             self.mpc.run(np.int(k), xref.copy(), fsteps.copy())
@@ -379,14 +387,17 @@ class MPC_Wrapper:
         dt_flying,
     ):
         """
-        Run the MPC (asynchronous version) to get the desired contact forces for the feet currently in stance phase
+        Run the MPC (asynchronous version) to get the desired contact forces for the
+        feet currently in stance phase.
 
         Args:
             k (int): Number of inv dynamics iterations since the start of the simulation
             xref (12xN): Desired state vector for the whole prediction horizon
-            fsteps (12xN array): the [x, y, z]^T desired position of each foot for each time step of the horizon
+            fsteps (12xN array): the [x, y, z]^T desired position of each foot for each
+            time step of the horizon.
             params (object): stores parameters
-            l_fsteps_target (3x4 array) : [x, y, z]^T target position in local frame, to stop the optimisation of the feet location around it
+            l_fsteps_target (3x4 array) : [x, y, z]^T target position in local frame, to
+            stop the optimisation of the feet location around it.
         """
         if k == 0:
             p = Process(
@@ -421,10 +432,14 @@ class MPC_Wrapper:
         Parallel process with an infinite loop that run the asynchronous MPC
 
         Args:
-            newData (Value): shared variable that is true if new data is available, false otherwise
-            newResult (Value): shared variable that is true if a new result is available, false otherwise
-            dataIn (Array): shared array that contains the data the asynchronous MPC will use as inputs
-            dataOut (Array): shared array that contains the result of the asynchronous MPC
+            newData (Value): shared variable that is true if new data is available,
+            false otherwise.
+            newResult (Value): shared variable that is true if a new result is
+            available, false otherwise.
+            dataIn (Array): shared array that contains the data the asynchronous MPC
+            will use as inputs.
+            dataOut (Array): shared array that contains the result of the asynchronous
+            MPC.
             running (Value): shared variable to stop the infinite loop when set to False
         """
         while running.value:
@@ -513,13 +528,14 @@ class MPC_Wrapper:
         jerk,
         dt_flying,
     ):
-        """Compress data in a C-type structure that belongs to the shared memory to send data from the main control
-        loop to the asynchronous MPC
+        """Compress data in a C-type structure that belongs to the shared memory to send
+        data from the main control loop to the asynchronous MPC.
 
         Args:
             k (int): Number of inv dynamics iterations since the start of the simulation
             fstep_planner (object): FootstepPlanner object of the control loop
-            l_fsteps_target (3x4 array) : [x, y, z]^T target position in local frame, to stop the optimisation of the feet location around it
+            l_fsteps_target (3x4 array) : [x, y, z]^T target position in local frame, to
+            stop the optimisation of the feet location around it.
         """
 
         # Replace NaN values by 0.0 to be stored in C-type arrays
@@ -558,11 +574,12 @@ class MPC_Wrapper:
                 ] = fsteps
 
     def decompress_dataIn(self, dataIn):
-        """Decompress data from a C-type structure that belongs to the shared memory to retrieve data from the main control
-        loop in the asynchronous MPC
+        """Decompress data from a C-type structure that belongs to the shared memory to
+        retrieve data from the main control loop in the asynchronous MPC.
 
         Args:
-            dataIn (Array): shared C-type structure that contains the data the asynchronous MPC will use as inputs
+            dataIn (Array): shared C-type structure that contains the data the
+            asynchronous MPC will use as inputs.
         """
 
         with dataIn.get_lock():
@@ -603,7 +620,8 @@ class MPC_Wrapper:
                 return k, xref, fsteps
 
     def convert_dataOut(self):
-        """Return the result of the asynchronous MPC (desired contact forces) that is stored in the shared memory"""
+        """Return the result of the asynchronous MPC (desired contact forces) that is
+        stored in the shared memory"""
 
         if (
             self.mpc_type == MPC_type.CROCODDYL_PLANNER
@@ -613,20 +631,25 @@ class MPC_Wrapper:
             return np.array(self.dataOut[:]).reshape((24, -1), order="F")
 
     def roll_asynchronous(self, fsteps):
-        """Move one step further in the gait cycle. Since the output of the asynchronous MPC is retrieved by
-        TSID during the next call to the MPC, it should not work with the current state of the gait but with the
-        gait on step into the future. That way, when TSID retrieves the result, it is consistent with the current
+        """Move one step further in the gait cycle. Since the output of the asynchronous
+        MPC is retrieved by TSID during the next call to the MPC, it should not work
+        with the current state of the gait but with the gait on step into the future.
+        That way, when TSID retrieves the result, it is consistent with the current
         state of the gait.
 
-        Decrease by 1 the number of remaining step for the current phase of the gait and increase
-        by 1 the number of remaining step for the last phase of the gait (periodic motion).
-        Simplification: instead of creating a new phase if required (see roll function of FootstepPlanner) we always
-        increase the last one by 1 step. That way we don't need to call other functions to predict the position of
-        footstep when a new phase is created.
+        Decrease by 1 the number of remaining step for the current phase of the gait and
+        increase by 1 the number of remaining step for the last phase of the gait
+        (periodic motion).
+        Simplification: instead of creating a new phase if required (see roll function
+        of FootstepPlanner) we always increase the last one by 1 step. That way we don't
+        need to call other functions to predict the position of footstep when a new
+        phase is created.
 
         Args:
-            fsteps (13xN_gait array): the remaining number of steps of each phase of the gait (first column)
-            and the [x, y, z]^T desired position of each foot for each phase of the gait (12 other columns)
+            fsteps (13xN_gait array): the remaining number of steps of each phase of the
+            gait (first column).
+            and the [x, y, z]^T desired position of each foot for each phase of the gait
+            (12 other columns).
         """
 
         self.fsteps_future = fsteps.copy()
@@ -654,7 +677,8 @@ class MPC_Wrapper:
         return 0
 
     def stop_parallel_loop(self):
-        """Stop the infinite loop in the parallel process to properly close the simulation"""
+        """Stop the infinite loop in the parallel process to properly close the
+        simulation"""
 
         self.running.value = False
 

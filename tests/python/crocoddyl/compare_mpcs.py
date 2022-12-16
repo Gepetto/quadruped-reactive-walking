@@ -1,11 +1,3 @@
-# coding: utf8
-
-import sys
-import os
-from sys import argv
-
-sys.path.insert(0, os.getcwd())  # adds current directory to python path
-
 import numpy as np
 import matplotlib.pylab as plt
 import pinocchio as pin
@@ -129,7 +121,12 @@ name_files = [
 ]
 
 # Test zigzag
-# name_files = ["data_2021_11_05_10_40_1.npz", "data_2021_11_05_10_41_2.npz", "data_2021_11_05_10_42_3.npz", "data_2021_11_05_10_39_0.npz"]
+# name_files = [
+# "data_2021_11_05_10_40_1.npz",
+# "data_2021_11_05_10_41_2.npz",
+# "data_2021_11_05_10_42_3.npz",
+# "data_2021_11_05_10_39_0.npz",
+# ]
 
 MPCs_names = ["No Compensation", "No Compensation", "Compensation", ""]
 MPCs = [False, True, True, False]  # Boolean to choose which MPC to plot
@@ -280,10 +277,15 @@ for i in range(6):
 
     # Add mean on graph
     # for i in range(6):
-    #     plt.subplot(3, 2, index6[i])
-    #     for j in range(4):
-    #         if MPCs[j]:
-    #             plt.plot(t_range_valid, data_mean_valid[:,index_error[i],j], color[j] + "x-", linewidth=3)
+    # plt.subplot(3, 2, index6[i])
+    # for j in range(4):
+    # if MPCs[j]:
+    # plt.plot(
+    # t_range_valid,
+    # data_mean_valid[:, index_error[i], j],
+    # color[j] + "x-",
+    # linewidth=3,
+    # )
 
     plt.legend(legend, prop={"size": 8})
     plt.ylabel(lgd[i])
@@ -374,7 +376,8 @@ for i in range(6):
     plt.xticks(y_pos, bars, rotation=0)
     plt.ylabel(lgd[i])
 plt.suptitle(
-    "NORMALIZED RMSE -MEAN: sqrt(  (mes - ref - mean(mes-ref))  **2).mean() ) / measure_max"
+    "NORMALIZED RMSE -MEAN: sqrt(  (mes - ref - mean(mes-ref)) "
+    "**2).mean() ) / measure_max"
 )
 
 

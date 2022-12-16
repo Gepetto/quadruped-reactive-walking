@@ -199,7 +199,8 @@ class TestMPC(unittest.TestCase):
 
     def test_twostance_centered(self):
         """
-        Two feet in stance phase at a given time (FL-HR and FR-HL). Check if robot stays centered.
+        Two feet in stance phase at a given time (FL-HR and FR-HL).
+        Check if robot stays centered.
         """
 
         # Default trotting gait
@@ -246,12 +247,13 @@ class TestMPC(unittest.TestCase):
 
     def test_twostance_not_centered(self):
         """
-        Two feet in stance phase at a given time (FL-HR and FR-HL). Check if robot gets back to centered.
+        Two feet in stance phase at a given time (FL-HR and FR-HL).
+        Check if robot gets back to centered.
         """
 
         N = 1000
         x_test = np.zeros((12, N))
-        t_test = [i * self.params.dt_mpc for i in range(N)]
+        # t_test = [i * self.params.dt_mpc for i in range(N)]
         # [2.0, 2.0, 10.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]
         osqp_w_states = [4.0, 4.0, 1.0, 0.1, 0.1, 0.1, 0.4, 0.4, 1.0, 0.0, 0.0, 0.1]
         osqp_w_states = [
@@ -332,7 +334,8 @@ class TestMPC(unittest.TestCase):
 
     def test_twostance_consistent(self):
         """
-        Two feet in stance phase at a given time (FL-HR and FR-HL). Check if MPC outputs consistent results.
+        Two feet in stance phase at a given time (FL-HR and FR-HL).
+        Check if MPC outputs consistent results.
         """
 
         # Default trotting gait
@@ -426,14 +429,29 @@ class TestMPC(unittest.TestCase):
         index6 = [1, 3, 5, 2, 4, 6]
         index12 = [1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12]
         titles = ["X", "Y", "Z", "Roll", "Pitch", "Yaw"]
-        t_range = np.linspace(0.0, self.params.dt_mpc * (self.xref.shape[1]-1), self.xref.shape[1])
+        t_range = np.linspace(
+            0.0, self.params.dt_mpc * (self.xref.shape[1] - 1), self.xref.shape[1]
+        )
         import matplotlib.pyplot as plt
+
         plt.figure()
         for i in range(6):
             plt.subplot(3, 2, index6[i])
             for j in range(N):
-                h1, = plt.plot(t_range[1:] + self.params.dt_mpc * j, log_x_f_mpc[i+6, :, j], linewidth=2)
-            h3, = plt.plot(t_range, self.xref[i+6, :], "b", linestyle="--", marker='x', color="k", linewidth=2)
+                (h1,) = plt.plot(
+                    t_range[1:] + self.params.dt_mpc * j,
+                    log_x_f_mpc[i + 6, :, j],
+                    linewidth=2,
+                )
+            (h3,) = plt.plot(
+                t_range,
+                self.xref[i + 6, :],
+                "b",
+                linestyle="--",
+                marker="x",
+                color="k",
+                linewidth=2,
+            )
             plt.xlabel("Time [s]")
             if i in [0, 1]:
                 m1 = np.min(log_x_f_mpc[6:8, :, :])
@@ -444,7 +462,10 @@ class TestMPC(unittest.TestCase):
                 M1 = np.max(log_x_f_mpc[9:11, :, :])
                 plt.ylim([m1 - 0.01, M1 + 0.01])
             plt.title("Predicted trajectory for velocity in " + titles[i])
-        plt.suptitle("Analysis of trajectories of linear and angular velocities computed by the MPC")
+        plt.suptitle(
+            "Analysis of trajectories of linear and angular "
+            "velocities computed by the MPC"
+        )
         plt.show()
         """
 
@@ -618,7 +639,8 @@ class TestMPC(unittest.TestCase):
             plt.xlabel("Time [s]")
             plt.title("Predicted trajectory for velocity in " + titles[i])
         plt.suptitle(
-            "Analysis of trajectories of linear and angular velocities computed by the MPC"
+            "Analysis of trajectories of linear and angular velocities "
+            "computed by the MPC"
         )
 
         lgd1 = ["Ctct force X", "Ctct force Y", "Ctct force Z"]

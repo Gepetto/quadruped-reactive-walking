@@ -1,9 +1,10 @@
 import unittest
 import numpy as np
-from numpy.lib.function_base import gradient
-import pinocchio as pin
-import time
-from example_robot_data.robots_loader import Solo12Loader
+
+# from numpy.lib.function_base import gradient
+# import pinocchio as pin
+# import time
+# from example_robot_data.robots_loader import Solo12Loader
 
 # Import classes to test
 import quadruped_reactive_walking as lqrw
@@ -59,7 +60,8 @@ class TestGait(unittest.TestCase):
 
     def test_initial(self):
         """
-        Check that the past, current and desired gait matrices are correctly set up and returned
+        Check that the past, current and desired gait matrices are correctly set up and
+        returned.
         """
 
         pgait = self.params.gait.copy()
@@ -77,8 +79,8 @@ class TestGait(unittest.TestCase):
         )
 
     def test_roll(self):
-        """Check if roll is properly applied with a transfer from desired gait to current gait and from
-        current gait to past gait
+        """Check if roll is properly applied with a transfer from desired gait to
+        current gait and from current gait to past gait.
         """
 
         o_pgait = np.round(np.random.random(self.params.gait.shape))
@@ -130,8 +132,8 @@ class TestGait(unittest.TestCase):
 
     def test_phase_duration(self):
         """
-        Check if getPhaseDuration computes phase duration by seeking into past gait and desired gait
-        when necessary
+        Check if getPhaseDuration computes phase duration by seeking into past gait and
+        desired gait when necessary.
         Check if getRemainingTime returns the remaining time of the last computed phase
         """
 

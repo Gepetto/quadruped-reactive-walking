@@ -1,11 +1,5 @@
 # coding: utf8
 
-import sys
-import os
-from sys import argv
-
-sys.path.insert(0, os.getcwd())  # adds current directory to python path
-
 import numpy as np
 import matplotlib.pylab as plt
 import quadruped_reactive_walking as qrw
@@ -32,7 +26,10 @@ solo = utils_mpc.init_robot(q_init, params)
 ######################
 # Recover Logged data
 ######################
-file_name = "/home/thomas_cbrs/Desktop/edin/quadruped-reactive-walking/scripts/crocoddyl_eval/logs/explore_weight_acc/data_cost.npz"
+file_name = (
+    "/home/thomas_cbrs/Desktop/edin/quadruped-reactive-walking/scripts"
+    "/crocoddyl_eval/logs/explore_weight_acc/data_cost.npz"
+)
 logs = np.load(file_name)
 planner_gait = logs.get("planner_gait")
 planner_xref = logs.get("planner_xref")
@@ -125,7 +122,9 @@ mpc_ddp_2 = MPC_crocoddyl.MPC_crocoddyl(
 )  # To modify the linear model if wanted, recreate a list with proper model
 mpc_ddp_2.implicit_integration = False
 mpc_ddp_2.offset_com = 0.0
-# mpc_ddp_2.stateWeights = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 1.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3])
+# mpc_ddp_2.stateWeights = np.sqrt(
+# [2.0, 2.0, 20.0, 0.25, 0.25, 1.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]
+# )
 # mpc_ddp_2.shoulderWeights = 1.
 # Weight Vector : State
 # w_x = 0.2
@@ -143,7 +142,9 @@ mpc_ddp_2.offset_com = 0.0
 # mpc_ddp.stateWeight = np.array([w_x,w_y,w_z,w_roll,w_pitch,w_yaw,
 #                             w_vx,w_vy,w_vz,w_vroll,w_vpitch,w_vyaw])
 # OSQP values, in ddp formulation, terms are put in square
-# mpc_ddp_2.stateWeight = np.sqrt([2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3])
+# mpc_ddp_2.stateWeight = np.sqrt(
+# [2.0, 2.0, 20.0, 0.25, 0.25, 10.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.3]
+# )
 
 # Friction coefficient
 # mpc_ddp_2.mu = 0.9

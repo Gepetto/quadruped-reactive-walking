@@ -58,7 +58,8 @@ class DataOutCtype(ctypes.Structure):
 class DataInCtype(ctypes.Structure):
     """
     ctype data structure for the shared memory between processes
-    TODO : if more than 4 vertices, add a variable for the number of vertice to reshape the appropriate buffer
+    TODO : if more than 4 vertices, add a variable for the number of vertice to reshape
+    the appropriate buffer.
     """
 
     params = qrw.Params()
@@ -106,7 +107,8 @@ class Surface_planner_wrapper:
         self.selected_surfaces = qrw.SurfaceVector()
         self.all_feet_pos = []
 
-        # When synchronous, values are stored to be used by controller only at the next flying phase
+        # When synchronous, values are stored to be used by controller only at the next
+        # flying phase.
         self.mip_success_syn = False
         self.mip_iteration_syn = 0
         self.potential_surfaces_syn = qrw.SurfaceVectorVector()
